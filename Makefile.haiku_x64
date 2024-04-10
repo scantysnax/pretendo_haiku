@@ -33,7 +33,7 @@ DEFINES  :=
 INCLUDES := -I. -Imappers -I/boot/system/develop/headers/libxml2 -I/boot/system/develop/headers/ -Ilibines -Ip6502 -isystem 
 ASMFLAGS := -f elf64
 CXXFLAGS := -gdwarf-2 -gstrict-dwarf -O3 -pedantic -pipe $(INCLUDES) -W -Wall -Wno-long-long -std=c++11 -flto=4
-CFLAGS   := -gdwarf-2 -gstrict-dwarf -O3 -pedantic -pipe $(INCLUDES) -W -Wall -Wno-long-long -flto
+CFLAGS   := -gdwarf-2 -gstrict-dwarf -O3 -pedantic -pipe $(INCLUDES) -W -Wall -Wno-long-long -flto=4
 LDFLAGS  := -gdwarf-2 -gstrict-dwarf -lbe -lroot -ltranslation -ltracker -lmedia -lgame -L/boot/common/lib -lxml2 -flto=4
 
 ASM_FILES   := \
