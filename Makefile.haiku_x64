@@ -24,14 +24,14 @@ STRIP  := strip
 APPNAME := Pretendo
 
 DEFINES  := 
-INCLUDES := -Ilibines2/lib -Ilibines2/lib/include/iNES #-Imappers -I/boot/system/develop/headers/ -I/boot/system/develop/headers/libxml2
+INCLUDES := -Ilibines2/lib/include/ #-Imappers -I/boot/system/develop/headers/ -I/boot/system/develop/headers/libxml2
 ASMFLAGS := -f elf64
 CXXFLAGS := -m64 -gdwarf-2 -gstrict-dwarf -O3 -pedantic -pipe $(INCLUDES) -W -Wall -Wno-long-long -std=c++17 -flto=4
-LDFLAGS  := -gdwarf-2 -gstrict-dwarf -lbe -lroot -ltranslation -ltracker -lmedia -lgame -L/boot/common/lib -lxml2 -flto=4
+LDFLAGS  := -gdwarf-2 -gstrict-dwarf -lbe -lroot -ltranslation -ltracker -lmedia -lgame -L/boot/common/lib -lxml2 -lz -flto=4
 
 ASM_FILES   := \
-	haiku/asm/blitters_x64.asm \
-	haiku/asm/copies_x64.asm
+	src/asm/blitters_x64.asm \
+	src/asm/copies_x64.asm
 				
 
 H_FILES     := \
@@ -149,8 +149,8 @@ H_FILES     := \
 #	version.h
 
 CXX_FILES   := \
-	Header.cpp	\
-	Rom.cpp	\
+	libines2/lib/Header.cpp	\
+	libines2/lib/Rom.cpp	\
 #	APU.cc \
 #	mappers/BNROM.cc \
 #	mappers/Bandai.cc \
