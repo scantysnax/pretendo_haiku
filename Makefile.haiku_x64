@@ -48,6 +48,12 @@ CXX_FILES   := \
 	src/Timer.cpp \
 	src/Bus.cpp \
 	src/Cart.cpp \
+	src/Mapper.cpp \
+	src/Nes.cpp \
+	src/Ppu.cpp \
+	src/Input.cpp \
+	src/Controller.cpp \
+	src/MemoryMappedFile.cpp \
 	\
 	src/mappers/Bandai.cpp \
 	src/mappers/Mapper000.cpp \
@@ -114,12 +120,6 @@ CXX_FILES   := \
 	src/mappers/VRC2.cpp \
 	src/mappers/VRC4.cpp \
 	src/mappers/VRC6.cpp \
-	src/Mapper.cpp \
-	src/Nes.cpp \
-	src/MemoryMappedFile.cpp \
-	src/Ppu.cpp \
-	src/Input.cpp \
-	src/Controller.cpp \
 	\
 	src/haiku/HaikuMain.cpp \
 	src/haiku/PretendoApp.cpp \
