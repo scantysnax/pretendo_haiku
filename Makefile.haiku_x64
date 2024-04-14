@@ -38,13 +38,33 @@ H_FILES     := \
 	Error.h \
 	Header.h \
 	Rom.h	\
-	\
 	haiku/PretendoApp.h \
 	haiku/PretendoWindow.h \
 	haiku/AboutWindow.h \
 	version.h \
 	haiku/LinkView.h \
-	\
+	address_modes.h \
+	BitField.h \
+	Reset.h \
+	circular_buffer.h \
+	Apu.h \
+	Cpu.h \
+	ShiftRegister.h \
+	Timer.h \
+	Dmc.h \
+	Envelope.h \
+	LengthCounter.h \
+	LinearCounter.h \
+	Lfsr.h \
+	Noise.h \
+	Square.h \
+	Triangle.h \
+	MemoryMappedFile.h \
+	VRAMBank.h \
+	Mapper.h \
+	Bus.h \
+	memory.h \
+	Cart.h \
 #	APU.h \
 #	mappers/BNROM.h \
 #	Bandai.h \
@@ -161,8 +181,19 @@ CXX_FILES   := \
 	src/haiku/HaikuMain.cpp \
 	src/haiku/PretendoApp.cpp \
 	src/haiku/AboutWindow.cpp \
-	src/haiku/LinkView.cpp
-#	APU.cc \
+	src/haiku/LinkView.cpp \
+	src/Apu.cpp \
+	src/Cpu.cpp \
+	src/Dmc.cpp \
+	src/Noise.cpp \
+	src/Triangle.cpp \
+	src/Envelope.cpp \
+	src/LengthCounter.cpp \
+	src/LinearCounter.cpp \
+	src/Timer.cpp \
+	src/Bus.cpp \
+	src/Cart.cpp \
+	src/Mapper.cpp \
 #	mappers/BNROM.cc \
 #	mappers/Bandai.cc \
 #	Cart.cc \
