@@ -12,14 +12,15 @@ PretendoApp::PretendoApp()
 void
 PretendoApp::ReadyToRun()
 {
-	fWindow = new PretendoWindow;
-	fWindow->Show();
+	//fWindow = new PretendoWindow;
+	//fWindow->Show();
+	(new AboutWindow)->Show();
 }
 
 void
 PretendoApp::AboutRequested (void)
 {
-	(new AboutWindow)->Show();
+	//(new AboutWindow)->Show();
 }
 
 
@@ -37,10 +38,10 @@ PretendoApp::RefsReceived (BMessage *message)
                  entry.SetTo (&ref, true);
                  entry.GetPath (&path);
 
-                 BMessage *msg = new BMessage (MSG_ROM_LOADED);
-                 msg->AddString ("path", path.Path());
-                 fWindow->PostMessage (msg);
-                 delete msg;
+                 //BMessage *msg = new BMessage (MSG_ROM_LOADED);
+                 //msg->AddString ("path", path.Path());
+                 //fWindow->PostMessage (msg);
+                 //delete msg;
              }
          }
          break;

@@ -2,6 +2,7 @@
 
 #include <Application.h>
 #include <Roster.h>
+#include <String.h>
 #include <TranslationUtils.h>
 #include <View.h>
 #include <TextView.h>
@@ -24,7 +25,6 @@ AboutView::~AboutView()
 {
 }
 
-
 void
 AboutView::AttachedToWindow (void)
 {
@@ -35,7 +35,6 @@ AboutView::AttachedToWindow (void)
 	BButton *button = new BButton (r, "_okay", "Okay ", new BMessage ('OKAY'));
 	button->ResizeToPreferred();
 	button->MakeDefault(true);
-	
 	r = Bounds();
 	button->MoveTo ((r.Width() - button->Frame().Width()) / 2 , 270);
 	
@@ -51,13 +50,26 @@ AboutView::AttachedToWindow (void)
 	textview->MakeEditable(false);
 	textview->MakeSelectable(false);
 	
-	char const *text = "A freeware, portable Nintendo NES emulator\n\n"
-	"Version:\t\t" __PRETENDO_VERSION__ "\n"
-	"Built on:\t\t" __DATE__ " " __TIME__
-	"\nWritten by: \tEli Dayan and Evan Teran\n\n"
-	"\"Nintendo\" and \"Nintendo Entertainment System\" are registered trademarks of "
-	"Nintendo Co., Ltd";
-	textview->SetText(text);
+	BString aboutText;
+	BString desc;
+	BString pretendoVersion;
+	BString builtOn;
+	BString builtWith;
+	BString trademarks;
+	
+	desc << "A freeware, portable Nintendo NES emulator\n\n";
+	pretendoVersion << "Version: " << __PRETENDO_VERSION__ << "\n";
+	builtOn << "Built on: " << __DATE__ << " " << __TIME__ << "\n";
+	builtWith << "Built with: gcc " << __GNUC__ << "." << __GNUC_MINOR__ << "\n";
+	trademarks << "\n\"Nintendo\" and \"Nintendo Entertainment System\" are registered"				" trademarks of " "Nintendo Co., Ltd\n\n";
+	
+	aboutText += desc;
+	aboutText += pretendoVersion;
+	aboutText += builtOn;
+	aboutText += builtWith;
+	aboutText += trademarks;
+
+	textview->SetText(aboutText.String());
 	textview->ResizeToPreferred();
 	
 	AddChild(textview);
@@ -95,15 +107,18 @@ AboutWindow::AboutWindow()
 	fAboutView = new AboutView(Bounds());
 	AddChild(fAboutView);
 	
-	BRect r;
-	r.Set(53, 185, 194, 200);
-	fAboutView->AddChild(new LinkView(r, "Pretendo on google code", "http://code.google.com/p/pretendo/"));
-	
-	r.Set(53, 205, 124, 220);
-	fAboutView->AddChild(new LinkView(r, "Eli's website", "http://shell.reverse.net/~eli"));
+	BRect r;	
+	r.Set(53, 205, 200, 220);
+	fAboutView->AddChild(new LinkView(r, "Pretendo Haiku on GitHub", 
+		"https://github.com/scantysnax/pretendo_haiku/tree/haiku-port/src"));
 	
 	r.Set(53, 225, 140, 240);
-	fAboutView->AddChild(new LinkView(r, "Evan's website", "http://www.codef00.com"));	
+	fAboutView->AddChild(new LinkView(r, "Evan's website", "http://www.codef00.com"));
+	
+	r.Set(53, 245, 200, 260);	
+	fAboutView->AddChild(new LinkView(r, "Eli's website", 
+		"http://www.pathtoground.org/"));
+	
 }
 
 

@@ -24,7 +24,7 @@ STRIP  := strip
 APPNAME := Pretendo
 
 DEFINES  := 
-INCLUDES := -Ilibines2/lib/include/ #-Imappers -I/boot/system/develop/headers/ -I/boot/system/develop/headers/libxml2
+INCLUDES := -Ilibines2/lib/include/ -Isrc #-Imappers -I/boot/system/develop/headers/ -I/boot/system/develop/headers/libxml2
 ASMFLAGS := -f elf64
 CXXFLAGS := -m64 -gdwarf-2 -gstrict-dwarf -O3 -pedantic -pipe $(INCLUDES) -W -Wall -Wno-long-long -std=c++17 -flto=4
 LDFLAGS  := -gdwarf-2 -gstrict-dwarf -lbe -lroot -ltranslation -ltracker -lmedia -lgame -L/boot/common/lib -lxml2 -lz -flto=4
@@ -38,6 +38,13 @@ H_FILES     := \
 	Error.h \
 	Header.h \
 	Rom.h	\
+	\
+	haiku/PretendoApp.h \
+	haiku/PretendoWindow.h \
+	haiku/AboutWindow.h \
+	version.h \
+	haiku/LinkView.h \
+	\
 #	APU.h \
 #	mappers/BNROM.h \
 #	Bandai.h \
@@ -134,7 +141,6 @@ H_FILES     := \
 #	haiku/AboutWindow.h \
 #	haiku/AudioStream.h \
 #	haiku/LinkView.h \
-#	haiku/PretendoApp.h \
 #	haiku/ROMFilePanel.h \
 #	haiku/PretendoWindow.h \
 #	haiku/VideoScreen.h \
@@ -151,6 +157,11 @@ H_FILES     := \
 CXX_FILES   := \
 	libines2/lib/Header.cpp	\
 	libines2/lib/Rom.cpp	\
+	\
+	src/haiku/HaikuMain.cpp \
+	src/haiku/PretendoApp.cpp \
+	src/haiku/AboutWindow.cpp \
+	src/haiku/LinkView.cpp
 #	APU.cc \
 #	mappers/BNROM.cc \
 #	mappers/Bandai.cc \
@@ -242,7 +253,6 @@ CXX_FILES   := \
 #	haiku/AudioStream.cc \
 #	haiku/HaikuMain.cc \
 #	haiku/LinkView.cc \
-#	haiku/PretendoApp.cc \
 #	haiku/ROMFilePanel.cc \
 #	haiku/PretendoWindow.cc \
 #	haiku/VideoScreen.cc \
@@ -255,7 +265,7 @@ CXX_FILES   := \
 
 	
 RES_FILES	:=  \
-	pretendo.rsrc
+	src/haiku/pretendo.rsrc
 
 O_FILES     := $(CXX_FILES:.cpp=.o) $(ASM_FILES:.asm=.o)
 SOURCEFILES := $(H_FILES) $(CXX_FILES) $(ASM_FILES)
