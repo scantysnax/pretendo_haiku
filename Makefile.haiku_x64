@@ -125,7 +125,8 @@ CXX_FILES   := \
 	src/haiku/PretendoApp.cpp \
 	src/haiku/AboutWindow.cpp \
 	src/haiku/LinkView.cpp \
-	src/haiku/Settings.cpp
+	src/haiku/Settings.cpp \
+
 
 RES_FILES	:=  src/haiku/pretendo.rsrc
 
