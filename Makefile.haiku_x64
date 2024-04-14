@@ -127,7 +127,6 @@ CXX_FILES   := \
 	src/haiku/LinkView.cpp \
 	src/haiku/Settings.cpp
 
-	
 RES_FILES	:=  src/haiku/pretendo.rsrc
 
 O_FILES     := $(CXX_FILES:.cpp=.o) $(ASM_FILES:.asm=.o)
@@ -161,11 +160,11 @@ depend:
 	@echo '/^# DO NOT DELETE THIS LINE/+2,$$d' >eddep
 	@echo '$$r makedep' >>eddep
 	@echo 'w' >>eddep
-	@$(ED) - Makefile.haiku < eddep
+	@$(ED) - Makefile.haiku_x64 < eddep
 	@$(RM) eddep makedep 
-	@echo '# DEPENDENCIES MUST END AT END OF FILE' >> Makefile.haiku
-	@echo '# IF YOU PUT STUFF HERE IT WILL GO AWAY' >> Makefile.haiku
-	@echo '# see make depend above' >> Makefile.haiku
+	@echo '# DEPENDENCIES MUST END AT END OF FILE' >> Makefile.haiku_x64
+	@echo '# IF YOU PUT STUFF HERE IT WILL GO AWAY' >> Makefile.haiku_x64
+	@echo '# see make depend above' >> Makefile.haiku_x64
 	@echo "Done"
         
 #-----------------------------------------------------------------
