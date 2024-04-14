@@ -20,7 +20,7 @@ PretendoApp::ReadyToRun()
 void
 PretendoApp::AboutRequested (void)
 {
-	//(new AboutWindow)->Show();
+	(new AboutWindow)->Show();
 }
 
 
