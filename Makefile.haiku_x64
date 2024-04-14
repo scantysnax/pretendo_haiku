@@ -65,6 +65,7 @@ H_FILES     := \
 	Bus.h \
 	memory.h \
 	Cart.h \
+	haiku/Settings.h \
 #	APU.h \
 #	mappers/BNROM.h \
 #	Bandai.h \
@@ -194,6 +195,7 @@ CXX_FILES   := \
 	src/Bus.cpp \
 	src/Cart.cpp \
 	src/Mapper.cpp \
+	src/haiku/Settings.cpp
 #	mappers/BNROM.cc \
 #	mappers/Bandai.cc \
 #	Cart.cc \
