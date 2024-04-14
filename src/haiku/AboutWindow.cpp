@@ -55,16 +55,22 @@ AboutView::AttachedToWindow (void)
 	BString pretendoVersion;
 	BString builtOn;
 	BString builtWith;
+	BString writtenBy;
+	BString haikuPortBy;
 	BString trademarks;
 	
 	desc << "A freeware, portable Nintendo NES emulator\n\n";
 	pretendoVersion << "Version: " << __PRETENDO_VERSION__ << "\n";
+	writtenBy << "Written by: Evan Teran and Eli Dayan\n";
+	haikuPortBy << "Haiku port written by: Eli Dayan\n";
 	builtOn << "Built on: " << __DATE__ << " " << __TIME__ << "\n";
 	builtWith << "Built with: gcc " << __GNUC__ << "." << __GNUC_MINOR__ << "\n";
 	trademarks << "\n\"Nintendo\" and \"Nintendo Entertainment System\" are registered"				" trademarks of " "Nintendo Co., Ltd\n\n";
 	
 	aboutText += desc;
 	aboutText += pretendoVersion;
+	aboutText += writtenBy;
+	aboutText += haikuPortBy;
 	aboutText += builtOn;
 	aboutText += builtWith;
 	aboutText += trademarks;
@@ -108,14 +114,14 @@ AboutWindow::AboutWindow()
 	AddChild(fAboutView);
 	
 	BRect r;	
-	r.Set(53, 205, 200, 220);
+	r.Set(53, 165, 200, 200);
 	fAboutView->AddChild(new LinkView(r, "Pretendo Haiku on GitHub", 
 		"https://github.com/scantysnax/pretendo_haiku/tree/haiku-port/src"));
 	
-	r.Set(53, 225, 140, 240);
+	r.Set(53, 185, 140, 220);
 	fAboutView->AddChild(new LinkView(r, "Evan's website", "http://www.codef00.com"));
 	
-	r.Set(53, 245, 200, 260);	
+	r.Set(53, 205, 200, 240);	
 	fAboutView->AddChild(new LinkView(r, "Eli's website", 
 		"http://www.pathtoground.org/"));
 	
