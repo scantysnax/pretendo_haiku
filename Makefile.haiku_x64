@@ -54,6 +54,7 @@ CXX_FILES   := \
 	src/Input.cpp \
 	src/Controller.cpp \
 	src/MemoryMappedFile.cpp \
+	src/SaveState.cpp \
 	\
 	src/mappers/Bandai.cpp \
 	src/mappers/Mapper000.cpp \
