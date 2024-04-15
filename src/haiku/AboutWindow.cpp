@@ -59,7 +59,7 @@ AboutView::AttachedToWindow (void)
 	BString haikuPortBy;
 	BString trademarks;
 	
-	desc << "A freeware, portable Nintendo NES emulator\n\n";
+	desc << "A freeware, multiplatform Nintendo NES emulator\n\n";
 	pretendoVersion << "Version: " << __PRETENDO_VERSION__ << "\n";
 	writtenBy << "Written by: Evan Teran and Eli Dayan\n";
 	haikuPortBy << "Haiku port written by: Eli Dayan\n";
