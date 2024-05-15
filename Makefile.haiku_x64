@@ -75,6 +75,7 @@ CXX_FILES   := \
 	src/mappers/Mapper021.cpp \
 	src/mappers/Mapper022.cpp \
 	src/mappers/Mapper023.cpp \
+	src/Mappers/Mapper024.cpp \
 	src/mappers/Mapper025.cpp \
 	src/mappers/Mapper026.cpp \
 	src/mappers/Mapper027.cpp \
