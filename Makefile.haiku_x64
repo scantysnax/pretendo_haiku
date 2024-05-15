@@ -75,7 +75,7 @@ CXX_FILES   := \
 	src/mappers/Mapper021.cpp \
 	src/mappers/Mapper022.cpp \
 	src/mappers/Mapper023.cpp \
-	src/Mappers/Mapper024.cpp \
+	src/mappers/Mapper024.cpp \
 	src/mappers/Mapper025.cpp \
 	src/mappers/Mapper026.cpp \
 	src/mappers/Mapper027.cpp \
@@ -106,6 +106,7 @@ CXX_FILES   := \
 	src/mappers/Mapper144.cpp \
 	src/mappers/Mapper159.cpp \
 	src/mappers/Mapper163.cpp \
+	src/mappers/Mapper180.cpp \
 	src/mappers/Mapper201.cpp \
 	src/mappers/Mapper206.cpp \
 	src/mappers/Mapper218.cpp \
@@ -130,8 +131,9 @@ CXX_FILES   := \
 	src/haiku/Settings.cpp \
 	src/haiku/SimpleMutex.cpp \
 	src/haiku/ROMFilePanel.cpp \
-	src/haiku/SoundPusher.cpp
-
+	src/haiku/AudioView.cpp \
+	src/haiku/SoundPusher.cpp \
+	
 
 RES_FILES	:=  src/haiku/pretendo.rsrc
 
