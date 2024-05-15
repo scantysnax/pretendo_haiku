@@ -128,7 +128,8 @@ CXX_FILES   := \
 	src/haiku/LinkView.cpp \
 	src/haiku/Settings.cpp \
 	src/haiku/SimpleMutex.cpp \
-	src/haiku/ROMFilePanel.cpp
+	src/haiku/ROMFilePanel.cpp \
+	src/haiku/SoundPusher.cpp
 
 
 RES_FILES	:=  src/haiku/pretendo.rsrc

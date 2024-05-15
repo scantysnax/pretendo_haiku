@@ -7,30 +7,29 @@
 
 
 SoundPusher::SoundPusher()
-	: fFrameRate(48000)
 {
-	
-	fInBufferFrameCount = fFrameRate / 60;
+	fFrameRate = nes::apu::frequency;
+	fInBufferFrameCount = fFrameRate / nes::apu::fps;
 	
 	memset(&fAudioFormat, 0, sizeof(gs_audio_format));
 	fAudioFormat.frame_rate = fFrameRate;
 	fAudioFormat.channel_count = 1;
 	fAudioFormat.format = gs_audio_format::B_GS_U8;
-	fAudioFormat.buffer_size = fInBufferFrameCount * 4;
+	fAudioFormat.byte_order = B_MEDIA_LITTLE_ENDIAN; // doesnt' really matter, just here for completeness
+	fAudioFormat.buffer_size = fInBufferFrameCount * kBufferCount;
 }
 
 
 SoundPusher::~SoundPusher()
 {
-	
+	delete fSoundPusher;
 }
-
 
 bool
 SoundPusher::Init (void)
 {
 	fBufferSize = nes::apu::buffer_size;
-	fSoundPusher = new BPushGameSound(fInBufferFrameCount, &fAudioFormat, 4, NULL);
+	fSoundPusher = new BPushGameSound(fInBufferFrameCount, &fAudioFormat, kBufferCount, NULL);
 	
 	if (fSoundPusher->InitCheck() == B_OK) {
 		puts("SoundPusher::InitCheck() -> OK");
@@ -41,7 +40,7 @@ SoundPusher::Init (void)
         fSoundPusher->LockForCyclic(&outBase, &outSize);
         memset(outBase, 0, outSize);
         fSoundPusher->UnlockCyclic();
-		
+        
 		puts("SoundPusher::Init() -> buffer cleared");
 		return true;
 	}

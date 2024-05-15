@@ -4,13 +4,15 @@
 
 #include <GameSoundDefs.h>
 #include <PushGameSound.h>
-#include "APU.h"
-#include "NES.h"
+#include <MediaDefs.h>
 
-#include <boost/noncopyable.hpp>
+#include "Apu.h"
+#include "Nes.h"
 
 
-class SoundPusher : public boost::noncopyable
+int32 const kBufferCount = 4;
+
+class SoundPusher
 {
 	public:
 	SoundPusher();
@@ -32,7 +34,6 @@ class SoundPusher : public boost::noncopyable
 
 	private:
 	BPushGameSound *fSoundPusher;
-
 };
 
 
