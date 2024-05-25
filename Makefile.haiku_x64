@@ -131,7 +131,6 @@ CXX_FILES   := \
 	src/haiku/Settings.cpp \
 	src/haiku/SimpleMutex.cpp \
 	src/haiku/ROMFilePanel.cpp \
-	src/haiku/AudioView.cpp \
 	src/haiku/SoundPusher.cpp \
 	
 
