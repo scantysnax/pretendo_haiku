@@ -18,7 +18,7 @@
 #include "Controller.h"
 #include "SoundPusher.h"
 #include "Reset.h"
-
+#include "Palette.h"
 #include "asm/blitters.h"
 #include "asm/copies.h"
 
@@ -1206,19 +1206,18 @@ void
 PretendoWindow::SetDefaultPalette (void)
 {
 	// if we couldn't load a palette from settings, use the defaults
-	/*
-	set_palette(Palette::intensity, Palette::NTSC(
-					Palette::default_saturation,
-					Palette::default_hue,
-					Palette::default_contrast,
-					Palette::default_brightness,
-					Palette::default_gamma)); */
-//set_palette(Palette::intensity, Palette::NTSC(
-//												   Palette::default_saturation,
-//												   Palette::default_hue,
-//												   Palette::default_contrast,
-//												   Palette::default_brightness,
-//												   Palette::default_gamma));
+
+/*
+set_palette(Palette::intensity, 
+								Palette::NTSC (Palette::default_saturation,
+								Palette::default_hue,
+								Palette::default_contrast,
+								Palette::default_brightness,
+								Palette::default_gamma)); */
+
+Palette::NTSC(0, 0, 0, 0, 0);
+
+
 }
 
 

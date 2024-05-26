@@ -55,6 +55,7 @@ CXX_FILES   := \
 	src/Controller.cpp \
 	src/MemoryMappedFile.cpp \
 	src/SaveState.cpp \
+	src/Palette.cpp \
 	\
 	src/mappers/Bandai.cpp \
 	src/mappers/Mapper000.cpp \
@@ -140,7 +141,6 @@ CXX_FILES   := \
 #	src/haiku/PaletteView.cpp \
 #	src/haiku/PaletteWindow.cpp \
 
-	
 
 RES_FILES	:=  src/haiku/pretendo.rsrc
 
