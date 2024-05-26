@@ -132,6 +132,14 @@ CXX_FILES   := \
 	src/haiku/SimpleMutex.cpp \
 	src/haiku/ROMFilePanel.cpp \
 	src/haiku/SoundPusher.cpp \
+	src/haiku/VideoScreen.cpp \
+	src/haiku/PretendoWindow.cpp \
+	src/haiku/PretendoView.cpp \
+	src/haiku/CartInfoWindow.cpp \
+	src/haiku/CartInfoView.cpp \
+#	src/haiku/PaletteView.cpp \
+#	src/haiku/PaletteWindow.cpp \
+
 	
 
 RES_FILES	:=  src/haiku/pretendo.rsrc

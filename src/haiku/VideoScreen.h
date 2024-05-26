@@ -5,8 +5,8 @@
 
 #include <WindowScreen.h>
 
-#include "PretendoWindow.h"
-
+//#include "PretendoWindow.h"
+class PretendoWindow;
 
 const int32 MSG_LEAVE_FULLSCREEN = 'LVFS';
 

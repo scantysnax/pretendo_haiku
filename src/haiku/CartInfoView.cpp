@@ -13,7 +13,7 @@
 #include <Application.h>
 #include <Roster.h>
 #include <Path.h>
-#include "NES.h"
+#include "Nes.h"
 #include "Cart.h"
 
 using nes::cart;

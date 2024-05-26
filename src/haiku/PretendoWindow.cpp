@@ -2,12 +2,13 @@
 //#include <iostream>
 
 #include "Mapper.h"
-#include "NES.h"
-#include "APU.h"
+#include "Nes.h"
+#include "Apu.h"
+#include "Cart.h"
 #include "Input.h"
 #include "PretendoWindow.h"
 #include "CartInfoWindow.h"
-#include "PaletteWindow.h"
+//#include "PaletteWindow.h"
 #include "VideoScreen.h"
 #include "ROMFilePanel.h"
 #include "PaletteWindow.h"
@@ -15,13 +16,14 @@
 #include "SimpleMutex.h"
 #include "PretendoView.h"
 #include "Controller.h"
-//#include "AudioWindow.h"
-//#include "InputWindow.h"
-#include "Config.h"
 #include "SoundPusher.h"
+#include "Reset.h"
 
 #include "asm/blitters.h"
 #include "asm/copies.h"
+
+class VideoScreen;
+class PretendoView;
 
 
 PretendoWindow::PretendoWindow()
@@ -31,7 +33,6 @@ PretendoWindow::PretendoWindow()
 		fFileMenu(NULL),
 		fEmuMenu(NULL),
 		fVideoMenu(NULL),
-		fAudioMenu(NULL),
 		fOpenPanel(NULL),
 		fCartInfoWindow(NULL),
 		fBitmap(NULL),
@@ -42,8 +43,7 @@ PretendoWindow::PretendoWindow()
 		fDirtyArea(B_ERROR),
 		fVideoScreen(NULL),
 		fSoundPusher(NULL),
-		fPaletteWindow(NULL),
-		//fAudioWindow(NULL),
+		//fPaletteWindow(NULL),
 		fPaused(false),
 		fRunning(false),
 		fClockSpeed(0),
@@ -209,15 +209,11 @@ PretendoWindow::~PretendoWindow()
 		fCartInfoWindow->Quit();
 	}
 	
-	if (fPaletteWindow != NULL) {
-		fPaletteWindow->Lock();
-		fPaletteWindow->Quit();
-	}
-	
-	//if (fAudioWindow != NULL) {
-	//	fAudioWindow->Lock();
-	//	fAudioWindow->Quit();
+	//if (fPaletteWindow != NULL) {
+	//	fPaletteWindow->Lock();
+	//	fPaletteWindow->Quit();
 	//}
+
 	
 	fMutex->Unlock();
 	
@@ -350,21 +346,12 @@ PretendoWindow::MessageReceived (BMessage *message)
 			break;
 			
 		case MSG_ADJ_PALETTE:
-			if (fPaletteWindow == NULL) {
-				fPaletteWindow = new PaletteWindow(this);
-			}
-			
-			fPaletteWindow->Show();
-			
-			break;
-			
-		case MSG_AUDIO_VIEW:
-			//if (fAudioWindow == NULL) {
-			//	fAudioWindow = new AudioWindow(this);
-			//} 
-			
-			//fAudioWindow->Show();
-			
+		//	if (fPaletteWindow == NULL) {
+		//		fPaletteWindow = new PaletteWindow(this);
+		//	}
+		//	
+		//	fPaletteWindow->Show();
+		//	
 			break;
 	}
 	
@@ -470,10 +457,7 @@ PretendoWindow::AddMenu (void)
 	
 	fVideoMenu = new BMenu ("Render");
 	fMenu->AddItem (fVideoMenu);
-	
-//	fAudioMenu = new BMenu ("Audio");
-//	fMenu->AddItem (fAudioMenu);
-	
+
 	fVideoMenu->AddItem(new BMenuItem ("No Output", new BMessage (MSG_CHANGE_RENDER)));
 	fVideoMenu->AddItem(new BMenuItem ("BView/BBitmap", new BMessage(MSG_CHANGE_RENDER)));
 	fVideoMenu->AddItem(new BMenuItem ("BView/Overlay", new BMessage(MSG_CHANGE_RENDER)));
@@ -499,7 +483,6 @@ PretendoWindow::AddMenu (void)
 	fEmuMenu->AddSeparatorItem();
 	fEmuMenu->AddItem (new BMenuItem ("Adjust Palette" B_UTF8_ELLIPSIS, 
 		new BMessage (MSG_ADJ_PALETTE)));
-	///fEmuMenu->AddItem (new BMenuItem ("Show Audio", new BMessage (MSG_AUDIO_VIEW)));
 	//fEmuMenu->AddItem (new BMenuItem ("Debug" B_UTF8_ELLIPSIS, new BMessage(MSG_CPU_DEBUG)));
 	fMenuHeight = fMenu->Bounds().IntegerHeight();
 	
@@ -563,8 +546,8 @@ PretendoWindow::OnRun (void)
 {	
 	if (! fRunning) {
 		// make sure we have a cart loaded
-		if(const std::shared_ptr<Mapper> mapper = nes::cart.mapper()) {
-			reset(nes::HARD_RESET);
+		if(nes::cart.mapper()) {
+			reset(nes::Reset::Hard);
 			fMutex->Unlock(); // unlock the mutual exclusion
 			fRunning = true;  // signal the thread that we're running
 			fSoundPusher->Start(); // start the sound pusher interface
@@ -628,14 +611,14 @@ PretendoWindow::OnPause (void)
 void
 PretendoWindow::OnSoftReset (void)
 {
-	reset(nes::SOFT_RESET);
+	reset(nes::Reset::Soft);
 }
 
 
 void
 PretendoWindow::OnHardReset (void)
 {
-	reset(nes::HARD_RESET);
+	reset(nes::Reset::Hard);
 }
 
 
@@ -1172,20 +1155,20 @@ PretendoWindow::emulation_thread (void *data)
 {
 	// start the show!
 	
-	PretendoWindow *window = reinterpret_cast<PretendoWindow *>(data);	
+//	PretendoWindow *window = reinterpret_cast<PretendoWindow *>(data);	
 	
-		while (1) {
-			if (window->Mutex()->Lock() != B_NO_ERROR) {
-				break;
-			}
+		//while (1) {
+		//	if (window->Mutex()->Lock() != B_NO_ERROR) {
+		//		break;
+		//	}
 			
-			window->start_frame();
-			nes::run_frame(window);
-			window->end_frame();
-			window->ReadKeyStates();
+		//	window->start_frame();
+		//	nes::run_frame(window);
+		//	window->end_frame();
+		//	window->ReadKeyStates();
 			
-			window->Mutex()->Unlock();
-		}	
+		//	window->Mutex()->Unlock();
+		//}	
 	
 	return B_OK;
 }
@@ -1194,25 +1177,28 @@ PretendoWindow::emulation_thread (void *data)
 inline void
 PretendoWindow::CheckKey (int32 index, int32 key)
 {
+	(void)index;
+	(void)key;
 	// read keystates as explained in the BeBook
 	// note the window does not need to have focus for this to work
-	nes::input::controller1().keystate_[index] = 
-		fKeyStates.key_states[key >> 3] & (1 << (7 - (key % 8)));
+	
+	//nes::input::controller1().keystate_[index] = 
+	//	fKeyStates.key_states[key >> 3] & (1 << (7 - (key % 8)));
 }
 
 inline void
 PretendoWindow::ReadKeyStates (void)
 {
-	get_key_info(&fKeyStates);
+//	get_key_info(&fKeyStates);
 	
-	CheckKey(Controller::INDEX_UP, kKeyUp);
-	CheckKey(Controller::INDEX_DOWN, kKeyDown);
-	CheckKey(Controller::INDEX_LEFT, kKeyLeft);
-	CheckKey(Controller::INDEX_RIGHT, kKeyRight);
-	CheckKey(Controller::INDEX_SELECT, kKeySelect);
-	CheckKey(Controller::INDEX_START, kKeyStart);
-	CheckKey(Controller::INDEX_B, kKeyB);
-	CheckKey(Controller::INDEX_A, kKeyA);
+//	CheckKey(Controller::INDEX_UP, kKeyUp);
+//	CheckKey(Controller::INDEX_DOWN, kKeyDown);
+//	CheckKey(Controller::INDEX_LEFT, kKeyLeft);
+//	CheckKey(Controller::INDEX_RIGHT, kKeyRight);
+//	CheckKey(Controller::INDEX_SELECT, kKeySelect);
+//	CheckKey(Controller::INDEX_START, kKeyStart);
+//	CheckKey(Controller::INDEX_B, kKeyB);
+//	CheckKey(Controller::INDEX_A, kKeyA);
 }
 
 
@@ -1220,12 +1206,19 @@ void
 PretendoWindow::SetDefaultPalette (void)
 {
 	// if we couldn't load a palette from settings, use the defaults
+	/*
 	set_palette(Palette::intensity, Palette::NTSC(
 					Palette::default_saturation,
 					Palette::default_hue,
 					Palette::default_contrast,
 					Palette::default_brightness,
-					Palette::default_gamma));
+					Palette::default_gamma)); */
+//set_palette(Palette::intensity, Palette::NTSC(
+//												   Palette::default_saturation,
+//												   Palette::default_hue,
+//												   Palette::default_contrast,
+//												   Palette::default_brightness,
+//												   Palette::default_gamma));
 }
 
 

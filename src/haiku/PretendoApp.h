@@ -3,7 +3,7 @@
 #define _PRETENDO_APP_H_
 
 #include <Application.h>
-//#include "PretendoWindow.h"
+#include "PretendoWindow.h"
 #include "AboutWindow.h"
 
 class PretendoApp : public BApplication {
@@ -16,10 +16,10 @@ class PretendoApp : public BApplication {
 	virtual void RefsReceived (BMessage *message);
 	
 	public:
-	//PretendoWindow *Window (void) { return fWindow; };
+	PretendoWindow *Window (void) { return fWindow; };
 	
 	private:
-	//PretendoWindow *fWindow;
+	PretendoWindow *fWindow;
 };
 
 

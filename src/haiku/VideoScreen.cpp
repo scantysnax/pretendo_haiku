@@ -1,5 +1,6 @@
 
 #include "VideoScreen.h"
+#include "PretendoWindow.h"
 #include <cstdio>
 
 static status_t error;

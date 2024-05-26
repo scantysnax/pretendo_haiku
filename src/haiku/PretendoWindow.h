@@ -17,7 +17,9 @@
 
 #include <malloc.h>
 
-#include "VideoInterface.h"
+//#include "VideoInterface.h"
+#include "Palette.h"
+#include "VideoScreen.h"
 
 #include "asm/blitters.h"
 #include "asm/copies.h"
@@ -42,8 +44,8 @@
 #define MSG_CHANGE_RENDER 'CHRN'
 #define MSG_DRAW_BITMAP 'DRAW'
 #define MSG_ADJ_PALETTE 'ADJP'
-#define MSG_AUDIO_VIEW	'AUDV'
-#define MSG_AUDIO_ENABLE 'AUEN'
+
+
 
 class VideoScreen;
 class ROMFilePanel;
@@ -51,11 +53,10 @@ class PaletteWindow;
 class CartInfoWindow;
 class SimpleMutex;
 class InputWindow;
-class AudioWindow;
 class PretendoView;
 class SoundPusher;
 
-class PretendoWindow : public BDirectWindow, public VideoInterface
+class PretendoWindow : public BDirectWindow//, public VideoInterface
 {
 	private:
 	enum {
@@ -125,7 +126,6 @@ class PretendoWindow : public BDirectWindow, public VideoInterface
 	void OnDebug (void);
 	void OnSoftReset (void);
 	void OnHardReset (void);
-	void OnAudioWindow (void);
 	
 
 	// video stuff
@@ -144,10 +144,10 @@ class PretendoWindow : public BDirectWindow, public VideoInterface
 	
 	// video interface
 	public:
-	virtual void submit_scanline(int scanline, int intensity, const uint8_t *source);
-	virtual void set_palette(const color_emphasis_t *intensity, const rgb_color_t *pal);
-	virtual void start_frame();
-	virtual void end_frame();
+	void submit_scanline(int scanline, int intensity, const uint8_t *source);
+	void set_palette(const color_emphasis_t *intensity, const rgb_color_t *pal);
+	void start_frame();
+	void end_frame();
 	
 	private:
 	void SetDefaultPalette (void);
@@ -160,7 +160,6 @@ class PretendoWindow : public BDirectWindow, public VideoInterface
 	BMenu *fLoadMenu;
 	BMenu *fEmuMenu;
 	BMenu *fVideoMenu;
-	BMenu *fAudioMenu;
 	BMenu *RenderMenu;
 	ROMFilePanel *fOpenPanel;
 	int32 fMenuHeight;
@@ -187,7 +186,6 @@ class PretendoWindow : public BDirectWindow, public VideoInterface
 	BBitmap *fOverlayBitmap;
 	uint8 *fBitmapBits;
 	uint8 *fOverlayBits;
-	BLocker fVideoLocker;
 	area_id fBitsArea;
 	area_id fDirtyArea;
 	video_buffer_t fBackBuffer;
@@ -206,7 +204,6 @@ class PretendoWindow : public BDirectWindow, public VideoInterface
 	
 	private:
 	PaletteWindow *fPaletteWindow;
-	AudioWindow *fAudioWindow;
 	
 	private:
 	bool fPaused;
