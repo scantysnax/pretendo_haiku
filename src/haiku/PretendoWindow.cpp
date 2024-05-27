@@ -1,5 +1,5 @@
 
-//#include <iostream>
+#include <iostream>
 
 #include "Mapper.h"
 #include "Nes.h"
@@ -8,11 +8,10 @@
 #include "Input.h"
 #include "PretendoWindow.h"
 #include "CartInfoWindow.h"
-//#include "PaletteWindow.h"
+#include "PaletteWindow.h"
 #include "VideoScreen.h"
 #include "ROMFilePanel.h"
 #include "PaletteWindow.h"
-#include "CartInfoWindow.h"
 #include "SimpleMutex.h"
 #include "PretendoView.h"
 #include "Controller.h"
@@ -349,9 +348,8 @@ PretendoWindow::MessageReceived (BMessage *message)
 		//	if (fPaletteWindow == NULL) {
 		//		fPaletteWindow = new PaletteWindow(this);
 		//	}
-		//	
+			
 		//	fPaletteWindow->Show();
-		//	
 			break;
 	}
 	
@@ -462,8 +460,7 @@ PretendoWindow::AddMenu (void)
 	fVideoMenu->AddItem(new BMenuItem ("BView/BBitmap", new BMessage(MSG_CHANGE_RENDER)));
 	fVideoMenu->AddItem(new BMenuItem ("BView/Overlay", new BMessage(MSG_CHANGE_RENDER)));
 	fVideoMenu->AddItem(new BMenuItem ("BDirectWindow", new BMessage(MSG_CHANGE_RENDER)));
-	fVideoMenu->AddItem(new BMenuItem ("BWindowScreen", 
-						new BMessage(MSG_CHANGE_RENDER), 'F'));
+	fVideoMenu->AddItem(new BMenuItem ("BWindowScreen", new BMessage(MSG_CHANGE_RENDER), 'F'));
 	fVideoMenu->SetRadioMode(true);
 	fVideoMenu->ItemAt(2)->SetMarked(false);
 	
@@ -625,7 +622,6 @@ PretendoWindow::OnHardReset (void)
 void
 PretendoWindow::OnDebug (void)
 {
-	(new BAlert(0, "Patience...", "Okay"))->Go();
 }
 
 
@@ -1133,7 +1129,7 @@ PretendoWindow::end_frame()
 	uint64 prevCount;
 	uint64 curCount;
 	
-	uint64 clocksPerFrame = fClockSpeed / 88; // 60; *TOTAL HACK to run at 60fps for me* //
+	uint64 clocksPerFrame = fClockSpeed / 60;
 	prevCount = real_time_clock_usecs(); // ReadTSC();
 		
 	do {
@@ -1141,7 +1137,6 @@ PretendoWindow::end_frame()
 	} while(curCount - prevCount < clocksPerFrame);
 	
 	BlitScreen();
-
 	fSoundPusher->LockNextPage();
 
 	if (fShowFPS) {

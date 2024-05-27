@@ -208,7 +208,7 @@ PaletteView::Draw (BRect frame)
 	(void)frame;
 	
 	const rgb_color_t *ntscPalette = Palette::NTSC(
-					fCurrentSaturation,
+				fCurrentSaturation,
 					fCurrentHue,
 					fCurrentContrast,
 					fCurrentBrightness,
@@ -299,7 +299,7 @@ PaletteView::DrawSwatchRow (BPoint start, int32 size, int32 rowlen)
 		start.x += size+4;
 	}
 		
-	Invalidate();
+	//Invalidate();
 }
 
 
@@ -316,7 +316,7 @@ PaletteView::DrawSwatchMatrix (BPoint start, int32 size, int32 ncols, int32 nrow
 		fWorkPalette += nrows * sizeof(rgb_color);
 	}
 	
-	Invalidate();
+	//Invalidate();
 }
 
 
@@ -343,7 +343,7 @@ PaletteView::DrawIndexes (void)
 		p.x += fSwatchSize+4;
 	}
 	
-	Invalidate();
+	//Invalidate();
 }
 
 void 
@@ -355,6 +355,4 @@ PaletteView::SetPalette (void)
 		fCurrentContrast,
 		fCurrentBrightness,
 		fCurrentGamma));
-		
-		Invalidate();
 }
