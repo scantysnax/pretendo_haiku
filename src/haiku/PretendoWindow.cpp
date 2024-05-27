@@ -931,7 +931,7 @@ PretendoWindow::BlitScreen (void)
 	
 	switch (fFramework) {
 		case NO_FRAMEWORK:
-			return; // we should never be here
+			return;
 			
 		case BITMAP_FRAMEWORK:
 			source = fBackBuffer.bits;
@@ -1150,20 +1150,19 @@ PretendoWindow::emulation_thread (void *data)
 {
 	// start the show!
 	
-//	PretendoWindow *window = reinterpret_cast<PretendoWindow *>(data);	
+	PretendoWindow *window = reinterpret_cast<PretendoWindow *>(data);	
 	
-		//while (1) {
-		//	if (window->Mutex()->Lock() != B_NO_ERROR) {
-		//		break;
-		//	}
+		while (1) {
+			if (window->Mutex()->Lock() != B_NO_ERROR) {
+				break;
+			}
 			
-		//	window->start_frame();
-		//	nes::run_frame(window);
-		//	window->end_frame();
-		//	window->ReadKeyStates();
-			
-		//	window->Mutex()->Unlock();
-		//}	
+			window->start_frame();
+			nes::run_frame(window);
+			window->end_frame();
+			//window->ReadKeyStates();	
+			window->Mutex()->Unlock();
+		}	
 	
 	return B_OK;
 }
