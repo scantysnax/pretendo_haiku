@@ -1,11 +1,14 @@
 
 #include <iostream>
 
-#include "Mapper.h"
-#include "Nes.h"
+// nes stuff
 #include "Apu.h"
 #include "Cart.h"
 #include "Input.h"
+#include "Mapper.h"
+#include "Nes.h"
+
+// ui and other things
 #include "PretendoWindow.h"
 #include "CartInfoWindow.h"
 #include "PaletteWindow.h"
@@ -18,11 +21,10 @@
 #include "SoundPusher.h"
 #include "Reset.h"
 #include "Palette.h"
+
+// use mmx blitters and memcpy()
 #include "asm/blitters.h"
 #include "asm/copies.h"
-
-class VideoScreen;
-class PretendoView;
 
 
 PretendoWindow::PretendoWindow()
@@ -49,6 +51,7 @@ PretendoWindow::PretendoWindow()
 		fShowFPS(true)
 		
 {
+	// create main window, put on screen
 	BRect bounds (Bounds());
 	bounds.OffsetTo (B_ORIGIN);
 	AddMenu();
@@ -120,6 +123,7 @@ PretendoWindow::PretendoWindow()
 		fVideoMenu->ItemAt(2)->SetEnabled(false);
 	}
 	
+	// start video
 	fDirectConnected = 
 	fFullScreen = 
 	fFrameworkChanging = false;	
@@ -141,6 +145,7 @@ PretendoWindow::PretendoWindow()
 	fDoubled = false;
 	fClear = 0;
 	
+	// this is the emulator processing loop
 	fThread = spawn_thread(emulation_thread, "pretendo_thread", B_DISPLAY_PRIORITY, 
 		reinterpret_cast<void *>(this));
 	
@@ -237,9 +242,10 @@ PretendoWindow::DirectConnected (direct_buffer_info *info)
 			}
 		
 			fClipInfo.clip_list = NULL;
-			fDirectConnected = true;
+			fDirectConnected = true;	// ready to go
 		// intentional fall through //	
 		case B_DIRECT_MODIFY:
+			// (re)calculate clipping rects
 			fClear = 5;
 			fClipInfo.clip_count = info->clip_list_count;
 			fClipInfo.clip_list = 
@@ -265,6 +271,7 @@ PretendoWindow::DirectConnected (direct_buffer_info *info)
 			break;
 			
 		case B_DIRECT_STOP:
+			// we're done, clean up and free clip list
 			fDirectConnected = false;
 			free (fClipInfo.clip_list);
 			break;
@@ -367,6 +374,7 @@ PretendoWindow::WindowActivated (bool flag)
 void
 PretendoWindow::MenusBeginning (void)
 {	
+	// set up recently opened ROM menu, we keep 5 most recent
 	BMenu *menu = BRecentFilesList::NewFileListMenu ("Load ROM" B_UTF8_ELLIPSIS,
 		NULL, NULL, this->PreferredHandler(), 5, false, NULL, 0, 
 		"application/x-vnd.scantysnax-Pretendo");
@@ -380,6 +388,7 @@ PretendoWindow::MenusBeginning (void)
 void
 PretendoWindow::MenusEnded (void)
 {	
+	// remove the recent files list
 	fFileMenu->RemoveItem(static_cast<int32>(0)); // keep this 32-bit friendly
 	BDirectWindow::MenusEnded();
 }
@@ -410,7 +419,7 @@ PretendoWindow::QuitRequested()
 void
 PretendoWindow::ResizeTo (float width, float height)
 {
-	height += fMenuHeight;
+	height += fMenuHeight;	// account for 18px menu height
 	
 	BDirectWindow::ResizeTo (width, height);
 }
@@ -423,6 +432,7 @@ PretendoWindow::Zoom (BPoint origin, float width, float height)
 	(void)width;
 	(void)height;
 	
+	// check for double size, and adjust the window accordingly
 	float w = Bounds().right - Bounds().left;	
 		
 	if (w == SCREEN_WIDTH) {
@@ -628,6 +638,7 @@ PretendoWindow::OnDebug (void)
 void
 PretendoWindow::RenderLine8 (uint8 *dest, const uint8 *source, int intensity)
 {
+	// render to 8-bit buffer
 	int32 width = SCREEN_WIDTH / 4;
 	uint8 *palette = reinterpret_cast<uint8 *>(fMappedPalette[intensity]);
 	
@@ -644,6 +655,7 @@ PretendoWindow::RenderLine8 (uint8 *dest, const uint8 *source, int intensity)
 void
 PretendoWindow::RenderLine16 (uint8 *dest, const uint8 *source, int intensity)
 {
+	// render to 16-bit buffer
 	int32 width = SCREEN_WIDTH / 4;
 	uint16 *palette = reinterpret_cast<uint16 *>(fMappedPalette[intensity]);
 
@@ -660,6 +672,7 @@ PretendoWindow::RenderLine16 (uint8 *dest, const uint8 *source, int intensity)
 void
 PretendoWindow::RenderLine32 (uint8 *dest, const uint8 *source, int intensity)
 {
+	// render to 32-bit buffer
 	int32 width = SCREEN_WIDTH / 4;
 	uint32 const *palette = reinterpret_cast<uint32 *>(fMappedPalette[intensity]);
 	
@@ -712,6 +725,7 @@ PretendoWindow::ClearBitmap (bool overlay)
 void 
 PretendoWindow::SetRenderer (color_space cs)
 {	
+	// choose a renderer based on incoming color_space
 	switch (cs) {
 		default:
 		case B_CMAP8:
@@ -750,8 +764,7 @@ PretendoWindow::SetRenderer (color_space cs)
 
 
 void
-PretendoWindow::SetFrontBuffer (uint8 *bits, color_space cs, int32 pixel_width, 
-	int32 row_bytes)
+PretendoWindow::SetFrontBuffer (uint8 *bits, color_space cs, int32 pixel_width, int32 row_bytes)
 {
 	// setup the front buffer
 	fFrontBuffer.bits = bits;
@@ -759,6 +772,7 @@ PretendoWindow::SetFrontBuffer (uint8 *bits, color_space cs, int32 pixel_width,
 	fFrontBuffer.pixel_width = pixel_width;
 	fFrontBuffer.row_bytes = row_bytes;
 	
+	// prepare WindowScreen if necessary
 	if (fFramework == WINDOWSCREEN_FRAMEWORK) {
 		memset (fFrontBuffer.bits, 0x0, 480 * fFrontBuffer.row_bytes);
 		memset (fDirtyBuffer.bits, 0xff, 480 * fFrontBuffer.row_bytes);
@@ -1158,7 +1172,7 @@ PretendoWindow::emulation_thread (void *data)
 			}
 			
 			window->start_frame();
-			nes::run_frame(window);
+			//nes::run_frame(window);
 			window->end_frame();
 			//window->ReadKeyStates();	
 			window->Mutex()->Unlock();
@@ -1171,28 +1185,27 @@ PretendoWindow::emulation_thread (void *data)
 inline void
 PretendoWindow::CheckKey (int32 index, int32 key)
 {
-	(void)index;
-	(void)key;
 	// read keystates as explained in the BeBook
 	// note the window does not need to have focus for this to work
+	// extra instances of Pretendo are not a good idea.
 	
-	//nes::input::controller1().keystate_[index] = 
-	//	fKeyStates.key_states[key >> 3] & (1 << (7 - (key % 8)));
+	nes::input::controller1.keystate_[index] = 
+		fKeyStates.key_states[key >> 3] & (1 << (7 - (key % 8)));
 }
 
 inline void
 PretendoWindow::ReadKeyStates (void)
 {
-//	get_key_info(&fKeyStates);
+	get_key_info(&fKeyStates);
 	
-//	CheckKey(Controller::INDEX_UP, kKeyUp);
-//	CheckKey(Controller::INDEX_DOWN, kKeyDown);
-//	CheckKey(Controller::INDEX_LEFT, kKeyLeft);
-//	CheckKey(Controller::INDEX_RIGHT, kKeyRight);
-//	CheckKey(Controller::INDEX_SELECT, kKeySelect);
-//	CheckKey(Controller::INDEX_START, kKeyStart);
-//	CheckKey(Controller::INDEX_B, kKeyB);
-//	CheckKey(Controller::INDEX_A, kKeyA);
+	CheckKey(Controller::INDEX_UP, kKeyUp);
+	CheckKey(Controller::INDEX_DOWN, kKeyDown);
+	CheckKey(Controller::INDEX_LEFT, kKeyLeft);
+	CheckKey(Controller::INDEX_RIGHT, kKeyRight);
+	CheckKey(Controller::INDEX_SELECT, kKeySelect);
+	CheckKey(Controller::INDEX_START, kKeyStart);
+	CheckKey(Controller::INDEX_B, kKeyB);
+	CheckKey(Controller::INDEX_A, kKeyA);
 }
 
 
@@ -1230,6 +1243,7 @@ void
 PretendoWindow::ShowFPS (void)
 {
 	// count and show current FPS in window title
+	
 	static bigtime_t curCount = 0;
 	static bigtime_t prevCount = 0;
 	static int32 frameCount = 0;
@@ -1239,7 +1253,7 @@ PretendoWindow::ShowFPS (void)
 
 	if (curCount != 0) {
 		frameCount++;
-		uint64 const diff = curCount - prevCount;
+		bigtime_t const diff = curCount - prevCount;
 		
 		if (diff >= fClockSpeed) {
 			

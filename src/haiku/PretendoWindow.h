@@ -3,6 +3,7 @@
 #ifndef _PRETENDO_WINDOW_H_
 #define _PRETENDO_WINDOW_H_
 
+#include <malloc.h>
 #include <Application.h>
 #include <DirectWindow.h>
 #include <Alert.h>
@@ -15,11 +16,14 @@
 #include <Locker.h>
 #include <OS.h>
 
-#include <malloc.h>
-
-//#include "VideoInterface.h"
 #include "Palette.h"
 #include "VideoScreen.h"
+#include "ROMFilePanel.h"
+#include "PaletteWindow.h"
+#include "CartInfoWindow.h"
+#include "SimpleMutex.h"
+#include "SoundPusher.h"
+#include "PretendoView.h"
 
 #include "asm/blitters.h"
 #include "asm/copies.h"
@@ -47,16 +51,7 @@
 
 
 
-class VideoScreen;
-class ROMFilePanel;
-class PaletteWindow;
-class CartInfoWindow;
-class SimpleMutex;
-class InputWindow;
-class PretendoView;
-class SoundPusher;
-
-class PretendoWindow : public BDirectWindow//, public VideoInterface
+class PretendoWindow : public BDirectWindow
 {
 	private:
 	enum {
@@ -165,7 +160,6 @@ class PretendoWindow : public BDirectWindow//, public VideoInterface
 	int32 fMenuHeight;
 	
 	private:
-//	InputWindow *fInputWindow;
 	CartInfoWindow *fCartInfoWindow;
 	
 	private:
@@ -230,7 +224,7 @@ class PretendoWindow : public BDirectWindow//, public VideoInterface
 	void ShowFPS (void);
 	
 	private:
-	uint64 fClockSpeed;
+	bigtime_t fClockSpeed;
 	bool fShowFPS;
 };
 				

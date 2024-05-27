@@ -26,7 +26,7 @@ APPNAME := Pretendo
 DEFINES  := 
 INCLUDES := -Ilibines2/lib/include/ -Isrc/ -Isrc/haiku/ -I/boot/system/develop/headers/ -I/boot/system/develop/headers/libxml2
 ASMFLAGS := -f elf64
-CXXFLAGS := -m64 -gdwarf-2 -gstrict-dwarf -O3 -pedantic -pipe $(INCLUDES) -W -Wall -Wno-long-long -std=c++17 -flto=4
+CXXFLAGS := -m64 -gdwarf-2 -gstrict-dwarf -O3 -pedantic -pipe $(INCLUDES) -W -Wall -Wno-long-long -Wno-implicit-fallthrough -std=c++17 -flto=4
 LDFLAGS  := -gdwarf-2 -gstrict-dwarf -lbe -lroot -ltranslation -ltracker -lmedia -lgame -L/boot/common/lib -lxml2 -lz -flto=4
 
 ASM_FILES   := \
