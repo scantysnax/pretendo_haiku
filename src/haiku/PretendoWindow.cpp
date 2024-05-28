@@ -778,11 +778,13 @@ PretendoWindow::SetFrontBuffer (uint8 *bits, color_space cs, int32 pixel_width, 
 		memset (fDirtyBuffer.bits, 0xff, 480 * fFrontBuffer.row_bytes);
 		fFrontBuffer.bits += (640 - SCREEN_WIDTH*2) / 2;
 	} else {
+		// setup windowed buffer
 		for (int32 y = 0; y < SCREEN_HEIGHT; y++) {
 			fLineOffsets[y] = fBackBuffer.bits + y * SCREEN_WIDTH * pixel_width;
 		}
 	}
 	
+	// choose appropriate line renderer
 	SetRenderer (cs);
 }
 
@@ -884,6 +886,7 @@ PretendoWindow::DrawDirect (void)
 	size_t size;
 	
 	if (! fDoubled) {
+		// 1:1
 		for (int32 i = 0; i < fClipInfo.clip_count; i++, clip++) {
 			int32 x = (clip->left - fClipInfo.bounds.left) * fPixelWidth;
 			int32 y = (clip->top - fClipInfo.bounds.top) + 1;
@@ -904,6 +907,7 @@ PretendoWindow::DrawDirect (void)
 			}
 		}
 	} else {
+		// 2:1
 		int32 h = fClipInfo.bounds.bottom - fClipInfo.bounds.top + 1;
 				
 		for (int32 i = 0; i < fClipInfo.clip_count; i++, clip++) {
@@ -1174,7 +1178,7 @@ PretendoWindow::emulation_thread (void *data)
 			window->start_frame();
 			//nes::run_frame(window);
 			window->end_frame();
-			//window->ReadKeyStates();	
+			window->ReadKeyStates();	
 			window->Mutex()->Unlock();
 		}	
 	
