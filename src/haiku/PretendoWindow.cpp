@@ -636,9 +636,10 @@ PretendoWindow::OnDebug (void)
 
 
 void
-PretendoWindow::RenderLine8 (uint8 *dest, const uint8 *source, int intensity)
+PretendoWindow::RenderLine8 (uint8 *dest, const uint8 *source /*, int intensity*/)
 {
 	// render to 8-bit buffer
+	int32 intensity = 0;
 	int32 width = SCREEN_WIDTH / 4;
 	uint8 *palette = reinterpret_cast<uint8 *>(fMappedPalette[intensity]);
 	
@@ -653,9 +654,10 @@ PretendoWindow::RenderLine8 (uint8 *dest, const uint8 *source, int intensity)
 
 
 void
-PretendoWindow::RenderLine16 (uint8 *dest, const uint8 *source, int intensity)
+PretendoWindow::RenderLine16 (uint8 *dest, const uint8 *source/*, int intensity*/)
 {
 	// render to 16-bit buffer
+	int32 intensity = 0;
 	int32 width = SCREEN_WIDTH / 4;
 	uint16 *palette = reinterpret_cast<uint16 *>(fMappedPalette[intensity]);
 
@@ -670,9 +672,10 @@ PretendoWindow::RenderLine16 (uint8 *dest, const uint8 *source, int intensity)
 
 
 void
-PretendoWindow::RenderLine32 (uint8 *dest, const uint8 *source, int intensity)
+PretendoWindow::RenderLine32 (uint8 *dest, const uint8 *source/*, int intensity*/)
 {
 	// render to 32-bit buffer
+	int32 intensity = 0;
 	int32 width = SCREEN_WIDTH / 4;
 	uint32 const *palette = reinterpret_cast<uint32 *>(fMappedPalette[intensity]);
 	
@@ -1062,9 +1065,9 @@ PretendoWindow::BlitScreen (void)
 
 
 void
-PretendoWindow::submit_scanline(int scanline, int intensity, const uint8_t *source)
+PretendoWindow::submit_scanline(int scanline, /*int intensity,*/ const uint8_t *source)
 {
-	(this->*LineRenderer)(fLineOffsets[scanline], source, intensity);
+	(this->*LineRenderer)(fLineOffsets[scanline], source /*, intensity */);
 }
 
 void 
@@ -1176,7 +1179,7 @@ PretendoWindow::emulation_thread (void *data)
 			}
 			
 			window->start_frame();
-			//nes::run_frame(window);
+			nes::run_frame(window);
 			window->end_frame();
 			window->ReadKeyStates();	
 			window->Mutex()->Unlock();
