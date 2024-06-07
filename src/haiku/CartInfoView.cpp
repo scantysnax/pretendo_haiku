@@ -101,7 +101,7 @@ CartInfoView::ProcessGame(xmlNodePtr game, const xmlChar *search_key, const xmlC
 			if(xmlChar *const value = xmlGetProp(cartridge, search_key)) {
 				if (xmlStrcmp(value, search_value) == 0) {
 					BString buffer;
-					buffer << "Cart ID: " << " " << reinterpret_cast<char *>(value) << " " << reinterpret_cast<const char *>(search_value);
+					buffer << "Cart ID: " << " " << reinterpret_cast<char *>(value) << " " 							<< reinterpret_cast<const char *>(search_value);
 					BListItem *processGame = new BStringItem(buffer);
 					AddItem (processGame);
 					return cartridge;

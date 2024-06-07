@@ -1179,7 +1179,7 @@ PretendoWindow::emulation_thread (void *data)
 			}
 			
 			window->start_frame();
-			nes::run_frame(window);
+			//nes::run_frame(window);
 			window->end_frame();
 			window->ReadKeyStates();	
 			window->Mutex()->Unlock();
