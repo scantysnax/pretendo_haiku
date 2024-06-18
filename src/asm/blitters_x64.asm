@@ -101,8 +101,6 @@ blit_2x_dirty_mmx:
 ;	rdx		arg 3	dirty buffer
 ;	rcx		arg 4	bytes per row
 ;	r8		arg 5	size
-	
-	push rbx
 	shr r8, 3
 	
 .loop:
@@ -111,8 +109,8 @@ blit_2x_dirty_mmx:
 	
 	pcmpeqb mm1, mm0
 	packsswb mm1, mm1
-	movd ebx, mm1
-	cmp ebx, 0xffffffff
+	movd r10d, mm1
+	cmp r10d, 0xffffffff
 	jz .skip
 	
 	movq [rdx], mm0
@@ -132,8 +130,6 @@ blit_2x_dirty_mmx:
 	add rdx, 8
 	sub r8, 1
 	jnz .loop
-
-	pop rbx
 	emms
 ret
 
