@@ -1,7 +1,5 @@
 
 #include <ctime>
-//#include <cstdlib>
-
 #include "PretendoApp.h"
 
 int

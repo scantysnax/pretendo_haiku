@@ -16,6 +16,8 @@
 #include "Nes.h"
 #include "Cart.h"
 
+#include "cpp-utilities/sha1.h"
+
 using nes::cart;
 
 CartInfoView::CartInfoView(BRect frame)
@@ -47,6 +49,8 @@ CartInfoView::AttachedToWindow (void)
 	
 	std::vector<uint8_t> image = nes::cart.raw_image();
     BString stringSHA1 = StreamToSHA1 (&image[0], image.size());
+//   	BString sSHA1 = stringSHA1.String();
+// 	(new BAlert(0,sSHA1.String(), "OK"))->Go();
 	
 	xmlDoc *const file = xmlParseFile(path.Path());
 	
@@ -95,7 +99,7 @@ xmlNodePtr
 CartInfoView::ProcessGame(xmlNodePtr game, const xmlChar *search_key, const xmlChar *search_value) {
 	// get the list of children, this should be text nodes and <cartridge> nodes
 	for(xmlNodePtr cartridge = game->children; cartridge; cartridge = cartridge->next) {
-		if (xmlStrcmp(cartridge->name, reinterpret_cast<const xmlChar *>("cartridge")) == 0) {
+		if (xmlStrcmp(cartridge->name, reinterpret_cast<const xmlChar *>("cartridge")) = 0) {
 			// ok we are looking at a cart, let's look at the attributes
 
 			if(xmlChar *const value = xmlGetProp(cartridge, search_key)) {
@@ -188,8 +192,9 @@ CartInfoView::PrintInfo(rom_match *rom)
 					BListItem *prgInfo = new BStringItem("PRG Info");
 					AddItem(prgInfo);
 					
-					for(xmlAttr *properties = node->properties; properties; properties = properties->next) {
-						snprintf(buffer, sizeof(buffer), "%-15s : %s", properties->name, xmlGetProp(node, properties->name));
+					for(xmlAttr *properties = node->properties; properties; 
+						properties = properties->next) {
+						snprintf(buffer, sizeof(buffer), "%-15s : %s", properties->name, 							xmlGetProp(node, properties->name));
 						BListItem *info = new BStringItem(buffer);
 						AddUnder(info, prgInfo);
 					}
