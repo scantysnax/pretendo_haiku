@@ -1150,11 +1150,12 @@ PretendoWindow::end_frame()
 	uint64 prevCount;
 	uint64 curCount;
 	
-	uint64 clocksPerFrame = fClockSpeed / 60;
+	uint64 const clocksPerFrame = fClockSpeed / 60;
 	prevCount = ReadTSC();
-//	do {
-//		curCount = ReadTSC();
-//	} while(curCount - prevCount < clocksPerFrame);
+	do {
+		curCount = ReadTSC();
+		snooze(10);	// some idle time
+	} while(curCount - prevCount < clocksPerFrame);
 	
 	BlitScreen();
 	fSoundPusher->LockNextPage();
@@ -1249,7 +1250,6 @@ void
 PretendoWindow::ShowFPS (void)
 {
 	// count and show current FPS in window title
-	
 	static uint64 curCount = 0;
 	static uint64 prevCount = 0;
 	static uint64 frameCount = 0;
