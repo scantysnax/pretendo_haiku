@@ -171,12 +171,12 @@ PretendoWindow::PretendoWindow()
 	fSoundPusher->Init();
 	
 	// measure clock speeed
-	bigtime_t start, finish;
-	start = real_time_clock_usecs(); //ReadTSC();
+	uint64 start, finish;
+	start = ReadTSC();
 	sleep(1);
-	finish = real_time_clock_usecs(); //ReadTSC();
+	finish = ReadTSC();
 	fClockSpeed = finish - start;
-	//printf("cpu clock speed: %lu Hz\n", fClockSpeed);
+	printf("cpu clock speed: %lu Hz\n", fClockSpeed);
 }
 
 
@@ -636,7 +636,7 @@ PretendoWindow::OnDebug (void)
 
 
 void
-PretendoWindow::RenderLine8 (uint8 *dest, const uint8 *source /*, int intensity*/)
+PretendoWindow::RenderLine8 (uint8 *dest, const uint32_t *source /*, int intensity*/)
 {
 	// render to 8-bit buffer
 	int32 intensity = 0;
@@ -644,17 +644,17 @@ PretendoWindow::RenderLine8 (uint8 *dest, const uint8 *source /*, int intensity*
 	uint8 *palette = reinterpret_cast<uint8 *>(fMappedPalette[intensity]);
 	
 	while (width--) {
-		*(dest+0) = palette[*source++];
-		*(dest+1) = palette[*source++];
-		*(dest+2) = palette[*source++];
-		*(dest+3) = palette[*source++];
+		*(dest+0) = palette[*source++ & 0x3f];
+		*(dest+1) = palette[*source++ & 0x3f];
+		*(dest+2) = palette[*source++ & 0x3f];
+		*(dest+3) = palette[*source++ & 0x3f];
 		dest += 4 * sizeof(uint8);
 	}	
 }
 
 
 void
-PretendoWindow::RenderLine16 (uint8 *dest, const uint8 *source/*, int intensity*/)
+PretendoWindow::RenderLine16 (uint8 *dest, const uint32_t *source/*, int intensity*/)
 {
 	// render to 16-bit buffer
 	int32 intensity = 0;
@@ -662,17 +662,17 @@ PretendoWindow::RenderLine16 (uint8 *dest, const uint8 *source/*, int intensity*
 	uint16 *palette = reinterpret_cast<uint16 *>(fMappedPalette[intensity]);
 
 	while (width--) {
-		*(uint16 *)(dest+0) = palette[*source++];
-		*(uint16 *)(dest+2) = palette[*source++];
-		*(uint16 *)(dest+4) = palette[*source++];
-		*(uint16 *)(dest+6) = palette[*source++];
+		*(uint16 *)(dest+0) = palette[*source++ & 0x3f];
+		*(uint16 *)(dest+2) = palette[*source++ & 0x3f];
+		*(uint16 *)(dest+4) = palette[*source++ & 0x3f];
+		*(uint16 *)(dest+6) = palette[*source++ & 0x3f];
 		dest += 4 * sizeof(uint16);
 	}	
 }
 
 
 void
-PretendoWindow::RenderLine32 (uint8 *dest, const uint8 *source/*, int intensity*/)
+PretendoWindow::RenderLine32 (uint8 *dest, const uint32_t *source/*, int intensity*/)
 {
 	// render to 32-bit buffer
 	int32 intensity = 0;
@@ -680,10 +680,10 @@ PretendoWindow::RenderLine32 (uint8 *dest, const uint8 *source/*, int intensity*
 	uint32 const *palette = reinterpret_cast<uint32 *>(fMappedPalette[intensity]);
 	
 	while (width--) {
-		*(uint32 *)(dest+0) = palette[*source++];
-		*(uint32 *)(dest+4) = palette[*source++];
-		*(uint32 *)(dest+8) = palette[*source++];
-		*(uint32 *)(dest+12) = palette[*source++];
+		*(uint32 *)(dest+0) = palette[*source++ & 0x3f];
+		*(uint32 *)(dest+4) = palette[*source++ & 0x3f];
+		*(uint32 *)(dest+8) = palette[*source++ & 0x3f];
+		*(uint32 *)(dest+12) = palette[*source++ & 0x3f];
 		dest += 4 * sizeof(uint32);
 	}
 }
@@ -1065,7 +1065,7 @@ PretendoWindow::BlitScreen (void)
 
 
 void
-PretendoWindow::submit_scanline(int scanline, /*int intensity,*/ const uint8_t *source)
+PretendoWindow::submit_scanline(int scanline, /*int intensity,*/ const uint32_t *source)
 {
 	(this->*LineRenderer)(fLineOffsets[scanline], source /*, intensity */);
 }
@@ -1151,11 +1151,10 @@ PretendoWindow::end_frame()
 	uint64 curCount;
 	
 	uint64 clocksPerFrame = fClockSpeed / 60;
-	prevCount = real_time_clock_usecs(); // ReadTSC();
-		
-	do {
-		curCount = real_time_clock_usecs(); //ReadTSC();
-	} while(curCount - prevCount < clocksPerFrame);
+	prevCount = ReadTSC();
+//	do {
+//		curCount = ReadTSC();
+//	} while(curCount - prevCount < clocksPerFrame);
 	
 	BlitScreen();
 	fSoundPusher->LockNextPage();
@@ -1179,7 +1178,7 @@ PretendoWindow::emulation_thread (void *data)
 			}
 			
 			window->start_frame();
-		//	nes::run_frame(window);
+			nes::run_frame(window);
 			window->end_frame();
 			window->ReadKeyStates();	
 			window->Mutex()->Unlock();
@@ -1251,16 +1250,16 @@ PretendoWindow::ShowFPS (void)
 {
 	// count and show current FPS in window title
 	
-	static bigtime_t curCount = 0;
-	static bigtime_t prevCount = 0;
-	static int32 frameCount = 0;
+	static uint64 curCount = 0;
+	static uint64 prevCount = 0;
+	static uint64 frameCount = 0;
 	BString title;
 	
-	curCount = real_time_clock_usecs(); // ReadTSC();
+	curCount = ReadTSC();
 
 	if (curCount != 0) {
 		frameCount++;
-		bigtime_t const diff = curCount - prevCount;
+		uint64 diff = curCount - prevCount;
 		
 		if (diff >= fClockSpeed) {
 			

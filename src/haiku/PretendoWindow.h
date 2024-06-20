@@ -125,10 +125,10 @@ class PretendoWindow : public BDirectWindow
 
 	// video stuff
 	private:
-	void (PretendoWindow::*LineRenderer)(uint8 *dest, const uint8 *source /*, int intensity*/);
-	void RenderLine8 (uint8 *dest, const uint8 *source /*, int intensity*/);
-	void RenderLine16 (uint8 *dest, const uint8 *source /*, int intensity*/);
-	void RenderLine32 (uint8 *dest, const uint8 *source /*, int intensity*/);
+	void (PretendoWindow::*LineRenderer)(uint8 *dest, const uint32_t *source /*, int intensity*/);
+	void RenderLine8 (uint8 *dest, const uint32_t *source /*, int intensity*/);
+	void RenderLine16 (uint8 *dest, const uint32_t *source /*, int intensity*/);
+	void RenderLine32 (uint8 *dest, const uint32_t *source /*, int intensity*/);
 	void ClearBitmap (bool overlay);
 	void SetRenderer (color_space cs);
 	void SetFrontBuffer (uint8 *bits, color_space cs, int32 pixel_width, int32 rowbytes);
@@ -139,7 +139,7 @@ class PretendoWindow : public BDirectWindow
 	
 	// video interface
 	public:
-	void submit_scanline(int scanline, /*int intensity,*/ const uint8_t *source);
+	void submit_scanline(int scanline, /*int intensity,*/ const uint32_t *source);
 	void set_palette(const color_emphasis_t *intensity, const rgb_color_t *pal);
 	void start_frame();
 	void end_frame();
@@ -224,7 +224,7 @@ class PretendoWindow : public BDirectWindow
 	void ShowFPS (void);
 	
 	private:
-	bigtime_t fClockSpeed;
+	uint64 fClockSpeed;
 	bool fShowFPS;
 };
 				
