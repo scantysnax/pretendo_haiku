@@ -166,7 +166,6 @@ class PretendoWindow : public BDirectWindow
 	uint8 *fLineOffsets[SCREEN_HEIGHT];
 	int32 fPixelWidth;
 	uint8 fPalette8[8][64];
-	uint16 fPalette15[8][64];
 	uint16 fPalette16[8][64];
 	uint32 fPalette32[8][64];
 	uint32 fPaletteY[65536];

@@ -739,14 +739,6 @@ PretendoWindow::SetRenderer (color_space cs)
 			LineRenderer = &PretendoWindow::RenderLine8;
 			break;
 			
-		case B_RGB15:
-			for (int32 i = 0; i < 8; i++) {
-				fMappedPalette[i] = reinterpret_cast<uint8 *>(&fPalette15[i]);
-			}
-			
-			LineRenderer = &PretendoWindow::RenderLine16;
-			break;
-			
 		case B_RGB16:
 			for (int32 i = 0; i < 8; i++) {
 				fMappedPalette[i] = reinterpret_cast<uint8 *>(&fPalette16[i]);
@@ -1084,11 +1076,7 @@ PretendoWindow::set_palette(const color_emphasis_t *intensity, const rgb_color_t
 			c.blue  = (pal[j].b * intensity[i].b);
 			
 			fPalette8[i][j] = BScreen().IndexForColor (c.red, c.green, c.blue);
-			
-			fPalette15[i][j] = ((c.red & 0xf8) << 7);
-			fPalette15[i][j] |= ((c.green & 0xf8) << 2);
-			fPalette15[i][j] |= ((c.blue & 0xf8) >> 3);
-			
+						
 			fPalette16[i][j] = ((c.red & 0xf8) << 8);
 			fPalette16[i][j] |= ((c.green & 0xfc) << 3);  
 			fPalette16[i][j] |= ((c.blue & 0xf8) >> 3);
@@ -1151,10 +1139,12 @@ PretendoWindow::end_frame()
 	uint64 curCount;
 	
 	uint64 const clocksPerFrame = fClockSpeed / 60;
+//	printf("%" PRIu64 "\n", clocksPerFrame);
+
 	prevCount = ReadTSC();
 	do {
 		curCount = ReadTSC();
-		snooze(10);	// some idle time
+		snooze(1);	// chill.
 	} while(curCount - prevCount < clocksPerFrame);
 	
 	BlitScreen();
