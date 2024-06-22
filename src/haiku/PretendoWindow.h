@@ -125,10 +125,10 @@ class PretendoWindow : public BDirectWindow
 
 	// video stuff
 	private:
-	void (PretendoWindow::*LineRenderer)(uint8 *dest, const uint32_t *source /*, int intensity*/);
-	void RenderLine8 (uint8 *dest, const uint32_t *source /*, int intensity*/);
-	void RenderLine16 (uint8 *dest, const uint32_t *source /*, int intensity*/);
-	void RenderLine32 (uint8 *dest, const uint32_t *source /*, int intensity*/);
+	void (PretendoWindow::*LineRenderer)(uint8 *dest, const uint32_t *source);
+	void RenderLine8 (uint8 *dest, const uint32_t *source);
+	void RenderLine16 (uint8 *dest, const uint32_t *source);
+	void RenderLine32 (uint8 *dest, const uint32_t *source);
 	void ClearBitmap (bool overlay);
 	void SetRenderer (color_space cs);
 	void SetFrontBuffer (uint8 *bits, color_space cs, int32 pixel_width, int32 rowbytes);

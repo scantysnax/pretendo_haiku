@@ -636,7 +636,7 @@ PretendoWindow::OnDebug (void)
 
 
 void
-PretendoWindow::RenderLine8 (uint8 *dest, const uint32_t *source /*, int intensity*/)
+PretendoWindow::RenderLine8 (uint8 *dest, const uint32_t *source)
 {
 	// render to 8-bit buffer
 	int32 intensity = 0;
@@ -654,7 +654,7 @@ PretendoWindow::RenderLine8 (uint8 *dest, const uint32_t *source /*, int intensi
 
 
 void
-PretendoWindow::RenderLine16 (uint8 *dest, const uint32_t *source/*, int intensity*/)
+PretendoWindow::RenderLine16 (uint8 *dest, const uint32_t *source)
 {
 	// render to 16-bit buffer
 	int32 intensity = 0;
@@ -672,7 +672,7 @@ PretendoWindow::RenderLine16 (uint8 *dest, const uint32_t *source/*, int intensi
 
 
 void
-PretendoWindow::RenderLine32 (uint8 *dest, const uint32_t *source/*, int intensity*/)
+PretendoWindow::RenderLine32 (uint8 *dest, const uint32_t *source)
 {
 	// render to 32-bit buffer
 	int32 intensity = 0;
@@ -1021,8 +1021,6 @@ PretendoWindow::BlitScreen (void)
 				source += fBackBuffer.row_bytes;
 				dest += fOverlayBitmap->BytesPerRow();
 			}
-		
-			fVideoLocker.Unlock();
 #endif
 			return;
 			
@@ -1050,7 +1048,6 @@ PretendoWindow::BlitScreen (void)
 					dirty += sx;
 				}
 			}
-			
 			return;
 	}
 }
