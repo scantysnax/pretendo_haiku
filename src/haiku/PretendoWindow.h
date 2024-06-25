@@ -139,7 +139,7 @@ class PretendoWindow : public BDirectWindow
 	
 	// video interface
 	public:
-	void submit_scanline(int scanline, /*int intensity,*/ const uint32_t *source);
+	void submit_scanline(int scanline, const uint32_t *source);
 	void set_palette(const color_emphasis_t *intensity, const rgb_color_t *pal);
 	void start_frame();
 	void end_frame();

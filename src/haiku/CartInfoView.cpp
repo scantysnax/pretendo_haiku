@@ -1,20 +1,18 @@
 
-#include "CartInfoView.h"
-
-#include <iostream>
-#include <fstream>
-#include <iomanip>
 #include <string>
-#include <boost/uuid/detail/sha1.hpp>
 #include <vector>
 #include <libxml2/libxml/parser.h>
 #include <Alert.h>
-#include <String.h>
 #include <Application.h>
 #include <Roster.h>
 #include <Path.h>
+
 #include "Nes.h"
 #include "Cart.h"
+#include "sha1.h"
+
+#include "CartInfoView.h"
+
 
 using nes::cart;
 
@@ -46,8 +44,11 @@ CartInfoView::AttachedToWindow (void)
 	path.Append("nescarts.xml");
 	
 	std::vector<uint8_t> image = nes::cart.raw_image();
-    BString stringSHA1 = StreamToSHA1 (&image[0], image.size());
-	
+	hash::sha1 h(image.begin(), image.end());
+	auto digest = h.finalize();
+	std::string sha1 = digest.to_string();
+    std::transform(sha1.begin(), sha1.end(), sha1.begin(), toupper);
+
 	xmlDoc *const file = xmlParseFile(path.Path());
 	
     if (file) {
@@ -57,7 +58,8 @@ CartInfoView::AttachedToWindow (void)
 				reinterpret_cast<const xmlChar *>("database")) == 0) {
 				if (rom_match *const rom = ProcessDatabase(root, 
 					reinterpret_cast<const xmlChar *>("sha1"), 
-					reinterpret_cast<const xmlChar *>(stringSHA1.String()))) {
+					reinterpret_cast<const xmlChar *>(sha1.c_str()))) {
+					
 					// goto work!
 					PrintInfo(rom);
 				} else {
@@ -251,47 +253,4 @@ CartInfoView::PrintInfo(rom_match *rom)
 			
 		}
 	}
-}
-
-
-std::string 
-CartInfoView::SHA1ToString(uint32 hash[5]) 
-{
-	static const char hexchars[] = "0123456789ABCDEF";
-	char buf[40];
-
-	for(int i = 0; i < 8; ++i) {
-		buf[i + 0x00] = hexchars[(hash[0] & 0xf0000000) >> 28];
-		buf[i + 0x08] = hexchars[(hash[1] & 0xf0000000) >> 28];
-		buf[i + 0x10] = hexchars[(hash[2] & 0xf0000000) >> 28];
-		buf[i + 0x18] = hexchars[(hash[3] & 0xf0000000) >> 28];
-		buf[i + 0x20] = hexchars[(hash[4] & 0xf0000000) >> 28];
-
-		hash[0] <<= 4;
-		hash[1] <<= 4;
-		hash[2] <<= 4;
-		hash[3] <<= 4;
-		hash[4] <<= 4;
-	}
-	
-	return std::string(buf, sizeof(buf));
-}
-
-
-BString
-CartInfoView::StreamToSHA1 (const uint8 *stream, int32 length)
-{
-
-	boost::uuids::detail::sha1 sha1;
-  	uint32_t hash[5];
- 	sha1.process_bytes(stream, length);
- 	sha1.get_digest(hash);
-
-  	char buffer[32*4];
-  	
-  	snprintf(buffer, sizeof(buffer), "%08X%08X%08X%08X%08X", hash[0], hash[1], hash[2], hash[3], hash[4]);
-  	
-  	BString bstHash;
-  	bstHash += buffer;
-  	return bstHash;
 }

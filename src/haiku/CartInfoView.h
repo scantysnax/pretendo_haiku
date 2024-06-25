@@ -11,6 +11,9 @@
 #include <string>
 #include <boost/uuid/detail/sha1.hpp>
 #include <libxml2/libxml/parser.h>
+
+#include "sha1.h"
+
 #include <stdio.h>
 
 
@@ -32,10 +35,9 @@ class CartInfoView : public BOutlineListView
 	
 	private:
 	void PrintInfo(rom_match *rom);
-	rom_match_t *ProcessDatabase(xmlNodePtr root, const xmlChar *search_key, const xmlChar *search_value);
-	xmlNodePtr ProcessGame(xmlNodePtr game, const xmlChar *search_key, const xmlChar *search_value);
-	std::string SHA1ToString(uint32 hash[5]);
-	BString StreamToSHA1 (const uint8 *stream, int32 length);
+	rom_match_t *ProcessDatabase(xmlNodePtr root, const xmlChar *search_key, const xmlChar 									*search_value);
+	xmlNodePtr ProcessGame(xmlNodePtr game, const xmlChar *search_key, 
+							const xmlChar *search_value);
 };
 	
 
