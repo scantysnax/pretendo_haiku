@@ -3,18 +3,8 @@
 #define _CART_INFO_VIEW_
 
 #include <OutlineListView.h>
-#include <String.h>
-#include <Alert.h>
-#include <iostream>
-#include <fstream>
-#include <iomanip>
-#include <string>
-#include <boost/uuid/detail/sha1.hpp>
 #include <libxml2/libxml/parser.h>
-
 #include "sha1.h"
-
-#include <stdio.h>
 
 
 class CartInfoView : public BOutlineListView
