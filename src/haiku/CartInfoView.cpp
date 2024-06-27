@@ -59,7 +59,6 @@ CartInfoView::AttachedToWindow (void)
 				if (rom_match *const rom = ProcessDatabase(root, 
 					reinterpret_cast<const xmlChar *>("sha1"), 
 					reinterpret_cast<const xmlChar *>(sha1.c_str()))) {
-					
 					// goto work!
 					PrintInfo(rom);
 				} else {
@@ -67,11 +66,9 @@ CartInfoView::AttachedToWindow (void)
 				}
 			}
 		}
-		
     } else {
     	(new BAlert("Error", "Can't parse file 'nescarts.xml'", "Oops"))->Go();
     }
-    
 		
 	xmlFreeDoc(file);
 	xmlCleanupParser();	
@@ -249,8 +246,7 @@ CartInfoView::PrintInfo(rom_match *rom)
 					
 					Collapse(cicInfo);
 				}
-			}
-			
+			}	
 		}
 	}
 }
