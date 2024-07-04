@@ -112,15 +112,15 @@ class PretendoWindow : public BDirectWindow
 	// handlers
 	private:
 	void OnLoadCart (BMessage *message);
-	void OnFreeCart (void);
-	void OnCartInfo (void);
-	void OnQuit (void);
-	void OnRun (void);
-	void OnStop (void);
-	void OnPause (void);
-	void OnDebug (void);
-	void OnSoftReset (void);
-	void OnHardReset (void);
+	void OnFreeCart();
+	void OnCartInfo();
+	void OnQuit();
+	void OnRun();
+	void OnStop();
+	void OnPause();
+	void OnDebug();
+	void OnSoftReset();
+	void OnHardReset();
 	
 
 	// video stuff
@@ -133,9 +133,9 @@ class PretendoWindow : public BDirectWindow
 	void SetRenderer (color_space cs);
 	void SetFrontBuffer (uint8 *bits, color_space cs, int32 pixel_width, int32 rowbytes);
 	void ChangeFramework (VIDEO_FRAMEWORK fw);
-	void BlitScreen (void);
-	void ClearDirty (void);
-	void DrawDirect (void);
+	void BlitScreen();
+	void ClearDirty();
+	void DrawDirect();
 	
 	// video interface
 	public:
@@ -145,18 +145,18 @@ class PretendoWindow : public BDirectWindow
 	void end_frame();
 	
 	private:
-	void SetDefaultPalette (void);
+	void SetDefaultPalette();
 	
 	private:
 	//PretendoView *fView;
-	BView *fView;
-	BMenuBar *fMenu;
-	BMenu *fFileMenu;
-	BMenu *fLoadMenu;
-	BMenu *fEmuMenu;
-	BMenu *fVideoMenu;
-	BMenu *RenderMenu;
-	ROMFilePanel *fOpenPanel;
+	BView *fView = nullptr;
+	BMenuBar *fMenu = nullptr;
+	BMenu *fFileMenu = nullptr;
+	BMenu *fLoadMenu = nullptr;
+	BMenu *fEmuMenu = nullptr;
+	BMenu *fVideoMenu = nullptr;
+	BMenu *RenderMenu = nullptr;
+	ROMFilePanel *fOpenPanel = nullptr;
 	int32 fMenuHeight;
 	
 	private:
@@ -191,6 +191,7 @@ class PretendoWindow : public BDirectWindow
 	bool fFrameworkChanging;
 	bool fDoubled;
 	int32 fClear;
+	uint64 fPrevCount;
 	
 	private:
 	SoundPusher *fSoundPusher;

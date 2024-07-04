@@ -29,13 +29,8 @@
 
 PretendoWindow::PretendoWindow()
 	: BDirectWindow (BRect (0, 0, 0, 0), "Pretendo", B_TITLED_WINDOW, B_NOT_RESIZABLE, 0),
-		fView(nullptr),
-		fMenu(nullptr),
-		fFileMenu(nullptr),
-		fEmuMenu(nullptr),
 		fVideoMenu(nullptr),
 		fOpenPanel(nullptr),
-		fCartInfoWindow(nullptr),
 		fBitmap(nullptr),
 		fOverlayBitmap(nullptr),
 		fBitmapBits(nullptr),
@@ -176,6 +171,7 @@ PretendoWindow::PretendoWindow()
 	sleep(1);
 	finish = ReadTSC();
 	fClockSpeed = finish - start;
+	
 	printf("cpu clock speed: %lu Hz\n", fClockSpeed);
 }
 
