@@ -29,22 +29,22 @@
 
 PretendoWindow::PretendoWindow()
 	: BDirectWindow (BRect (0, 0, 0, 0), "Pretendo", B_TITLED_WINDOW, B_NOT_RESIZABLE, 0),
-		fView(NULL),
-		fMenu(NULL),
-		fFileMenu(NULL),
-		fEmuMenu(NULL),
-		fVideoMenu(NULL),
-		fOpenPanel(NULL),
-		fCartInfoWindow(NULL),
-		fBitmap(NULL),
-		fOverlayBitmap(NULL),
-		fBitmapBits(NULL),
-		fOverlayBits(NULL),
+		fView(nullptr),
+		fMenu(nullptr),
+		fFileMenu(nullptr),
+		fEmuMenu(nullptr),
+		fVideoMenu(nullptr),
+		fOpenPanel(nullptr),
+		fCartInfoWindow(nullptr),
+		fBitmap(nullptr),
+		fOverlayBitmap(nullptr),
+		fBitmapBits(nullptr),
+		fOverlayBits(nullptr),
 		fBitsArea(B_ERROR),
 		fDirtyArea(B_ERROR),
-		fVideoScreen(NULL),
-		fSoundPusher(NULL),
-		//fPaletteWindow(NULL),
+		fVideoScreen(nullptr),
+		fSoundPusher(nullptr),
+		//fPaletteWindow(nullptr),
 		fPaused(false),
 		fRunning(false),
 		fClockSpeed(0),
@@ -68,7 +68,7 @@ PretendoWindow::PretendoWindow()
 	fBitmap = new BBitmap (BRect (0, 0, SCREEN_WIDTH-1, SCREEN_HEIGHT-1), B_CMAP8);
 	if (! fBitmap || ! fBitmap->IsValid()) {
 		(new BAlert ("Error", "Not enough memory for video bitmap.  Quitting.",
-			"Bummer", NULL, NULL, B_WIDTH_AS_USUAL, B_STOP_ALERT))->Go();
+			"Bummer", nullptr, nullptr, B_WIDTH_AS_USUAL, B_STOP_ALERT))->Go();
 		OnQuit();
 	} else {
 		// set up the BBitmap based framework
@@ -77,8 +77,8 @@ PretendoWindow::PretendoWindow()
 	}
 
 	// use these in case we need to share buffers across threads
-	void *areaBits = NULL;
-	void *dirtyBits = NULL;
+	void *areaBits = nullptr;
+	void *dirtyBits = nullptr;
 	
 	fBitsArea = create_area ("frame buffer", &areaBits, B_ANY_ADDRESS,
 					((SCREEN_WIDTH * 2) * (SCREEN_HEIGHT * 2) * 4 + B_PAGE_SIZE-1) & 
@@ -90,7 +90,7 @@ PretendoWindow::PretendoWindow()
 					
 	if (fBitsArea < B_OK || fDirtyArea < B_OK) {
 		(new BAlert ("Error", "Not enough memory for video buffers.  Quitting.",
-			"Bummer", NULL, NULL, B_WIDTH_AS_USUAL, B_STOP_ALERT))->Go();
+			"Bummer", nullptr, nullptr, B_WIDTH_AS_USUAL, B_STOP_ALERT))->Go();
 		OnQuit();
 	} else {
 		memset (areaBits, 0x00, (SCREEN_WIDTH*2) * (SCREEN_HEIGHT*2) * 4);
@@ -113,7 +113,7 @@ PretendoWindow::PretendoWindow()
 		fOverlayBits = reinterpret_cast<uint8 *>(fOverlayBitmap->Bits());
 		ClearBitmap (true);
 	} else {
-		fOverlayBits = NULL;
+		fOverlayBits = nullptr;
 		if (fOverlayBitmap) {
 			delete fOverlayBitmap;
 		}
@@ -189,17 +189,17 @@ PretendoWindow::~PretendoWindow()
 	if (fOpenPanel->Window()) {
 		fOpenPanel->Window()->Lock();
 		fOpenPanel->Window()->Quit();
-		fOpenPanel = NULL;
+		fOpenPanel = nullptr;
 	}
 	
 	if (fBitmap->IsValid()) {
 		delete fBitmap;
-		fBitmap = NULL;
+		fBitmap = nullptr;
 	}
 	
 	if (fOverlayBitmap->IsValid()) {
 		delete fOverlayBitmap;
-		fOverlayBitmap = NULL;
+		fOverlayBitmap = nullptr;
 	}
 	
 	delete_area (fBitsArea);
@@ -208,12 +208,12 @@ PretendoWindow::~PretendoWindow()
 	fSoundPusher->Stop();
 	delete fSoundPusher;
 	
-	if (fCartInfoWindow != NULL) {
+	if (fCartInfoWindow != nullptr) {
 		fCartInfoWindow->Lock();
 		fCartInfoWindow->Quit();
 	}
 	
-	//if (fPaletteWindow != NULL) {
+	//if (fPaletteWindow != nullptr) {
 	//	fPaletteWindow->Lock();
 	//	fPaletteWindow->Quit();
 	//}
@@ -241,7 +241,7 @@ PretendoWindow::DirectConnected (direct_buffer_info *info)
 					info->bits_per_pixel / 8, info->bytes_per_row);
 			}
 		
-			fClipInfo.clip_list = NULL;
+			fClipInfo.clip_list = nullptr;
 			fDirectConnected = true;	// ready to go
 		// intentional fall through //	
 		case B_DIRECT_MODIFY:
@@ -352,7 +352,7 @@ PretendoWindow::MessageReceived (BMessage *message)
 			break;
 			
 		case MSG_ADJ_PALETTE:
-		//	if (fPaletteWindow == NULL) {
+		//	if (fPaletteWindow == nullptr) {
 		//		fPaletteWindow = new PaletteWindow(this);
 		//	}
 			
@@ -376,7 +376,7 @@ PretendoWindow::MenusBeginning (void)
 {	
 	// set up recently opened ROM menu, we keep 5 most recent
 	BMenu *menu = BRecentFilesList::NewFileListMenu ("Load ROM" B_UTF8_ELLIPSIS,
-		NULL, NULL, this->PreferredHandler(), 5, false, NULL, 0, 
+		nullptr, nullptr, this->PreferredHandler(), 5, false, nullptr, 0, 
 		"application/x-vnd.scantysnax-Pretendo");
 	
 	fFileMenu->AddItem(new BMenuItem(menu, new BMessage(MSG_SHOW_OPEN)), 0);
@@ -386,7 +386,7 @@ PretendoWindow::MenusBeginning (void)
 
 
 void
-PretendoWindow::MenusEnded (void)
+PretendoWindow::MenusEnded()
 {	
 	// remove the recent files list
 	fFileMenu->RemoveItem(static_cast<int32>(0)); // keep this 32-bit friendly
@@ -452,9 +452,10 @@ PretendoWindow::Zoom (BPoint origin, float width, float height)
 
 
 void
-PretendoWindow::AddMenu (void)
+PretendoWindow::AddMenu()
 {
 	fMenu = new BMenuBar (BRect (0, 0, 0, 0), "menu");
+	fMenu->ResizeToPreferred();
 	AddChild (fMenu);
 	
 	fFileMenu = new BMenu ("File");
@@ -505,7 +506,7 @@ PretendoWindow::OnLoadCart (BMessage *message)
 	if (message->FindString ("path", &path) == B_OK) {
 		OnFreeCart();
 		if (nes::cart.load(path.String()) == false) {
-			(new BAlert("Error", "Error, Invalid ROM Image", "Okay", NULL, NULL,
+			(new BAlert("Error", "Error, Invalid ROM Image", "Okay", nullptr, nullptr,
 				B_WIDTH_AS_USUAL, B_STOP_ALERT))->Go();
 		}
 		
@@ -520,7 +521,7 @@ PretendoWindow::OnLoadCart (BMessage *message)
 
 
 void
-PretendoWindow::OnFreeCart (void)
+PretendoWindow::OnFreeCart()
 {	
 	OnStop();
 	nes::cart.unload();
@@ -528,28 +529,28 @@ PretendoWindow::OnFreeCart (void)
 
 
 void
-PretendoWindow::OnCartInfo (void)
+PretendoWindow::OnCartInfo()
 {
 	if (fCartInfoWindow && fCartInfoWindow->Lock()) {
 		fCartInfoWindow->Quit();
-		fCartInfoWindow = NULL;
+		fCartInfoWindow = nullptr;
 	}
 	
-	if (nes::cart.prg() != NULL) { // && ! fCartInfoWindow) {
+	if (nes::cart.mapper() != nullptr) { // && ! fCartInfoWindow) {
 		fCartInfoWindow = new CartInfoWindow();
 		fCartInfoWindow->Show();
 	}
 }
 
 void
-PretendoWindow::OnQuit (void)
+PretendoWindow::OnQuit()
 {	
 	this->QuitRequested();
 }
 
 
 void
-PretendoWindow::OnRun (void)
+PretendoWindow::OnRun()
 {	
 	if (! fRunning) {
 		// make sure we have a cart loaded
@@ -566,7 +567,7 @@ PretendoWindow::OnRun (void)
 
 
 void
-PretendoWindow::OnStop (void)
+PretendoWindow::OnStop()
 {		
 	// if we're running, set fRunning to false to signal the thread we're not
 	// running, lock the mutual exclusion and stop the sound pusher interface
@@ -593,7 +594,7 @@ PretendoWindow::OnStop (void)
 
 
 void
-PretendoWindow::OnPause (void)
+PretendoWindow::OnPause()
 {	
 	if (fRunning) {
 		if (fPaused) {
@@ -616,14 +617,14 @@ PretendoWindow::OnPause (void)
 
 
 void
-PretendoWindow::OnSoftReset (void)
+PretendoWindow::OnSoftReset()
 {
 	reset(nes::Reset::Soft);
 }
 
 
 void
-PretendoWindow::OnHardReset (void)
+PretendoWindow::OnHardReset()
 {
 	reset(nes::Reset::Hard);
 }
@@ -690,7 +691,7 @@ PretendoWindow::RenderLine32 (uint8 *dest, const uint32_t *source)
 
 
 void
-PretendoWindow::ClearDirty (void)
+PretendoWindow::ClearDirty()
 {
 	// clear our "dirty" buffers
 	uint32 *start = reinterpret_cast<uint32 *>(fDirtyBuffer.bits);
@@ -732,6 +733,7 @@ PretendoWindow::SetRenderer (color_space cs)
 	switch (cs) {
 		default:
 		case B_CMAP8:
+			puts("oh shit");
 			for (int32 i = 0; i < 8; i++) {
 				fMappedPalette[i] = reinterpret_cast<uint8 *>(&fPalette8[i]);
 			}
@@ -831,7 +833,7 @@ PretendoWindow::ChangeFramework (VIDEO_FRAMEWORK fw)
 			break;
 			
 		case BITMAP_FRAMEWORK:
-			SetFrontBuffer (fBitmapBits, B_CMAP8, 4, fBitmap->BytesPerRow());
+			SetFrontBuffer (fBitmapBits, B_CMAP8, fPixelWidth, fBitmap->BytesPerRow());
 			ClearBitmap (false);
 			fView->Invalidate();
 			break;
@@ -870,7 +872,7 @@ PretendoWindow::ChangeFramework (VIDEO_FRAMEWORK fw)
 
 
 void
-PretendoWindow::DrawDirect (void)
+PretendoWindow::DrawDirect()
 {
 	// drawing code for the DirectWindow
 	
@@ -929,7 +931,7 @@ PretendoWindow::DrawDirect (void)
 		
 
 void
-PretendoWindow::BlitScreen (void)
+PretendoWindow::BlitScreen()
 {	
 	// decide which blitter to use based on the current video framework
 	
@@ -1048,6 +1050,7 @@ PretendoWindow::BlitScreen (void)
 					dirty += sx;
 				}
 			}
+			
 			return;
 	}
 }
@@ -1141,7 +1144,7 @@ PretendoWindow::end_frame()
 	prevCount = ReadTSC();
 	do {
 		curCount = ReadTSC();
-		snooze(1);	// chill.
+		snooze(10);	// chill.
 	} while(curCount - prevCount < clocksPerFrame);
 	
 	BlitScreen();
@@ -1188,7 +1191,7 @@ PretendoWindow::CheckKey (int32 index, int32 key)
 }
 
 inline void
-PretendoWindow::ReadKeyStates (void)
+PretendoWindow::ReadKeyStates()
 {
 	get_key_info(&fKeyStates);
 	
@@ -1204,7 +1207,7 @@ PretendoWindow::ReadKeyStates (void)
 
 
 void
-PretendoWindow::SetDefaultPalette (void)
+PretendoWindow::SetDefaultPalette()
 {
 	// if we couldn't load a palette from settings, use the defaults
 	set_palette(Palette::intensity, 
@@ -1217,7 +1220,7 @@ PretendoWindow::SetDefaultPalette (void)
 
 
 uint64
-PretendoWindow::ReadTSC(void)
+PretendoWindow::ReadTSC()
 {
 	// we can't stuff the whole tsc into rax because it gives
 	// unpredictable results.  sometimes it works, sometimes not,
@@ -1234,7 +1237,7 @@ PretendoWindow::ReadTSC(void)
 }
 
 void
-PretendoWindow::ShowFPS (void)
+PretendoWindow::ShowFPS()
 {
 	// count and show current FPS in window title
 	static uint64 curCount = 0;
