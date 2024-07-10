@@ -191,7 +191,6 @@ class PretendoWindow : public BDirectWindow
 	bool fFrameworkChanging;
 	bool fDoubled;
 	int32 fClear;
-	uint64 fPrevCount;
 	
 	private:
 	SoundPusher *fSoundPusher;

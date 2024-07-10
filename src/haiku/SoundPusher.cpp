@@ -89,7 +89,7 @@ void
 SoundPusher::LockNextPage (void)
 {
 	BPushGameSound::lock_status lockStatus;	
-	//uint8 const *data = nes::apu::buffer();
+	uint8 const *data = nes::apu::sample_buffer_.buffer();
 	 
 	lockStatus = 
 		fSoundPusher->LockNextPage(reinterpret_cast<void **>(&fSoundBuffer), &fBufferSize);
@@ -102,6 +102,10 @@ SoundPusher::LockNextPage (void)
 			return;
 		}
 	}
-
-	//mmx_copy(fSoundBuffer, data, fBufferSize);
+	
+	size_t pos = 0;
+	while (pos < fBufferSize) {
+		fSoundBuffer[pos] = data[pos];
+		pos++;
+	}
 }

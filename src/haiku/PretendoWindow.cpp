@@ -167,12 +167,16 @@ PretendoWindow::PretendoWindow()
 	
 	// measure clock speeed
 	uint64 start, finish;
-	start = ReadTSC();
-	sleep(1);
-	finish = ReadTSC();
-	fClockSpeed = finish - start;
 	
-	printf("cpu clock speed: %lu Hz\n", fClockSpeed);
+	//start = ReadTSC();
+	//start = system_time_nsecs();
+	//sleep(1);
+	//finish = ReadTSC();
+	//finish = system_time_nsecs();
+	//fClockSpeed = (finish - start);
+	fClockSpeed = 1000000000;
+	
+	//printf("cpu clock speed: %lu Hz\n", fClockSpeed);
 }
 
 
@@ -368,7 +372,7 @@ PretendoWindow::WindowActivated (bool flag)
 
 
 void
-PretendoWindow::MenusBeginning (void)
+PretendoWindow::MenusBeginning()
 {	
 	// set up recently opened ROM menu, we keep 5 most recent
 	BMenu *menu = BRecentFilesList::NewFileListMenu ("Load ROM" B_UTF8_ELLIPSIS,
@@ -836,7 +840,7 @@ PretendoWindow::ChangeFramework (VIDEO_FRAMEWORK fw)
 			
 		case OVERLAY_FRAMEWORK:
 			rgb_color key;
-			SetFrontBuffer (fOverlayBits, B_RGB16, 2, fOverlayBitmap->BytesPerRow());
+			SetFrontBuffer (fOverlayBits, B_RGB16, fPixelWidth, fOverlayBitmap->BytesPerRow());
 			ClearBitmap (true);
 			fView->SetViewOverlay (fOverlayBitmap, fOverlayBitmap->Bounds(), 
 				fView->Bounds(), &key, B_FOLLOW_ALL, B_OVERLAY_FILTER_HORIZONTAL 
@@ -886,8 +890,7 @@ PretendoWindow::DrawDirect()
 			int32 w = clip->right - clip->left + 1;
 			int32 h = clip->bottom - clip->top + 1;
 			
-			dest = fFrontBuffer.bits + y * fFrontBuffer.row_bytes + clip->left 
-				* fPixelWidth;
+			dest = fFrontBuffer.bits + y * fFrontBuffer.row_bytes + clip->left * fPixelWidth;
 			source = fBackBuffer.bits + y * fBackBuffer.row_bytes + x;
 			dirty = fDirtyBuffer.bits + y * fBackBuffer.row_bytes + x;
 			size = w * fPixelWidth;
@@ -913,8 +916,7 @@ PretendoWindow::DrawDirect()
 					
 					source = fBackBuffer.bits + (y / 2) * fBackBuffer.row_bytes + x;
 					dirty = fDirtyBuffer.bits + (y / 2) * fBackBuffer.row_bytes + x;
-					dest = fFrontBuffer.bits + y * fFrontBuffer.row_bytes + clip->left 
-						* fPixelWidth;
+					dest = fFrontBuffer.bits + y * fFrontBuffer.row_bytes + clip->left * fPixelWidth;
 					size = w * fPixelWidth;						
 					
 					blit_2x_windowed_dirty_mmx (source, dirty, dest, size, 
@@ -945,8 +947,8 @@ PretendoWindow::BlitScreen()
 			return;
 			
 		case BITMAP_FRAMEWORK:
-			source = fBackBuffer.bits;
 			dest = fBitmapBits;
+			source = fBackBuffer.bits;
 			size = SCREEN_WIDTH;
 			row_bytes = fBitmap->BytesPerRow();
 		
@@ -1053,9 +1055,9 @@ PretendoWindow::BlitScreen()
 
 
 void
-PretendoWindow::submit_scanline(int scanline, /*int intensity,*/ const uint32_t *source)
+PretendoWindow::submit_scanline(int scanline, const uint32_t *source)
 {
-	(this->*LineRenderer)(fLineOffsets[scanline], source /*, intensity */);
+	(this->*LineRenderer)(fLineOffsets[scanline], source);
 }
 
 void 
@@ -1137,18 +1139,27 @@ PretendoWindow::end_frame()
 	uint64 const clocksPerFrame = fClockSpeed / 60;
 //	printf("%" PRIu64 "\n", clocksPerFrame);
 
-	prevCount = ReadTSC();
-	do {
-		curCount = ReadTSC();
-		snooze(10);	// chill.
-	} while(curCount - prevCount < clocksPerFrame);
+	//prevCount = ReadTSC();
+	//prevCount = system_time_nsecs();
+	//do {
+	//	//curCount = ReadTSC();
+	//	curCount = system_time_nsecs();
+	
+	snooze(100);	// chill.
+	
+	// } while(curCount - prevCount < clocksPerFrame);
+
+	//uint64 const clocksPerFrame = fClockSpeed / 60;
+	//uint64 oldCount, newCount;
+	
+	//oldCount = ReadTSC();
 	
 	BlitScreen();
 	fSoundPusher->LockNextPage();
 
-	if (fShowFPS) {
-		ShowFPS();
-	}	
+//	if (fShowFPS) {
+//		ShowFPS();
+//	}	
 }
 
 
@@ -1241,8 +1252,8 @@ PretendoWindow::ShowFPS()
 	static uint64 frameCount = 0;
 	BString title;
 	
-	curCount = ReadTSC();
-
+	//curCount = ReadTSC();
+	curCount = system_time_nsecs();
 	if (curCount != 0) {
 		frameCount++;
 		uint64 diff = curCount - prevCount;
