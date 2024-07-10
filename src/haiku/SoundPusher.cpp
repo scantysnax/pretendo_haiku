@@ -1,9 +1,9 @@
 
-#include <cstdio>
 #include <cstring>
+#include <iostream>
 
 #include "SoundPusher.h"
-#include "asm/copies.h"
+
 
 
 SoundPusher::SoundPusher()
@@ -32,7 +32,7 @@ SoundPusher::Init (void)
 	fSoundPusher = new BPushGameSound(fInBufferFrameCount, &fAudioFormat, kBufferCount, NULL);
 	
 	if (fSoundPusher->InitCheck() == B_OK) {
-		puts("SoundPusher::InitCheck() -> OK");
+		std::cout << "SoundPusher::InitCheck() -> OK" << std::endl;
 		
 		void *outBase;
         size_t outSize;
@@ -41,11 +41,11 @@ SoundPusher::Init (void)
         memset(outBase, 0, outSize);
         fSoundPusher->UnlockCyclic();
         
-		puts("SoundPusher::Init() -> buffer cleared");
+		std::cout << "SoundPusher::Init() -> buffer cleared" << std::endl;
 		return true;
 	}
 	
-	puts("SoundPusher::Init() -> false");
+	std::cout << "SoundPusher::Init() -> false" << std::endl;;
 	return false;
 }
 
@@ -54,11 +54,11 @@ bool
 SoundPusher::Start (void)
 {
 	if (fSoundPusher->StartPlaying() != B_OK) {
-		puts("SoundPusher::Start() -> fail");
+		std::cout << "SoundPusher::Start() -> fail" << std::endl;
 		return false;
 	}
 	
-	puts("SoundPusher::Start() -> OK");
+	std::cout << "SoundPusher::Start() -> OK" << std::endl;
 	return true;
 }
 
@@ -72,7 +72,7 @@ SoundPusher::Stop (void)
 	fSoundPusher->StopPlaying();
 	fSoundPusher->UnlockCyclic();
 	
-	puts("SoundPusher::Stop() -> OK");
+	std::cout << "SoundPusher::Stop() -> OK" << std::endl;
 }
 
 
@@ -80,7 +80,7 @@ void
 SoundPusher::UnlockPage(void)
 {
 	if (fSoundPusher->UnlockPage(fSoundBuffer) != B_OK) {
-		puts("SoundPusher UnlockPage() -> fail");
+		std::cout << "SoundPusher UnlockPage() -> fail" << std::endl;
 	}
 }
 
@@ -96,13 +96,14 @@ SoundPusher::LockNextPage (void)
 	
 	if (lockStatus != BPushGameSound::lock_ok) {
 		if (lockStatus == BPushGameSound::lock_ok_frames_dropped) {
-			printf("SoundPusher::LockNextPage() -> frames dropped");
+			std::cout << "SoundPusher::LockNextPage() -> frames dropped" << std::endl;
 		} else {
-			printf("SoundPusher::LockNextPage() -> lock failed");
+			std::cout << "SoundPusher::LockNextPage() -> lock failed" << std::endl;
 			return;
 		}
 	}
 	
+	// maybe this can be optimised?
 	size_t pos = 0;
 	while (pos < fBufferSize) {
 		fSoundBuffer[pos] = data[pos];
