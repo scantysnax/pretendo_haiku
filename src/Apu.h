@@ -32,7 +32,7 @@ union APUStatus {
 
 constexpr int32_t frequency = 48000;
 constexpr int32_t fps = 60;
-constexpr int32_t buffer_size = (frequency / fps) * 2;
+constexpr int32_t buffer_size = (frequency / fps);
 
 void reset(Reset reset_type);
 

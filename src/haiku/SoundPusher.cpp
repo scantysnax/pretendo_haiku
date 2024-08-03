@@ -5,18 +5,20 @@
 #include "SoundPusher.h"
 
 
-
 SoundPusher::SoundPusher()
 {
 	fFrameRate = nes::apu::frequency;
 	fInBufferFrameCount = fFrameRate / nes::apu::fps;
-	
 	memset(&fAudioFormat, 0, sizeof(gs_audio_format));
 	fAudioFormat.frame_rate = fFrameRate;
 	fAudioFormat.channel_count = 1;
 	fAudioFormat.format = gs_audio_format::B_GS_U8;
 	fAudioFormat.byte_order = B_MEDIA_LITTLE_ENDIAN; // doesnt' really matter, just here for completeness
 	fAudioFormat.buffer_size = fInBufferFrameCount * kBufferCount;
+	
+	std::cout << "fFrameRate: " << fFrameRate << std::endl;
+	std::cout << "InBufferFrameCount: " << fInBufferFrameCount << std::endl;
+	std::cout << "Buffer Size: " << fAudioFormat.buffer_size << std::endl;
 }
 
 
@@ -26,10 +28,12 @@ SoundPusher::~SoundPusher()
 }
 
 bool
-SoundPusher::Init (void)
+SoundPusher::Init()
 {
 	fBufferSize = nes::apu::buffer_size;
-	fSoundPusher = new BPushGameSound(fInBufferFrameCount, &fAudioFormat, kBufferCount, NULL);
+	fSoundPusher = new BPushGameSound(fInBufferFrameCount, &fAudioFormat, kBufferCount, nullptr);
+	
+	std::cout << "Init: Buffer Size: " << fBufferSize << std::endl;
 	
 	if (fSoundPusher->InitCheck() == B_OK) {
 		std::cout << "SoundPusher::InitCheck() -> OK" << std::endl;
@@ -51,7 +55,7 @@ SoundPusher::Init (void)
 
 
 bool
-SoundPusher::Start (void)
+SoundPusher::Start()
 {
 	if (fSoundPusher->StartPlaying() != B_OK) {
 		std::cout << "SoundPusher::Start() -> fail" << std::endl;
@@ -63,7 +67,7 @@ SoundPusher::Start (void)
 }
 
 void
-SoundPusher::Stop (void)
+SoundPusher::Stop()
 {
 	void *outBase;
 	size_t outSize;
@@ -77,7 +81,7 @@ SoundPusher::Stop (void)
 
 
 void 
-SoundPusher::UnlockPage(void)
+SoundPusher::UnlockPage()
 {
 	if (fSoundPusher->UnlockPage(fSoundBuffer) != B_OK) {
 		std::cout << "SoundPusher UnlockPage() -> fail" << std::endl;
@@ -86,25 +90,26 @@ SoundPusher::UnlockPage(void)
 
 
 void
-SoundPusher::LockNextPage (void)
+SoundPusher::LockNextPage()
 {
 	BPushGameSound::lock_status lockStatus;	
 	uint8 const *data = nes::apu::sample_buffer_.buffer();
 	 
-	lockStatus = 
-		fSoundPusher->LockNextPage(reinterpret_cast<void **>(&fSoundBuffer), &fBufferSize);
-	
+	lockStatus = fSoundPusher->LockNextPage(reinterpret_cast<void **>(&fSoundBuffer), &fBufferSize);
+
+
 	if (lockStatus != BPushGameSound::lock_ok) {
 		if (lockStatus == BPushGameSound::lock_ok_frames_dropped) {
 			std::cout << "SoundPusher::LockNextPage() -> frames dropped" << std::endl;
+			return;
 		} else {
 			std::cout << "SoundPusher::LockNextPage() -> lock failed" << std::endl;
 			return;
 		}
 	}
 	
-	// maybe this can be optimised?
 	size_t pos = 0;
+	 
 	while (pos < fBufferSize) {
 		fSoundBuffer[pos] = data[pos];
 		pos++;

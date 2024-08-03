@@ -166,7 +166,7 @@ PretendoWindow::PretendoWindow()
 	fSoundPusher->Init();
 	
 	// measure clock speeed
-	uint64 start, finish;
+	//uint64 start, finish;
 	
 	//start = ReadTSC();
 	//start = system_time_nsecs();
@@ -238,7 +238,7 @@ PretendoWindow::DirectConnected (direct_buffer_info *info)
 			if (fFramework == DIRECTWINDOW_FRAMEWORK) {
 				SetFrontBuffer (reinterpret_cast<uint8 *>(info->bits)
 					+ (fClipInfo.bounds.top * info->bytes_per_row), info->pixel_format,
-					info->bits_per_pixel / 8, info->bytes_per_row);
+ 					info->bits_per_pixel / 8, info->bytes_per_row);
 			}
 		
 			fClipInfo.clip_list = nullptr;
@@ -733,7 +733,6 @@ PretendoWindow::SetRenderer (color_space cs)
 	switch (cs) {
 		default:
 		case B_CMAP8:
-			puts("oh shit");
 			for (int32 i = 0; i < 8; i++) {
 				fMappedPalette[i] = reinterpret_cast<uint8 *>(&fPalette8[i]);
 			}
@@ -795,6 +794,7 @@ PretendoWindow::ChangeFramework (VIDEO_FRAMEWORK fw)
 	}
 	
 	fFrameworkChanging = true;
+	fShowFPS = false;
 	fPrevFramework = fFramework;
 	fFramework = fw;
 	
@@ -1137,29 +1137,21 @@ PretendoWindow::end_frame()
 	uint64 curCount;
 	
 	uint64 const clocksPerFrame = fClockSpeed / 60;
-//	printf("%" PRIu64 "\n", clocksPerFrame);
-
-	//prevCount = ReadTSC();
-	//prevCount = system_time_nsecs();
-	//do {
-	//	//curCount = ReadTSC();
-	//	curCount = system_time_nsecs();
+	printf("%" PRIu64 "\n", fClockSpeed);
 	
-	snooze(100);	// chill.
-	
-	// } while(curCount - prevCount < clocksPerFrame);
-
-	//uint64 const clocksPerFrame = fClockSpeed / 60;
-	//uint64 oldCount, newCount;
-	
-	//oldCount = ReadTSC();
+	prevCount = system_time_nsecs();
+	do {
+		curCount = system_time_nsecs();
+		snooze(10);	// chill.
+	} while(curCount - prevCount < clocksPerFrame);
 	
 	BlitScreen();
-	fSoundPusher->LockNextPage();
 
-//	if (fShowFPS) {
-//		ShowFPS();
-//	}	
+	if (fShowFPS) {
+		ShowFPS();
+	}
+	
+	fSoundPusher->LockNextPage();	
 }
 
 
@@ -1170,17 +1162,18 @@ PretendoWindow::emulation_thread (void *data)
 	
 	PretendoWindow *window = reinterpret_cast<PretendoWindow *>(data);	
 	
-		while (1) {
-			if (window->Mutex()->Lock() != B_NO_ERROR) {
-				break;
-			}
-			
-			window->start_frame();
-			nes::run_frame(window);
-			window->end_frame();
-			window->ReadKeyStates();	
-			window->Mutex()->Unlock();
-		}	
+	while (1) {
+		if (window->Mutex()->Lock() != B_NO_ERROR) {
+			break;
+		}
+		
+		window->start_frame();
+		nes::run_frame(window);
+		window->end_frame();
+		window->ReadKeyStates();	
+		
+		window->Mutex()->Unlock();
+	}	
 	
 	return B_OK;
 }
@@ -1247,13 +1240,14 @@ void
 PretendoWindow::ShowFPS()
 {
 	// count and show current FPS in window title
-	static uint64 curCount = 0;
+	uint64 curCount = 0;
 	static uint64 prevCount = 0;
 	static uint64 frameCount = 0;
 	BString title;
 	
-	//curCount = ReadTSC();
-	curCount = system_time_nsecs();
+	//curCount = system_time_nsecs();
+	curCount = ReadTSC();
+	
 	if (curCount != 0) {
 		frameCount++;
 		uint64 diff = curCount - prevCount;
@@ -1268,4 +1262,3 @@ PretendoWindow::ShowFPS()
 		}
 	}
 }
-

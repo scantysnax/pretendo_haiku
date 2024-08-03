@@ -9,7 +9,6 @@
 #include "Apu.h"
 #include "Nes.h"
 
-
 int32 const kBufferCount = 4;
 
 class SoundPusher
@@ -19,11 +18,11 @@ class SoundPusher
 	virtual ~SoundPusher();
 	
 	public:
-	bool Init (void);
-	bool Start (void);
-	void Stop (void);
-	void LockNextPage(void);
-	void UnlockPage (void);
+	bool Init();
+	bool Start();
+	void Stop();
+	void LockNextPage();
+	void UnlockPage();
 	
 	private: 
 	size_t fFrameRate;
