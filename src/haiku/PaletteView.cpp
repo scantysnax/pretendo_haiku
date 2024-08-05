@@ -19,7 +19,7 @@ PaletteView::PaletteView (PretendoWindow *parent, BRect frame, int32 swatchSize)
 	fPalette(new rgb_color[64]),
 	fParent(parent)
 {
-	SetDefaultPalette();
+	//SetDefaultPalette();
 }
 
 
@@ -114,6 +114,7 @@ PaletteView::AttachedToWindow (void)
 	fSaveButton = new BButton(r,"_save_button","Save", new BMessage('SAVE'));
 	fSaveButton->ResizeToPreferred();
 	fSaveButton->MakeDefault(true);
+	fSaveButton->SetTarget(this);
 	AddChild(fSaveButton);
 	
 	r.Set(fVertSeparator->Frame().right,
@@ -121,6 +122,7 @@ PaletteView::AttachedToWindow (void)
 			0, 0);
 	fDefaultButton = new BButton(r, "_default_button", "Default", new BMessage('DFLT'));
 	fDefaultButton->ResizeToPreferred();
+	fDefaultButton->SetTarget(this);
 	AddChild(fDefaultButton);
 	
 	r.Set(fVertSeparator->Frame().right,
@@ -128,6 +130,7 @@ PaletteView::AttachedToWindow (void)
 			0, 0);
 	fRevertButton = new BButton(r, "_revert_button", "Revert", new BMessage('RVRT'));
 	fRevertButton->ResizeToPreferred();
+	fRevertButton->SetTarget(this);
 	AddChild(fRevertButton);
 	
 	float width = Window()->Frame().Width() - fVertSeparator->Frame().right;
@@ -183,18 +186,24 @@ PaletteView::MessageReceived (BMessage *message)
 			fCurrentGamma = static_cast<float>(fGammaSlider->Value() / 10000.0f);
 			SetPalette();
 			break;
-/*
+
+		case 'SAVE':
+			std::cout << "SAVE" << std::endl;
+			break;
 		
 		case 'DFLT':
-			SetDefaultPalette();	
+			SetDefaultPalette();
+			fHueSlider->SetValue(0);
+			fSaturationSlider->SetValue(10000);
+			fContrastSlider->SetValue(10000);
+			fBrightnessSlider->SetValue(10000);
+			fGammaSlider->SetValue(20000);
 			break;
 		
-		case 'UPAL':
-			break;
-		
-		case 'CNCL':
+		case 'RVRT':
+			std::cout << "RVRT" << std::endl;
 			break;	
-		*/	
+				
 		default:
 			break;
 	}
@@ -206,9 +215,9 @@ void
 PaletteView::Draw (BRect frame)
 {		
 	(void)frame;
-	
+
 	const rgb_color_t *ntscPalette = Palette::NTSC(
-				fCurrentSaturation,
+					fCurrentSaturation,
 					fCurrentHue,
 					fCurrentContrast,
 					fCurrentBrightness,
@@ -279,11 +288,8 @@ PaletteView::DrawSwatch (BPoint where, rgb_color fill)
 	StrokeLine (rect.RightBottom(), BPoint(rect.right, rect.top + 1.0f)); 
 	
 	rect.InsetBy (1,1);
-		
 	SetHighColor (fill);
-	FillRect (rect);
-	
-	Invalidate();		
+	FillRect (rect);	
 }
 
 
@@ -298,8 +304,6 @@ PaletteView::DrawSwatchRow (BPoint start, int32 size, int32 rowlen)
 		DrawSwatch (start, fWorkPalette[i]);
 		start.x += size+4;
 	}
-		
-	//Invalidate();
 }
 
 
@@ -315,8 +319,6 @@ PaletteView::DrawSwatchMatrix (BPoint start, int32 size, int32 ncols, int32 nrow
 		start.y += size+4;
 		fWorkPalette += nrows * sizeof(rgb_color);
 	}
-	
-	//Invalidate();
 }
 
 
@@ -342,8 +344,6 @@ PaletteView::DrawIndexes (void)
 		DrawChar(nybbles[i], p);
 		p.x += fSwatchSize+4;
 	}
-	
-	//Invalidate();
 }
 
 void 
@@ -355,4 +355,6 @@ PaletteView::SetPalette (void)
 		fCurrentContrast,
 		fCurrentBrightness,
 		fCurrentGamma));
+		
+		Invalidate();
 }

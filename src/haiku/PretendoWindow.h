@@ -99,12 +99,12 @@ class PretendoWindow : public BDirectWindow
 	public:
 	virtual void DirectConnected (direct_buffer_info *info);
 	virtual void MessageReceived (BMessage *message);
-	virtual bool QuitRequested (void);
+	virtual bool QuitRequested();
 	virtual void ResizeTo (float width, float height);
 	virtual void Zoom (BPoint origin, float width, float height);
 	virtual void WindowActivated (bool flag);
-	virtual void MenusBeginning (void);
-	virtual void MenusEnded (void);
+	virtual void MenusBeginning();
+	virtual void MenusEnded();
 	
 	private:
 	void AddMenu (void);
@@ -216,11 +216,11 @@ class PretendoWindow : public BDirectWindow
 	
 	private:
 	SimpleMutex *fMutex;
-	SimpleMutex *Mutex (void) { return fMutex; }
+	SimpleMutex *Mutex() { return fMutex; }
 	
 	private:
-	uint64 ReadTSC (void);
-	void ShowFPS (void);
+	uint64 ReadTSC();
+	void ShowFPS();
 	
 	private:
 	uint64 fClockSpeed;

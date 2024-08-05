@@ -213,10 +213,10 @@ PretendoWindow::~PretendoWindow()
 		fCartInfoWindow->Quit();
 	}
 	
-	//if (fPaletteWindow != nullptr) {
-	//	fPaletteWindow->Lock();
-	//	fPaletteWindow->Quit();
-	//}
+	if (fPaletteWindow != nullptr) {
+		fPaletteWindow->Lock();
+		fPaletteWindow->Quit();
+	}
 
 	
 	fMutex->Unlock();
@@ -352,11 +352,11 @@ PretendoWindow::MessageReceived (BMessage *message)
 			break;
 			
 		case MSG_ADJ_PALETTE:
-		//	if (fPaletteWindow == nullptr) {
-		//		fPaletteWindow = new PaletteWindow(this);
-		//	}
+			if (fPaletteWindow == nullptr) {
+				fPaletteWindow = new PaletteWindow(this);
+			}
 			
-		//	fPaletteWindow->Show();
+			fPaletteWindow->Show();
 			break;
 	}
 	
@@ -1137,7 +1137,7 @@ PretendoWindow::end_frame()
 	uint64 curCount;
 	
 	uint64 const clocksPerFrame = fClockSpeed / 60;
-	printf("%" PRIu64 "\n", fClockSpeed);
+	//printf("%" PRIu64 "\n", fClockSpeed);
 	
 	prevCount = system_time_nsecs();
 	do {
@@ -1245,8 +1245,8 @@ PretendoWindow::ShowFPS()
 	static uint64 frameCount = 0;
 	BString title;
 	
-	//curCount = system_time_nsecs();
-	curCount = ReadTSC();
+	curCount = system_time_nsecs();
+	//curCount = ReadTSC();
 	
 	if (curCount != 0) {
 		frameCount++;
