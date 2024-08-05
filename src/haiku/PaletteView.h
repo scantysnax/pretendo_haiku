@@ -30,20 +30,20 @@ class PaletteView : public BView
 	void SetPalette();
 		
 	private:
-	BSlider *fHueSlider;
-	BSlider *fSaturationSlider;
-	BSlider *fContrastSlider;
-	BSlider *fBrightnessSlider;
-	BSlider *fGammaSlider;
+	BSlider *fHueSlider = nullptr;
+	BSlider *fSaturationSlider = nullptr;
+	BSlider *fContrastSlider = nullptr;
+	BSlider *fBrightnessSlider = nullptr;
+	BSlider *fGammaSlider = nullptr;
 	
 	private:
-	BBox *fHorizSeparator;
-	BBox *fVertSeparator;
+	BBox *fHorizSeparator = nullptr;
+	BBox *fVertSeparator = nullptr;
 	
 	private:
-	BButton *fSaveButton;
-	BButton *fRevertButton;
-	BButton *fDefaultButton;
+	BButton *fSaveButton = nullptr;
+	BButton *fRevertButton = nullptr;
+	BButton *fDefaultButton = nullptr;
 	
 	private:
 	int32 fSwatchSize;
