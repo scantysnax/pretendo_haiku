@@ -17,7 +17,7 @@ class PaletteView : public BView
 	virtual ~PaletteView();
 	
 	public:
-	virtual void AttachedToWindow (void);
+	virtual void AttachedToWindow();
 	virtual void Draw (BRect updateRect);
 	virtual void MessageReceived (BMessage *message);
 	
@@ -26,8 +26,8 @@ class PaletteView : public BView
 	void SetDefaultPalette (void);
 	void DrawSwatch (BPoint where, rgb_color fill);
 	void DrawSwatchMatrix (BPoint start, int32 size, int32 ncols, int32 nrows);
-	void DrawIndexes (void);
-	void SetPalette (void);
+	void DrawIndexes();
+	void SetPalette();
 		
 	private:
 	BSlider *fHueSlider;

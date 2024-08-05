@@ -32,7 +32,7 @@ PaletteView::~PaletteView()
 
 
 void
-PaletteView::AttachedToWindow (void)
+PaletteView::AttachedToWindow()
 {
 	SetViewColor (ui_color(B_PANEL_BACKGROUND_COLOR));
 	
@@ -241,7 +241,7 @@ PaletteView::Draw (BRect frame)
 
 
 void
-PaletteView::SetDefaultPalette (void)
+PaletteView::SetDefaultPalette()
 {
 	fCurrentSaturation = Palette::default_saturation;
 	fCurrentHue = Palette::default_hue;
@@ -323,7 +323,7 @@ PaletteView::DrawSwatchMatrix (BPoint start, int32 size, int32 ncols, int32 nrow
 
 
 void
-PaletteView::DrawIndexes (void)
+PaletteView::DrawIndexes()
 {
 	char const nybbles[] = "0123456789ABCDEF";
 	
@@ -347,7 +347,7 @@ PaletteView::DrawIndexes (void)
 }
 
 void 
-PaletteView::SetPalette (void)
+PaletteView::SetPalette()
 {
 	fParent->set_palette(Palette::intensity, Palette::NTSC(
 		fCurrentSaturation,
