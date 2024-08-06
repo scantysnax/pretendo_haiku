@@ -217,7 +217,16 @@ PretendoWindow::~PretendoWindow()
 		fPaletteWindow->Lock();
 		fPaletteWindow->Quit();
 	}
+	
+	if (fPatternTable0Window != nullptr) {
+		fPatternTable0Window->Lock();
+		fPatternTable0Window->Quit();
+	}
 
+	if (fPatternTable1Window != nullptr) {
+		fPatternTable1Window->Lock();
+		fPatternTable1Window->Quit();
+	}
 	
 	fMutex->Unlock();
 	
@@ -358,6 +367,22 @@ PretendoWindow::MessageReceived (BMessage *message)
 			
 			fPaletteWindow->Show();
 			break;
+			
+		case MSG_PTNTBL0:
+			if (fPatternTable0Window == nullptr) {
+				fPatternTable0Window = new PatternTableWindow(this);
+			}
+
+			fPatternTable0Window->Show();				
+			break;
+			
+		case MSG_PTNTBL1:
+			if (fPatternTable1Window == nullptr) {
+				fPatternTable1Window = new PatternTableWindow(this);
+			}
+
+			fPatternTable1Window->Show();
+			break;
 	}
 	
 	BDirectWindow::MessageReceived (message);
@@ -411,6 +436,8 @@ PretendoWindow::QuitRequested()
 	fDirectConnected = false;
 		
 	be_app->PostMessage(B_QUIT_REQUESTED);
+	
+
 	
 	return true;
 }
@@ -491,6 +518,10 @@ PretendoWindow::AddMenu()
 	fEmuMenu->AddSeparatorItem();
 	fEmuMenu->AddItem (new BMenuItem ("Adjust Palette" B_UTF8_ELLIPSIS, 
 		new BMessage (MSG_ADJ_PALETTE)));
+	fEmuMenu->AddSeparatorItem();	
+	fEmuMenu->AddItem (new BMenuItem ("Show Pattern Table #0", new BMessage (MSG_PTNTBL0)));
+	fEmuMenu->AddItem (new BMenuItem ("Show Pattern Table #1", new BMessage (MSG_PTNTBL1)));
+	
 	//fEmuMenu->AddItem (new BMenuItem ("Debug" B_UTF8_ELLIPSIS, new BMessage(MSG_CPU_DEBUG)));
 	fMenuHeight = fMenu->Bounds().IntegerHeight();
 	

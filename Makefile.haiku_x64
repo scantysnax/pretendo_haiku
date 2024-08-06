@@ -140,6 +140,7 @@ CXX_FILES   := \
 	src/haiku/CartInfoView.cpp \
 	src/haiku/PaletteView.cpp \
 	src/haiku/PaletteWindow.cpp \
+	src/haiku/PatternTableWindow.cpp \
 
 
 RES_FILES	:=  src/haiku/pretendo.rsrc

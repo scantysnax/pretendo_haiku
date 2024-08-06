@@ -24,6 +24,7 @@
 #include "SimpleMutex.h"
 #include "SoundPusher.h"
 #include "PretendoView.h"
+#include "PatternTableWindow.h"
 
 #include "asm/blitters.h"
 #include "asm/copies.h"
@@ -49,6 +50,8 @@
 #define MSG_DRAW_BITMAP 'DRAW'
 #define MSG_ADJ_PALETTE 'ADJP'
 
+#define MSG_PTNTBL0 'PTB0'
+#define MSG_PTNTBL1 'PTB1'
 
 
 class PretendoWindow : public BDirectWindow
@@ -160,7 +163,7 @@ class PretendoWindow : public BDirectWindow
 	int32 fMenuHeight;
 	
 	private:
-	CartInfoWindow *fCartInfoWindow;
+	CartInfoWindow *fCartInfoWindow = nullptr;
 	
 	private:
 	uint8 *fLineOffsets[SCREEN_HEIGHT];
@@ -173,38 +176,40 @@ class PretendoWindow : public BDirectWindow
 	uint8 *fMappedPalette[8];	
 	
 	private:
-	VIDEO_FRAMEWORK fFramework;
-	VIDEO_FRAMEWORK fPrevFramework;
-	BBitmap *fBitmap;
-	BBitmap *fOverlayBitmap;
-	uint8 *fBitmapBits;
-	uint8 *fOverlayBits;
-	area_id fBitsArea;
-	area_id fDirtyArea;
+	VIDEO_FRAMEWORK fFramework = NO_FRAMEWORK;
+	VIDEO_FRAMEWORK fPrevFramework = NO_FRAMEWORK;
+	BBitmap *fBitmap = nullptr;
+	BBitmap *fOverlayBitmap = nullptr;
+	uint8 *fBitmapBits = nullptr;
+	uint8 *fOverlayBits = nullptr;
+	area_id fBitsArea = B_ERROR;
+	area_id fDirtyArea = B_ERROR;
 	video_buffer_t fBackBuffer;
 	video_buffer_t fFrontBuffer;
 	video_buffer_t fDirtyBuffer;
 	clipping_info_t fClipInfo;
-	VideoScreen *fVideoScreen;
-	bool fFullScreen;
-	volatile bool fDirectConnected;
-	bool fFrameworkChanging;
-	bool fDoubled;
-	int32 fClear;
+	VideoScreen *fVideoScreen = nullptr;
+	bool fFullScreen = false;
+	volatile bool fDirectConnected = false;
+	bool fFrameworkChanging = false;
+	bool fDoubled = false;
+	int32 fClear = 0;
 	
 	private:
-	SoundPusher *fSoundPusher;
+	SoundPusher *fSoundPusher = nullptr;
 	
 	private:
-	PaletteWindow *fPaletteWindow;
+	PaletteWindow *fPaletteWindow = nullptr;
+	PatternTableWindow *fPatternTable0Window = nullptr;
+	PatternTableWindow *fPatternTable1Window = nullptr;
 	
 	private:
-	bool fPaused;
+	bool fPaused = false;
 	
 	private:
-	thread_id fThread;
+	thread_id fThread = B_BAD_THREAD_ID;
 	static status_t emulation_thread (void *data);
-	bool fRunning;
+	bool fRunning = false;
 	
 	private:
 	bool Running (void) { return fRunning; }
@@ -215,7 +220,7 @@ class PretendoWindow : public BDirectWindow
 	inline void ReadKeyStates (void);
 	
 	private:
-	SimpleMutex *fMutex;
+	SimpleMutex *fMutex = nullptr;
 	SimpleMutex *Mutex() { return fMutex; }
 	
 	private:
@@ -223,8 +228,8 @@ class PretendoWindow : public BDirectWindow
 	void ShowFPS();
 	
 	private:
-	uint64 fClockSpeed;
-	bool fShowFPS;
+	uint64 fClockSpeed = 0;
+	bool fShowFPS = false;
 };
 				
 #endif // _PRETENDO_WINDOW_H_

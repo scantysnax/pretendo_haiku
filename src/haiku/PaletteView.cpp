@@ -223,7 +223,6 @@ PaletteView::Draw (BRect frame)
 	
 	}
 
-
 	fWorkPalette = fPalette;	
 	DrawSwatchMatrix (BPoint(16, 16), fSwatchSize, 16, 4);
 	DrawIndexes();
