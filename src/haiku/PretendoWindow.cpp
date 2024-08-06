@@ -28,23 +28,7 @@
 
 
 PretendoWindow::PretendoWindow()
-	: BDirectWindow (BRect (0, 0, 0, 0), "Pretendo", B_TITLED_WINDOW, B_NOT_RESIZABLE, 0),
-		fVideoMenu(nullptr),
-		fOpenPanel(nullptr),
-		fBitmap(nullptr),
-		fOverlayBitmap(nullptr),
-		fBitmapBits(nullptr),
-		fOverlayBits(nullptr),
-		fBitsArea(B_ERROR),
-		fDirtyArea(B_ERROR),
-		fVideoScreen(nullptr),
-		fSoundPusher(nullptr),
-		//fPaletteWindow(nullptr),
-		fPaused(false),
-		fRunning(false),
-		fClockSpeed(0),
-		fShowFPS(true)
-		
+	: BDirectWindow (BRect (0, 0, 0, 0), "Pretendo", B_TITLED_WINDOW, B_NOT_RESIZABLE, 0)		
 {
 	// create main window, put on screen
 	BRect bounds (Bounds());
