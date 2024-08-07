@@ -118,8 +118,8 @@ PretendoWindow::PretendoWindow()
 	}
 
 	// other things we need
-	fOpenPanel = new ROMFilePanel();	
-	fSoundPusher = new SoundPusher();
+	fOpenPanel = new ROMFilePanel;	
+	fSoundPusher = new SoundPusher;
 	
 	fDoubled = false;
 	fClear = 0;
