@@ -503,8 +503,8 @@ PretendoWindow::AddMenu()
 	fEmuMenu->AddItem (new BMenuItem ("Adjust Palette" B_UTF8_ELLIPSIS, 
 		new BMessage (MSG_ADJ_PALETTE)));
 	fEmuMenu->AddSeparatorItem();	
-	fEmuMenu->AddItem (new BMenuItem ("Show Pattern Table #0", new BMessage (MSG_PTNTBL0)));
-	fEmuMenu->AddItem (new BMenuItem ("Show Pattern Table #1", new BMessage (MSG_PTNTBL1)));
+	fEmuMenu->AddItem (new BMenuItem ("Pattern Table #0", new BMessage (MSG_PTNTBL0)));
+	fEmuMenu->AddItem (new BMenuItem ("Pattern Table #1", new BMessage (MSG_PTNTBL1)));
 	
 	//fEmuMenu->AddItem (new BMenuItem ("Debug" B_UTF8_ELLIPSIS, new BMessage(MSG_CPU_DEBUG)));
 	fMenuHeight = fMenu->Bounds().IntegerHeight();
