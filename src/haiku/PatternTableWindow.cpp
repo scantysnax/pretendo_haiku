@@ -34,10 +34,10 @@ PatternTableWindow::PatternTableWindow (PretendoWindow *parent,uint32 address)
 	uint8 *bits = (uint8 *)fBitmap->Bits();
 	memset (bits, 0, fBitmap->BitsLength());
 	
-	*(uint32 *)bits = 		0xffffffff;
-	*(uint32 *)(bits+4) = 	0xffffffff;
+	//*(uint32 *)bits = 		0xffffffff;
+	//*(uint32 *)(bits+4) = 	0xffffffff;
 	
-	std::cout << "bytes per row: " << fBitmap->BytesPerRow() << std::endl;
+	//std::cout << "bytes per row: " << fBitmap->BytesPerRow() << std::endl;
 	
 	//*(uint32 *)(bits+fBitmap->BytesPerRow()) = 0x;
 }
