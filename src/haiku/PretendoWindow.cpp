@@ -354,7 +354,7 @@ PretendoWindow::MessageReceived (BMessage *message)
 			
 		case MSG_PTNTBL0:
 			if (fPatternTable0Window == nullptr) {
-				fPatternTable0Window = new PatternTableWindow(this);
+				fPatternTable0Window = new PatternTableWindow(this, 0x0000);
 			}
 
 			fPatternTable0Window->Show();				
@@ -362,7 +362,7 @@ PretendoWindow::MessageReceived (BMessage *message)
 			
 		case MSG_PTNTBL1:
 			if (fPatternTable1Window == nullptr) {
-				fPatternTable1Window = new PatternTableWindow(this);
+				fPatternTable1Window = new PatternTableWindow(this, 0x1000);
 			}
 
 			fPatternTable1Window->Show();
@@ -420,9 +420,7 @@ PretendoWindow::QuitRequested()
 	fDirectConnected = false;
 		
 	be_app->PostMessage(B_QUIT_REQUESTED);
-	
 
-	
 	return true;
 }
 
@@ -1233,23 +1231,6 @@ PretendoWindow::SetDefaultPalette()
 				Palette::default_gamma));
 }
 
-
-uint64
-PretendoWindow::ReadTSC()
-{
-	// we can't stuff the whole tsc into rax because it gives
-	// unpredictable results.  sometimes it works, sometimes not,
-	// so this is our safest bet for now.
-
-	uint64 l;
-	uint64 h;
-	uint64 tsc;
-
-   asm volatile ("rdtsc" 
-    			: "=a" (l), "=d" (h));
-    tsc = static_cast<uint64>(h << 32 | l);
-	return tsc;
-}
 
 void
 PretendoWindow::ShowFPS()

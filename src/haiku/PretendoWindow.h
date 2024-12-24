@@ -160,7 +160,7 @@ class PretendoWindow : public BDirectWindow
 	BMenu *fVideoMenu = nullptr;
 	BMenu *RenderMenu = nullptr;
 	ROMFilePanel *fOpenPanel = nullptr;
-	int32 fMenuHeight;
+	int32 fMenuHeight = 18;
 	
 	private:
 	CartInfoWindow *fCartInfoWindow = nullptr;
@@ -212,19 +212,18 @@ class PretendoWindow : public BDirectWindow
 	bool fRunning = false;
 	
 	private:
-	bool Running (void) { return fRunning; }
+	bool Running() { return fRunning; }
 
 	private:
 	key_info fKeyStates;
 	inline void CheckKey (int32 index, int32 key);
-	inline void ReadKeyStates (void);
+	inline void ReadKeyStates();
 	
 	private:
 	SimpleMutex *fMutex = nullptr;
 	SimpleMutex *Mutex() { return fMutex; }
 	
 	private:
-	uint64 ReadTSC();
 	void ShowFPS();
 	
 	private:
