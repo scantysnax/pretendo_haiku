@@ -37,14 +37,12 @@ PatternTableWindow::PatternTableWindow (PretendoWindow *parent,uint32 address)
 	
 	for (int32 y = 0; y < height; y++) {
 		for (int32 x = 0; x < width; x++) {
-			*(uint8 *)(bits+y*row_bytes+x) = 0x00;	
+			*(uint8 *)(bits+y*row_bytes+x) = 0x0f;	
 	}	}
 }
 
 PatternTableWindow::~PatternTableWindow()
 {
-	
-
 }
 
 
@@ -62,65 +60,4 @@ PatternTableWindow::QuitRequested()
 	return false;
 }
 
-/*
-const uint8_t p0     = sprite.patterns[0];
-const uint8_t p1     = sprite.patterns[1];
-const uint16_t shift = 7 - x_offset;
-const uint8_t sprite_pixel =
-	((p0 >> shift) & 0x01) | (((p1 >> shift) << 0x01) & 0x02);
-*/
 
-/*
-void 
-convert(char* buffer, int tileCount, int rowCount)
-{
-	int tile;
- 	int row;
-  	int col;
-  	int bitMask;
-  	char pixelOut;
-  	char black[3],blue[3],red[3],white[3],gray[3];
-
-  	// Init. colors
-  	for(row=0;row<3;row++) {
-    	black[row]=0;
-    	white[row]=0xFF;
-    	blue[row]=0;
-    	red[row]=0;
-    	gray[row]=0x80;
-    }
-  	
-  	blue[0]=0xFF;
-  	red[2]=0xFF;
-
-  for(row=7;row>-1;row--) {
-    for(tile=0; tile < tileCount; tile++) {
-      bitMask=128;
-      for(col=0;col<8;col++) {
-        pixelOut=0;
-        if( (int) buffer[row + tile * 16] & bitMask)
-	  pixelOut++;
-        if( (int) buffer[row + tile * 16 + 8] & bitMask)
-	  pixelOut+=2;
-        switch(pixelOut){
-	  case 0:	//00
-	  	break;
-	  
-	  case 1:	// 01
-	  	break;
-	  	
-	  case 2:	// 10
-	  	break;
-	  	
-	  case 3:	// 11
-	  	break;
-      	  }
-        bitMask /= 2;
-        }
-      }
-      if(tileCount < 32 && rowCount > 1)
-		for(col=tileCount * 8; col < 256; col++)
-	  		putchar('o');//_write(output,gray,3);
-	}	
-}
-*/
