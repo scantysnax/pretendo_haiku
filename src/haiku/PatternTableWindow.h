@@ -22,7 +22,7 @@ class PatternTableWindow : public BWindow
 	void DrawTile();
 	
 	private:
-	PretendoWindow *fParent;
+	PretendoWindow *fParent = nullptr;
 	
 	private:
 	uint32 fAddress = 0x0;

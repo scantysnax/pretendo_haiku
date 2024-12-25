@@ -41,6 +41,7 @@ PatternTableWindow::PatternTableWindow (PretendoWindow *parent,uint32 address)
 	}	}
 }
 
+
 PatternTableWindow::~PatternTableWindow()
 {
 }
