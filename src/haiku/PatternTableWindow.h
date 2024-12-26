@@ -5,6 +5,8 @@
 #include <Window.h>
 #include <Bitmap.h>
 
+#include "PatternTableView.h"
+
 class PretendoWindow;
 
 
@@ -22,12 +24,10 @@ class PatternTableWindow : public BWindow
 	void DrawTile();
 	
 	private:
+	PatternTableView *fView = nullptr;
 	PretendoWindow *fParent = nullptr;
 	
-	private:
-	uint32 fAddress = 0x0;
-	BBitmap *fBitmap = nullptr;
-	uint8 *fBitmapBits = nullptr;
+
 };
 
 #endif // _PATTERNTABLE_WINDOW_H_

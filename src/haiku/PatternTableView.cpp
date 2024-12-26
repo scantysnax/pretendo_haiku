@@ -1,32 +1,53 @@
 
 #include "PatternTableView.h"
 
-#include <cstdio>
 
-
-PatternTableView::PatternTableView (BRect frame)
+PatternTableView::PatternTableView (BRect frame, uint32 address)
 	: BView (frame, "pattern_table", B_FOLLOW_ALL_SIDES, B_WILL_DRAW)
 {
+	fAddress = address;
 }
 
 
 PatternTableView::~PatternTableView()
 {
-	//delete fMsgChangePalette;
-
+	delete fBitmap;
 }
 
 
 void
 PatternTableView::AttachedToWindow()
 {
-	SetViewColor (ui_color(B_PANEL_BACKGROUND_COLOR));
+	fBitmap = new BBitmap(Bounds(), B_CMAP8);
+	fBits = (uint8 *)fBitmap->Bits();
+	fRowBytes = fBitmap->BytesPerRow();
+	memset (fBits, 0x0, fBitmap->BitsLength());
+	
+	SetViewBitmap(fBitmap);
 }
 
 void 
 PatternTableView::Draw (BRect updateRect)
 {
+	int32 height = 32*8;
+	int32 width = 32*8;
+
+	for (int32 y = 0; y < height; y++) {
+		for (int32 x = 0; x < width; x++) {
+			DrawPixel(x, y, 0xfe);	
+	}	}
+	
 	BView::Draw(updateRect);
+}
+
+
+void 
+PatternTableView::DrawPixel (int32 x, int32 y, uint8 color)
+{
+	uint8 *dest = fBits;
+	int32 row_bytes = fRowBytes;
+	
+	*(uint8 *)(dest+x+(y*row_bytes)) = color;
 }
 
 
