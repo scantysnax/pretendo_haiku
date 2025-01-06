@@ -11,6 +11,7 @@
 #endif
 
 MemoryMappedFile::MemoryMappedFile(const std::string &filename, size_t size) {
+	(void)filename;
 
 #ifdef __linux__
 	int fd = ::open(filename.c_str(), O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);

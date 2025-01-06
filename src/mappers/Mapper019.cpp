@@ -78,6 +78,8 @@ uint8_t Mapper19::read_7(uint_least16_t address) {
 // Name:
 //------------------------------------------------------------------------------
 void Mapper19::write_4(uint_least16_t address, uint8_t value) {
+		(void)value;
+		
 	switch (address & 0xf800) {
 	case 0x4800:
 		break;
