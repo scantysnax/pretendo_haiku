@@ -5,6 +5,7 @@
 #include <View.h>
 #include <Bitmap.h>
 
+
 class PatternTableView : public BView
 {
 	public:
@@ -18,13 +19,14 @@ class PatternTableView : public BView
 	
 	public:
 	void DrawPixel (int32 x, int32 y, uint8 color);
-	void DrawPatternTable (uint32 address);
+	void DrawPatternTable (uint8 *chr_rom);
 	
 	private:
 	uint32 fAddress = 0x0;
 	BBitmap *fBitmap = nullptr;
 	uint8 *fBits = nullptr;
 	int32 fRowBytes = 0;
+	uint8 *fChrRom = nullptr;
 };
 
 

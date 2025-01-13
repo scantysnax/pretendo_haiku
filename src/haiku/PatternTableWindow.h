@@ -19,10 +19,7 @@ class PatternTableWindow : public BWindow
 	public:
 	virtual bool QuitRequested();
 	virtual void MessageReceived (BMessage *message);
-	
-	public:
-	void DrawTile();
-	
+		
 	private:
 	PatternTableView *fView = nullptr;
 	PretendoWindow *fParent = nullptr;
