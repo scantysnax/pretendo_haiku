@@ -40,6 +40,7 @@ constexpr bool is_power_of_2(size_t size) {
 
 }
 
+
 //------------------------------------------------------------------------------
 // Name: load
 //------------------------------------------------------------------------------
@@ -76,16 +77,16 @@ bool Cart::load(const std::string &s) {
 		chr_hash_ = rom_->chr_hash();
 		rom_hash_ = rom_->rom_hash();
 
-		std::cout << "PRG HASH: " << std::hex << std::setw(8) << std::setfill('0') << prg_hash_ << std::dec << std::endl;
-		std::cout << "CHR HASH: " << std::hex << std::setw(8) << std::setfill('0') << chr_hash_ << std::dec << std::endl;
-		std::cout << "ROM HASH: " << std::hex << std::setw(8) << std::setfill('0') << rom_hash_ << std::dec << std::endl;
+		std::cout << "PRG HASH: " << std::hex << std::setw(8) << std::setfill('0') << 								prg_hash_ << std::dec << std::endl;
+		std::cout << "CHR HASH: " << std::hex << std::setw(8) << std::setfill('0') << 								chr_hash_ << std::dec << std::endl;
+		std::cout << "ROM HASH: " << std::hex << std::setw(8) << std::setfill('0') << 								rom_hash_ << std::dec << std::endl;
 
 		if (!is_power_of_2(rom_->prg_size())) {
-			std::cout << "WARNING: PRG size is not a power of 2, this is unusual" << std::endl;
+			std::cout << "WARNING: PRG size is not a power of 2, this is unusual" << 					std::endl;
 		}
 
 		if (!is_power_of_2(rom_->chr_size())) {
-			std::cout << "WARNING: CHR size is not a power of 2, this is unusual" << std::endl;
+			std::cout << "WARNING: CHR size is not a power of 2, this is unusual" << 					std::endl;
 		}
 
 		mapper_ = Mapper::create_mapper(rom_->header()->mapper());

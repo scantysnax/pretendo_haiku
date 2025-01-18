@@ -34,7 +34,7 @@ PatternTableView::Draw (BRect updateRect)
 {
 	(void)updateRect;
 	
-	DrawPatternTable(fWhichPatternTable);
+	DrawPatternTable8x8(fWhichPatternTable);
 	DrawBitmap(fBitmap, Bounds());	
 }
 
@@ -57,7 +57,7 @@ PatternTableView::DrawPixel (int32 x, int32 y, uint8 color)
 
 
 void
-PatternTableView::DrawPatternTable (int32 which)
+PatternTableView::DrawPatternTable8x8 (int32 which)
 {
 	int32 shift;
 	uint8 pixel;
@@ -71,7 +71,8 @@ PatternTableView::DrawPatternTable (int32 which)
 		0xff	// white
 	};
 		
-	uint8 *chrRom = nes::cart.chr()+(which << 19);
+	// FIXME: this is broken (eli)
+	uint8 *chrRom = nes::cart.chr()+(which << 12);
 	if (chrRom == nullptr) {
 		return;
 	}
@@ -87,8 +88,8 @@ PatternTableView::DrawPatternTable (int32 which)
 					pixel = (firstPlane >> shift) & 0x1;
 					pixel |= ((secondPlane >> shift) & 0x1) << 1;		
 					shift--;
-					
-					DrawPixel(x+(row*8), y+(col*8), colors[pixel]);					
+							
+					DrawPixel(x+(row*8), y+(col*8), colors[pixel]);			
 				}
 						
 				 xofs++;
@@ -96,7 +97,50 @@ PatternTableView::DrawPatternTable (int32 which)
 			
 			xofs += 8;
 		}
-	}
-	
+	}	
 }
 
+
+void
+PatternTableView::DrawPatternTable8x16 (int32 which)
+{
+	int32 shift;
+	uint8 pixel;
+	int32 xofs = 0;
+	
+	// greyscale palette reverse-engineered from haiku system palette
+	uint8 colors[] = {
+		0x0,	// black 
+		0xaf, 	// dark grey
+		0x88,	// light grey
+		0xff	// white
+	};
+		
+	// FIXME: this is broken (eli)
+	uint8 *chrRom = nes::cart.chr()+(which << 12);
+	if (chrRom == nullptr) {
+		return;
+	}
+
+	for (int32 col = 0; col < 16; col++) {
+		for (int32 row = 0; row < 16; row++) {
+			for (int32 y = 0; y < 8; y++) {
+				uint8 firstPlane = chrRom[xofs+0];
+				uint8 secondPlane = chrRom[xofs+8];
+				shift = 7;
+				
+				for (int32 x = 0; x < 8; x++) {
+					pixel = (firstPlane >> shift) & 0x1;
+					pixel |= ((secondPlane >> shift) & 0x1) << 1;		
+					shift--;
+							
+					DrawPixel(x+(row*8), y+(col*8), colors[pixel]);			
+				}
+						
+				 xofs++;
+			}
+			
+			xofs += 8;
+		}
+	}	
+}

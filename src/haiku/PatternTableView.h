@@ -25,7 +25,9 @@ class PatternTableView : public BView
 	void DrawPixel (int32 x, int32 y, uint8 color);
 	
 	public:
-	void DrawPatternTable (int32 which);
+	void DrawPatternTable8x8 (int32 which);
+	void DrawPatternTable8x16 (int32 which);
+	
 	
 	private:
 	uint32 fAddress = 0x0;
