@@ -71,7 +71,7 @@ PatternTableView::DrawPatternTable (int32 which)
 		0xff	// white
 	};
 		
-	uint8 *chrRom = nes::cart.chr()+(which << 12);
+	uint8 *chrRom = nes::cart.chr()+(which << 19);
 	if (chrRom == nullptr) {
 		return;
 	}
