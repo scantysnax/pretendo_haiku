@@ -354,7 +354,7 @@ PretendoWindow::MessageReceived (BMessage *message)
 			
 		case MSG_PTNTBL0:
 			if (fPatternTable0Window == nullptr) {
-				fPatternTable0Window = new PatternTableWindow(this, 0x0000);
+				fPatternTable0Window = new PatternTableWindow(this, 0);
 			}
 
 			fPatternTable0Window->Show();				
@@ -362,7 +362,7 @@ PretendoWindow::MessageReceived (BMessage *message)
 			
 		case MSG_PTNTBL1:
 			if (fPatternTable1Window == nullptr) {
-				fPatternTable1Window = new PatternTableWindow(this, 0x1000);
+				fPatternTable1Window = new PatternTableWindow(this, 1);
 			}
 
 			fPatternTable1Window->Show();

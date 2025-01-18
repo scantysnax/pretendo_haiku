@@ -1,26 +1,23 @@
 
 #include "PatternTableWindow.h"
 
-#include "Nes.h"
-#include "Cart.h"
 
-
-PatternTableWindow::PatternTableWindow (PretendoWindow *parent, uint32 address)
+PatternTableWindow::PatternTableWindow (PretendoWindow *parent, int32 which)
 	: BWindow(BRect(200, 200, 0, 0), nullptr, B_FLOATING_WINDOW_LOOK, 
 		B_NORMAL_WINDOW_FEEL, B_NOT_RESIZABLE|B_NOT_ZOOMABLE),
 	fParent(parent)
 {
-	ResizeTo(128*2, 128*2);
-	SetTitle( (address & 0x1000) ? "Pattern Table #1" : "Pattern Table #0");
+	ResizeTo(kPatternTableWidth*2, kPatternTableHeight*2);
+	SetTitle((which == 0) ? "Pattern Table #0" : "Pattern Table #1");
 	
-	fView = new PatternTableView(Bounds(), address);
+	fView = new PatternTableView(Bounds(), which);
 	AddChild(fView);	
 }
 
 
 PatternTableWindow::~PatternTableWindow()
 {
-}
+} 
 
 
 void

@@ -6,10 +6,14 @@
 #include <Bitmap.h>
 
 
+constexpr int32 kPatternTableWidth = 128;
+constexpr int32 kPatternTableHeight = 128;
+
+
 class PatternTableView : public BView
 {
 	public:
-	PatternTableView (BRect frame, uint32 address);
+	PatternTableView (BRect frame, int32 which);
 	virtual ~PatternTableView();
 	
 	public:
@@ -17,16 +21,18 @@ class PatternTableView : public BView
 	virtual void Draw (BRect updateRect);
 	virtual void MessageReceived (BMessage *message);
 	
-	public:
+	private:
 	void DrawPixel (int32 x, int32 y, uint8 color);
-	void DrawPatternTable (uint8 *chr_rom);
+	
+	public:
+	void DrawPatternTable (int32 which);
 	
 	private:
 	uint32 fAddress = 0x0;
 	BBitmap *fBitmap = nullptr;
 	uint8 *fBits = nullptr;
 	int32 fRowBytes = 0;
-	uint8 *fChrRom = nullptr;
+	int32 fWhichPatternTable = 0;
 };
 
 

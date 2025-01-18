@@ -7,13 +7,14 @@
 
 #include "PatternTableView.h"
 
+
 class PretendoWindow;
 
 
 class PatternTableWindow : public BWindow
 {
 	public:
-			PatternTableWindow(PretendoWindow *parent, uint32 address);
+			PatternTableWindow(PretendoWindow *parent, int32 which);
 	virtual ~PatternTableWindow();
 	
 	public:
@@ -23,8 +24,6 @@ class PatternTableWindow : public BWindow
 	private:
 	PatternTableView *fView = nullptr;
 	PretendoWindow *fParent = nullptr;
-	
-
 };
 
 #endif // _PATTERNTABLE_WINDOW_H_
