@@ -34,7 +34,9 @@ PatternTableView::Draw (BRect updateRect)
 {
 	(void)updateRect;
 	
-	DrawPatternTable8x8(fWhichPatternTable);
+	//DrawPatternTable8x8(fWhichPatternTable);
+	DrawPatternTable8x16(fWhichPatternTable);
+	
 	DrawBitmap(fBitmap, Bounds());	
 }
 
@@ -77,8 +79,8 @@ PatternTableView::DrawPatternTable8x8 (int32 which)
 		return;
 	}
 
-	for (int32 col = 0; col < 16; col++) {
-		for (int32 row = 0; row < 16; row++) {
+	for (int32 row = 0; row < 16; row++) {
+		for (int32 col = 0; col < 16; col++) {
 			for (int32 y = 0; y < 8; y++) {
 				uint8 firstPlane = chrRom[xofs+0];
 				uint8 secondPlane = chrRom[xofs+8];
@@ -88,16 +90,15 @@ PatternTableView::DrawPatternTable8x8 (int32 which)
 					pixel = (firstPlane >> shift) & 0x1;
 					pixel |= ((secondPlane >> shift) & 0x1) << 1;		
 					shift--;
-							
-					DrawPixel(x+(row*8), y+(col*8), colors[pixel]);			
+					
+					DrawPixel(x+(col*8), y+(row*8), colors[pixel]);	
+					
 				}
-						
-				 xofs++;
+				xofs++;	
 			}
-			
 			xofs += 8;
 		}
-	}	
+	}
 }
 
 
@@ -121,9 +122,9 @@ PatternTableView::DrawPatternTable8x16 (int32 which)
 	if (chrRom == nullptr) {
 		return;
 	}
-
-	for (int32 col = 0; col < 16; col++) {
-		for (int32 row = 0; row < 16; row++) {
+	
+	for (int32 row = 0; row < 16; row++) {
+		for (int32 col = 0; col < 16; col++) {
 			for (int32 y = 0; y < 8; y++) {
 				uint8 firstPlane = chrRom[xofs+0];
 				uint8 secondPlane = chrRom[xofs+8];
@@ -133,14 +134,12 @@ PatternTableView::DrawPatternTable8x16 (int32 which)
 					pixel = (firstPlane >> shift) & 0x1;
 					pixel |= ((secondPlane >> shift) & 0x1) << 1;		
 					shift--;
-							
-					DrawPixel(x+(row*8), y+(col*8), colors[pixel]);			
+
+					DrawPixel(x+(col*8), y+(row*8), colors[pixel]);
 				}
-						
-				 xofs++;
-			}
-			
-			xofs += 8;
+				xofs++;	
+			}			
+		xofs += 8;
 		}
-	}	
+	}
 }
