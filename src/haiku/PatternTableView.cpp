@@ -108,6 +108,7 @@ PatternTableView::DrawPatternTable8x16 (int32 which)
 	int32 shift;
 	uint8 pixel;
 	int32 xofs = 0;
+	int32 tile = 0;
 	
 	// greyscale palette reverse-engineered from haiku system palette
 	uint8 colors[] = {
@@ -121,25 +122,5 @@ PatternTableView::DrawPatternTable8x16 (int32 which)
 	uint8 *chrRom = nes::cart.chr()+(which << 12);
 	if (chrRom == nullptr) {
 		return;
-	}
-	
-	for (int32 row = 0; row < 16; row++) {
-		for (int32 col = 0; col < 16; col++) {
-			for (int32 y = 0; y < 8; y++) {
-				uint8 firstPlane = chrRom[xofs+0];
-				uint8 secondPlane = chrRom[xofs+8];
-				shift = 7;
-				
-				for (int32 x = 0; x < 8; x++) {
-					pixel = (firstPlane >> shift) & 0x1;
-					pixel |= ((secondPlane >> shift) & 0x1) << 1;		
-					shift--;
-
-					DrawPixel(x+(col*8), y+(row*8), colors[pixel]);
-				}
-				xofs++;	
-			}			
-		xofs += 8;
-		}
 	}
 }

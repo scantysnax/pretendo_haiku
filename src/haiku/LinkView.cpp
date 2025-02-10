@@ -35,7 +35,7 @@ LinkView::~LinkView()
 void
 LinkView::AttachedToWindow (void)
 {
-	SetViewColor(ui_color(B_PANEL_BACKGROUND_COLOR));
+	SetViewColor(0,0,0);
 	SetHighColor(0, 0, 255);
 	SetFontSize(11.0f);
 	
