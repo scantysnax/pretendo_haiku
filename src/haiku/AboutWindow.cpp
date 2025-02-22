@@ -21,7 +21,6 @@ AboutWindow::AboutWindow()
 	
 	fAboutView = new AboutView(Bounds());
 	AddChild(fAboutView);
-	//fAboutView->SetViewColor(0,0,0);
 	
 	BRect r;	
 	r.Set(53, 225, 53+105, 238);
@@ -84,9 +83,7 @@ AboutView::AttachedToWindow (void)
 {
 	SetViewColor (ui_color(B_PANEL_BACKGROUND_COLOR));
 	
-	
 	BRect r;
-	
 	r.Set(53, 60, Frame().Width()-8, 220);
 	BTextView *textview = new BTextView (r, "_textview", 
 		BRect(3, 3, r.Width() - 3, r.Height() - 3), 
@@ -101,13 +98,13 @@ AboutView::AttachedToWindow (void)
 	
 	BString aboutText;
 	
-	aboutText 	<< "A freeware, multiplatform Nintendo NES emulator\n\n"
-			  	<< "Version: " << __PRETENDO_VERSION__ << "\n"
-			  	<< "Written by: Evan Teran and Eli Dayan\n"
-			  	<< "Built on: " << __DATE__ << " " << __TIME__ << "\n"
-			  	<< "Built with: gcc " << __GNUC__ << "." << __GNUC_MINOR__ << "."
-			  	<< __GNUC_PATCHLEVEL__ << "\n" 
-			  	<< "\n\"Nintendo\" and \"Nintendo Entertainment System\" are registered "
+	aboutText << "A freeware, multiplatform Nintendo NES emulator\n\n"
+			  << "Version: " << __PRETENDO_VERSION__ << "\n"
+			  << "Written by: Evan Teran and Eli Dayan\n"
+			  << "Built on: " << __DATE__ << " " << __TIME__ << "\n"
+			  << "Built with: gcc " << __GNUC__ << "." << __GNUC_MINOR__ << "."
+			  << __GNUC_PATCHLEVEL__ << "\n" 
+			  << "\n\"Nintendo\" and \"Nintendo Entertainment System\" are registered "
 			   		"trademarks of " "Nintendo Co., Ltd\n\n";
 
 
