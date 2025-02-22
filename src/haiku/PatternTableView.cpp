@@ -66,7 +66,7 @@ PatternTableView::DrawPatternTable8x8 (int32 which)
 	int32 xofs = 0;
 	
 	// greyscale palette reverse-engineered from haiku system palette
-	uint8 colors[] = {
+	uint8 const colors[] = {
 		0x0,	// black 
 		0xaf, 	// dark grey
 		0x88,	// light grey
@@ -111,7 +111,7 @@ PatternTableView::DrawPatternTable8x16 (int32 which)
 	int32 tile = 0;
 	
 	// greyscale palette reverse-engineered from haiku system palette
-	uint8 colors[] = {
+	uint8 const colors[] = {
 		0x0,	// black 
 		0xaf, 	// dark grey
 		0x88,	// light grey

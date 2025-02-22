@@ -70,8 +70,8 @@ AboutWindow::MessageReceived (BMessage *message)
 AboutView::AboutView(BRect frame)
 	: BView (frame, "_about_view", B_FOLLOW_ALL, B_WILL_DRAW)
 {
-	fIcon = BTranslationUtils::GetBitmap('bits', "About Icon");
-	fLogo = BTranslationUtils::GetBitmap('bits', "Pretendo Logo");
+	fIcon = BTranslationUtils::GetBitmap('bits', "Icon");
+	fLogo = BTranslationUtils::GetBitmap('bits', "Logo");
 }
 
 
