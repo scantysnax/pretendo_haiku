@@ -97,7 +97,6 @@ AboutView::AttachedToWindow (void)
 	textview->MakeSelectable(false);
 	
 	BString aboutText;
-	
 	aboutText << "A freeware, multiplatform Nintendo NES emulator\n\n"
 			  << "Version: " << __PRETENDO_VERSION__ << "\n"
 			  << "Written by: Evan Teran and Eli Dayan\n"
@@ -114,7 +113,6 @@ AboutView::AttachedToWindow (void)
 	BButton *button = new BButton (r, "_okay", "Okay ", new BMessage ('OKAY'));
 	button->ResizeToPreferred();
 	button->MakeDefault(true);
-	r = Bounds();
 	button->MoveTo ((Frame().Width() - button->Frame().Width()) / 2, 300);
 	AddChild(button);
 
