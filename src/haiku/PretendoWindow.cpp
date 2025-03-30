@@ -30,7 +30,9 @@
 PretendoWindow::PretendoWindow()
 	: BDirectWindow (BRect (0, 0, 0, 0), "Pretendo", B_TITLED_WINDOW, B_NOT_RESIZABLE, 0)		
 {
-	// create main window, put on screen
+	ResizeTo (SCREEN_WIDTH, SCREEN_HEIGHT);
+	CenterOnScreen();
+	
 	BRect bounds (Bounds());
 	bounds.OffsetTo (B_ORIGIN);
 	AddMenu();
@@ -38,9 +40,6 @@ PretendoWindow::PretendoWindow()
 	
 	fView = new PretendoView(bounds, this);
 	AddChild (fView);
-	
-	ResizeTo (SCREEN_WIDTH, SCREEN_HEIGHT);
-	CenterOnScreen();
 	
 	// if we can't create even this simplest video interface there is no point
 	// to keep the app running.
@@ -244,17 +243,10 @@ PretendoWindow::DirectConnected (direct_buffer_info *info)
 			fClipInfo.clip_list = 
 				reinterpret_cast<clipping_rect *>(realloc(fClipInfo.clip_list, 
 				fClipInfo.clip_count * sizeof(clipping_rect)));
-			
-			// mmx_copy doesn't work here, and i don't know why
-			// there seems to be an edge case when the window is completely
-			// obscured by another window, it causes a segfault
-			
-			//mmx_copy (fClipInfo.clip_list, info->clip_list,
-			//	fClipInfo.clip_count * sizeof(clipping_rect));
-				
+	
 			memcpy (fClipInfo.clip_list, info->clip_list,
 				fClipInfo.clip_count * sizeof(clipping_rect));
-			
+					
 			for (int32 i = 0; i < fClipInfo.clip_count; i++) {
 				if (fClipInfo.clip_list[i].top <= 
 					static_cast<int32>(info->window_bounds.top + fMenuHeight)) {
@@ -442,7 +434,7 @@ PretendoWindow::Zoom (BPoint origin, float width, float height)
 	(void)height;
 	
 	// check for double size, and adjust the window accordingly
-	float w = Bounds().right - Bounds().left;	
+	float w = Frame().right - Frame().left;	
 		
 	if (w == SCREEN_WIDTH) {
 		ResizeTo ((SCREEN_WIDTH*2), (SCREEN_HEIGHT*2));

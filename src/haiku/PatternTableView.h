@@ -4,6 +4,8 @@
 
 #include <View.h>
 #include <Bitmap.h>
+#include <PopUpMenu.h>
+#include <MenuItem.h>
 
 
 constexpr int32 kPatternTableWidth = 128;
@@ -20,21 +22,23 @@ class PatternTableView : public BView
 	virtual void AttachedToWindow();
 	virtual void Draw (BRect updateRect);
 	virtual void MessageReceived (BMessage *message);
+	virtual void MouseDown(BPoint point);
 	
 	private:
 	void DrawPixel (int32 x, int32 y, uint8 color);
-	
-	public:
+	void DrawTile (int32 patternTable, int32 tileIndex, int32 tileX, int32 tileY);
 	void DrawPatternTable8x8 (int32 which);
 	void DrawPatternTable8x16 (int32 which);
 	
+	private:
+	BPopUpMenu *fPopUpMenu = nullptr;
 	
 	private:
-	uint32 fAddress = 0x0;
 	BBitmap *fBitmap = nullptr;
 	uint8 *fBits = nullptr;
 	int32 fRowBytes = 0;
 	int32 fWhichPatternTable = 0;
+	int32 fViewMode = 0;
 };
 
 
