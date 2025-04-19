@@ -26,14 +26,14 @@ APPNAME := Pretendo
 DEFINES  := 
 INCLUDES := -Ilibines2/lib/include/ -Isrc/ -Isrc/haiku/ -I/boot/system/develop/headers/ -I/boot/system/develop/headers/libxml2
 ASMFLAGS := -f elf64
-CXXFLAGS := -m64 -gdwarf-2 -gstrict-dwarf -O3 -pedantic -pipe $(INCLUDES) -W -Wall -Wno-long-long -Wno-implicit-fallthrough -std=c++17 -flto=4
-LDFLAGS  := -gdwarf-2 -gstrict-dwarf -lbe -lroot -ltranslation -ltracker -lgame -L/boot/common/lib -lxml2 -lz -flto=4
+CXXFLAGS := -O3 -pedantic -pipe $(INCLUDES) -W -Wall -Wno-implicit-fallthrough -std=c++17 -flto=4
+LDFLAGS  := -L/boot/common/lib -lbe -lroot -ltranslation -ltracker -lgame -lxml2 -lz -flto=4
 
-ASM_FILES   := \
+ASM_FILES := \
 	src/asm/blitters_x64.asm \
 	src/asm/copies_x64.asm
 
-CXX_FILES   := \
+CXX_FILES := \
 	libines2/lib/Header.cpp	\
 	libines2/lib/Rom.cpp	\
 	\
@@ -143,10 +143,10 @@ CXX_FILES   := \
 	src/haiku/PatternTableWindow.cpp \
 	src/haiku/PatternTableView.cpp \
 
-RES_FILES	:=  src/haiku/pretendo.rsrc
+RES_FILES := src/haiku/pretendo.rsrc
+O_FILES := $(CXX_FILES:.cpp=.o) $(ASM_FILES:.asm=.o)
+SOURCEFILES := $(CXX_FILES) $(ASM_FILES)
 
-O_FILES     := $(CXX_FILES:.cpp=.o) $(ASM_FILES:.asm=.o)
-SOURCEFILES := $(H_FILES) $(CXX_FILES) $(ASM_FILES)
 .PRECIOUS: $(SOURCEFILES)
 .PHONY:    clean distclean mrproper
 
