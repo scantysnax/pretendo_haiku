@@ -9,6 +9,7 @@ PatternTableView::PatternTableView (BRect frame, int32 which)
 	: BView (frame, "pattern_table", B_FOLLOW_ALL_SIDES, B_WILL_DRAW),
 	fWhichPatternTable(which)
 {
+	
 }
 
 
@@ -123,7 +124,7 @@ PatternTableView::DrawTile (int32 patternTable, int32 tileIndex, int32 tileX, in
 	if (chrRom == nullptr) {
 		return;
 	}
-		
+
 	for (int32 y = 0; y < 8; y++) {
 		uint8 firstPlane = chrRom[xofs+0];
 		uint8 secondPlane = chrRom[xofs+8];
@@ -134,7 +135,7 @@ PatternTableView::DrawTile (int32 patternTable, int32 tileIndex, int32 tileX, in
 			pixel |= ((secondPlane >> shift) & 0x1) << 1;		
 			shift--;
  	
-			DrawPixel(x+(tileX*8), y+(tileY*8), colors[pixel]);			
+			DrawPixel(x+(tileX*8), y+(tileY*8), colors[pixel]);	
 		}
 		
 		xofs++;
@@ -148,7 +149,7 @@ PatternTableView::DrawPatternTable8x8 (int32 which)
 	for (int32 y = 0; y < 16; y++) {
 		for (int32 x = 0; x < 16; x++){
 			DrawTile(which, x+(y*16), x, y);
-		}
+		}                 
 	}
 }
 
@@ -156,21 +157,17 @@ PatternTableView::DrawPatternTable8x8 (int32 which)
 void
 PatternTableView::DrawPatternTable8x16 (int32 which)
 {
-	// FIXME (eli):	for some reason, there are two extra lines drawn between pairs		
-	//				not sure why this is happening yet. 8x8 works as expected.
 	int32 x = 0;
 	int32 y = 0;
-	
-	for (int32 i = 0; i < 8; i++) {	
-		for (int32 tile = (i*32); tile < ((i*32)+32); tile++) {
-			if (tile % 2 == 0) {
-				DrawTile(which, tile, x, y);
-			} else {
-				DrawTile(which, tile, x, y+1);
-				x++;
-			}
+
+	for (int32 i = 0; i < 8; i++) {
+		for (int32 t = (i*32); t < ((i*32)+32); t += 2) {
+			DrawTile(which, t, x, y);
+			DrawTile(which, (t+1), x, (y+1));
+			x++;
 		}
 		
 		y += 2;
+		x = 0;
 	}
 }
