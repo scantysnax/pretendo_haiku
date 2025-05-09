@@ -143,6 +143,8 @@ PatternTableView::DrawTile (int32 patternTable, int32 tileIndex, int32 tileX, in
 void
 PatternTableView::DrawPatternTable8x8 (int32 which)
 {	
+	debugger(0);
+	
 	for (int32 y = 0; y < 16; y++) {
 		for (int32 x = 0; x < 16; x++){
 			DrawTile(which, x+(y*16), x, y);
