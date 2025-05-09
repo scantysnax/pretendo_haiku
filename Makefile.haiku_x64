@@ -26,8 +26,10 @@ APPNAME := Pretendo
 DEFINES  := 
 INCLUDES := -Ilibines2/lib/include/ -Isrc/ -Isrc/haiku/ -I/boot/system/develop/headers/ -I/boot/system/develop/headers/libxml2
 ASMFLAGS := -f elf64
-CXXFLAGS := -O3 -pedantic -pipe $(INCLUDES) -W -Wall -Wno-implicit-fallthrough -std=c++17 -flto=4
-LDFLAGS  := -L/boot/common/lib -lbe -lroot -ltranslation -ltracker -lgame -lxml2 -lz -flto=4
+#CXXFLAGS := -O3 -pedantic -pipe $(INCLUDES) -W -Wall -Wno-implicit-fallthrough -std=c++17 -flto=4
+CXXFLAGS := -g -O3 -pedantic -pipe $(INCLUDES) -W -Wall -Wno-implicit-fallthrough -std=c++17
+#LDFLAGS  := -L/boot/common/lib -lbe -lroot -ltranslation -ltracker -lgame -lxml2 -lz
+LDFLAGS  := -g -L/boot/common/lib -lbe -lroot -ltranslation -ltracker -lgame -lxml2 -lz
 
 ASM_FILES := \
 	src/asm/blitters_x64.asm \
@@ -156,8 +158,8 @@ all: $(APPNAME)
 $(APPNAME): $(O_FILES)
 	@echo linking $@ ...
 	@$(LD) $(LDFLAGS) $(O_FILES) -o $@ 1>/dev/null
-	@echo stripping $@ ...
-	@$(STRIP) $@
+#	@echo stripping $@ ...
+#	@$(STRIP) $@
 	@echo adding resources to $@ ...
 	@$(RES) -o $@ $(RES_FILES)
 

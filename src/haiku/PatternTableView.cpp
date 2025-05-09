@@ -118,12 +118,9 @@ PatternTableView::DrawTile (int32 patternTable, int32 tileIndex, int32 tileX, in
 		0x88,	// light grey
 		0xff	// white
 	};
-	
+
 	// FIXME: this is broken (eli)
 	uint8 *chrRom = nes::cart.chr()+(patternTable << 12);
-	if (chrRom == nullptr) {
-		return;
-	}
 
 	for (int32 y = 0; y < 8; y++) {
 		uint8 firstPlane = chrRom[xofs+0];
