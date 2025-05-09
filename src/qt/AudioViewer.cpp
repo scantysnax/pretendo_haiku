@@ -1,30 +1,8 @@
 
 #include "AudioViewer.h"
 #include "Apu.h"
-#include "Dmc.h"
-#include "Noise.h"
-#include "Square.h"
-#include "Triangle.h"
 #include <QPainter>
-#include <cstring>
-
-namespace {
-
-void drawBar(QPainter *painter, int index, int value) {
-
-	QRect rect;
-	rect.setLeft((index * 20) + 10);
-	rect.setBottom(256);
-	rect.setWidth(10);
-	rect.setTop(256 - value * 3);
-
-	QLinearGradient gradient(rect.topLeft(), rect.bottomRight()); // diagonal gradient from top-left to bottom-right
-	gradient.setColorAt(1, Qt::green);
-	gradient.setColorAt(0, Qt::red);
-	painter->fillRect(rect, gradient);
-}
-
-}
+#include <QTimer>
 
 //------------------------------------------------------------------------------
 // Name: AudioViewer
@@ -38,10 +16,12 @@ AudioViewer::AudioViewer(QWidget *parent, Qt::WindowFlags f)
 }
 
 //------------------------------------------------------------------------------
-// Name: update
+// Name: setupUpdateTimer
 //------------------------------------------------------------------------------
-void AudioViewer::update() {
-	Q_EMIT ui_.widget->repaint();
+void AudioViewer::setupUpdateTimer(QTimer *timer) {
+	connect(timer, &QTimer::timeout, this, [this]() {
+		ui_.widget->update();
+	});
 }
 
 //------------------------------------------------------------------------------
@@ -51,30 +31,46 @@ bool AudioViewer::eventFilter(QObject *watched, QEvent *event) {
 
 	if (watched == ui_.widget && event->type() == QEvent::Paint) {
 
-		const int pulse1_out   = nes::apu::square_0.output();
-		const int pulse2_out   = nes::apu::square_1.output();
-		const int triangle_out = nes::apu::triangle.output();
-		const int noise_out    = nes::apu::noise.output();
-		const int dmc_out      = nes::apu::dmc.output();
-
-		QPixmap back_buffer(110, 256);
+		QImage back_buffer(1024, 128, QImage::Format_RGB32);
 		QPainter painter;
+
+		uint8_t samples[1024];
+		size_t count = nes::apu::read_samples(samples, sizeof(samples));
+
+		float sample_width = float(count) / 100.0;
+		QPointF prev;
+
 		if (painter.begin(&back_buffer)) {
 
 			// draw stuff...
 			painter.fillRect(back_buffer.rect(), Qt::black);
 
-			drawBar(&painter, 0, pulse1_out);
-			drawBar(&painter, 1, pulse2_out);
-			drawBar(&painter, 2, triangle_out);
-			drawBar(&painter, 3, noise_out);
-			drawBar(&painter, 4, dmc_out);
+			for (size_t i = 0; i < count; ++i) {
+
+				QPointF curr(i * sample_width, back_buffer.height() - samples[i]);
+
+				if (prev.isNull()) {
+					prev = curr;
+				}
+
+				if (curr.y() == prev.y()) {
+					painter.setPen(Qt::white);
+				} else if (curr.y() > prev.y()) {
+					painter.setPen(Qt::green);
+				} else {
+					painter.setPen(Qt::blue);
+				}
+
+				painter.drawLine(prev, curr);
+				prev = curr;
+			}
 
 			painter.end();
 		}
 
 		painter.begin(ui_.widget);
-		painter.drawPixmap(ui_.widget->rect(), back_buffer);
+		painter.drawImage(ui_.widget->rect(), back_buffer);
+		painter.end();
 		return true;
 	}
 	return false;

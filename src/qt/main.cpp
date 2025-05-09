@@ -20,6 +20,7 @@ namespace {
 }
 
 int main(int argc, char *argv[]) {
+
 	QApplication app(argc, argv);
 
 	int fps              = 60;
@@ -59,6 +60,10 @@ int main(int argc, char *argv[]) {
 	if (i != argc) {
 		usage(argv[0]);
 	}
+
+	QSurfaceFormat format;
+	format.setSwapInterval(0); // Disable VSync
+	QSurfaceFormat::setDefaultFormat(format);
 
 	Pretendo w(rom);
 	w.setFrameRate(fps);

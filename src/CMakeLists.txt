@@ -1,27 +1,25 @@
-cmake_minimum_required (VERSION 3.0)
+cmake_minimum_required (VERSION 3.15)
 
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTORCC ON)
 
 if(ENABLE_AUDIO)
-	find_package(PulseAudio REQUIRED)
-
-	add_definitions(-DPULSE_AUDIO_SOUND)
-
-	set(SOURCE_FILES ${SOURCE_FILES}
-		qt/PulseAudio.cpp
-	)
-
-	set(INCLUDES ${INCLUDES} ${PULSEAUDIO_INCLUDE_DIR})
-	set(LIBRARIES ${LIBRARIES} ${PULSEAUDIO_LIBRARY} -lpulse-simple)
+    find_package(Qt6 6.5.0 REQUIRED Widgets OpenGL OpenGLWidgets Multimedia)
+    add_definitions(-DENABLE_SOUND)
+    set(SOURCE_FILES ${SOURCE_FILES}
+	    qt/Audio.cpp
+	    qt/Audio.h
+    )
 else()
-	set(SOURCE_FILES ${SOURCE_FILES}
-		qt/NullAudio.cpp
-	)
+    find_package(Qt6 6.5.0 REQUIRED Widgets OpenGL OpenGLWidgets)
+    set(SOURCE_FILES ${SOURCE_FILES}
+	    qt/NullAudio.cpp
+	    qt/NullAudio.h
+    )
 endif()
 
-find_package(Qt5 5.4.0 REQUIRED Widgets OpenGL)
+
 find_package(OpenGL REQUIRED)
 
 add_executable(pretendo
@@ -181,12 +179,10 @@ add_executable(pretendo
 	qt/AudioViewer.h
 	qt/FilesystemModel.cpp
 	qt/FilesystemModel.h
-	qt/NullAudio.h
 	qt/Preferences.cpp
 	qt/Preferences.h
 	qt/Pretendo.cpp
 	qt/Pretendo.h
-	qt/PulseAudio.h
 	qt/QtVideo.cpp
 	qt/QtVideo.h
 	qt/Settings.cpp
@@ -201,6 +197,9 @@ add_executable(pretendo
 	qt/Preferences.ui
 	qt/About.ui
 	qt/AudioViewer.ui
+	qt/PatternTableView.cpp
+	qt/PatternTableView.h
+	qt/PatternTableView.ui
 )
 
 add_dependencies(pretendo mappers)
@@ -211,14 +210,22 @@ target_include_directories(pretendo PRIVATE
 )
 
 target_link_libraries(pretendo LINK_PUBLIC
-	Qt5::Widgets
-	Qt5::OpenGL
-	OpenGL::GL
-	${LIBRARIES}
-	iNES2
-	-lpthread
-	$<TARGET_OBJECTS:mappers>
+    Qt${QT_VERSION_MAJOR}::Widgets
+    Qt${QT_VERSION_MAJOR}::OpenGL
+    Qt${QT_VERSION_MAJOR}::OpenGLWidgets
+    OpenGL::GL
+    ${LIBRARIES}
+    iNES2
+    -lpthread
+    $<TARGET_OBJECTS:mappers>
 )
+
+if(ENABLE_AUDIO)
+    target_link_libraries(pretendo LINK_PUBLIC
+	Qt${QT_VERSION_MAJOR}::Multimedia
+    )
+endif()
+
 
 set_target_properties(pretendo PROPERTIES
     CXX_STANDARD 17

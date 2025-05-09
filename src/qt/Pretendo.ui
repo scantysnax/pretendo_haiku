@@ -146,7 +146,7 @@
          <number>0</number>
         </property>
         <item row="0" column="0">
-         <widget class="QtVideo" name="video" native="true">
+         <widget class="QtVideo" name="video">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
             <horstretch>0</horstretch>
@@ -173,7 +173,7 @@
      <x>0</x>
      <y>0</y>
      <width>274</width>
-     <height>23</height>
+     <height>19</height>
     </rect>
    </property>
    <widget class="QMenu" name="menu_File">
@@ -223,6 +223,7 @@
     <addaction name="menuZoom"/>
     <addaction name="action_Audio_Viewer"/>
     <addaction name="action_Take_Screenshot"/>
+    <addaction name="action_Pattern_Table_Viewer"/>
    </widget>
    <addaction name="menu_File"/>
    <addaction name="menu_CPU"/>
@@ -417,13 +418,17 @@
     <string>Take &amp;Screenshot</string>
    </property>
   </action>
+  <action name="action_Pattern_Table_Viewer">
+   <property name="text">
+    <string>&amp;Pattern Table Viewer</string>
+   </property>
+  </action>
  </widget>
  <customwidgets>
   <customwidget>
    <class>QtVideo</class>
-   <extends>QWidget</extends>
-   <header>QtVideo.h</header>
-   <container>1</container>
+   <extends>QOpenGLWidget</extends>
+   <header location="global">QtVideo.h</header>
   </customwidget>
  </customwidgets>
  <resources>

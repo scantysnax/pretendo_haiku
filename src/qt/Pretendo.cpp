@@ -1,18 +1,20 @@
 
 #include "Pretendo.h"
 #include "About.h"
+#include "Apu.h"
 #include "AudioViewer.h"
 #include "Cart.h"
 #include "Controller.h"
 #include "FilesystemModel.h"
 #include "Input.h"
-#include "Mapper.h"
 #include "Nes.h"
+#include "PatternTableView.h"
 #include "Ppu.h"
 #include "Preferences.h"
 #include "Settings.h"
 #include "SortFilterProxyModel.h"
 
+#include <QActionGroup>
 #include <QDateTime>
 #include <QDirIterator>
 #include <QFileDialog>
@@ -24,8 +26,8 @@
 
 #include <iostream>
 
-#if defined(PULSE_AUDIO_SOUND)
-#include "PulseAudio.h"
+#if defined(ENABLE_SOUND)
+#include "Audio.h"
 #else
 #include "NullAudio.h"
 #endif
@@ -79,36 +81,30 @@ Pretendo::Pretendo(const QString &filename, QWidget *parent, Qt::WindowFlags fla
 
 	filesystem_model_ = new FilesystemModel(this);
 
-	// NOTE(eteran): this thread is actually a bad idea since it will randomly crash
-	// due to races with the widget trying to consume it
-	// Let's see if we can find a better/thread safe way to populate this widget
-	// asyncronously.
-	auto thread = QThread::create([this]() {
-		auto romdir = QString::fromStdString(Settings::romDirectory);
-		QFileInfo romdir_fi(romdir);
-		romdir_fi.makeAbsolute();
+	// Populate the ROM list
+	// NOTE(eteran): might be slow for large lists
+	auto romdir = QString::fromStdString(Settings::romDirectory);
+	QFileInfo romdir_fi(romdir);
+	romdir_fi.makeAbsolute();
 
-		QString rom_basedir = romdir_fi.path();
-		if (!rom_basedir.endsWith('/')) {
-			rom_basedir.append('/');
+	QString rom_basedir = romdir_fi.path();
+	if (!rom_basedir.endsWith('/')) {
+		rom_basedir.append('/');
+	}
+
+	QDirIterator it(romdir, QStringList() << "*.nes", QDir::Files | QDir::Readable, QDirIterator::Subdirectories);
+	while (it.hasNext()) {
+		QString f = it.next();
+		QFileInfo fi(f);
+		fi.makeAbsolute();
+
+		QString path = fi.filePath();
+		if (path.startsWith(rom_basedir)) {
+			path = path.mid(rom_basedir.size());
 		}
 
-		QDirIterator it(romdir, QStringList() << "*.nes", QDir::Files | QDir::Readable, QDirIterator::Subdirectories);
-		while (it.hasNext()) {
-			QString f = it.next();
-			QFileInfo fi(f);
-			fi.makeAbsolute();
-
-			QString path = fi.filePath();
-			if (path.startsWith(rom_basedir)) {
-				path = path.mid(rom_basedir.size());
-			}
-
-			filesystem_model_->addFile(FilesystemModel::Item{path, f});
-		}
-	});
-
-	thread->start();
+		filesystem_model_->addFile(FilesystemModel::Item{path, f});
+	}
 
 	filter_model_ = new SortFilterProxyModel(this);
 	filter_model_->setFilterCaseSensitivity(Qt::CaseInsensitive);
@@ -123,8 +119,8 @@ Pretendo::Pretendo(const QString &filename, QWidget *parent, Qt::WindowFlags fla
 	timer_ = new QTimer(this);
 	connect(timer_, &QTimer::timeout, this, &Pretendo::update);
 
-#if defined(PULSE_AUDIO_SOUND)
-	audio_ = new PulseAudio();
+#if defined(ENABLE_SOUND)
+	audio_ = new Audio();
 #else
 	audio_ = new NullAudio();
 #endif
@@ -182,7 +178,7 @@ Pretendo::~Pretendo() {
 void Pretendo::setFrameRate(int framerate) {
 	framerate_ = framerate;
 	if (timer_->isActive()) {
-		timer_->start(1000.0f / framerate_);
+        timer_->start((1.0f / framerate_) * 1000.0f);
 	}
 }
 
@@ -199,21 +195,14 @@ void Pretendo::setFrameLimit(uint64_t limit) {
 void Pretendo::update() {
 
 	// idle processing loop (the emulation loop)
+
 	nes::run_frame(ui_.video);
 	ui_.video->end_frame();
 
-	const size_t audio_head     = nes::apu::sample_buffer_.head();
-	const size_t audio_tail     = nes::apu::sample_buffer_.tail();
-	const size_t audio_capacity = nes::apu::sample_buffer_.capacity();
-	const auto audio_buffer     = nes::apu::sample_buffer_.buffer();
 
-	if (audio_head >= audio_tail) {
-		audio_->write(&audio_buffer[audio_head], audio_capacity - audio_head);
-		audio_->write(&audio_buffer[0], audio_tail);
-	} else {
-		audio_->write(&audio_buffer[audio_head], audio_tail - audio_head);
-	}
-	nes::apu::sample_buffer_.clear();
+	uint8_t samples[1024];
+	size_t count = nes::apu::read_samples(samples, sizeof(samples));
+    audio_->write(samples, count);
 
 	// FPS calculation
 	auto now = std::chrono::high_resolution_clock::now();
@@ -303,7 +292,7 @@ void Pretendo::on_action_Run_triggered() {
 
 				raw_framecount_ = 0;
 
-				timer_->start(1000.0f / framerate_);
+                timer_->start((1.0f / framerate_) * 1000.0f);
 				audio_->start();
 				paused_ = false;
 
@@ -535,7 +524,20 @@ void Pretendo::on_action_Audio_Viewer_triggered() {
 	static AudioViewer *dialog = nullptr;
 	if (!dialog) {
 		dialog = new AudioViewer(this);
-		connect(timer_, &QTimer::timeout, dialog, &AudioViewer::update);
+		dialog->setupUpdateTimer(timer_);
+	}
+	dialog->show();
+}
+
+//------------------------------------------------------------------------------
+// Name:
+// Desc:
+//------------------------------------------------------------------------------
+void Pretendo::on_action_Pattern_Table_Viewer_triggered() {
+	static PatternTableView *dialog = nullptr;
+	if (!dialog) {
+		dialog = new PatternTableView(this);
+		dialog->setupUpdateTimer(timer_);
 	}
 	dialog->show();
 }
