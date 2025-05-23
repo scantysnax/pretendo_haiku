@@ -8,7 +8,7 @@
 SoundPusher::SoundPusher()
 {
 	fFrameRate = nes::apu::frequency;
-	fInBufferFrameCount = fFrameRate / nes::apu::fps;
+	fInBufferFrameCount = fFrameRate / 60;
 	memset(&fAudioFormat, 0, sizeof(gs_audio_format));
 	fAudioFormat.frame_rate = fFrameRate;
 	fAudioFormat.channel_count = 1;
@@ -93,7 +93,7 @@ void
 SoundPusher::LockNextPage()
 {
 	BPushGameSound::lock_status lockStatus;	
-	uint8 const *data = nes::apu::sample_buffer_.buffer();
+	//uint8 const *data = nes::apu::sample_buffer_.buffer();
 	 
 	lockStatus = fSoundPusher->LockNextPage(reinterpret_cast<void **>(&fSoundBuffer), &fBufferSize);
 
@@ -108,10 +108,12 @@ SoundPusher::LockNextPage()
 		}
 	}
 	
+	/*
 	size_t pos = 0;
 	 
 	while (pos < fBufferSize) {
 		fSoundBuffer[pos] = data[pos];
 		pos++;
 	}
+	*/
 }

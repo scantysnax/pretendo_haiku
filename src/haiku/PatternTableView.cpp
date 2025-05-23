@@ -28,7 +28,7 @@ PatternTableView::AttachedToWindow()
 	memset (fBits, 0x0, fBitmap->BitsLength());	
 	
 	fPopUpMenu = new BPopUpMenu("Tile Size");
-	BMenuItem *tile8x8 = new  BMenuItem("8x8", new BMessage('8by8'));
+	BMenuItem *tile8x8 = new  BMenuItem("8x8", new BMessage('8x8 '));
 	BMenuItem *tile8x16 = new  BMenuItem("8x16", new BMessage('8x16'));
 	fPopUpMenu->AddItem(tile8x8);
 	fPopUpMenu->AddItem(tile8x16);
@@ -58,7 +58,7 @@ void
 PatternTableView::MessageReceived (BMessage *message)
 {
 	switch (message->what) {
-		case '8by8':
+		case '8x8 ':
 			fViewMode = 0;
 			memset (fBits, 0x0, fBitmap->BitsLength());
 			Invalidate();
@@ -109,7 +109,7 @@ PatternTableView::DrawTile (int32 patternTable, int32 tileIndex, int32 tileX, in
 {
 	int32 shift;
 	uint8 pixel;
-	int32 xofs = tileIndex*16;
+	int32 xofs = (patternTable << 12)+(tileIndex*16);
 	
 	// greyscale palette reverse-engineered from haiku system palette
 	uint8 const colors[] = {
@@ -119,12 +119,14 @@ PatternTableView::DrawTile (int32 patternTable, int32 tileIndex, int32 tileX, in
 		0xff	// white
 	};
 
-	// FIXME: this is broken (eli)
-	uint8 *chrRom = nes::cart.chr()+(patternTable << 12);
-
+	Mapper *mapper = nes::cart.mapper();
+	if (! mapper) {
+		return;
+	}
+	
 	for (int32 y = 0; y < 8; y++) {
-		uint8 firstPlane = chrRom[xofs+0];
-		uint8 secondPlane = chrRom[xofs+8];
+		uint8 firstPlane = mapper->read_vram(xofs+0);
+		uint8 secondPlane = mapper->read_vram(xofs+8);
 		shift = 7;
 				
 		for (int32 x = 0; x < 8; x++) {
@@ -143,8 +145,6 @@ PatternTableView::DrawTile (int32 patternTable, int32 tileIndex, int32 tileX, in
 void
 PatternTableView::DrawPatternTable8x8 (int32 which)
 {	
-	debugger(0);
-	
 	for (int32 y = 0; y < 16; y++) {
 		for (int32 x = 0; x < 16; x++){
 			DrawTile(which, x+(y*16), x, y);
