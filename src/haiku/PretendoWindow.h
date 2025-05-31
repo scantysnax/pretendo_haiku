@@ -124,6 +124,9 @@ class PretendoWindow : public BDirectWindow
 	void OnDebug();
 	void OnSoftReset();
 	void OnHardReset();
+	void OnAdjustPalette();
+	void OnShowPatternTable0();
+	void OnShowPatternTable1();
 	
 
 	// video stuff

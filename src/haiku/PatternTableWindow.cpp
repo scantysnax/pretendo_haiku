@@ -30,7 +30,6 @@ PatternTableWindow::MessageReceived (BMessage *message)
 bool
 PatternTableWindow::QuitRequested()
 {
-	Hide();
-	return false;
+	return true;
 }
 

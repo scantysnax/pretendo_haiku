@@ -191,6 +191,7 @@ PretendoWindow::~PretendoWindow()
 	fSoundPusher->Stop();
 	delete fSoundPusher;
 	
+	
 	if (fCartInfoWindow != nullptr) {
 		fCartInfoWindow->Lock();
 		fCartInfoWindow->Quit();
@@ -337,27 +338,30 @@ PretendoWindow::MessageReceived (BMessage *message)
 			break;
 			
 		case MSG_ADJ_PALETTE:
-			if (fPaletteWindow == nullptr) {
-				fPaletteWindow = new PaletteWindow(this);
-			}
-			
-			fPaletteWindow->Show();
+		//	if (fPaletteWindow == nullptr) {
+		//		fPaletteWindow = new PaletteWindow(this);
+		//	}
+		//	
+		//	fPaletteWindow->Show();
+			OnAdjustPalette();
 			break;
 			
 		case MSG_PTNTBL0:
-			if (fPatternTable0Window == nullptr) {
-				fPatternTable0Window = new PatternTableWindow(this, 0);
-			}
-
-			fPatternTable0Window->Show();				
+			//if (fPatternTable0Window == nullptr) {
+			//	fPatternTable0Window = new PatternTableWindow(this, 0);
+			//}
+			
+			//fPatternTable0Window->Show();				
+			OnShowPatternTable0();
 			break;
 			
 		case MSG_PTNTBL1:
-			if (fPatternTable1Window == nullptr) {
-				fPatternTable1Window = new PatternTableWindow(this, 1);
-			}
+			//if (fPatternTable1Window == nullptr) {
+			//	fPatternTable1Window = new PatternTableWindow(this, 1);
+			//}
 
-			fPatternTable1Window->Show();
+			//fPatternTable1Window->Show();
+			OnShowPatternTable1();
 			break;
 	}
 	
@@ -638,6 +642,46 @@ PretendoWindow::OnHardReset()
 void
 PretendoWindow::OnDebug (void)
 {
+	puts(__PRETTY_FUNCTION__);
+}
+
+void
+PretendoWindow::OnAdjustPalette()
+{
+	puts(__PRETTY_FUNCTION__);
+	
+//	if (fPaletteWindow && fPaletteWindow->Lock()) {
+//		//fPaletteWindow->Quit();
+//		//fPaletteWindow = nullptr;
+//		fPaletteWindow->Show();
+//	} else {
+//		fPaletteWindow = new PaletteWindow(this);
+//		fPaletteWindow->Show();
+//	}
+
+//	if (fPaletteWindow != nullptr) {
+//		fPaletteWindow->Activate();
+//	} else {
+//		fPaletteWindow = new PaletteWindow(this);
+//		fPaletteWindow->Show();
+//	}
+//	if (fPaletteWindow == nullptr) {
+//		fPaletteWindow = new PaletteWindow(this);
+//	}
+//	
+//	fPaletteWindow->Show();
+}
+
+void
+PretendoWindow::OnShowPatternTable0()
+{
+	puts(__PRETTY_FUNCTION__);
+}
+
+void
+PretendoWindow::OnShowPatternTable1()
+{
+	puts(__PRETTY_FUNCTION__);
 }
 
 

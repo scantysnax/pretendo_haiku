@@ -36,6 +36,5 @@ PaletteWindow::MessageReceived (BMessage *message)
 bool
 PaletteWindow::QuitRequested (void)
 {
-	Hide();
-	return false;
+	return true;
 }

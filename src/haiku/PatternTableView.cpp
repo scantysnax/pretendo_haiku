@@ -6,7 +6,7 @@
 
 
 PatternTableView::PatternTableView (BRect frame, int32 which)
-	: BView (frame, "pattern_table", B_FOLLOW_ALL_SIDES, B_WILL_DRAW),
+	: BView (frame, "pattern_table", B_FOLLOW_ALL_SIDES, B_WILL_DRAW|B_PULSE_NEEDED),
 	fWhichPatternTable(which)
 {
 	
@@ -91,6 +91,15 @@ PatternTableView::MouseDown(BPoint point)
 	}
 	
    BView::MouseDown(point);	
+}
+
+
+void
+PatternTableView::Pulse()
+{
+	if (nes::cart.mapper()) {
+		puts(__PRETTY_FUNCTION__);
+	}
 }
 
 

@@ -23,6 +23,7 @@ class PatternTableView : public BView
 	virtual void Draw (BRect updateRect);
 	virtual void MessageReceived (BMessage *message);
 	virtual void MouseDown(BPoint point);
+	virtual void Pulse();
 	
 	private:
 	void DrawPixel (int32 x, int32 y, uint8 color);
