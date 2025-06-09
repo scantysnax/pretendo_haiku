@@ -30,7 +30,7 @@ class PatternTableView : public BView
 	void DrawTile (int32 patternTable, int32 tileIndex, int32 tileX, int32 tileY);
 	void DrawPatternTable8x8 (int32 which);
 	void DrawPatternTable8x16 (int32 which);
-	
+		
 	private:
 	BPopUpMenu *fPopUpMenu = nullptr;
 	

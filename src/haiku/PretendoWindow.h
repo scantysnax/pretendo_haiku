@@ -25,6 +25,7 @@
 #include "SoundPusher.h"
 #include "PretendoView.h"
 #include "PatternTableWindow.h"
+#include "NameTableWindow.h"
 
 #include "asm/blitters.h"
 #include "asm/copies.h"
@@ -52,6 +53,7 @@
 
 #define MSG_PTNTBL0 'PTB0'
 #define MSG_PTNTBL1 'PTB1'
+#define MSG_NTBL0	'NTB0'
 
 
 class PretendoWindow : public BDirectWindow
@@ -127,6 +129,7 @@ class PretendoWindow : public BDirectWindow
 	void OnAdjustPalette();
 	void OnShowPatternTable0();
 	void OnShowPatternTable1();
+	void OnShowNameTable0();
 	
 
 	// video stuff
@@ -205,6 +208,7 @@ class PretendoWindow : public BDirectWindow
 	PaletteWindow *fPaletteWindow = nullptr;
 	PatternTableWindow *fPatternTable0Window = nullptr;
 	PatternTableWindow *fPatternTable1Window = nullptr;
+	NameTableWindow *fNameTable0Window = nullptr;
 	
 	private:
 	bool fPaused = false;

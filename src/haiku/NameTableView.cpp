@@ -1,53 +1,40 @@
 
-#include "PatternTableView.h"
+#include "NameTableView.h"
 
 #include "Cart.h"
 #include "Nes.h"
 
 
-PatternTableView::PatternTableView (BRect frame, int32 which)
-	: BView (frame, "pattern_table", B_FOLLOW_ALL_SIDES, B_WILL_DRAW|B_PULSE_NEEDED),
-	fWhichPatternTable(which)
+NameTableView::NameTableView (BRect frame, int32 which)
+	: BView (frame, "name_table", B_FOLLOW_ALL_SIDES, B_WILL_DRAW|B_PULSE_NEEDED),
+	fWhichNameTable(which)
 {
 	
 }
 
 
-PatternTableView::~PatternTableView()
+NameTableView::~NameTableView()
 {
 	delete fBitmap;
 }
 
 
 void
-PatternTableView::AttachedToWindow()
+NameTableView::AttachedToWindow()
 {
-	fBitmap = new BBitmap(BRect(0, 0,127, 127), B_CMAP8);
+	fBitmap = new BBitmap(BRect(0, 0,256, 240), B_CMAP8);
 	fBits = (uint8 *)fBitmap->Bits();
 	fRowBytes = fBitmap->BytesPerRow();
 	memset (fBits, 0x0, fBitmap->BitsLength());	
-	
-	fPopUpMenu = new BPopUpMenu("Tile Size");
-	BMenuItem *tile8x8 = new  BMenuItem("8x8", new BMessage('8x8 '));
-	BMenuItem *tile8x16 = new  BMenuItem("8x16", new BMessage('8x16'));
-	fPopUpMenu->AddItem(tile8x8);
-	fPopUpMenu->AddItem(tile8x16);
-	fPopUpMenu->SetRadioMode(true);
-	tile8x8->SetMarked(true);
 	
 	BView::AttachedToWindow();
 }
 
 
 void 
-PatternTableView::Draw (BRect updateRect)
+NameTableView::Draw (BRect updateRect)
 {	
-	if (fViewMode == 0) {
-		DrawPatternTable8x8(fWhichPatternTable);
-	} else if (fViewMode == 1) {
-		DrawPatternTable8x16(fWhichPatternTable);
-	}
-	
+	DrawNameTable(fWhichNameTable);
 	DrawBitmap(fBitmap, Bounds());	
 	
 	BView::Draw(updateRect);
@@ -55,47 +42,14 @@ PatternTableView::Draw (BRect updateRect)
 
 
 void
-PatternTableView::MessageReceived (BMessage *message)
-{
-	switch (message->what) {
-		case '8x8 ':
-			fViewMode = 0;
-			memset (fBits, 0x0, fBitmap->BitsLength());
-			Invalidate();
-			break;
-		
-		case '8x16':
-			fViewMode = 1;
-			memset (fBits, 0x0, fBitmap->BitsLength());
-			Invalidate();
-			break;
-	}
-		
+NameTableView::MessageReceived (BMessage *message)
+{		
 	BView::MessageReceived (message);
 }
 
 
 void
-PatternTableView::MouseDown(BPoint point)
-{
-	uint32 mouseButtons;
-	BPoint mousePos;
-	
-	GetMouse(&mousePos, &mouseButtons);
-	
-	if (mouseButtons & B_SECONDARY_MOUSE_BUTTON) {
-		ConvertToScreen(&point);
-	
-		fPopUpMenu->SetTargetForItems(this);
-		fPopUpMenu->Go(point, true, true, true);
-	}
-	
-   BView::MouseDown(point);	
-}
-
-
-void
-PatternTableView::Pulse()
+NameTableView::Pulse()
 {
 	if (nes::cart.mapper()) {
 		puts(__PRETTY_FUNCTION__);
@@ -104,7 +58,7 @@ PatternTableView::Pulse()
 
 
 void 
-PatternTableView::DrawPixel (int32 x, int32 y, uint8 color)
+NameTableView::DrawPixel (int32 x, int32 y, uint8 color)
 {
 	uint8 *dest = fBits;
 	int32 rowbytes = fRowBytes;
@@ -114,7 +68,7 @@ PatternTableView::DrawPixel (int32 x, int32 y, uint8 color)
 
 
 void
-PatternTableView::DrawTile (int32 patternTable, int32 tileIndex, int32 tileX, int32 tileY)
+NameTableView::DrawTile (int32 patternTable, int32 tileIndex, int32 tileX, int32 tileY)
 {
 	int32 shift;
 	uint8 pixel;
@@ -134,7 +88,6 @@ PatternTableView::DrawTile (int32 patternTable, int32 tileIndex, int32 tileX, in
 	}
 	
 	for (int32 y = 0; y < 8; y++) {
-		printf("%ld\n", xofs);
 		uint8 firstPlane = mapper->read_vram(xofs+0);
 		uint8 secondPlane = mapper->read_vram(xofs+8);
 		shift = 7;
@@ -151,7 +104,14 @@ PatternTableView::DrawTile (int32 patternTable, int32 tileIndex, int32 tileX, in
 	}
 }
 
+void
+NameTableView::DrawNameTable (int32 which)
+{
+	puts(__PRETTY_FUNCTION__);
+}
 
+
+#if 0
 void
 PatternTableView::DrawPatternTable8x8 (int32 which)
 {	
@@ -180,3 +140,4 @@ PatternTableView::DrawPatternTable8x16 (int32 which)
 		x = 0;
 	}
 }
+#endif 

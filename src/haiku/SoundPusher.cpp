@@ -27,6 +27,7 @@ SoundPusher::~SoundPusher()
 	delete fSoundPusher;
 }
 
+
 bool
 SoundPusher::Init()
 {
@@ -49,7 +50,7 @@ SoundPusher::Init()
 		return true;
 	}
 	
-	std::cout << "SoundPusher::Init() -> false" << std::endl;;
+	std::cout << "SoundPusher::Init() -> fail" << std::endl;;
 	return false;
 }
 
@@ -93,11 +94,9 @@ void
 SoundPusher::LockNextPage()
 {
 	BPushGameSound::lock_status lockStatus;	
-	//uint8 const *data = nes::apu::sample_buffer_.buffer();
-	 
+ 
 	lockStatus = fSoundPusher->LockNextPage(reinterpret_cast<void **>(&fSoundBuffer), &fBufferSize);
-
-
+	
 	if (lockStatus != BPushGameSound::lock_ok) {
 		if (lockStatus == BPushGameSound::lock_ok_frames_dropped) {
 			std::cout << "SoundPusher::LockNextPage() -> frames dropped" << std::endl;
@@ -107,6 +106,13 @@ SoundPusher::LockNextPage()
 			return;
 		}
 	}
+	
+	//uint8 const *data = nes::apu::sample_buffer_.buffer();
+	
+	//read_samples(uint8_t *buffer, size_t size)
+	 //nes::apu::read_samples(fSoundBuffer, fBufferSize);
+	
+	
 	
 	/*
 	size_t pos = 0;

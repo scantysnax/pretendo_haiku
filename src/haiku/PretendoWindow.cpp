@@ -212,6 +212,11 @@ PretendoWindow::~PretendoWindow()
 		fPatternTable1Window->Quit();
 	}
 	
+	if (fNameTable0Window != nullptr) {
+		fNameTable0Window->Lock();
+		fNameTable0Window->Quit();
+	}
+	
 	fMutex->Unlock();
 	
 	Hide();
@@ -363,6 +368,10 @@ PretendoWindow::MessageReceived (BMessage *message)
 			//fPatternTable1Window->Show();
 			OnShowPatternTable1();
 			break;
+		
+		case MSG_NTBL0:
+			OnShowNameTable0();
+			break;
 	}
 	
 	BDirectWindow::MessageReceived (message);
@@ -494,13 +503,13 @@ PretendoWindow::AddMenu()
 	fEmuMenu->AddItem (new BMenuItem ("Reset (soft)", new BMessage (MSG_RST_SOFT)));
 	fEmuMenu->AddItem (new BMenuItem ("Reset (hard)", new BMessage (MSG_RST_HARD)));
 	fEmuMenu->AddSeparatorItem();
-	fEmuMenu->AddItem (new BMenuItem ("Adjust Palette" B_UTF8_ELLIPSIS, 
-		new BMessage (MSG_ADJ_PALETTE)));
+	fEmuMenu->AddItem (new BMenuItem ("Adjust Palette" B_UTF8_ELLIPSIS, new BMessage (MSG_ADJ_PALETTE)));
 	fEmuMenu->AddSeparatorItem();	
 	fEmuMenu->AddItem (new BMenuItem ("Pattern Table #0", new BMessage (MSG_PTNTBL0)));
 	fEmuMenu->AddItem (new BMenuItem ("Pattern Table #1", new BMessage (MSG_PTNTBL1)));
-	
-	//fEmuMenu->AddItem (new BMenuItem ("Debug" B_UTF8_ELLIPSIS, new BMessage(MSG_CPU_DEBUG)));
+	fEmuMenu->AddSeparatorItem();
+	fEmuMenu->AddItem (new BMenuItem ("Name Table #0", new BMessage (MSG_NTBL0)));
+
 	fMenuHeight = fMenu->Bounds().IntegerHeight();
 	
 	SetKeyMenuBar(fMenu);
@@ -680,6 +689,12 @@ PretendoWindow::OnShowPatternTable0()
 
 void
 PretendoWindow::OnShowPatternTable1()
+{
+	puts(__PRETTY_FUNCTION__);
+}
+
+void
+PretendoWindow::OnShowNameTable0()
 {
 	puts(__PRETTY_FUNCTION__);
 }
@@ -946,6 +961,7 @@ PretendoWindow::DrawDirect()
 		
 			while (h--) {
 				blit_windowed_dirty_mmx (source, dirty, dest, size, fPixelWidth);
+			
 				source += fBackBuffer.row_bytes;
 				dirty += fBackBuffer.row_bytes;
 				dest += fFrontBuffer.row_bytes;
