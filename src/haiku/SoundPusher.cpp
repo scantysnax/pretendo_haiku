@@ -107,19 +107,8 @@ SoundPusher::LockNextPage()
 		}
 	}
 	
-	//uint8 const *data = nes::apu::sample_buffer_.buffer();
-	
 	//read_samples(uint8_t *buffer, size_t size)
-	 //nes::apu::read_samples(fSoundBuffer, fBufferSize);
+	nes::apu::read_samples(fSoundBuffer, fBufferSize);
 	
-	
-	
-	/*
-	size_t pos = 0;
-	 
-	while (pos < fBufferSize) {
-		fSoundBuffer[pos] = data[pos];
-		pos++;
-	}
-	*/
+
 }

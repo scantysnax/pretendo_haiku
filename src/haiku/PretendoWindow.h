@@ -54,6 +54,9 @@
 #define MSG_PTNTBL0 'PTB0'
 #define MSG_PTNTBL1 'PTB1'
 #define MSG_NTBL0	'NTB0'
+#define MSG_NTBL1	'NTB1'
+#define MSG_NTBL2	'NTB2'
+#define MSG_NTBL3	'NTB3'
 
 
 class PretendoWindow : public BDirectWindow
@@ -164,7 +167,8 @@ class PretendoWindow : public BDirectWindow
 	BMenu *fLoadMenu = nullptr;
 	BMenu *fEmuMenu = nullptr;
 	BMenu *fVideoMenu = nullptr;
-	BMenu *RenderMenu = nullptr;
+	BMenu *fRenderMenu = nullptr;
+	BMenu *fToolMenu = nullptr;
 	ROMFilePanel *fOpenPanel = nullptr;
 	int32 fMenuHeight = 18;
 	

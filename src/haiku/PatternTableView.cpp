@@ -132,9 +132,8 @@ PatternTableView::DrawTile (int32 patternTable, int32 tileIndex, int32 tileX, in
 	if (! mapper) {
 		return;
 	}
-	
+
 	for (int32 y = 0; y < 8; y++) {
-		printf("%ld\n", xofs);
 		uint8 firstPlane = mapper->read_vram(xofs+0);
 		uint8 secondPlane = mapper->read_vram(xofs+8);
 		shift = 7;

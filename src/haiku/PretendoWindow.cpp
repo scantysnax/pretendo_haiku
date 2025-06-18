@@ -232,11 +232,11 @@ PretendoWindow::DirectConnected (direct_buffer_info *info)
 			fClear = 5;
 			fClipInfo.bounds = info->window_bounds;
 			fClipInfo.bounds.top += fMenuHeight + 1;
-			
+	
 			if (fFramework == DIRECTWINDOW_FRAMEWORK) {
 				SetFrontBuffer (reinterpret_cast<uint8 *>(info->bits)
 					+ (fClipInfo.bounds.top * info->bytes_per_row), info->pixel_format,
- 					info->bits_per_pixel / 8, info->bytes_per_row);
+					info->bits_per_pixel / 8, info->bytes_per_row);
 			}
 		
 			fClipInfo.clip_list = nullptr;
@@ -480,6 +480,9 @@ PretendoWindow::AddMenu()
 	
 	fVideoMenu = new BMenu ("Render");
 	fMenu->AddItem (fVideoMenu);
+	
+	fToolMenu = new BMenu ("Tools");
+	fMenu->AddItem (fToolMenu);
 
 	fVideoMenu->AddItem(new BMenuItem ("No Output", new BMessage (MSG_CHANGE_RENDER)));
 	fVideoMenu->AddItem(new BMenuItem ("BView/BBitmap", new BMessage(MSG_CHANGE_RENDER)));
@@ -502,13 +505,11 @@ PretendoWindow::AddMenu()
 	fEmuMenu->AddSeparatorItem();
 	fEmuMenu->AddItem (new BMenuItem ("Reset (soft)", new BMessage (MSG_RST_SOFT)));
 	fEmuMenu->AddItem (new BMenuItem ("Reset (hard)", new BMessage (MSG_RST_HARD)));
-	fEmuMenu->AddSeparatorItem();
-	fEmuMenu->AddItem (new BMenuItem ("Adjust Palette" B_UTF8_ELLIPSIS, new BMessage (MSG_ADJ_PALETTE)));
-	fEmuMenu->AddSeparatorItem();	
-	fEmuMenu->AddItem (new BMenuItem ("Pattern Table #0", new BMessage (MSG_PTNTBL0)));
-	fEmuMenu->AddItem (new BMenuItem ("Pattern Table #1", new BMessage (MSG_PTNTBL1)));
-	fEmuMenu->AddSeparatorItem();
-	fEmuMenu->AddItem (new BMenuItem ("Name Table #0", new BMessage (MSG_NTBL0)));
+	
+	fToolMenu->AddItem(new BMenuItem("Pattern Table 0", new BMessage(MSG_PTNTBL0)));
+	fToolMenu->AddItem(new BMenuItem("Pattern Table 1", new BMessage(MSG_PTNTBL1)));
+	fToolMenu->AddSeparatorItem();
+	fToolMenu->AddItem(new BMenuItem("Name Table 0", new BMessage(MSG_NTBL0)));
 
 	fMenuHeight = fMenu->Bounds().IntegerHeight();
 	
@@ -659,31 +660,56 @@ PretendoWindow::OnAdjustPalette()
 {
 	puts(__PRETTY_FUNCTION__);
 	
-//	if (fPaletteWindow && fPaletteWindow->Lock()) {
-//		//fPaletteWindow->Quit();
-//		//fPaletteWindow = nullptr;
-//		fPaletteWindow->Show();
-//	} else {
-//		fPaletteWindow = new PaletteWindow(this);
-//		fPaletteWindow->Show();
-//	}
+	/*
+	if (fPaletteWindow && fPaletteWindow->Lock()) {
+		//fPaletteWindow->Quit();
+		//fPaletteWindow = nullptr;
+		fPaletteWindow->Show();
+	} else {
+		fPaletteWindow = new PaletteWindow(this);
+		fPaletteWindow->Show();
+	}
 
-//	if (fPaletteWindow != nullptr) {
-//		fPaletteWindow->Activate();
-//	} else {
-//		fPaletteWindow = new PaletteWindow(this);
-//		fPaletteWindow->Show();
-//	}
-//	if (fPaletteWindow == nullptr) {
-//		fPaletteWindow = new PaletteWindow(this);
-//	}
-//	
-//	fPaletteWindow->Show();
+	if (fPaletteWindow != nullptr) {
+		fPaletteWindow->Activate();
+	} else {
+		fPaletteWindow = new PaletteWindow(this);
+		fPaletteWindow->Show();
+	}
+	if (fPaletteWindow == nullptr) {
+		fPaletteWindow = new PaletteWindow(this);
+	}
+	
+	fPaletteWindow->Show();
+	*/
 }
 
 void
 PretendoWindow::OnShowPatternTable0()
 {
+	/*
+	if (fPatternTable0Window && fPatternTable0Window->Lock()) {
+		//fPaletteWindow->Quit();
+		//fPaletteWindow = nullptr;
+		fPatternTable0Window->Show();
+	} else {
+		fPatternTable0Window = new PatternTableWindow(this, 0);
+		fPatternTable0Window->Show();
+	}
+
+	if (fPatternTable0Window != nullptr) {
+		fPatternTable0Window->Activate();
+	} else {
+		fPatternTable0Window = new PatternTableWindow(this, 0);
+		fPatternTable0Window->Show();
+	}
+	if (fPatternTable0Window == nullptr) {
+		fPatternTable0Window = new PatternTableWindow(this, 0);
+	}
+	
+	fPatternTable0Window->Show();
+	*/
+	
 	puts(__PRETTY_FUNCTION__);
 }
 
@@ -696,7 +722,15 @@ PretendoWindow::OnShowPatternTable1()
 void
 PretendoWindow::OnShowNameTable0()
 {
-	puts(__PRETTY_FUNCTION__);
+		if (fNameTable0Window && fNameTable0Window->Lock()) {
+		fNameTable0Window->Quit();
+		fNameTable0Window = nullptr;
+	}
+	
+	if (nes::cart.mapper() != nullptr) { // && ! fCartInfoWindow) {
+		fNameTable0Window = new NameTableWindow(this, 0);
+		fNameTable0Window->Show();
+	}
 }
 
 
@@ -1198,17 +1232,17 @@ void
 PretendoWindow::end_frame()
 {
 	// frame lock to 60FPS, blit the screen, and lock the next page of audio
-	uint64 prevCount;
-	uint64 curCount;
+	//uint64 prevCount;
+	//uint64 curCount;
 	
-	uint64 const clocksPerFrame = fClockSpeed / 60;
+	//uint64 const clocksPerFrame = fClockSpeed / 60;
 	//printf("%" PRIu64 "\n", fClockSpeed);
 	
-	prevCount = system_time_nsecs();
-	do {
-		curCount = system_time_nsecs();
-		snooze(10);	// chill.
-	} while(curCount - prevCount < clocksPerFrame);
+	//prevCount = system_time_nsecs();
+	//do {
+	//	curCount = system_time_nsecs();
+	//	snooze(10);	// chill.
+	//} while(curCount - prevCount < clocksPerFrame);
 	
 	BlitScreen();
 
@@ -1275,6 +1309,7 @@ void
 PretendoWindow::SetDefaultPalette()
 {
 	// if we couldn't load a palette from settings, use the defaults
+	puts(__PRETTY_FUNCTION__);
 	set_palette(Palette::intensity, 
 				Palette::NTSC (Palette::default_saturation,
 				Palette::default_hue,

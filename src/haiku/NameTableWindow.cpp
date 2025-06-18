@@ -8,7 +8,7 @@ NameTableWindow::NameTableWindow (PretendoWindow *parent, int32 which)
 	fParent(parent)
 {
 	ResizeTo(256, 240);
-	//SetTitle((which == 0) ? "Pattern Table #0" : "Pattern Table #1");
+	SetTitle("Name Table #0");
 	
 	fView = new NameTableView(Bounds(), which);
 	AddChild(fView);	
@@ -32,3 +32,4 @@ NameTableWindow::QuitRequested()
 {
 	return true;
 }
+ 
