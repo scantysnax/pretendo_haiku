@@ -236,6 +236,7 @@ class PretendoWindow : public BDirectWindow
 	
 	private:
 	void ShowFPS();
+	uint64 ReadTSC();
 	
 	private:
 	uint64 fClockSpeed = 0;

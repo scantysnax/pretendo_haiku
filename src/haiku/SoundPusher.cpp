@@ -9,16 +9,13 @@ SoundPusher::SoundPusher()
 {
 	fFrameRate = nes::apu::frequency;
 	fInBufferFrameCount = fFrameRate / 60;
+	
 	memset(&fAudioFormat, 0, sizeof(gs_audio_format));
 	fAudioFormat.frame_rate = fFrameRate;
 	fAudioFormat.channel_count = 1;
 	fAudioFormat.format = gs_audio_format::B_GS_U8;
-	fAudioFormat.byte_order = B_MEDIA_LITTLE_ENDIAN; // doesnt' really matter, just here for completeness
+	fAudioFormat.byte_order = B_MEDIA_LITTLE_ENDIAN; // doesn't matter, just here for completeness
 	fAudioFormat.buffer_size = fInBufferFrameCount * kBufferCount;
-	
-	std::cout << "fFrameRate: " << fFrameRate << std::endl;
-	std::cout << "InBufferFrameCount: " << fInBufferFrameCount << std::endl;
-	std::cout << "Buffer Size: " << fAudioFormat.buffer_size << std::endl;
 }
 
 
@@ -34,10 +31,10 @@ SoundPusher::Init()
 	fBufferSize = nes::apu::buffer_size;
 	fSoundPusher = new BPushGameSound(fInBufferFrameCount, &fAudioFormat, kBufferCount, nullptr);
 	
-	std::cout << "Init: Buffer Size: " << fBufferSize << std::endl;
+	std::cout << __PRETTY_FUNCTION__ << " buffer size: " << fBufferSize << std::endl;
 	
 	if (fSoundPusher->InitCheck() == B_OK) {
-		std::cout << "SoundPusher::InitCheck() -> OK" << std::endl;
+		std::cout << __PRETTY_FUNCTION__  << " OK" << std::endl;
 		
 		void *outBase;
         size_t outSize;
@@ -46,11 +43,11 @@ SoundPusher::Init()
         memset(outBase, 0, outSize);
         fSoundPusher->UnlockCyclic();
         
-		std::cout << "SoundPusher::Init() -> buffer cleared" << std::endl;
+		std::cout << __PRETTY_FUNCTION__ << " buffer cleared" << std::endl;
 		return true;
 	}
 	
-	std::cout << "SoundPusher::Init() -> fail" << std::endl;;
+	std::cout << __PRETTY_FUNCTION__ << " fail" << std::endl;;
 	return false;
 }
 
@@ -59,11 +56,11 @@ bool
 SoundPusher::Start()
 {
 	if (fSoundPusher->StartPlaying() != B_OK) {
-		std::cout << "SoundPusher::Start() -> fail" << std::endl;
+		std::cout << __PRETTY_FUNCTION__ << " fail" << std::endl;
 		return false;
 	}
 	
-	std::cout << "SoundPusher::Start() -> OK" << std::endl;
+	std::cout << __PRETTY_FUNCTION__ << " OK" << std::endl;
 	return true;
 }
 
@@ -77,7 +74,7 @@ SoundPusher::Stop()
 	fSoundPusher->StopPlaying();
 	fSoundPusher->UnlockCyclic();
 	
-	std::cout << "SoundPusher::Stop() -> OK" << std::endl;
+	std::cout << __PRETTY_FUNCTION__ << " OK" << std::endl;
 }
 
 
@@ -85,7 +82,7 @@ void
 SoundPusher::UnlockPage()
 {
 	if (fSoundPusher->UnlockPage(fSoundBuffer) != B_OK) {
-		std::cout << "SoundPusher UnlockPage() -> fail" << std::endl;
+		std::cout << __PRETTY_FUNCTION__ << " fail" << std::endl;
 	}
 }
 
@@ -94,21 +91,17 @@ void
 SoundPusher::LockNextPage()
 {
 	BPushGameSound::lock_status lockStatus;	
- 
 	lockStatus = fSoundPusher->LockNextPage(reinterpret_cast<void **>(&fSoundBuffer), &fBufferSize);
 	
 	if (lockStatus != BPushGameSound::lock_ok) {
 		if (lockStatus == BPushGameSound::lock_ok_frames_dropped) {
-			std::cout << "SoundPusher::LockNextPage() -> frames dropped" << std::endl;
+			std::cout << __PRETTY_FUNCTION__ << " frames dropped" << std::endl;
 			return;
 		} else {
-			std::cout << "SoundPusher::LockNextPage() -> lock failed" << std::endl;
+			std::cout << __PRETTY_FUNCTION__ << " lock failed" << std::endl;
 			return;
 		}
 	}
 	
-	//read_samples(uint8_t *buffer, size_t size)
 	nes::apu::read_samples(fSoundBuffer, fBufferSize);
-	
-
 }

@@ -149,17 +149,15 @@ PretendoWindow::PretendoWindow()
 	fSoundPusher->Init();
 	
 	// measure clock speeed
-	//uint64 start, finish;
+	uint64 start, finish;
 	
-	//start = ReadTSC();
+	start = ReadTSC();
 	//start = system_time_nsecs();
-	//sleep(1);
-	//finish = ReadTSC();
+	sleep(1);
+	finish = ReadTSC();
 	//finish = system_time_nsecs();
-	//fClockSpeed = (finish - start);
-	fClockSpeed = 1000000000;
-	
-	//printf("cpu clock speed: %lu Hz\n", fClockSpeed);
+	fClockSpeed = (finish - start);
+	printf ("cpu clock: %" PRIu64 "Hz\n", fClockSpeed);
 }
 
 
@@ -1231,26 +1229,23 @@ PretendoWindow::start_frame()
 void
 PretendoWindow::end_frame()
 {
-	// frame lock to 60FPS, blit the screen, and lock the next page of audio
-	//uint64 prevCount;
-	//uint64 curCount;
+	BlitScreen();
+	fSoundPusher->LockNextPage();
 	
-	//uint64 const clocksPerFrame = fClockSpeed / 60;
+	
 	//printf("%" PRIu64 "\n", fClockSpeed);
 	
-	//prevCount = system_time_nsecs();
-	//do {
-	//	curCount = system_time_nsecs();
-	//	snooze(10);	// chill.
-	//} while(curCount - prevCount < clocksPerFrame);
+	uint64 const clocksPerFrame = fClockSpeed / 72;
+	uint64 prevCount;
+	uint64 curCount;
 	
-	BlitScreen();
-
-	if (fShowFPS) {
-		ShowFPS();
-	}
+	prevCount = ReadTSC();
+	do {
+		curCount = ReadTSC();
+		snooze(10); // chill
+	} while (curCount - prevCount < clocksPerFrame);
 	
-	fSoundPusher->LockNextPage();	
+	ShowFPS();
 }
 
 
@@ -1328,7 +1323,7 @@ PretendoWindow::ShowFPS()
 	static uint64 frameCount = 0;
 	BString title;
 	
-	curCount = system_time_nsecs();
+	curCount = ReadTSC();
 	//curCount = ReadTSC();
 	
 	if (curCount != 0) {
@@ -1344,4 +1339,21 @@ PretendoWindow::ShowFPS()
 			prevCount = curCount;
 		}
 	}
+}
+
+
+uint64
+PretendoWindow::ReadTSC()
+{
+	// we can't stuff the whole tsc into rax because it gives
+	// unpredictable results.  sometimes it works, sometimes not,
+	// so this is our safest bet for now.
+	uint64 l;
+	uint64 h;
+	uint64 tsc;
+
+   asm volatile ("rdtsc" 
+    			: "=a" (l), "=d" (h));
+    tsc = static_cast<uint64>(h << 32 | l);
+	return tsc;
 }

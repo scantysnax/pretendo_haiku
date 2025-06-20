@@ -11,8 +11,7 @@
 // handled by SoundPusher.cc, SoundPusher.h
 
 
-AudioStream::AudioStream (float sampleRate, int32 sampleBits, 
-	int32 channels, int32 bufferSize)
+AudioStream::AudioStream (float sampleRate, int32 sampleBits, int32 channels, int32 bufferSize)
 {	
 	media_raw_audio_format format;
 	format.frame_rate = sampleRate;
