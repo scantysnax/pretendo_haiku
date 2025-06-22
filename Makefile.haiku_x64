@@ -27,7 +27,7 @@ DEFINES  :=
 INCLUDES := -Ilibines2/lib/include/ -Isrc/ -Isrc/haiku/ -I/boot/system/develop/headers/ -I/boot/system/develop/headers/libxml2
 ASMFLAGS := -f elf64
 CXXFLAGS := -O3 -pipe $(INCLUDES) -W -Wall -Wno-implicit-fallthrough -std=c++17 -flto=4
-LDFLAGS  := -L/boot/common/lib -lbe -lroot -ltranslation -ltracker -lgame -lxml2 -lz -flto=4
+LDFLAGS  := -L/boot/common/lib -lbe -lroot -ltranslation -ltracker -lgame -lmedia -lxml2 -lz -flto=4
 #CXXFLAGS := -g -O3 -pipe $(INCLUDES) -W -Wall -Wno-implicit-fallthrough -std=c++17
 #LDFLAGS  := -g -L/boot/common/lib -lbe -lroot -ltranslation -ltracker -lgame -lxml2 -lz
 
@@ -134,7 +134,7 @@ CXX_FILES := \
 	src/haiku/Settings.cpp \
 	src/haiku/SimpleMutex.cpp \
 	src/haiku/ROMFilePanel.cpp \
-	src/haiku/SoundPusher.cpp \
+	src/haiku/AudioStream.cpp \
 	src/haiku/VideoScreen.cpp \
 	src/haiku/PretendoWindow.cpp \
 	src/haiku/PretendoView.cpp \

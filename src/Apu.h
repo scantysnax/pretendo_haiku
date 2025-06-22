@@ -30,7 +30,8 @@ union APUStatus {
 };
 
 constexpr int frequency   = 48000;
-constexpr int buffer_size = (frequency / 60) * 4;
+constexpr int buffer_size = (frequency / 60);
+
 
 void reset(Reset reset_type);
 

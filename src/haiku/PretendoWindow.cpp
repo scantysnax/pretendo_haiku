@@ -18,7 +18,8 @@
 #include "SimpleMutex.h"
 #include "PretendoView.h"
 #include "Controller.h"
-#include "SoundPusher.h"
+#include "AudioStream.h"
+//#include "SoundPusher.h"
 #include "Reset.h"
 #include "Palette.h"
 
@@ -118,7 +119,7 @@ PretendoWindow::PretendoWindow()
 
 	// other things we need
 	fOpenPanel = new ROMFilePanel;	
-	fSoundPusher = new SoundPusher;
+	fAudioStream = new AudioStream (nes::apu::frequency, 8, 1, nes::apu::buffer_size);
 	
 	fDoubled = false;
 	fClear = 0;
@@ -143,21 +144,7 @@ PretendoWindow::PretendoWindow()
 	
 	SetDefaultPalette();
 	
-	//fFileMenu->ItemAt(1)->SetEnabled(false);
-	
-	// initialise the sound code
-	fSoundPusher->Init();
-	
-	// measure clock speeed
-	uint64 start, finish;
-	
-	start = ReadTSC();
-	//start = system_time_nsecs();
-	sleep(1);
-	finish = ReadTSC();
-	//finish = system_time_nsecs();
-	fClockSpeed = (finish - start);
-	printf ("cpu clock: %" PRIu64 "Hz\n", fClockSpeed);
+	fShowFPS = false;
 }
 
 
@@ -186,8 +173,8 @@ PretendoWindow::~PretendoWindow()
 	delete_area (fBitsArea);
 	delete_area (fDirtyArea);
 
-	fSoundPusher->Stop();
-	delete fSoundPusher;
+	fAudioStream->Stop();
+	delete fAudioStream;
 	
 	
 	if (fCartInfoWindow != nullptr) {
@@ -575,7 +562,7 @@ PretendoWindow::OnRun()
 			reset(nes::Reset::Hard);
 			fMutex->Unlock(); // unlock the mutual exclusion
 			fRunning = true;  // signal the thread that we're running
-			fSoundPusher->Start(); // start the sound pusher interface
+			fAudioStream->Start();
 		}
 	} else if (fPaused) {
 		OnPause();
@@ -592,7 +579,7 @@ PretendoWindow::OnStop()
 		fRunning = false;
 		if (! fPaused) {
 			fMutex->Lock();
-			fSoundPusher->Stop();
+			fAudioStream->Stop();
 		}
 
 		// clear the window contents
@@ -619,13 +606,13 @@ PretendoWindow::OnPause()
 			// update the recent roms menu and start the sound pusher interface
 			fMutex->Unlock();
 			fEmuMenu->ItemAt(1)->SetMarked(false);
-			fSoundPusher->Start();
+			fAudioStream->Start();
 		} else {
 			// otherwise, we want to pause, so lock the mutual exclusion
 			// mark the menu accordingly and stop the sound pusher interface
 			fMutex->Lock();
 			fEmuMenu->ItemAt(1)->SetMarked(true);
-			fSoundPusher->Stop();
+			fAudioStream->Stop();
 		}
 	
 		fPaused = !fPaused;
@@ -1220,9 +1207,6 @@ PretendoWindow::start_frame()
 		fPixelWidth = fFrontBuffer.pixel_width;
 		fBackBuffer.row_bytes = SCREEN_WIDTH * fPixelWidth;
 	}
-	
-	// unlock the next page of sound data
-	fSoundPusher->UnlockPage();
 }
 
 
@@ -1230,24 +1214,12 @@ void
 PretendoWindow::end_frame()
 {
 	BlitScreen();
-	fSoundPusher->LockNextPage();
 	
-	
-	//printf("%" PRIu64 "\n", fClockSpeed);
-	
-	uint64 const clocksPerFrame = fClockSpeed / 72;
-	uint64 prevCount;
-	uint64 curCount;
-	
-	prevCount = ReadTSC();
-	do {
-		curCount = ReadTSC();
-		snooze(10); // chill
-	} while (curCount - prevCount < clocksPerFrame);
-	
-	ShowFPS();
+	uint8 samples[nes::apu::buffer_size];
+	size_t count = nes::apu::read_samples(samples, sizeof(samples));
+	fAudioStream->Stream(samples, count);
+	printf("read %d samples", count);
 }
-
 
 status_t
 PretendoWindow::emulation_thread (void *data)

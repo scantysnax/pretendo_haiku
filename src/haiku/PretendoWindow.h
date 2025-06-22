@@ -22,7 +22,8 @@
 #include "PaletteWindow.h"
 #include "CartInfoWindow.h"
 #include "SimpleMutex.h"
-#include "SoundPusher.h"
+//#include "SoundPusher.h"
+#include "AudioStream.h"
 #include "PretendoView.h"
 #include "PatternTableWindow.h"
 #include "NameTableWindow.h"
@@ -206,7 +207,8 @@ class PretendoWindow : public BDirectWindow
 	int32 fClear = 0;
 	
 	private:
-	SoundPusher *fSoundPusher = nullptr;
+	//SoundPusher *fSoundPusher = nullptr;
+	AudioStream *fAudioStream = nullptr;
 	
 	private:
 	PaletteWindow *fPaletteWindow = nullptr;
