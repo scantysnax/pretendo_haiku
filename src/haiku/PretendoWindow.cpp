@@ -1215,10 +1215,10 @@ PretendoWindow::end_frame()
 {
 	BlitScreen();
 	
-	uint8 samples[nes::apu::buffer_size];
+	uint8 samples[1024];
 	size_t count = nes::apu::read_samples(samples, sizeof(samples));
-	fAudioStream->Stream(samples, count);
-	printf("read %d samples", count);
+	//fAudioStream->Stream(samples, count);
+	printf("read %lu samples\n", count);
 }
 
 status_t
