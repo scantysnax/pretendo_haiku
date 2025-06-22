@@ -4,7 +4,7 @@
 #include <OS.h>
 #include <MediaDefs.h>
 #include <string.h>
-#include <cstdio>
+
 
 AudioStream::AudioStream (float sampleRate, int32 sampleBits, int32 channels, int32 bufferSize)
 {	
@@ -34,6 +34,7 @@ AudioStream::AudioStream (float sampleRate, int32 sampleBits, int32 channels, in
 	
 	fSoundBuffer = reinterpret_cast<uint8 *>(malloc(fBufferTotal));
 	memset (fSoundBuffer, 0x80, fBufferTotal);
+	
 	fStreaming = false;
 }
 

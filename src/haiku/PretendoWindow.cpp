@@ -1215,7 +1215,7 @@ PretendoWindow::end_frame()
 {
 	BlitScreen();
 	
-	uint8 samples[1600];
+	uint8 samples[800];
 	size_t count = nes::apu::read_samples(samples, sizeof(samples));
 	fAudioStream->Stream(samples, count);
 	printf("samples: %lu\n", count);
