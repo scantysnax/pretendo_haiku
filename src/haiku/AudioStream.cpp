@@ -19,7 +19,7 @@ AudioStream::AudioStream (float sampleRate, int32 sampleBits, int32 channels, in
 	
 	fSampleBits = sampleBits;
 	fSoundPlayer = new BSoundPlayer (&format, "pretendo_audio", &sync_hook, NULL, this);
-	fSemaphore = create_sem (0, "sound_player");
+	//fSemaphore = create_sem (0, "sound_player");
 
 	fWritePosition = 0;
 	fPlayPosition = 0;
@@ -44,7 +44,7 @@ AudioStream::~AudioStream()
 		fSoundPlayer->Stop();
 		delete fSoundPlayer;
 		
-		delete_sem (fSemaphore);
+		//delete_sem (fSemaphore);
 	}
 	
 	free(fSoundBuffer);
@@ -58,7 +58,7 @@ AudioStream::Stream (const void *stream, size_t samples)
 		return;
 	}
 	
-	if (acquire_sem (fSemaphore) == B_OK) {
+	//if (acquire_sem (fSemaphore) == B_OK) {
 		const uint8 *out = reinterpret_cast<const uint8 *>(stream);
 		size_t len = samples * sizeof(uint8);
 		size_t pos = fWritePosition + len;
@@ -74,7 +74,7 @@ AudioStream::Stream (const void *stream, size_t samples)
 			memcpy (fSoundBuffer + fWritePosition, out, len);
 			fWritePosition = pos;
 		}
-	} 
+	//} 
 }
 
 
