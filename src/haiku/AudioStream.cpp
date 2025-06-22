@@ -98,7 +98,7 @@ AudioStream::Stop()
 		fStreaming = false;
 		fSoundPlayer->Stop();
 		fSoundPlayer->SetHasData(false);
-		release_sem(fSemaphore);
+		//release_sem(fSemaphore);
 	}
 }
 
@@ -122,7 +122,7 @@ AudioStream::InternalSync (void *buffer, size_t size)
 		fPlayPosition = pos;
 	}
 	
-	release_sem(fSemaphore);
+	//release_sem(fSemaphore);
 }
 
 
