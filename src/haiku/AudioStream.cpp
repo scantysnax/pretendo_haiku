@@ -66,13 +66,13 @@ AudioStream::Stream (const void *stream, size_t samples)
 		size_t space = fBufferTotal - fWritePosition;
 			
 		if (pos > fBufferTotal) {
-			memcpy (fSoundBuffer + fWritePosition, out, space);
+			mmx_copy (fSoundBuffer + fWritePosition, out, space);
 			out += space;
 			len -= space;
-			memcpy (fSoundBuffer, out, len);
+			mmx_copy (fSoundBuffer, out, len);
 			fWritePosition = pos - fBufferTotal;
 		} else {
-			memcpy (fSoundBuffer + fWritePosition, out, len);
+			mmx_copy (fSoundBuffer + fWritePosition, out, len);
 			fWritePosition = pos;
 		}
 	} 
@@ -113,13 +113,13 @@ AudioStream::InternalSync (void *buffer, size_t size)
 	size_t space = fBufferTotal - fPlayPosition;
 		
 	if (pos > fBufferTotal) {
-		memcpy (out, fSoundBuffer + fPlayPosition, space);
+		mmx_copy (out, fSoundBuffer + fPlayPosition, space);
 		out += space;
 		len -= space;
-		memcpy (out, fSoundBuffer, len);
+		mmx_copy (out, fSoundBuffer, len);
 		fPlayPosition = pos - fBufferTotal;
 	} else {
-		memcpy (out, fSoundBuffer + fPlayPosition, len);
+		mmx_copy (out, fSoundBuffer + fPlayPosition, len);
 		fPlayPosition = pos;
 	}
 	
