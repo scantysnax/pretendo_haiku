@@ -119,7 +119,8 @@ PretendoWindow::PretendoWindow()
 
 	// other things we need
 	fOpenPanel = new ROMFilePanel;	
-	fAudioStream = new AudioStream (nes::apu::frequency, 8, 1, 800);
+	fAudioStream = new AudioStream (nes::apu::frequency, 8, 1, 
+		nes::apu::frequency / nes::apu::frame_rate);
 	
 	fDoubled = false;
 	fClear = 0;
@@ -1215,11 +1216,9 @@ PretendoWindow::end_frame()
 {
 	BlitScreen();
 	
-	uint8 samples[800];
+	uint8 samples[nes::apu::frequency / nes::apu::frame_rate];
 	size_t count = nes::apu::read_samples(samples, sizeof(samples));
 	fAudioStream->Stream(samples, count);
-	printf("samples: %lu\n", count);
-
 }
 
 status_t

@@ -10,14 +10,13 @@ class AudioStream
 {
 	public:
 			AudioStream (float sampleRate, int32 sampleBits, int32 	channels,
-				int32 bufferSize);
+						  int32 bufferSize);
 	virtual ~AudioStream();
 	
 	public:
 	void Stream (const void *stream, size_t numSamples);
 	void Start();
 	void Stop();
-	uint8 *SoundBuffer() { return fSoundBuffer; };
 	
 	public:
 	void InternalSync (void *buffer, size_t size);

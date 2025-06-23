@@ -29,8 +29,9 @@ union APUStatus {
 	BitField<uint8_t, 6, 2> irq_firing;
 };
 
-constexpr int frequency   = 48000;
-constexpr int buffer_size = (frequency / 60) * 4;
+constexpr int frequency		= 48000;
+constexpr int frame_rate 	= 60; 
+constexpr int buffer_size = (frequency / frame_rate) * 4;
 
 
 void reset(Reset reset_type);
