@@ -102,7 +102,7 @@ PretendoWindow::PretendoWindow()
 		fVideoMenu->ItemAt(2)->SetEnabled(false);
 	}
 	
-	// start video
+	// start videos
 	fDirectConnected = 
 	fFullScreen = 
 	fFrameworkChanging = false;	
@@ -119,6 +119,8 @@ PretendoWindow::PretendoWindow()
 
 	// other things we need
 	fOpenPanel = new ROMFilePanel;	
+	
+	// sound
 	fAudioStream = new AudioStream (nes::apu::frequency, 8, 1, 
 		nes::apu::frequency / nes::apu::frame_rate);
 	
@@ -708,15 +710,17 @@ PretendoWindow::OnShowPatternTable1()
 void
 PretendoWindow::OnShowNameTable0()
 {
-		if (fNameTable0Window && fNameTable0Window->Lock()) {
-		fNameTable0Window->Quit();
-		fNameTable0Window = nullptr;
-	}
+		//if (fNameTable0Window && fNameTable0Window->Lock()) {
+		//fNameTable0Window->Quit();
+		//fNameTable0Window = nullptr;
+	//}
 	
-	if (nes::cart.mapper() != nullptr) { // && ! fCartInfoWindow) {
-		fNameTable0Window = new NameTableWindow(this, 0);
-		fNameTable0Window->Show();
-	}
+	//if (nes::cart.mapper() != nullptr) { // && ! fCartInfoWindow) {
+	//	fNameTable0Window = new NameTableWindow(this, 0);
+	//	fNameTable0Window->Show();
+	//}
+	
+	puts(__PRETTY_FUNCTION__);
 }
 
 
