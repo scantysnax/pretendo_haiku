@@ -235,14 +235,6 @@ class PretendoWindow : public BDirectWindow
 	private:
 	SimpleMutex *fMutex = nullptr;
 	SimpleMutex *Mutex() { return fMutex; }
-	
-	private:
-	void ShowFPS();
-	uint64 ReadTSC();
-	
-	private:
-	uint64 fClockSpeed = 0;
-	bool fShowFPS = false;
 };
 				
 #endif // _PRETENDO_WINDOW_H_

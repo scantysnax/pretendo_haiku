@@ -146,8 +146,6 @@ PretendoWindow::PretendoWindow()
 	resume_thread(fThread);
 	
 	SetDefaultPalette();
-	
-	fShowFPS = false;
 }
 
 
@@ -882,7 +880,6 @@ PretendoWindow::ChangeFramework (VIDEO_FRAMEWORK fw)
 	}
 	
 	fFrameworkChanging = true;
-	fShowFPS = false;
 	fPrevFramework = fFramework;
 	fFramework = fw;
 	
@@ -951,7 +948,6 @@ PretendoWindow::ChangeFramework (VIDEO_FRAMEWORK fw)
 			SetFrontBuffer (fVideoScreen->Bits(), B_CMAP8, 
 							fVideoScreen->PixelWidth() / 2, fVideoScreen->RowBytes());
 			fFullScreen = true;
-			fShowFPS = false;
 			break;
 	}
 	
@@ -1287,49 +1283,4 @@ PretendoWindow::SetDefaultPalette()
 				Palette::default_contrast,
 				Palette::default_brightness,
 				Palette::default_gamma));
-}
-
-
-void
-PretendoWindow::ShowFPS()
-{
-	// count and show current FPS in window title
-	uint64 curCount = 0;
-	static uint64 prevCount = 0;
-	static uint64 frameCount = 0;
-	BString title;
-	
-	curCount = ReadTSC();
-	//curCount = ReadTSC();
-	
-	if (curCount != 0) {
-		frameCount++;
-		uint64 diff = curCount - prevCount;
-		
-		if (diff >= fClockSpeed) {
-			
-			title << "Pretendo: " << frameCount << " FPS";
-			SetTitle(title.String());			
-			
-			frameCount = 0;
-			prevCount = curCount;
-		}
-	}
-}
-
-
-uint64
-PretendoWindow::ReadTSC()
-{
-	// we can't stuff the whole tsc into rax because it gives
-	// unpredictable results.  sometimes it works, sometimes not,
-	// so this is our safest bet for now.
-	uint64 l;
-	uint64 h;
-	uint64 tsc;
-
-   asm volatile ("rdtsc" 
-    			: "=a" (l), "=d" (h));
-    tsc = static_cast<uint64>(h << 32 | l);
-	return tsc;
 }
