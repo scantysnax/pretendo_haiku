@@ -6,30 +6,31 @@
 
 #include "asm/copies.h"
 
+
 class AudioStream 
 {
 	public:
-			AudioStream (float sampleRate, int32 sampleBits, int32 	channels,
-						  int32 bufferSize);
+			AudioStream (float sampleRate, int32 sampleBits, int32 	channels, 
+							int32 bufferSize);
 	virtual ~AudioStream();
 	
 	public:
-	void Stream (const void *stream, size_t numSamples);
 	void Start();
 	void Stop();
+	void Stream (void const *stream, size_t numSamples);
 	
-	public:
-	void InternalSync (void *buffer, size_t size);
-	static void sync_hook (void *cookie, void *buffer, size_t size, 
-						   const media_raw_audio_format &format);				   
+	private:
+	void PlayBuffer (void *buffer, size_t size);
+	static void play_buffer (void *cookie, void *buffer, size_t size, 
+							 const media_raw_audio_format &format);				   
+	
 	private:
 	BSoundPlayer *fSoundPlayer;
-	sem_id fSemaphore;
-	uint32 fWritePosition;
-	uint32 fPlayPosition;
-	uint32 fBufferTotal;
+	sem_id fLocker;
+	size_t fWritePosition;
+	size_t fPlayPosition;
+	size_t fBufferTotal;
 	uint8 *fSoundBuffer;
-	int32 fSampleBits;
 	
 	private:
 	bool fStreaming;

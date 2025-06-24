@@ -108,6 +108,9 @@ void
 NameTableView::DrawNameTable (int32 which)
 {
 	puts(__PRETTY_FUNCTION__);
+	
+	switch (which) {
+	}
 }
 
 
