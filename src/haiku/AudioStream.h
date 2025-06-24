@@ -23,7 +23,6 @@ class AudioStream
 	void PlayBuffer (void *buffer, size_t size);
 	static void play_buffer (void *cookie, void *buffer, size_t size, 
 							 const media_raw_audio_format &format);				   
-	
 	private:
 	BSoundPlayer *fSoundPlayer;
 	sem_id fLocker;
