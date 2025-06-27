@@ -1,16 +1,12 @@
 
 #include <OS.h>
-#include <stdexcept>
 
 #include "SimpleMutex.h"
 
 
-SimpleMutex::SimpleMutex (char const *debugname)
+SimpleMutex::SimpleMutex (char const *debugName)
 {
-	fMutex = create_sem(1, debugname);
-	if(! fMutex) {
-		throw std::runtime_error("SimpleMutex::SimpleMutex() failed.");	
-	}
+	fMutex = create_sem(1, debugName);
 }
 
 
@@ -21,14 +17,14 @@ SimpleMutex::~SimpleMutex()
 
 
 status_t
-SimpleMutex::Lock (void)
+SimpleMutex::Lock()
 {
 	return acquire_sem(fMutex);
 }
 
 
 status_t
-SimpleMutex::Unlock (void)
+SimpleMutex::Unlock()
 {
 	return release_sem(fMutex);
 }

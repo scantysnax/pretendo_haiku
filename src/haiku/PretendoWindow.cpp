@@ -390,6 +390,7 @@ PretendoWindow::MenusEnded()
 {	
 	// remove the recent files list
 	fFileMenu->RemoveItem(static_cast<int32>(0)); // keep this 32-bit friendly
+	
 	BDirectWindow::MenusEnded();
 }
 
@@ -491,7 +492,8 @@ PretendoWindow::AddMenu()
 	fEmuMenu->AddSeparatorItem();
 	fEmuMenu->AddItem (new BMenuItem ("Reset (soft)", new BMessage (MSG_RST_SOFT)));
 	fEmuMenu->AddItem (new BMenuItem ("Reset (hard)", new BMessage (MSG_RST_HARD)));
-	
+	fEmuMenu->AddSeparatorItem();
+
 	fToolMenu->AddItem(new BMenuItem("Pattern Table 0", new BMessage(MSG_PTNTBL0)));
 	fToolMenu->AddItem(new BMenuItem("Pattern Table 1", new BMessage(MSG_PTNTBL1)));
 	fToolMenu->AddSeparatorItem();
@@ -575,7 +577,7 @@ void
 PretendoWindow::OnStop()
 {		
 	// if we're running, set fRunning to false to signal the thread we're not
-	// running, lock the mutual exclusion and stop the sound pusher interface
+	// running, lock the mutual exclusion and stop the sound stream
 	if (fRunning) {
 		fRunning = false;
 		if (! fPaused) {
