@@ -5,9 +5,7 @@
 #include <SoundPlayer.h>
 
 #include "SimpleMutex.h"
-
 #include "asm/copies.h"
-
 
 
 class AudioStream 

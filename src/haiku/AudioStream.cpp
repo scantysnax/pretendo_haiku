@@ -1,10 +1,6 @@
 
 #include "AudioStream.h"
 
-#include <OS.h>
-#include <MediaDefs.h>
-#include <string.h>
-
 
 AudioStream::AudioStream (float sampleRate, size_t sampleBits, size_t channels, size_t bufferSize)
 {	
@@ -25,7 +21,7 @@ AudioStream::AudioStream (float sampleRate, size_t sampleBits, size_t channels, 
 	fStreaming = false;
 	fMutex = new SimpleMutex("pretendo_sound_mutex");
 	
-	memset (fSoundBuffer, 0x80, fBufferTotal);	
+	memset(fSoundBuffer, 0x80, fBufferTotal);	
 }
 
 
@@ -110,7 +106,7 @@ AudioStream::PlayBuffer (void *buffer, size_t size)
 		mmx_copy(out, fSoundBuffer, len);
 		fPlayPosition = pos - fBufferTotal;
 	} else {
-		mmx_copy (out, fSoundBuffer + fPlayPosition, len);
+		mmx_copy(out, fSoundBuffer + fPlayPosition, len);
 		fPlayPosition = pos;
 	}
 

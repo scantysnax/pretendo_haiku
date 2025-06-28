@@ -2,10 +2,16 @@
 #ifndef _SIMPLE_MUTEX_H_
 #define _SIMPLE_MUTEX_H_
 
+#include <OS.h>
+#include <MediaDefs.h>
+
+#include <cstring>
+
+
 class SimpleMutex
 {
 	public:
-	SimpleMutex (char const *debugname);
+	SimpleMutex (char const *debugName);
 	virtual ~SimpleMutex();
 	
 	public:
@@ -16,6 +22,5 @@ class SimpleMutex
 	private:
 	sem_id fMutex;
 };
-
 
 #endif // _SIMPLE_MUTEX_H_
