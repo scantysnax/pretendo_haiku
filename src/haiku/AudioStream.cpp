@@ -71,7 +71,7 @@ AudioStream::Stream (void const *stream, size_t samples)
 		return;
 	}
 	
-	if (fMutex->Lock() == B_OK) {
+	if (fMutex->Lock()) {
 		const uint8 *out = reinterpret_cast<const uint8 *>(stream);
 		size_t len = samples * sizeof(uint8);
 		size_t pos = fWritePosition + len;
@@ -81,7 +81,7 @@ AudioStream::Stream (void const *stream, size_t samples)
 			mmx_copy(fSoundBuffer + fWritePosition, out, space);
 			out += space;
 			len -= space;
-			mmx_copy (fSoundBuffer, out, len);
+			mmx_copy(fSoundBuffer, out, len);
 			fWritePosition = pos - fBufferTotal;
 		} else {
 			mmx_copy(fSoundBuffer + fWritePosition, out, len);

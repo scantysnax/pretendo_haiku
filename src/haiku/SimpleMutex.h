@@ -15,8 +15,8 @@ class SimpleMutex
 	virtual ~SimpleMutex();
 	
 	public:
-	status_t Lock();
-	status_t Unlock();
+	bool Lock();
+	bool Unlock();
 	sem_id Mutex() const { return fMutex; }
 	
 	private:

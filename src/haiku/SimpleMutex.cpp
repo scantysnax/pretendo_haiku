@@ -14,15 +14,19 @@ SimpleMutex::~SimpleMutex()
 }
 
 
-status_t
+bool
 SimpleMutex::Lock()
 {
-	return acquire_sem(fMutex);
+	status_t error = acquire_sem(fMutex);
+	
+	return (error == B_NO_ERROR) ? true : false;
 }
 
 
-status_t
+bool
 SimpleMutex::Unlock()
 {
-	return release_sem(fMutex);
+	status_t error = release_sem(fMutex);
+	
+	return (error == B_NO_ERROR) ? true : false;
 }
