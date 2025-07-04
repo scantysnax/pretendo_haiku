@@ -3,24 +3,21 @@
 #define _SIMPLE_MUTEX_H_
 
 #include <OS.h>
-#include <MediaDefs.h>
-
-#include <cstring>
 
 
 class SimpleMutex
 {
 	public:
-	SimpleMutex (char const *debugName);
+			SimpleMutex (char const *debugName);
 	virtual ~SimpleMutex();
 	
 	public:
 	bool Lock();
 	bool Unlock();
-	sem_id Mutex() const { return fMutex; }
+	sem_id Locker() const { return fLocker; }
 	
 	private:
-	sem_id fMutex;
+	sem_id fLocker;
 };
 
 #endif // _SIMPLE_MUTEX_H_

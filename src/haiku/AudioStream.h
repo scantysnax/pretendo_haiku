@@ -4,7 +4,10 @@
 
 #include <SoundPlayer.h>
 
+#include <cstring>
+
 #include "SimpleMutex.h"
+
 #include "asm/copies.h"
 
 
@@ -18,7 +21,7 @@ class AudioStream
 	public:
 	void Start();
 	void Stop();
-	void Stream (void const *stream, size_t numSamples);
+	void Stream (void const *stream, size_t samples);
 	
 	private:
 	void PlayBuffer (void *buffer, size_t size);
@@ -26,11 +29,11 @@ class AudioStream
 							 const media_raw_audio_format &format);				   
 	private:
 	BSoundPlayer *fSoundPlayer;
-	SimpleMutex *fMutex;
 	size_t fWritePosition;
 	size_t fPlayPosition;
-	size_t fBufferTotal;
+	size_t fBufferSize;
 	uint8 *fSoundBuffer;
+	SimpleMutex *fMutex;
 	
 	private:
 	bool fStreaming;

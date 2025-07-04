@@ -107,14 +107,14 @@ PretendoWindow::PretendoWindow()
 	fFullScreen = 
 	fFrameworkChanging = false;	
 	fFramework = 
-	fPrevFramework = NO_FRAMEWORK;
+	fPrevFramework = VF_NONE;
 	
 	if (overlayOK) {
-		ChangeFramework (OVERLAY_FRAMEWORK);
+		ChangeFramework (VF_OVERLAY);
 	} else {
 		// there will be mouse "trails" on the BDirectWindow until we get
 		// a hardware cursor.  Again, no accelerated video yet
-		ChangeFramework(DIRECTWINDOW_FRAMEWORK);
+		ChangeFramework(VF_DIRECT);
 	}
 
 	// other things we need
@@ -219,7 +219,7 @@ PretendoWindow::DirectConnected (direct_buffer_info *info)
 			fClipInfo.bounds = info->window_bounds;
 			fClipInfo.bounds.top += fMenuHeight + 1;
 	
-			if (fFramework == DIRECTWINDOW_FRAMEWORK) {
+			if (fFramework == VF_DIRECT) {
 				SetFrontBuffer (reinterpret_cast<uint8 *>(info->bits)
 					+ (fClipInfo.bounds.top * info->bytes_per_row), info->pixel_format,
 					info->bits_per_pixel / 8, info->bytes_per_row);
@@ -264,7 +264,7 @@ PretendoWindow::MessageReceived (BMessage *message)
 	switch (message->what) {
 		case MSG_CHANGE_RENDER:
 			ChangeFramework(
-				static_cast<VIDEO_FRAMEWORK>(fVideoMenu->IndexOf(fVideoMenu->FindMarked())));
+				static_cast<video_framework>(fVideoMenu->IndexOf(fVideoMenu->FindMarked())));
 			break;
 		
 		case MSG_LEAVE_FULLSCREEN:
@@ -517,7 +517,7 @@ PretendoWindow::OnLoadCart (BMessage *message)
 				B_WIDTH_AS_USUAL, B_STOP_ALERT))->Go();
 		}
 		
-		if (fFramework == OVERLAY_FRAMEWORK) {
+		if (fFramework == VF_OVERLAY) {
 			ClearBitmap (true);
 		} else {
 			fView->SetViewColor (0, 0, 0);
@@ -586,7 +586,7 @@ PretendoWindow::OnStop()
 		}
 
 		// clear the window contents
-		if (fFramework == OVERLAY_FRAMEWORK) {
+		if (fFramework == VF_OVERLAY) {
 			ClearBitmap(true);
 		} else {
 			ClearBitmap(false);
@@ -857,7 +857,7 @@ PretendoWindow::SetFrontBuffer (uint8 *bits, color_space cs, int32 pixel_width, 
 	fFrontBuffer.row_bytes = row_bytes;
 	
 	// prepare WindowScreen if necessary
-	if (fFramework == WINDOWSCREEN_FRAMEWORK) {
+	if (fFramework == VF_FULLSCREEN) {
 		memset (fFrontBuffer.bits, 0x0, 480 * fFrontBuffer.row_bytes);
 		memset (fDirtyBuffer.bits, 0xff, 480 * fFrontBuffer.row_bytes);
 		fFrontBuffer.bits += (640 - SCREEN_WIDTH*2) / 2;
@@ -874,7 +874,7 @@ PretendoWindow::SetFrontBuffer (uint8 *bits, color_space cs, int32 pixel_width, 
 
 
 void
-PretendoWindow::ChangeFramework (VIDEO_FRAMEWORK fw)
+PretendoWindow::ChangeFramework (video_framework fw)
 {	
 	// change the video framework being used
 	if (fFramework == fw) {
@@ -889,23 +889,23 @@ PretendoWindow::ChangeFramework (VIDEO_FRAMEWORK fw)
 		
 	// tear down previous framework
 	switch (fPrevFramework) {
-		case NO_FRAMEWORK:
-		case DIRECTWINDOW_FRAMEWORK:
+		case VF_NONE:
+		case VF_DIRECT:
 			// nothing to do here
 			break;
 			
-		case BITMAP_FRAMEWORK:
+		case VF_BITMAP:
 			ClearBitmap (false);
 			break;
 			
-		case OVERLAY_FRAMEWORK:
+		case VF_OVERLAY:
 			ClearBitmap (true);
 			fView->ClearViewOverlay();
 			fView->SetViewColor(0, 0, 0);
 			fView->Invalidate();
 			break;
 			
-		case WINDOWSCREEN_FRAMEWORK:			
+		case VF_FULLSCREEN:			
 			if (fVideoScreen->Lock()) {
 				fVideoScreen->Quit();
 			}
@@ -915,17 +915,17 @@ PretendoWindow::ChangeFramework (VIDEO_FRAMEWORK fw)
 	
 	// build new framework
 	switch (fFramework) {
-		case NO_FRAMEWORK:	
+		case VF_NONE:	
 			fView->Invalidate();
 			break;
 			
-		case BITMAP_FRAMEWORK:
+		case VF_BITMAP:
 			SetFrontBuffer (fBitmapBits, B_CMAP8, fPixelWidth, fBitmap->BytesPerRow());
 			ClearBitmap (false);
 			fView->Invalidate();
 			break;
 			
-		case OVERLAY_FRAMEWORK:
+		case VF_OVERLAY:
 			rgb_color key;
 			SetFrontBuffer (fOverlayBits, B_RGB16, fPixelWidth, fOverlayBitmap->BytesPerRow());
 			ClearBitmap (true);
@@ -936,14 +936,14 @@ PretendoWindow::ChangeFramework (VIDEO_FRAMEWORK fw)
 			fView->Invalidate();
 			break;
 			
-		case DIRECTWINDOW_FRAMEWORK:
+		case VF_DIRECT:
 			// front buffer *must* be set in DirectConnected(), not here.
 			Hide();
 			Show();
 			SetRenderer (BScreen().ColorSpace());
 			break;
 			
-		case WINDOWSCREEN_FRAMEWORK:
+		case VF_FULLSCREEN:
 			fVideoScreen = new VideoScreen (this);
 			fVideoScreen->Show();
 			snooze (1000000); 	// wait a little while for the screen to connect
@@ -1030,10 +1030,10 @@ PretendoWindow::BlitScreen()
 	size_t row_bytes;
 	
 	switch (fFramework) {
-		case NO_FRAMEWORK:
+		case VF_NONE:
 			return;
 			
-		case BITMAP_FRAMEWORK:
+		case VF_BITMAP:
 			dest = fBitmapBits;
 			source = fBackBuffer.bits;
 			size = SCREEN_WIDTH;
@@ -1048,7 +1048,7 @@ PretendoWindow::BlitScreen()
 			PostMessage (MSG_DRAW_BITMAP);
 			return;
 			
-		case OVERLAY_FRAMEWORK:
+		case VF_OVERLAY:
 			// blit w/overlay
 			// no point to compile this code since we don't have overlay
 
@@ -1111,7 +1111,7 @@ PretendoWindow::BlitScreen()
 #endif
 			return;
 			
-		case DIRECTWINDOW_FRAMEWORK:
+		case VF_DIRECT:
 			if (fDirectConnected) {				
 				ClearDirty();
 				DrawDirect();
@@ -1119,7 +1119,7 @@ PretendoWindow::BlitScreen()
 			
 			return;
 			
-		case WINDOWSCREEN_FRAMEWORK:
+		case VF_FULLSCREEN:
 			if (fFullScreen) {
 				uint8 *dirty = fDirtyBuffer.bits;
 				uint32 dx = fFrontBuffer.row_bytes;

@@ -81,12 +81,12 @@ class PretendoWindow : public BDirectWindow
 	};
 	
 	typedef enum {
-		NO_FRAMEWORK = 0,
-		BITMAP_FRAMEWORK = 1,
-		OVERLAY_FRAMEWORK = 2,
-		DIRECTWINDOW_FRAMEWORK = 3,
-		WINDOWSCREEN_FRAMEWORK = 4
-	} VIDEO_FRAMEWORK;
+		VF_NONE = 0,
+		VF_BITMAP = 1,
+		VF_OVERLAY = 2,
+		VF_DIRECT = 3,
+		VF_FULLSCREEN = 4
+	} video_framework;
 	
 	typedef struct {
 		uint8 *bits;
@@ -145,7 +145,7 @@ class PretendoWindow : public BDirectWindow
 	void ClearBitmap (bool overlay);
 	void SetRenderer (color_space cs);
 	void SetFrontBuffer (uint8 *bits, color_space cs, int32 pixel_width, int32 rowbytes);
-	void ChangeFramework (VIDEO_FRAMEWORK fw);
+	void ChangeFramework (video_framework fw);
 	void BlitScreen();
 	void ClearDirty();
 	void DrawDirect();
@@ -184,11 +184,14 @@ class PretendoWindow : public BDirectWindow
 	uint32 fPalette32[8][64];
 	uint32 fPaletteY[65536];
 	uint32 fPaletteYCbCr[65536];
-	uint8 *fMappedPalette[8];	
+	uint8 *fMappedPalette[8];
+	
+	public:
+	uint8 *Get8BitPalette() { return fPalette8[0]; }
 	
 	private:
-	VIDEO_FRAMEWORK fFramework = NO_FRAMEWORK;
-	VIDEO_FRAMEWORK fPrevFramework = NO_FRAMEWORK;
+	video_framework fFramework = VF_NONE;
+	video_framework fPrevFramework = VF_NONE;
 	BBitmap *fBitmap = nullptr;
 	BBitmap *fOverlayBitmap = nullptr;
 	uint8 *fBitmapBits = nullptr;
@@ -207,7 +210,6 @@ class PretendoWindow : public BDirectWindow
 	int32 fClear = 0;
 	
 	private:
-	//SoundPusher *fSoundPusher = nullptr;
 	AudioStream *fAudioStream = nullptr;
 	
 	private:
