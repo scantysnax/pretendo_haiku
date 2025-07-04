@@ -65,49 +65,49 @@ AudioStream::Stop()
 
 
 void
-AudioStream::Stream (void const *stream, size_t samples)
+AudioStream::Stream (void const *stream, size_t const samples)
 {
 	if (! fSoundPlayer || fStreaming == false) {
 		return;
 	}
 	
 	if (fMutex->Lock()) {
-		uint8 const *out = reinterpret_cast<uint8 const *>(stream);
-		size_t len = samples * sizeof(uint8);
-		size_t pos = fWritePosition + len;
-		size_t space = fBufferSize - fWritePosition;
+		uint8 const *output = reinterpret_cast<uint8 const *>(stream);
+		size_t length = samples * sizeof(uint8);
+		size_t position = fWritePosition + length;
+		size_t const space = fBufferSize - fWritePosition;
 			
-		if (pos > fBufferSize) {
-			mmx_copy(fSoundBuffer + fWritePosition, out, space);
-			out += space;
-			len -= space;
-			mmx_copy(fSoundBuffer, out, len);
-			fWritePosition = pos - fBufferSize;
+		if (position > fBufferSize) {
+			mmx_copy(fSoundBuffer + fWritePosition, output, space);
+			output += space;
+			length -= space;
+			mmx_copy(fSoundBuffer, output, length);
+			fWritePosition = position - fBufferSize;
 		} else {
-			mmx_copy(fSoundBuffer + fWritePosition, out, len);
-			fWritePosition = pos;
+			mmx_copy(fSoundBuffer + fWritePosition, output, length);
+			fWritePosition = position;
 		}
 	}
 }
 
 
 void
-AudioStream::PlayBuffer (void *buffer, size_t size)
+AudioStream::PlayBuffer (void *buffer, size_t const size)
 {
-	uint8 *out = reinterpret_cast<uint8 *>(buffer);
-	size_t len = size * sizeof(uint8);
-	size_t pos = fPlayPosition + len;
-	size_t space = fBufferSize - fPlayPosition;
+	uint8 *output = reinterpret_cast<uint8 *>(buffer);
+	size_t length = size * sizeof(uint8);
+	size_t position = fPlayPosition + length;
+	size_t const space = fBufferSize - fPlayPosition;
 		
-	if (pos > fBufferSize) {
-		mmx_copy(out, fSoundBuffer + fPlayPosition, space);
-		out += space;
-		len -= space;
-		mmx_copy(out, fSoundBuffer, len);
-		fPlayPosition = pos - fBufferSize;
+	if (position > fBufferSize) {
+		mmx_copy(output, fSoundBuffer + fPlayPosition, space);
+		output += space;
+		length -= space;
+		mmx_copy(output, fSoundBuffer, length);
+		fPlayPosition = position - fBufferSize;
 	} else {
-		mmx_copy(out, fSoundBuffer + fPlayPosition, len);
-		fPlayPosition = pos;
+		mmx_copy(output, fSoundBuffer + fPlayPosition, length);
+		fPlayPosition = position;
 	}
 
 	fMutex->Unlock();
@@ -116,10 +116,10 @@ AudioStream::PlayBuffer (void *buffer, size_t size)
 
 void
 AudioStream::play_buffer (void *cookie, void *buffer, size_t size, 
-							const media_raw_audio_format &format)
+						  const media_raw_audio_format &format)
 {
 	(void)format;
 	
 	AudioStream *_this = reinterpret_cast<AudioStream *>(cookie);
-	_this->PlayBuffer(buffer, size);	
+	_this->PlayBuffer(buffer, size);
 }

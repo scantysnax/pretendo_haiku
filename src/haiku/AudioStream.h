@@ -21,10 +21,10 @@ class AudioStream
 	public:
 	void Start();
 	void Stop();
-	void Stream (void const *stream, size_t samples);
+	void Stream (void const *stream, size_t const samples);
 	
 	private:
-	void PlayBuffer (void *buffer, size_t size);
+	void PlayBuffer (void *buffer, size_t const size);
 	static void play_buffer (void *cookie, void *buffer, size_t size, 
 							 const media_raw_audio_format &format);				   
 	private:

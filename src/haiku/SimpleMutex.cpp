@@ -19,7 +19,7 @@ SimpleMutex::Lock()
 {
 	status_t error = acquire_sem(fLocker);
 	
-	return ((error == B_NO_ERROR) ? true : false);
+	return (error == B_NO_ERROR) ? true : false;
 }
 
 
@@ -28,5 +28,5 @@ SimpleMutex::Unlock()
 {
 	status_t error = release_sem(fLocker);
 	
-	return ((error == B_NO_ERROR) ? true : false);
+	return (error == B_NO_ERROR) ? true : false;
 }
