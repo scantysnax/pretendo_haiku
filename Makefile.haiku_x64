@@ -13,7 +13,7 @@ SHELL = /bin/sh
 	@echo assembling $< ...
 	@$(ASM) $(ASMFLAGS) $(DEFINES) $< -o $@ 1>/dev/null
 		
-ASM    := yasm
+ASM    := nasm
 CXX    := g++
 LD     := g++
 RM     := rm -f
