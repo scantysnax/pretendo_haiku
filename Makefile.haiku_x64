@@ -1,41 +1,29 @@
 
-SHELL = /bin/sh
+APPNAME := Pretendo	
 
-# suffix Definitions
-.SUFFIXES:                	# Delete the default suffixes
-.SUFFIXES: .cpp .o .h .asm 	# Define our suffix list
-	
-.cpp.o:
-	@echo compiling $< ...
-	@$(CXX) $(CXXFLAGS) $(DEFINES) -c $< -o $@ 1>/dev/null
-		
-.asm.o:
-	@echo assembling $< ...
-	@$(ASM) $(ASMFLAGS) $(DEFINES) $< -o $@ 1>/dev/null
-		
 ASM    := nasm
-CXX    := g++
+CPP    := g++
 LD     := g++
 RM     := rm -f
-ED     := ed
 RES	   := xres
 STRIP  := strip
 
-APPNAME := Pretendo
-
 DEFINES  := 
-INCLUDES := -Ilibines2/lib/include/ -Isrc/ -Isrc/haiku/ -I/boot/system/develop/headers/ -I/boot/system/develop/headers/libxml2
+INCLUDES := -Ilibines2/lib/include/ -Isrc/ -Isrc/haiku/ \
+		 	-I/boot/system/develop/headers/ \
+		 	-I/boot/system/develop/headers/libxml2
+
 ASMFLAGS := -f elf64
-CXXFLAGS := -O3 -pipe $(INCLUDES) -W -Wall -Wno-implicit-fallthrough -std=c++17 -flto
-LDFLAGS  := -L/boot/common/lib -lbe -lroot -ltranslation -ltracker -lgame -lmedia -lxml2 -lz -flto
-#CXXFLAGS := -g -O3 -pipe $(INCLUDES) -W -Wall -Wno-implicit-fallthrough -std=c++17
-#LDFLAGS  := -g -L/boot/common/lib -lbe -lroot -ltranslation -ltracker -lgame -lxml2 -lz
+CPPFLAGS := -O3 $(INCLUDES) -W -Wall -Wno-implicit-fallthrough -std=c++17 -flto
+LDFLAGS  := -L/boot/common/lib \
+			-lbe -lroot -ltranslation -ltracker -lgame -lmedia -lxml2 -lz -flto
+
 
 ASM_FILES := \
 	src/asm/blitters_x64.asm \
 	src/asm/copies_x64.asm
 
-CXX_FILES := \
+CPP_FILES := \
 	libines2/lib/Header.cpp	\
 	libines2/lib/Rom.cpp	\
 	\
@@ -147,49 +135,32 @@ CXX_FILES := \
 	src/haiku/NameTableWindow.cpp \
 	src/haiku/NameTableView.cpp
 
-RES_FILES := src/haiku/pretendo.rsrc
-O_FILES := $(CXX_FILES:.cpp=.o) $(ASM_FILES:.asm=.o)
-SOURCEFILES := $(CXX_FILES) $(ASM_FILES)
 
-.PRECIOUS: $(SOURCEFILES)
-.PHONY:    clean distclean mrproper
+SOURCES 	:= $(CPP_FILES) $(ASM_FILES)
+RESOURCES 	:= src/haiku/pretendo.rsrc
+OBJECTS 	:= $(CPP_FILES:.cpp=.o) $(ASM_FILES:.asm=.o)
 
-# main targets
-all: $(APPNAME)
 
-$(APPNAME): $(O_FILES)
-	@echo linking $@ ...
-	@$(LD) $(LDFLAGS) $(O_FILES) -o $@ 1>/dev/null
-	@echo stripping $@ ...
+.SUFFIXES:                
+.SUFFIXES: .cpp .h .asm .o
+
+.cpp.o:
+	@echo compiling $<...
+	@$(CPP) $(CPPFLAGS) $(DEFINES) -c $< -o $@ 1>/dev/null
+		
+.asm.o:
+	@echo assembling $<...
+	@$(ASM) $(ASMFLAGS) $(DEFINES) $< -o $@ 1>/dev/null
+
+
+$(APPNAME): $(OBJECTS)
+	@echo linking $@...
+	@$(LD) $(LDFLAGS) $(OBJECTS) -o $@ 1>/dev/null
+	@echo stripping $@...
 	@$(STRIP) $@
-	@echo adding resources to $@ ...
-	@$(RES) -o $@ $(RES_FILES)
-
-mrproper: clean
-	$(RM) makedep
+	@echo adding resources to $@...
+	@$(RES) -o $@ $(RESOURCES)
 
 clean:
-	$(RM) $(O_FILES) $(APPNAME) core *~ 2> /dev/null
+	$(RM) $(OBJECTS) $(APPNAME)
 
-distclean: mrproper
-	
-depend:
-	@echo "Building Dependency Information..."
-	@$(RM) makedep
-	@$(CXX) $(DEFINES) $(INCLUDES) -MM $(CXX_FILES) 2>/dev/null >> makedep || true
-	@echo '/^# DO NOT DELETE THIS LINE/+2,$$d' >eddep
-	@echo '$$r makedep' >>eddep
-	@echo 'w' >>eddep
-	@$(ED) - Makefile.haiku_x64 < eddep
-	@$(RM) eddep makedep 
-	@echo '# DEPENDENCIES MUST END AT END OF FILE' >> Makefile.haiku_x64
-	@echo '# IF YOU PUT STUFF HERE IT WILL GO AWAY' >> Makefile.haiku_x64
-	@echo '# see make depend above' >> Makefile.haiku_x64
-	@echo "Done"
-        
-#-----------------------------------------------------------------
-# DO NOT DELETE THIS LINE -- make depend uses it
-#-----------------------------------------------------------------
-# DEPENDENCIES MUST END AT END OF FILE
-# IF YOU PUT STUFF HERE IT WILL GO AWAY
-# see make depend above
