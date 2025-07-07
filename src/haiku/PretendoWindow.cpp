@@ -375,9 +375,11 @@ void
 PretendoWindow::MenusBeginning()
 {	
 	// set up recently opened ROM menu, we keep 5 most recent
-	BMenu *menu = BRecentFilesList::NewFileListMenu ("Load ROM" B_UTF8_ELLIPSIS,
-		nullptr, nullptr, this->PreferredHandler(), 5, false, nullptr, 0, 
-		"application/x-vnd.scantysnax-Pretendo");
+	// item list seems to be off by 1
+	int32 const recentItems = 5+1;
+	BMenu *menu = BRecentFilesList::NewFileListMenu("Load ROM" B_UTF8_ELLIPSIS,
+				  nullptr, nullptr, this->PreferredHandler(), recentItems, false, nullptr, 0, 
+				  "application/x-vnd.scantysnax-Pretendo");
 	
 	fFileMenu->AddItem(new BMenuItem(menu, new BMessage(MSG_SHOW_OPEN)), 0);
 	

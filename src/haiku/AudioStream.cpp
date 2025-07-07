@@ -74,7 +74,7 @@ AudioStream::Stream (void const *stream, size_t const samples)
 	if (fMutex->Lock()) {
 		uint8 const *output = reinterpret_cast<uint8 const *>(stream);
 		size_t length = samples * sizeof(uint8);
-		size_t position = fWritePosition + length;
+		size_t const position = fWritePosition + length;
 		size_t const space = fBufferSize - fWritePosition;
 			
 		if (position > fBufferSize) {
@@ -96,7 +96,7 @@ AudioStream::PlayBuffer (void *buffer, size_t const size)
 {
 	uint8 *output = reinterpret_cast<uint8 *>(buffer);
 	size_t length = size * sizeof(uint8);
-	size_t position = fPlayPosition + length;
+	size_t const position = fPlayPosition + length;
 	size_t const space = fBufferSize - fPlayPosition;
 		
 	if (position > fBufferSize) {

@@ -144,6 +144,7 @@ OBJECTS 	:= $(CPP_FILES:.cpp=.o) $(ASM_FILES:.asm=.o)
 .SUFFIXES:                
 .SUFFIXES: .cpp .h .asm .o
 
+
 .cpp.o:
 	@echo compiling $<...
 	@$(CPP) $(CPPFLAGS) $(DEFINES) -c $< -o $@ 1>/dev/null
@@ -160,7 +161,10 @@ $(APPNAME): $(OBJECTS)
 	@$(STRIP) $@
 	@echo adding resources to $@...
 	@$(RES) -o $@ $(RESOURCES)
+	@echo done.
 
+.PHONY: clean 
 clean:
-	$(RM) $(OBJECTS) $(APPNAME)
-
+	@echo cleaning...
+	@$(RM) $(OBJECTS) $(APPNAME)
+	@echo done.
