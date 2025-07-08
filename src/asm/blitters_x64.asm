@@ -9,10 +9,11 @@ global blit_2x_windowed_dirty_mmx
 global blit_overlay
 
 blit_2x_mmx:
-;	rdi		arg 1	dest	1
-;	rsi		arg 2	source	2	
-;	rdx		arg 3	size	3
-
+;	rdi		1	dest
+;	rsi		2	source
+;	rdx		3	size
+	
+	
 	shr rdx, 3
 	
 .loop:
@@ -32,14 +33,13 @@ blit_2x_mmx:
 ret
 
 
-blit_2x_dirty_mmx:
-;	rdi		arg 1	dest		
-;	rsi		arg 2	source
-;	rdx		arg 3	dirty buffer
-;	rcx		arg 4	bytes per row
-;	r8		arg 5	size
+blit_2x_dirty_mmx:	
+;	rdi		1	dest
+;	rsi		2	source
+;	rdx		3	dirty
+;	rcx		4	rowbytes
+;	r8		5	size
 	
-	push rbx
 	shr r8, 3
 	
 .loop:
@@ -48,15 +48,14 @@ blit_2x_dirty_mmx:
 	
 	pcmpeqb mm1, mm0
 	packsswb mm1, mm1
-	movd ebx, mm1
-	cmp ebx, 0xffffffff
+	movd eax, mm1
+	cmp eax, 0xffffffff
 	jz .skip
 	
 	movq [rdx], mm0
 	movq mm1, mm0
 	punpcklbw mm0, mm0
 	punpckhbw mm1, mm1
-
 	movq [rdi], mm0
 	movq [rdi+8], mm1
 	
@@ -67,23 +66,21 @@ blit_2x_dirty_mmx:
 	add rdi, 16
 	add rsi, 8
 	add rdx, 8
-	sub r8, 1
+	dec r8
 	jnz .loop
 
-	pop rbx
 	emms
 ret
 
 
 
 blit_windowed_dirty_mmx:
-;	rdi		arg 1	source
-;	rsi		arg 2	dirty buffer
-;	rdx		arg 3	dest
-;	rcx		arg 4	size
-;	r8		arg 5	pixel width
+;	rdi		1	src
+;	rsi		2	dirty
+;	rdx		3	dest
+;	rcx		4	size
+;	r8		5	pizel width
 
-	push rbx
 	shr rcx, 4
 	jz near .finish
 	
@@ -102,14 +99,14 @@ blit_windowed_dirty_mmx:
 	pcmpeqd mm1, mm0
 	pcmpeqd mm3, mm2
 	
-	psrld mm1, 31 		; ffffffffffffffff -> 0000000100000001
-	psrld mm3, 31 		; ffffffffffffffff -> 0000000100000001
-	pslld mm3, 1 		; 0000000100000001 -> 0000000200000002
-	por mm1, mm3 		; 0000000300000003
+	psrld mm1, 31 ; ffffffffffffffff -> 0000000100000001
+	psrld mm3, 31 ; ffffffffffffffff -> 0000000100000001
+	pslld mm3, 1 ; 0000000100000001 -> 0000000200000002
+	por mm1, mm3 ; 0000000300000003
 	
-	packsswb mm1, mm1 	; 0000000300000003 -> 00030003
-	movd ebx, mm1
-	cmp ebx, 0x00030003
+	packsswb mm1, mm1 ; 0000000300000003 -> 00030003
+	movd eax, mm1
+	cmp eax, 0x00030003
 	jz .skip32
 	
 	movq [rsi], mm0
@@ -121,7 +118,7 @@ blit_windowed_dirty_mmx:
 	add rdi, 16
 	add rsi, 16
 	add rdx, 16
-	sub rcx, 1
+	dec rcx
 	jnz .loop32
 	jz near .finish
 
@@ -140,8 +137,8 @@ blit_windowed_dirty_mmx:
 	por mm1, mm3
 	
 	packsswb mm1, mm1
-	movd ebx, mm1
-	cmp ebx, 0x03030303
+	movd eax, mm1
+	cmp eax, 0x03030303
 	jz .skip16
 	
 	movq [rsi], mm0
@@ -153,7 +150,7 @@ blit_windowed_dirty_mmx:
 	add rdi, 16
 	add rsi, 16
 	add rdx, 16
-	sub rcx, 1
+	dec rcx
 	jnz .loop16
 	jz .finish
 
@@ -171,8 +168,8 @@ blit_windowed_dirty_mmx:
 	por mm1, mm3
 	
 	packsswb mm1, mm1
-	movd ebx, mm1
-	cmp ebx, 0xffffffff
+	movd eax, mm1
+	cmp eax, 0xffffffff
 	jz .skip8
 	
 	movq [rsi], mm0
@@ -184,24 +181,21 @@ blit_windowed_dirty_mmx:
 	add rdi, 16
 	add rsi, 16
 	add rdx, 16
-	sub rcx, 1
+	dec rcx
 	jnz .loop8
 	
 .finish:
-	pop rbx
 	emms
 ret
 
 
 blit_2x_windowed_dirty_mmx:
-;	rdi		arg 1	source
-;	rsi		arg 2	dirty buffer
-;	rdx		arg 3	dest
-;	rcx		arg 4	size
-;	r8		arg 5	pixel width
-;	r9		arg 6	bytes per row
-
-	push rbx
+;	rdi		1	src
+;	rsi		2	dirty
+;	rdx		3	dest
+;	rcx		4	size
+;	r8		5	pixel width
+;	r9		6	rowbytes
 	
 	shr rcx, 4
 	jz near .finish
@@ -218,8 +212,8 @@ blit_2x_windowed_dirty_mmx:
 	
 	pcmpeqd mm1, mm0
 	packsswb mm1, mm1
-	movd ebx, mm1
-	cmp ebx, 0xffffffff
+	movd eax, mm1
+	cmp eax, 0xffffffff
 	jz .skip32
 	
 	movq [rsi], mm0
@@ -230,8 +224,8 @@ blit_2x_windowed_dirty_mmx:
 	movq [rdx], mm0
 	movq [rdx+8], mm1
 	
-	movq [rdx+r9], mm0 		; remove for scanlines
-	movq [rdx+r9+8], mm1 	; remove for scanlines
+	movq [rdx+r9], mm0	 ; remove for scanlines
+	movq [rdx+r9+8], mm1 ; remove for scanlines
 
 .skip32:
 	add rdi, 8
@@ -247,8 +241,8 @@ blit_2x_windowed_dirty_mmx:
 	
 	pcmpeqw mm1, mm0
 	packsswb mm1, mm1
-	movd ebx, mm1
-	cmp ebx, 0xffffffff
+	movd eax, mm1
+	cmp eax, 0xffffffff
 	jz .skip16
 	
 	movq [rsi], mm0
@@ -276,8 +270,8 @@ blit_2x_windowed_dirty_mmx:
 	
 	pcmpeqb mm1, mm0
 	packsswb mm1, mm1
-	movd ebx, mm1
-	cmp ebx, 0xffffffff
+	movd eax, mm1
+	cmp eax, 0xffffffff
 	jz .skip8
 	
 	movq [rsi], mm0
@@ -295,16 +289,13 @@ blit_2x_windowed_dirty_mmx:
 	add rdi, 8
 	add rsi, 8
 	add rdx, 16
-	sub rcx, 1
+	dec rcx
 	jnz .loop8
 	
 .finish:
-	pop rbx
 	emms
 ret
 
 
 blit_overlay:
-	; not yet 
-	; needs hardware accelerated video
 ret

@@ -19,7 +19,6 @@
 #include "PretendoView.h"
 #include "Controller.h"
 #include "AudioStream.h"
-//#include "SoundPusher.h"
 #include "Reset.h"
 #include "Palette.h"
 
@@ -42,7 +41,7 @@ PretendoWindow::PretendoWindow()
 	fView = new PretendoView(bounds, this);
 	AddChild (fView);
 	
-	// if we can't create even this simplest video interface there is no point
+	// if we can't create even the simplest video interface there is no point
 	// to keep the app running.
 	fBitmap = new BBitmap (BRect (0, 0, SCREEN_WIDTH-1, SCREEN_HEIGHT-1), B_CMAP8);
 	if (! fBitmap || ! fBitmap->IsValid()) {
@@ -72,8 +71,8 @@ PretendoWindow::PretendoWindow()
 			"Bummer", nullptr, nullptr, B_WIDTH_AS_USUAL, B_STOP_ALERT))->Go();
 		OnQuit();
 	} else {
-		memset (areaBits, 0x00, (SCREEN_WIDTH*2) * (SCREEN_HEIGHT*2) * 4);
-		memset (dirtyBits, 0xff, (SCREEN_WIDTH*2) * (SCREEN_HEIGHT*2) * 4);
+		memset(areaBits, 0x00, (SCREEN_WIDTH*2) * (SCREEN_HEIGHT*2) * 4);
+		memset(dirtyBits, 0xff, (SCREEN_WIDTH*2) * (SCREEN_HEIGHT*2) * 4);
 		
 		fBackBuffer.bits = reinterpret_cast<uint8 *>(areaBits);
 		fDirtyBuffer.bits = reinterpret_cast<uint8 *>(dirtyBits);
@@ -102,7 +101,7 @@ PretendoWindow::PretendoWindow()
 		fVideoMenu->ItemAt(2)->SetEnabled(false);
 	}
 	
-	// start videos
+	// start video
 	fDirectConnected = 
 	fFullScreen = 
 	fFrameworkChanging = false;	
@@ -241,7 +240,7 @@ PretendoWindow::DirectConnected (direct_buffer_info *info)
 					
 			for (int32 i = 0; i < fClipInfo.clip_count; i++) {
 				if (fClipInfo.clip_list[i].top <= 
-					static_cast<int32>(info->window_bounds.top + fMenuHeight)) {
+					(info->window_bounds.top + fMenuHeight)) {
 					fClipInfo.clip_list[i].top = info->window_bounds.top + fMenuHeight;
 				}
 			}
@@ -250,7 +249,7 @@ PretendoWindow::DirectConnected (direct_buffer_info *info)
 		case B_DIRECT_STOP:
 			// we're done, clean up and free clip list
 			fDirectConnected = false;
-			free (fClipInfo.clip_list);
+			free(fClipInfo.clip_list);
 			break;
 	}
 	
@@ -563,7 +562,7 @@ PretendoWindow::OnRun()
 {	
 	if (! fRunning) {
 		// make sure we have a cart loaded
-		if(nes::cart.mapper()) {
+		if (nes::cart.mapper()) {
 			reset(nes::Reset::Hard);
 			fMutex->Unlock(); // unlock the mutual exclusion
 			fRunning = true;  // signal the thread that we're running
@@ -608,13 +607,13 @@ PretendoWindow::OnPause()
 	if (fRunning) {
 		if (fPaused) {
 			// if we are paused, we want to unpause, so lock the mutual exclusion
-			// update the recent roms menu and start the sound pusher interface
+			// update the recent roms menu and start the sound interface
 			fMutex->Unlock();
 			fEmuMenu->ItemAt(1)->SetMarked(false);
 			fAudioStream->Start();
 		} else {
 			// otherwise, we want to pause, so lock the mutual exclusion
-			// mark the menu accordingly and stop the sound pusher interface
+			// mark the menu accordingly and stop the sound interface
 			fMutex->Lock();
 			fEmuMenu->ItemAt(1)->SetMarked(true);
 			fAudioStream->Stop();
@@ -811,7 +810,7 @@ PretendoWindow::ClearBitmap (bool overlay)
 			bits += fOverlayBitmap->BytesPerRow();
 		}
 	} else {
-		memset (fBitmapBits, 0x0, fBitmap->BitsLength());
+		memset(fBitmapBits, 0x0, fBitmap->BitsLength());
 	}
 }
 
@@ -1221,8 +1220,8 @@ PretendoWindow::end_frame()
 	BlitScreen();
 	
 	uint8 samples[nes::apu::frequency / nes::apu::frame_rate];
-	size_t count = nes::apu::read_samples(samples, sizeof(samples));
-	fAudioStream->Stream(samples, count);
+	size_t count = nes::apu::read_samples (samples, sizeof(samples));
+	fAudioStream->Stream (samples, count);
 }
 
 status_t
@@ -1238,7 +1237,7 @@ PretendoWindow::emulation_thread (void *data)
 		}
 		
 		window->start_frame();
-		nes::run_frame(window);
+		nes::run_frame (window);
 		window->end_frame();
 		window->ReadKeyStates();	
 		
@@ -1280,7 +1279,6 @@ void
 PretendoWindow::SetDefaultPalette()
 {
 	// if we couldn't load a palette from settings, use the defaults
-	puts(__PRETTY_FUNCTION__);
 	set_palette(Palette::intensity, 
 				Palette::NTSC (Palette::default_saturation,
 				Palette::default_hue,
