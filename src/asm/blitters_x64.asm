@@ -2,16 +2,16 @@
 
 bits 64
 
-global blit_windowed_dirty_mmx
 global blit_2x_mmx
 global blit_2x_dirty_mmx
+global blit_windowed_dirty_mmx
 global blit_2x_windowed_dirty_mmx
 global blit_overlay
 
 blit_2x_mmx:
-;	rdi		1	dest
-;	rsi		2	source
-;	rdx		3	size
+;	rdi	1 	dest
+;	rsi	2 	source
+;	rdx	3	size
 	
 	
 	shr rdx, 3
@@ -34,11 +34,11 @@ ret
 
 
 blit_2x_dirty_mmx:	
-;	rdi		1	dest
-;	rsi		2	source
-;	rdx		3	dirty
-;	rcx		4	rowbytes
-;	r8		5	size
+;	rdi	1	dest
+;	rsi	2	source
+;	rdx	3	dirty
+;	rcx	4	rowbytes
+;	r8	5	size
 	
 	shr r8, 3
 	
@@ -75,11 +75,11 @@ ret
 
 
 blit_windowed_dirty_mmx:
-;	rdi		1	src
-;	rsi		2	dirty
-;	rdx		3	dest
-;	rcx		4	size
-;	r8		5	pizel width
+;	rdi	1	src
+;	rsi	2	dirty
+;	rdx	3	dest
+;	rcx	4	size
+;	r8	5	pizel width
 
 	shr rcx, 4
 	jz near .finish
@@ -190,12 +190,12 @@ ret
 
 
 blit_2x_windowed_dirty_mmx:
-;	rdi		1	src
-;	rsi		2	dirty
-;	rdx		3	dest
-;	rcx		4	size
-;	r8		5	pixel width
-;	r9		6	rowbytes
+;	rdi	1	src
+;	rsi	2	dirty
+;	rdx	3	dest
+;	rcx	4	size
+;	r8	5	pixel width
+;	r9	6	rowbytes
 	
 	shr rcx, 4
 	jz near .finish
