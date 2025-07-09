@@ -1232,7 +1232,7 @@ PretendoWindow::emulation_thread (void *data)
 	PretendoWindow *window = reinterpret_cast<PretendoWindow *>(data);	
 	
 	while (1) {
-		if (window->Mutex()->Lock() == false) {
+		if (window->LockMutex() == false) {
 			break;
 		}
 		
@@ -1241,7 +1241,7 @@ PretendoWindow::emulation_thread (void *data)
 		window->end_frame();
 		window->ReadKeyStates();	
 		
-		window->Mutex()->Unlock();
+		window->UnlockMutex();
 	}	
 	
 	return B_OK;
