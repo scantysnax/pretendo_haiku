@@ -15,7 +15,7 @@ SimpleMutex::~SimpleMutex()
 
 
 bool
-SimpleMutex::Lock()
+SimpleMutex::Lock() const
 {
 	status_t error = acquire_sem(fLocker);
 	
@@ -24,7 +24,7 @@ SimpleMutex::Lock()
 
 
 bool
-SimpleMutex::Unlock()
+SimpleMutex::Unlock() const
 {
 	status_t error = release_sem(fLocker);
 	

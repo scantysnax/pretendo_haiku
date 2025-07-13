@@ -17,7 +17,7 @@ PretendoApp::ReadyToRun()
 }
 
 void
-PretendoApp::AboutRequested (void)
+PretendoApp::AboutRequested()
 {
 	(new AboutWindow)->Show();
 }
@@ -25,25 +25,25 @@ PretendoApp::AboutRequested (void)
 
 void
 PretendoApp::RefsReceived (BMessage *message)
-{	
+{		
 	switch (message->what) {
-	case B_REFS_RECEIVED:
-         {      	
-             entry_ref ref;
-             if (message->FindRef ("refs", 0, &ref) == B_OK) {
-                 BEntry entry;
-                 BPath path;
-                 
-                 entry.SetTo (&ref, true);
-                 entry.GetPath (&path);
+		case B_REFS_RECEIVED:
+		{      	
+			entry_ref ref;
+			
+			if (message->FindRef ("refs", 0, &ref) == B_OK) {
+				BEntry entry;
+				BPath path;
 
-                 BMessage *msg = new BMessage (MSG_ROM_LOADED);
-                 msg->AddString ("path", path.Path());
-                 fWindow->PostMessage (msg);
-                 delete msg;
-             }
-         }
-         break;
+				entry.SetTo (&ref, true);
+				entry.GetPath (&path);
+
+				BMessage *msg = new BMessage (MSG_ROM_LOADED);
+				msg->AddString ("rom_path", path.Path());
+				fWindow->PostMessage (msg);
+				delete msg;
+			}
+		} break;
 	}
 	
 	BApplication::RefsReceived(message);

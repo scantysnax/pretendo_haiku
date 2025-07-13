@@ -62,6 +62,7 @@
 
 class PretendoWindow : public BDirectWindow
 {
+	
 	private:
 	enum {
 		kKeyUp = 0x57,
@@ -116,7 +117,7 @@ class PretendoWindow : public BDirectWindow
 	virtual void MenusEnded();
 	
 	private:
-	void AddMenu (void);
+	void AddMenu();
 	
 	// handlers
 	private:
@@ -168,7 +169,6 @@ class PretendoWindow : public BDirectWindow
 	BMenu *fLoadMenu = nullptr;
 	BMenu *fEmuMenu = nullptr;
 	BMenu *fVideoMenu = nullptr;
-	BMenu *fRenderMenu = nullptr;
 	BMenu *fToolMenu = nullptr;
 	ROMFilePanel *fOpenPanel = nullptr;
 	int32 fMenuHeight = 18;
@@ -223,10 +223,8 @@ class PretendoWindow : public BDirectWindow
 	
 	private:
 	thread_id fThread = B_BAD_THREAD_ID;
-	static status_t emulation_thread (void *data);
+	static status_t emulator_thread (void *data);
 	bool fRunning = false;
-	
-	private:
 	bool Running() { return fRunning; }
 
 	private:
@@ -236,8 +234,8 @@ class PretendoWindow : public BDirectWindow
 	
 	private:
 	SimpleMutex *fMutex = nullptr;
-	bool LockMutex() 	{ return fMutex->Lock(); };
-	bool UnlockMutex() 	{ return fMutex->Unlock(); }; 
+	bool LockMutex() const		{ return fMutex->Lock(); 	};
+	bool UnlockMutex() const 	{ return fMutex->Unlock();	}; 
 };
 				
 #endif // _PRETENDO_WINDOW_H_

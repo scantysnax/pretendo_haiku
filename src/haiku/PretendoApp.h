@@ -12,7 +12,7 @@ class PretendoApp : public BApplication {
 	
 	public:
 	virtual void ReadyToRun();
-	virtual void AboutRequested (void);
+	virtual void AboutRequested();
 	virtual void RefsReceived (BMessage *message);
 	
 	public:

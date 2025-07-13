@@ -26,20 +26,19 @@
 #include "asm/blitters.h"
 #include "asm/copies.h"
 
-
 PretendoWindow::PretendoWindow()
 	: BDirectWindow (BRect (0, 0, 0, 0), "Pretendo", B_TITLED_WINDOW, B_NOT_RESIZABLE, 0)		
 {
-	ResizeTo (SCREEN_WIDTH, SCREEN_HEIGHT);
+	ResizeTo(SCREEN_WIDTH, SCREEN_HEIGHT);
 	CenterOnScreen();
 	
 	BRect bounds (Bounds());
-	bounds.OffsetTo (B_ORIGIN);
+	bounds.OffsetTo(B_ORIGIN);
 	AddMenu();
 	bounds.top = fMenuHeight;
 	
 	fView = new PretendoView(bounds, this);
-	AddChild (fView);
+	AddChild(fView);
 	
 	// if we can't create even the simplest video interface there is no point
 	// to keep the app running.
@@ -47,7 +46,7 @@ PretendoWindow::PretendoWindow()
 	if (! fBitmap || ! fBitmap->IsValid()) {
 		(new BAlert ("Error", "Not enough memory for video bitmap.  Quitting.",
 			"Bummer", nullptr, nullptr, B_WIDTH_AS_USUAL, B_STOP_ALERT))->Go();
-		OnQuit();
+		be_app->PostMessage(B_QUIT_REQUESTED);
 	} else {
 		// set up the BBitmap based framework
 		fBitmapBits = reinterpret_cast<uint8 *>(fBitmap->Bits());
@@ -69,7 +68,7 @@ PretendoWindow::PretendoWindow()
 	if (fBitsArea < B_OK || fDirtyArea < B_OK) {
 		(new BAlert ("Error", "Not enough memory for video buffers.  Quitting.",
 			"Bummer", nullptr, nullptr, B_WIDTH_AS_USUAL, B_STOP_ALERT))->Go();
-		OnQuit();
+		be_app->PostMessage(B_QUIT_REQUESTED);
 	} else {
 		memset(areaBits, 0x00, (SCREEN_WIDTH*2) * (SCREEN_HEIGHT*2) * 4);
 		memset(dirtyBits, 0xff, (SCREEN_WIDTH*2) * (SCREEN_HEIGHT*2) * 4);
@@ -107,6 +106,8 @@ PretendoWindow::PretendoWindow()
 	fFrameworkChanging = false;	
 	fFramework = 
 	fPrevFramework = VF_NONE;
+	fDoubled = false;
+	fClear = 0;
 	
 	if (overlayOK) {
 		ChangeFramework (VF_OVERLAY);
@@ -115,26 +116,38 @@ PretendoWindow::PretendoWindow()
 		// a hardware cursor.  Again, no accelerated video yet
 		ChangeFramework(VF_DIRECT);
 	}
-
-	// other things we need
-	fOpenPanel = new ROMFilePanel;	
+	
+	memset(&fKeyStates, 0, sizeof(key_info));
+	fOpenPanel = new ROMFilePanel;
 	
 	// sound
+	// we don't need anything extra in terms of buffer size, so downscale
 	fAudioStream = new AudioStream (nes::apu::frequency, 8, 1, 
-		nes::apu::frequency / nes::apu::frame_rate);
-	
-	fDoubled = false;
-	fClear = 0;
-	
+									nes::apu::buffer_size / 4);
+
 	// this is the emulator processing loop
-	fThread = spawn_thread(emulation_thread, "pretendo_thread", B_DISPLAY_PRIORITY, 
-		reinterpret_cast<void *>(this));
-	
+	// thread gets a cheeky name, as per the Be Book
+	char const *threadNames[] = {
+		"pocket calculator",
+		"keystroke logger", 
+		"bitcoin miner", 
+		"password finder",
+		"nsa surveillance thread",
+		"aes encryption cracker",
+		"network traffic monitor",
+		"prime finder",
+		"mersenne twister",
+		"fibonacci sequence generator"
+	};
+
+	int32 const index = (rand() % 10);
+	fThread = spawn_thread(emulator_thread, threadNames[index], B_DISPLAY_PRIORITY, 
+						   reinterpret_cast<void *>(this));
 	if (fThread < B_OK) {
-			throw std::runtime_error("spawn_thread failed");
-			// for some reason or another we couldn't spawn the main thread
-			// we can't run without a thread
-			OnQuit();
+		// we couldn't spawn the main thread, party over.
+		(new BAlert("Error", "Couldn't spawn main thread.  Quitting.", "Sorry",
+		 nullptr, nullptr, B_WIDTH_AS_USUAL, B_STOP_ALERT))->Go();
+		be_app->PostMessage(B_QUIT_REQUESTED);
 	} else {
 		fRunning = false;
 	}
@@ -250,6 +263,7 @@ PretendoWindow::DirectConnected (direct_buffer_info *info)
 			// we're done, clean up and free clip list
 			fDirectConnected = false;
 			free(fClipInfo.clip_list);
+			fClipInfo.clip_list = nullptr;
 			break;
 	}
 	
@@ -267,7 +281,7 @@ PretendoWindow::MessageReceived (BMessage *message)
 			break;
 		
 		case MSG_LEAVE_FULLSCREEN:
-			ChangeFramework (fPrevFramework);
+			ChangeFramework(fPrevFramework);
 		 	break;
 			
 		case MSG_ROM_LOADED:
@@ -291,7 +305,7 @@ PretendoWindow::MessageReceived (BMessage *message)
 			break;
 			
 		case MSG_ABOUT:
-			be_app->PostMessage (B_ABOUT_REQUESTED);
+			be_app->PostMessage(B_ABOUT_REQUESTED);
 			break;
 			
 		case MSG_QUIT:
@@ -433,18 +447,15 @@ PretendoWindow::Zoom (BPoint origin, float width, float height)
 	(void)origin;
 	(void)width;
 	(void)height;
-	
+
 	// check for double size, and adjust the window accordingly
-	float w = Frame().right - Frame().left;	
+	int32 w = Frame().right - Frame().left;	
 		
 	if (w == SCREEN_WIDTH) {
 		ResizeTo ((SCREEN_WIDTH*2), (SCREEN_HEIGHT*2));
 		fDoubled = true;
-	} else {
-		if (w == SCREEN_WIDTH*2) {
-			ResizeTo (SCREEN_WIDTH, SCREEN_HEIGHT);
-		} 
-		
+	} else if (w == SCREEN_WIDTH*2) {
+		ResizeTo (SCREEN_WIDTH, SCREEN_HEIGHT);
 		fDoubled = false;
 	}
 	
@@ -456,7 +467,7 @@ PretendoWindow::Zoom (BPoint origin, float width, float height)
 void
 PretendoWindow::AddMenu()
 {
-	fMenu = new BMenuBar (BRect (0, 0, 0, 0), "menu");
+	fMenu = new BMenuBar (BRect (0, 0, 0, 0), "pretendo_menu");
 	fMenu->ResizeToPreferred();
 	AddChild (fMenu);
 	
@@ -466,20 +477,9 @@ PretendoWindow::AddMenu()
 	fEmuMenu = new BMenu ("Emulator");
 	fMenu->AddItem (fEmuMenu);
 	
-	fVideoMenu = new BMenu ("Render");
-	fMenu->AddItem (fVideoMenu);
-	
 	fToolMenu = new BMenu ("Tools");
 	fMenu->AddItem (fToolMenu);
 
-	fVideoMenu->AddItem(new BMenuItem ("No Output", new BMessage (MSG_CHANGE_RENDER)));
-	fVideoMenu->AddItem(new BMenuItem ("BView/BBitmap", new BMessage(MSG_CHANGE_RENDER)));
-	fVideoMenu->AddItem(new BMenuItem ("BView/Overlay", new BMessage(MSG_CHANGE_RENDER)));
-	fVideoMenu->AddItem(new BMenuItem ("BDirectWindow", new BMessage(MSG_CHANGE_RENDER)));
-	fVideoMenu->AddItem(new BMenuItem ("BWindowScreen", new BMessage(MSG_CHANGE_RENDER), 'F'));
-	fVideoMenu->SetRadioMode(true);
-	fVideoMenu->ItemAt(2)->SetMarked(false);
-	
 	fFileMenu->AddItem (new BMenuItem ("Free ROM", new BMessage (MSG_FREE_ROM)));
 	fFileMenu->AddItem(new BMenuItem("ROM Info", new BMessage(MSG_CART_INFO)));
 	fFileMenu->AddSeparatorItem();
@@ -494,7 +494,17 @@ PretendoWindow::AddMenu()
 	fEmuMenu->AddItem (new BMenuItem ("Reset (soft)", new BMessage (MSG_RST_SOFT)));
 	fEmuMenu->AddItem (new BMenuItem ("Reset (hard)", new BMessage (MSG_RST_HARD)));
 	fEmuMenu->AddSeparatorItem();
-
+	
+	fVideoMenu = new BMenu("Video");
+	fEmuMenu->AddItem(fVideoMenu);
+	fVideoMenu->AddItem(new BMenuItem ("None", new BMessage (MSG_CHANGE_RENDER)));
+	fVideoMenu->AddItem(new BMenuItem ("BBitmap", new BMessage(MSG_CHANGE_RENDER)));
+	fVideoMenu->AddItem(new BMenuItem ("Overlay", new BMessage(MSG_CHANGE_RENDER)));
+	fVideoMenu->AddItem(new BMenuItem ("BDirectWindow", new BMessage(MSG_CHANGE_RENDER)));
+	fVideoMenu->AddItem(new BMenuItem ("BWindowScreen", new BMessage(MSG_CHANGE_RENDER), 'F'));
+	fVideoMenu->SetRadioMode(true);
+	fVideoMenu->ItemAt(2)->SetMarked(false);
+	
 	fToolMenu->AddItem(new BMenuItem("Pattern Table 0", new BMessage(MSG_PTNTBL0)));
 	fToolMenu->AddItem(new BMenuItem("Pattern Table 1", new BMessage(MSG_PTNTBL1)));
 	fToolMenu->AddSeparatorItem();
@@ -511,7 +521,7 @@ PretendoWindow::OnLoadCart (BMessage *message)
 {
 	BString path;
 	
-	if (message->FindString ("path", &path) == B_OK) {
+	if (message->FindString ("rom_path", &path) == B_OK) {
 		OnFreeCart();
 		if (nes::cart.load(path.String()) == false) {
 			(new BAlert("Error", "Error, Invalid ROM Image", "Okay", nullptr, nullptr,
@@ -1032,7 +1042,7 @@ PretendoWindow::BlitScreen()
 	
 	switch (fFramework) {
 		case VF_NONE:
-			return;
+			break;
 			
 		case VF_BITMAP:
 			dest = fBitmapBits;
@@ -1047,7 +1057,7 @@ PretendoWindow::BlitScreen()
 			}
 		
 			PostMessage (MSG_DRAW_BITMAP);
-			return;
+			break;
 			
 		case VF_OVERLAY:
 			// blit w/overlay
@@ -1110,15 +1120,14 @@ PretendoWindow::BlitScreen()
 				dest += fOverlayBitmap->BytesPerRow();
 			}
 #endif
-			return;
+			break;
 			
 		case VF_DIRECT:
 			if (fDirectConnected) {				
 				ClearDirty();
 				DrawDirect();
 			}
-			
-			return;
+			break;
 			
 		case VF_FULLSCREEN:
 			if (fFullScreen) {
@@ -1136,8 +1145,7 @@ PretendoWindow::BlitScreen()
 					dirty += sx;
 				}
 			}
-			
-			return;
+			break;
 	}
 }
 
@@ -1217,30 +1225,33 @@ PretendoWindow::start_frame()
 void
 PretendoWindow::end_frame()
 {
-	BlitScreen();
+	uint8 sampleBuffer[nes::apu::frequency / nes::apu::frame_rate];
+	size_t const bufferCount = nes::apu::read_samples(sampleBuffer, sizeof(sampleBuffer));
 	
-	uint8 samples[nes::apu::frequency / nes::apu::frame_rate];
-	size_t count = nes::apu::read_samples (samples, sizeof(samples));
-	fAudioStream->Stream (samples, count);
+	BlitScreen();
+	fAudioStream->Stream(sampleBuffer, bufferCount);
 }
 
+
 status_t
-PretendoWindow::emulation_thread (void *data)
+PretendoWindow::emulator_thread (void *data)
 {
 	// start the show!
-	
 	PretendoWindow *window = reinterpret_cast<PretendoWindow *>(data);	
 	
 	while (1) {
-		if (window->LockMutex() == false) {
+		// lock mutex
+		if (window->LockMutex() == false) { 
 			break;
 		}
 		
+		// do frame events
 		window->start_frame();
 		nes::run_frame (window);
 		window->end_frame();
 		window->ReadKeyStates();	
 		
+		// unlock mutex
 		window->UnlockMutex();
 	}	
 	

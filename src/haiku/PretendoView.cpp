@@ -42,7 +42,7 @@ PretendoView::MessageReceived (BMessage *message)
 			entry.GetPath(&path);
 			
 			msg = new BMessage(MSG_ROM_LOADED);
-			msg->AddString("path", path.Path());
+			msg->AddString("rom_path", path.Path());
 			fParent->PostMessage(msg);
 			
 			delete msg;
@@ -52,7 +52,7 @@ PretendoView::MessageReceived (BMessage *message)
 	BView::MessageReceived (message);
 }
 
-void 
+void
 PretendoView::MouseMoved (BPoint point, uint32 transit, BMessage *message) 
 {
 	BView::MouseMoved (point, transit, message);

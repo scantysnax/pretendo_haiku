@@ -163,8 +163,11 @@ $(APPNAME): $(OBJECTS)
 	@$(RES) -o $@ $(RESOURCES)
 	@echo done.
 
+
 .PHONY: clean 
 clean:
 	@echo cleaning...
 	@$(RM) $(OBJECTS) $(APPNAME)
 	@echo done.
+	
+
