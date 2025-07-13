@@ -31,8 +31,7 @@ union APUStatus {
 
 constexpr int frequency		= 48000;
 constexpr int frame_rate 	= 60; 
-constexpr int buffer_size = (frequency / frame_rate); // * 4;
-// scaling should be done on os side;
+constexpr int buffer_size = (frequency / frame_rate) * 4;
 
 
 void reset(Reset reset_type);

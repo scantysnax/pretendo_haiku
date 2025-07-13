@@ -121,7 +121,8 @@ PretendoWindow::PretendoWindow()
 	fOpenPanel = new ROMFilePanel;
 	
 	// sound
-	fAudioStream = new AudioStream (nes::apu::frequency, 8, 1, nes::apu::buffer_size);
+	// no upscale of buffer needed, so we divide it out
+	fAudioStream = new AudioStream (nes::apu::frequency, 8, 1, nes::apu::buffer_size / 4);
 
 	// this is the emulator processing loop
 	// thread gets a cheeky name, as per the Be Book
