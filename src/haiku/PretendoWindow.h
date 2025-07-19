@@ -128,7 +128,6 @@ class PretendoWindow : public BDirectWindow
 	void OnRun();
 	void OnStop();
 	void OnPause();
-	void OnDebug();
 	void OnSoftReset();
 	void OnHardReset();
 	void OnAdjustPalette();
@@ -150,6 +149,9 @@ class PretendoWindow : public BDirectWindow
 	void BlitScreen();
 	void ClearDirty();
 	void DrawDirect();
+	void DrawBitmap();
+	void DrawOverlay();
+	void DrawFullScreen();
 	
 	// video interface
 	public:
@@ -185,10 +187,7 @@ class PretendoWindow : public BDirectWindow
 	uint32 fPaletteY[65536];
 	uint32 fPaletteYCbCr[65536];
 	uint8 *fMappedPalette[8];
-	
-	public:
-	uint8 *Get8BitPalette() { return fPalette8[0]; }
-	
+		
 	private:
 	video_framework fFramework = VF_NONE;
 	video_framework fPrevFramework = VF_NONE;
@@ -225,16 +224,18 @@ class PretendoWindow : public BDirectWindow
 	thread_id fThread = B_BAD_THREAD_ID;
 	static status_t emulator_thread (void *data);
 	bool fRunning = false;
+	
+	public:
 	bool Running() { return fRunning; }
 
 	private:
 	key_info fKeyStates;
-	inline void CheckKey (int32 index, int32 key);
+	inline void CheckKey (int32 index, int32 key) const;
 	inline void ReadKeyStates();
 	
 	private:
 	SimpleMutex *fMutex = nullptr;
-	bool LockMutex() const		{ return fMutex->Lock(); 	};
+	bool LockMutex() const		{ return fMutex->Lock();	};
 	bool UnlockMutex() const 	{ return fMutex->Unlock();	}; 
 };
 				
