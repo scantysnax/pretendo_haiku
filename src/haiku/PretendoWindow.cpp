@@ -67,7 +67,7 @@ PretendoWindow::PretendoWindow()
 					
 	if (fBitsArea < B_OK || fDirtyArea < B_OK) {
 		(new BAlert ("Error", "Not enough memory for video buffers.  Quitting.",
-			"Bummer", nullptr, nullptr, B_WIDTH_AS_USUAL, B_STOP_ALERT))->Go();
+			"Sorry", nullptr, nullptr, B_WIDTH_AS_USUAL, B_STOP_ALERT))->Go();
 		be_app->PostMessage(B_QUIT_REQUESTED);
 	} else {
 		memset(bitsArea, 0x0, (SCREEN_WIDTH*2) * (SCREEN_HEIGHT*2) * 4);
@@ -106,16 +106,21 @@ PretendoWindow::PretendoWindow()
 	fFrameworkChanging = false;	
 	fFramework = 
 	fPrevFramework = VF_NONE;
-	
+	fDoubled = false;
+	fClear = 0;
 	
 	if (overlayOK) {
 		ChangeFramework(VF_OVERLAY);
 	} else {
-		// there will be mouse "trails" on the BDirectWindow until we get
-		// a hardware cursor.  Again, no accelerated video yet
-		// ChangFramework(VF_DIRECT);
-		ChangeFramework(VF_BITMAP);
-		
+		if (BDirectWindow::SupportsWindowMode() == false) {
+			fVideoMenu->ItemAt(3)->SetEnabled(false);
+			ChangeFramework(VF_BITMAP);
+		} else {
+			// there will be mouse "trails" on the BDirectWindow until we get
+			// a hardware cursor.  Again, no accelerated video yet
+			//ChangeFramework(VF_DIRECT);
+			ChangeFramework(VF_BITMAP);
+		}
 	}
 	
 	memset(&fKeyStates, 0, sizeof(key_info));
@@ -124,9 +129,6 @@ PretendoWindow::PretendoWindow()
 	// sound
 	// we don't need to upscale the buffer size using the MediaKit, so divide it out
 	fAudioStream = new AudioStream (nes::apu::frequency, 8, 1, nes::apu::buffer_size / 4);
-	
-	fDoubled = false;
-	fClear = 0;
 
 	// this is the emulator processing loop
 	// thread gets a cheeky name, as per the Be Book
@@ -147,7 +149,7 @@ PretendoWindow::PretendoWindow()
 	fThread = spawn_thread(emulator_thread, threadNames[index], B_DISPLAY_PRIORITY, 
 						   reinterpret_cast<void *>(this));
 	if (fThread < B_OK) {
-		// we couldn't spawn the main thread, party over.
+		// we couldn't spawn the main thread, party over.  everyone go home
 		(new BAlert("Error", "Couldn't spawn main thread.  Quitting.", "Sorry",
 		 nullptr, nullptr, B_WIDTH_AS_USUAL, B_STOP_ALERT))->Go();
 		
@@ -988,10 +990,10 @@ PretendoWindow::DrawDirect()
 		
 			while (h--) {
 				blit_windowed_dirty_mmx(source, dirty, dest, size, fPixelWidth);
-			
+				
+				dest += fFrontBuffer.row_bytes;
 				source += fBackBuffer.row_bytes;
 				dirty += fBackBuffer.row_bytes;
-				dest += fFrontBuffer.row_bytes;
 			}
 		}
 	} else {
@@ -1019,8 +1021,8 @@ PretendoWindow::DrawDirect()
 void
 PretendoWindow::DrawBitmap()
 {
-	uint8 *source = fBackBuffer.bits;;
 	uint8 *dest = reinterpret_cast<uint8 *>(fBitmap->Bits());
+	uint8 *source = fBackBuffer.bits;
 	
 	size_t const size = SCREEN_WIDTH;
 	size_t const row_bytes = fBitmap->BytesPerRow();
