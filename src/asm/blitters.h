@@ -24,7 +24,7 @@ void blit_2x_windowed_dirty_mmx(uint8 *src,
 								uint8 *dirty, 
 								uint8 *dst, 
 								size_t size, 				
-								int32 bpp, 
+								int32 pixel_width, 
 								int32 rowbytes);
 
 void blit_overlay (uint8 *dest, 

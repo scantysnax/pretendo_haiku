@@ -172,6 +172,10 @@ PretendoWindow::~PretendoWindow()
 	// tear everything down and clean up
 	fRunning = fDirectConnected = false;
 	fThread = B_BAD_THREAD_ID;
+	
+	if (fView->Looper()->IsLocked()) {
+		fView->UnlockLooper();
+	}
 
 	if (fOpenPanel->Window()) {
 		fOpenPanel->Window()->Lock();
@@ -987,7 +991,7 @@ PretendoWindow::DrawDirect()
 			source = fBackBuffer.bits + y * fBackBuffer.row_bytes + x;
 			dirty = fDirtyBuffer.bits + y * fBackBuffer.row_bytes + x;
 			size = w * fPixelWidth;
-		
+			
 			while (h--) {
 				blit_windowed_dirty_mmx(source, dirty, dest, size, fPixelWidth);
 				
@@ -1009,7 +1013,9 @@ PretendoWindow::DrawDirect()
 					dest = fFrontBuffer.bits + y * fFrontBuffer.row_bytes + clip->left * fPixelWidth;
 					source = fBackBuffer.bits + (y / 2) * fBackBuffer.row_bytes + x;
 					dirty = fDirtyBuffer.bits + (y / 2) * fBackBuffer.row_bytes + x;
+					
 					size = w * fPixelWidth;						
+
 					
 					blit_2x_windowed_dirty_mmx(source, dirty, dest, size, fPixelWidth, fFrontBuffer.row_bytes);									
 				}
@@ -1023,19 +1029,32 @@ PretendoWindow::DrawBitmap()
 {
 	uint8 *dest = reinterpret_cast<uint8 *>(fBitmap->Bits());
 	uint8 *source = fBackBuffer.bits;
+	uint8 *dirty = fDirtyBuffer.bits;
 	
-	size_t const size = SCREEN_WIDTH;
-	size_t const row_bytes = fBitmap->BytesPerRow();
-		
-	for (int32 y = 0; y < SCREEN_HEIGHT; y++) {
-		mmx_copy(dest, source, size);
+	size_t size = SCREEN_WIDTH;
+	//size_t const row_bytes = fBitmap->BytesPerRow();
+	size_t height = SCREEN_HEIGHT;
+	
+	while (height--) {
+		blit_windowed_dirty_mmx(source, dirty, dest, size, 4);
+	
+		dest += fFrontBuffer.row_bytes;
 		source += fBackBuffer.row_bytes;
-		dest += row_bytes;
+		dirty += fBackBuffer.row_bytes;
 	}
-	
+
 	// FIXME: what is the right way to do this?	
-	PostMessage (MSG_DRAW_BITMAP);	
+	//PostMessage (MSG_DRAW_BITMAP);	
+	fView->LockLooper();
+	fView->DrawBitmap(fBitmap, fView->Bounds());
+	fView->UnlockLooper();
+
 }
+
+
+
+
+
 
 
 void
