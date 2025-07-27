@@ -173,7 +173,7 @@ class PretendoWindow : public BDirectWindow
 	BMenu *fVideoMenu = nullptr;
 	BMenu *fToolMenu = nullptr;
 	ROMFilePanel *fOpenPanel = nullptr;
-	int32 fMenuHeight = 18;
+	int32 fMenuHeight;
 	
 	private:
 	CartInfoWindow *fCartInfoWindow = nullptr;

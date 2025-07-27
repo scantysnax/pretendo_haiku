@@ -12,8 +12,7 @@ blit_2x_mmx:
 ;	rdi	1 	dest
 ;	rsi	2 	source
 ;	rdx	3	size
-	
-	
+
 	shr rdx, 3
 	
 .loop:

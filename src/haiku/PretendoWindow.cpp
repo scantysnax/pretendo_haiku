@@ -29,12 +29,15 @@
 PretendoWindow::PretendoWindow()
 	: BDirectWindow (BRect (0, 0, 0, 0), "Pretendo", B_TITLED_WINDOW, B_NOT_RESIZABLE, 0)		
 {
-	ResizeTo(SCREEN_WIDTH, SCREEN_HEIGHT);
+	AddMenu(); // unusual, but it works for now.
+	
+	ResizeTo(SCREEN_WIDTH-1, SCREEN_HEIGHT-1);
 	CenterOnScreen();
 	
 	BRect bounds (Bounds());
 	bounds.OffsetTo(B_ORIGIN);
-	AddMenu();
+	//AddMenu();
+	
 	bounds.top = fMenuHeight;
 	
 	fView = new PretendoView(bounds, this);
@@ -164,6 +167,8 @@ PretendoWindow::PretendoWindow()
 	resume_thread(fThread);
 	
 	SetDefaultPalette();
+	
+	std::cout << Frame().Width();
 }
 
 
@@ -172,10 +177,6 @@ PretendoWindow::~PretendoWindow()
 	// tear everything down and clean up
 	fRunning = fDirectConnected = false;
 	fThread = B_BAD_THREAD_ID;
-	
-	if (fView->Looper()->IsLocked()) {
-		fView->UnlockLooper();
-	}
 
 	if (fOpenPanel->Window()) {
 		fOpenPanel->Window()->Lock();
@@ -236,7 +237,7 @@ PretendoWindow::DirectConnected (direct_buffer_info *info)
 		case B_DIRECT_START:
 			fClear = 5;
 			fClipInfo.bounds = info->window_bounds;
-			fClipInfo.bounds.top += fMenuHeight + 1;
+			fClipInfo.bounds.top += fMenuHeight;// - 1;
 	
 			if (fFramework == VF_DIRECT) {
 				SetFrontBuffer (reinterpret_cast<uint8 *>(info->bits)
@@ -340,6 +341,7 @@ PretendoWindow::MessageReceived (BMessage *message)
 			
 		case MSG_DRAW_BITMAP:
 			// this has to go here, since the window is guaranteed to be locked
+			// not sure what the right way to do this is
 			fView->DrawBitmap(fBitmap, fView->Bounds());
 			break;
 			
@@ -437,8 +439,7 @@ PretendoWindow::QuitRequested()
 void
 PretendoWindow::ResizeTo (float width, float height)
 {
-	height += fMenuHeight;	// account for 18px menu height
-	
+	height += fMenuHeight;	// account for 21px menu height
 	BDirectWindow::ResizeTo (width, height);
 }
 
@@ -452,12 +453,12 @@ PretendoWindow::Zoom (BPoint origin, float width, float height)
 	
 	float w = Bounds().right - Bounds().left;	
 		
-	if (w == SCREEN_WIDTH) {
-		ResizeTo ((SCREEN_WIDTH*2), (SCREEN_HEIGHT*2));
+	if (w == SCREEN_WIDTH-1) {
+		ResizeTo ((SCREEN_WIDTH*2)-1, (SCREEN_HEIGHT*2)-1);
 		fDoubled = true;
 	} else {
-		if (w == SCREEN_WIDTH*2) {
-			ResizeTo (SCREEN_WIDTH, SCREEN_HEIGHT);
+		if (w == (SCREEN_WIDTH*2) - 1) {
+			ResizeTo (SCREEN_WIDTH-1, SCREEN_HEIGHT-1);
 		} 
 		
 		fDoubled = false;
@@ -474,6 +475,7 @@ PretendoWindow::AddMenu()
 	fMenu = new BMenuBar (BRect (0, 0, 0, 0), "pretendo_menu");
 	fMenu->ResizeToPreferred();
 	AddChild (fMenu);
+	fMenu->Bounds().PrintToStream();
 	
 	fFileMenu = new BMenu ("File");
 	fMenu->AddItem (fFileMenu);
@@ -515,7 +517,7 @@ PretendoWindow::AddMenu()
 	fToolMenu->AddSeparatorItem();
 	fToolMenu->AddItem(new BMenuItem("Name Table 0", new BMessage(MSG_NTBL0)));
 
-	fMenuHeight = fMenu->Bounds().IntegerHeight();
+	fMenuHeight = fMenu->Bounds().IntegerHeight()+1;
 	
 	SetKeyMenuBar(fMenu);
 }
@@ -972,7 +974,6 @@ void
 PretendoWindow::DrawDirect()
 {
 	// drawing code for the DirectWindow
-	
 	clipping_rect *clip = fClipInfo.clip_list;
 	uint8 *dest;
 	uint8 *source;
@@ -983,7 +984,7 @@ PretendoWindow::DrawDirect()
 		// 1:1
 		for (int32 i = 0; i < fClipInfo.clip_count; i++, clip++) {
 			int32 x = (clip->left - fClipInfo.bounds.left) * fPixelWidth;
-			int32 y = (clip->top - fClipInfo.bounds.top) + 1;
+			int32 y = (clip->top - fClipInfo.bounds.top);// + 1;
 			int32 w = clip->right - clip->left + 1;
 			int32 h = clip->bottom - clip->top + 1;
 			
@@ -991,6 +992,9 @@ PretendoWindow::DrawDirect()
 			source = fBackBuffer.bits + y * fBackBuffer.row_bytes + x;
 			dirty = fDirtyBuffer.bits + y * fBackBuffer.row_bytes + x;
 			size = w * fPixelWidth;
+			
+			//printf("pixel width: %d\n", fPixelWidth);
+			//printf("w: %d\n", w);
 			
 			while (h--) {
 				blit_windowed_dirty_mmx(source, dirty, dest, size, fPixelWidth);
@@ -1003,9 +1007,11 @@ PretendoWindow::DrawDirect()
 	} else {
 		// 2:1
 		int32 h = fClipInfo.bounds.bottom - fClipInfo.bounds.top + 1;
-				
+						
 		for (int32 i = 0; i < fClipInfo.clip_count; i++, clip++) {
 			int32 x = ((clip->left - fClipInfo.bounds.left) / 2) * fPixelWidth;
+			
+			
 			int32 w = clip->right - clip->left + 1;
 		
 			for (int32 y = 0; y < h; y += 2) {
@@ -1013,13 +1019,12 @@ PretendoWindow::DrawDirect()
 					dest = fFrontBuffer.bits + y * fFrontBuffer.row_bytes + clip->left * fPixelWidth;
 					source = fBackBuffer.bits + (y / 2) * fBackBuffer.row_bytes + x;
 					dirty = fDirtyBuffer.bits + (y / 2) * fBackBuffer.row_bytes + x;
-					
 					size = w * fPixelWidth;						
 
 					
 					blit_2x_windowed_dirty_mmx(source, dirty, dest, size, fPixelWidth, fFrontBuffer.row_bytes);									
 				}
-			}
+			} 
 		}
 	}
 }
@@ -1032,29 +1037,21 @@ PretendoWindow::DrawBitmap()
 	uint8 *dirty = fDirtyBuffer.bits;
 	
 	size_t size = SCREEN_WIDTH;
-	//size_t const row_bytes = fBitmap->BytesPerRow();
 	size_t height = SCREEN_HEIGHT;
 	
+
 	while (height--) {
 		blit_windowed_dirty_mmx(source, dirty, dest, size, 4);
 	
 		dest += fFrontBuffer.row_bytes;
 		source += fBackBuffer.row_bytes;
 		dirty += fBackBuffer.row_bytes;
-	}
-
+	} 
+	
 	// FIXME: what is the right way to do this?	
-	//PostMessage (MSG_DRAW_BITMAP);	
-	fView->LockLooper();
-	fView->DrawBitmap(fBitmap, fView->Bounds());
-	fView->UnlockLooper();
-
+	// everything i have tried was unstable.
+	PostMessage (MSG_DRAW_BITMAP);	
 }
-
-
-
-
-
 
 
 void
