@@ -1043,10 +1043,8 @@ PretendoWindow::DrawBitmap()
 	}
 
 	// FIXME: what is the right way to do this?	
-	//PostMessage (MSG_DRAW_BITMAP);	
-	fView->LockLooper();
-	fView->DrawBitmap(fBitmap, fView->Bounds());
-	fView->UnlockLooper();
+	PostMessage (MSG_DRAW_BITMAP);	
+
 
 }
 
