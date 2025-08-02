@@ -28,17 +28,16 @@
 PretendoWindow::PretendoWindow()
 	: BDirectWindow (BRect (0, 0, 0, 0), "Pretendo", B_TITLED_WINDOW, B_NOT_RESIZABLE, 0)		
 {
+	AddMenu();
 	ResizeTo(SCREEN_WIDTH, SCREEN_HEIGHT);
 	CenterOnScreen();
 	
 	BRect bounds (Bounds());
 	bounds.OffsetTo(B_ORIGIN);
-	AddMenu();
 	bounds.top = fMenuHeight;
 	
 	fView = new PretendoView(bounds, this);
 	AddChild(fView);
-	
 	// if we can't create even the simplest video interface there is no point
 	// to keep the app running.
 	fBitmap = new BBitmap (BRect (0, 0, SCREEN_WIDTH-1, SCREEN_HEIGHT-1), B_CMAP8);
@@ -339,7 +338,7 @@ PretendoWindow::MessageReceived (BMessage *message)
 			
 		case MSG_DRAW_BITMAP:
 			// this has to go here, since the window is guaranteed to be locked
-			fView->DrawBitmap(fBitmap, fView->Bounds());
+			//	fView->DrawBitmap(fBitmap, fView->Bounds());
 			break;
 			
 		case MSG_ADJ_PALETTE:
@@ -436,7 +435,7 @@ PretendoWindow::QuitRequested()
 void
 PretendoWindow::ResizeTo (float width, float height)
 {
-	height += fMenuHeight;	// account for 18px menu height
+	height += fMenuHeight;//+1;	// account for menubar height
 	
 	BDirectWindow::ResizeTo (width, height);
 }
@@ -1012,10 +1011,8 @@ PretendoWindow::DrawDirect()
 					dest = fFrontBuffer.bits + y * fFrontBuffer.row_bytes + clip->left * fPixelWidth;
 					source = fBackBuffer.bits + (y / 2) * fBackBuffer.row_bytes + x;
 					dirty = fDirtyBuffer.bits + (y / 2) * fBackBuffer.row_bytes + x;
-					
 					size = w * fPixelWidth;						
 
-					
 					blit_2x_windowed_dirty_mmx(source, dirty, dest, size, fPixelWidth, fFrontBuffer.row_bytes);									
 				}
 			}
@@ -1026,26 +1023,30 @@ PretendoWindow::DrawDirect()
 void
 PretendoWindow::DrawBitmap()
 {
-	uint8 *dest = reinterpret_cast<uint8 *>(fBitmap->Bits());
+	uint8 *dest = fBitmapBits;
 	uint8 *source = fBackBuffer.bits;
 	uint8 *dirty = fDirtyBuffer.bits;
 	
 	size_t size = SCREEN_WIDTH;
-	//size_t const row_bytes = fBitmap->BytesPerRow();
 	size_t height = SCREEN_HEIGHT;
 	
 	while (height--) {
-		blit_windowed_dirty_mmx(source, dirty, dest, size, 4);
-	
+		blit_windowed_dirty_mmx(source, dirty, dest, size, fPixelWidth);
+
 		dest += fFrontBuffer.row_bytes;
 		source += fBackBuffer.row_bytes;
 		dirty += fBackBuffer.row_bytes;
 	}
 
 	// FIXME: what is the right way to do this?	
-	PostMessage (MSG_DRAW_BITMAP);	
-
-
+	
+	// this crashes/hangs sometimes on exit
+	LockLooper();
+	fView->DrawBitmap(fBitmap, fView->Bounds());
+	UnlockLooper();
+	
+	// oddly, this works well
+	//PostMessage (MSG_DRAW_BITMAP);	
 }
 
 

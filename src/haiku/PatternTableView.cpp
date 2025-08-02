@@ -103,7 +103,7 @@ PatternTableView::Pulse()
 }
 
 
-void 
+void
 PatternTableView::DrawPixel (int32 x, int32 y, uint8 color)
 {
 	uint8 *dest = fBits;

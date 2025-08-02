@@ -3,7 +3,6 @@
 #ifndef _PRETENDO_WINDOW_H_
 #define _PRETENDO_WINDOW_H_
 
-#include <malloc.h>
 #include <Application.h>
 #include <DirectWindow.h>
 #include <Alert.h>
@@ -13,8 +12,9 @@
 #include <MenuItem.h>
 #include <Screen.h>
 #include <RecentItems.h>
-#include <Locker.h>
-#include <OS.h>
+
+
+#include <malloc.h>
 
 #include "Palette.h"
 #include "VideoScreen.h"
@@ -22,7 +22,6 @@
 #include "PaletteWindow.h"
 #include "CartInfoWindow.h"
 #include "SimpleMutex.h"
-//#include "SoundPusher.h"
 #include "AudioStream.h"
 #include "PretendoView.h"
 #include "PatternTableWindow.h"
@@ -46,11 +45,10 @@
 #define MSG_RST_SOFT	'SOFT'
 #define MSG_RST_HARD	'HARD'
 //
-#define MSG_FULLSCREEN 'FULL'
-
-#define MSG_CHANGE_RENDER 'CHRN'
-#define MSG_DRAW_BITMAP 'DRAW'
-#define MSG_ADJ_PALETTE 'ADJP'
+#define MSG_FULLSCREEN 		'FULL'
+#define MSG_CHANGE_RENDER 	'CHRN'
+#define MSG_DRAW_BITMAP 	'DRAW'
+#define MSG_ADJ_PALETTE 	'ADJP'
 
 #define MSG_PTNTBL0 'PTB0'
 #define MSG_PTNTBL1 'PTB1'
@@ -164,8 +162,7 @@ class PretendoWindow : public BDirectWindow
 	void SetDefaultPalette();
 	
 	private:
-	//PretendoView *fView;
-	BView *fView = nullptr;
+	BView *fView = nullptr; // don't know why this works, PretendoView does not.
 	BMenuBar *fMenu = nullptr;
 	BMenu *fFileMenu = nullptr;
 	BMenu *fLoadMenu = nullptr;
@@ -226,7 +223,7 @@ class PretendoWindow : public BDirectWindow
 	bool fRunning = false;
 	
 	public:
-	bool Running() { return fRunning; }
+	bool Running() const { return fRunning; }
 
 	private:
 	key_info fKeyStates;

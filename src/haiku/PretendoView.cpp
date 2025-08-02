@@ -1,4 +1,4 @@
-// PretendoView.cc
+// PretendoView.cpp
 
 #include <Alert.h>
 #include <Entry.h>
@@ -9,7 +9,7 @@
 class PretendoWindow;
 
 PretendoView::PretendoView (BRect frame, PretendoWindow *parent)
-	: BView (frame, "_pretendo_view_", B_FOLLOW_ALL_SIDES, B_WILL_DRAW),
+	: BView (frame, "_pretendo_view_", B_FOLLOW_ALL_SIDES, 0),
 	fParent(parent)
 {
 }
@@ -20,12 +20,6 @@ PretendoView::~PretendoView()
 	
 }
 
-
-void
-PretendoView::DrawBitmap (BBitmap *bitmap)
-{
-	BView::DrawBitmap (bitmap);
-}
 
 void 
 PretendoView::MessageReceived (BMessage *message)
@@ -51,11 +45,3 @@ PretendoView::MessageReceived (BMessage *message)
 	
 	BView::MessageReceived (message);
 }
-
-void
-PretendoView::MouseMoved (BPoint point, uint32 transit, BMessage *message) 
-{
-	BView::MouseMoved (point, transit, message);
-}
-	
-
