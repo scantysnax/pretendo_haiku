@@ -132,6 +132,9 @@ class PretendoWindow : public BDirectWindow
 	void OnShowPatternTable0();
 	void OnShowPatternTable1();
 	void OnShowNameTable0();
+	void OnShowNameTable1();
+	void OnShowNameTable2();
+	void OnShowNameTable3();
 	
 
 	// video stuff

@@ -371,6 +371,18 @@ PretendoWindow::MessageReceived (BMessage *message)
 		case MSG_NTBL0:
 			OnShowNameTable0();
 			break;
+			
+		case MSG_NTBL1:
+			OnShowNameTable1();
+			break;
+			
+		case MSG_NTBL2:
+			OnShowNameTable2();
+			break;
+		
+		case MSG_NTBL3:
+			OnShowNameTable3();
+			break;
 	}
 	
 	BDirectWindow::MessageReceived (message);
@@ -731,6 +743,25 @@ PretendoWindow::OnShowNameTable0()
 	//	fNameTable0Window->Show();
 	//}
 	
+	puts(__PRETTY_FUNCTION__);
+}
+
+void
+PretendoWindow::OnShowNameTable1()
+{
+	puts(__PRETTY_FUNCTION__);
+}
+
+void
+PretendoWindow::OnShowNameTable2()
+{
+	puts(__PRETTY_FUNCTION__);
+}
+
+
+void
+PretendoWindow::OnShowNameTable3()
+{
 	puts(__PRETTY_FUNCTION__);
 }
 
