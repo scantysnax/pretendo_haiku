@@ -512,6 +512,9 @@ PretendoWindow::AddMenu()
 	fToolMenu->AddItem(new BMenuItem("Pattern Table 1", new BMessage(MSG_PTNTBL1)));
 	fToolMenu->AddSeparatorItem();
 	fToolMenu->AddItem(new BMenuItem("Name Table 0", new BMessage(MSG_NTBL0)));
+	fToolMenu->AddItem(new BMenuItem("Name Table 1", new BMessage(MSG_NTBL1)));
+	fToolMenu->AddItem(new BMenuItem("Name Table 2", new BMessage(MSG_NTBL2)));
+	fToolMenu->AddItem(new BMenuItem("Name Table 3", new BMessage(MSG_NTBL3)));
 
 	fMenuHeight = fMenu->Bounds().IntegerHeight();
 	

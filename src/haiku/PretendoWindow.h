@@ -213,6 +213,9 @@ class PretendoWindow : public BDirectWindow
 	PatternTableWindow *fPatternTable0Window = nullptr;
 	PatternTableWindow *fPatternTable1Window = nullptr;
 	NameTableWindow *fNameTable0Window = nullptr;
+	NameTableWindow *fNameTable1Window = nullptr;
+	NameTableWindow *fNameTable2Window = nullptr;
+	NameTableWindow *fNameTable3Window = nullptr;
 	
 	private:
 	bool fPaused = false;

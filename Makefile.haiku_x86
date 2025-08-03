@@ -10,10 +10,10 @@ STRIP  := strip
 
 DEFINES  := 
 INCLUDES := -Ilibines2/lib/include/ -Isrc/ -Isrc/haiku/ \
-		 	-I/boot/system/develop/headers/ \
-		 	-I/boot/system/develop/headers/libxml2
+		 	-I/boot/system/develop/headers/x86 \
+		 	-I/boot/system/develop/headers/x86/libxml2
 
-ASMFLAGS := -f elf32
+ASMFLAGS := -f elf
 CPPFLAGS := -O3 $(INCLUDES) -W -Wall -Wno-implicit-fallthrough -std=c++17 -flto
 LDFLAGS  := -L/boot/common/lib \
 			-lbe -lroot -ltranslation -ltracker -lgame -lmedia -lxml2 -lz -flto
