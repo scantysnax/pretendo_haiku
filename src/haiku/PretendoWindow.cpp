@@ -171,9 +171,10 @@ PretendoWindow::~PretendoWindow()
 	fRunning = fDirectConnected = false;
 	fThread = B_BAD_THREAD_ID;
 	
-	if (fView->Looper()->IsLocked()) {
-		fView->UnlockLooper();
-	}
+	// sefgaults.  did i miss something?
+	// if (fView->Looper()->IsLocked()) {
+	//	fView->UnlockLooper();
+	//}
 
 	if (fOpenPanel->Window()) {
 		fOpenPanel->Window()->Lock();
