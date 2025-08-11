@@ -1,20 +1,18 @@
 
 #include "VideoScreen.h"
 #include "PretendoWindow.h"
-#include <cstdio>
 
 static status_t error;
 
 
 VideoScreen::VideoScreen (PretendoWindow *owner)
-	: BWindowScreen ("Pretendo Fullscreen", B_8_BIT_640x480, &error),
-	fOwner (owner),
-	fBits(NULL),
-	fRowBytes(0)
+	: BWindowScreen ("Pretendo Fullscreen", B_8_BIT_640x480, &error)
 {
 	if (error != B_OK) {
 		PostMessage (B_QUIT_REQUESTED, this);
 	}
+	
+	fOwner = owner;
 }
 
 
@@ -32,8 +30,8 @@ VideoScreen::MessageReceived (BMessage *message)
 		case B_KEY_DOWN:
 			int8 key;
 			
-			if ((message->FindInt8 ("byte", 0, &key) == B_OK) && key == B_ESCAPE) {
-				fOwner->PostMessage (MSG_LEAVE_FULLSCREEN);
+			if ((message->FindInt8("byte", 0, &key) == B_OK) && key == B_ESCAPE) {
+				fOwner->PostMessage(MSG_LEAVE_FULLSCREEN);
 			}
 			break;
 	}
@@ -45,6 +43,7 @@ VideoScreen::MessageReceived (BMessage *message)
 bool
 VideoScreen::QuitRequested (void)
 {
+	fConnected = false;
 	return true;
 }
 
@@ -57,8 +56,7 @@ VideoScreen::ScreenConnected (bool connected)
 	if (fConnected == true) {
 		status_t error;
 		error = SetSpace (B_8_BIT_640x480);
-
-		if (error != B_OK) {
+	if (error != B_OK) {
 			PostMessage (B_QUIT_REQUESTED, this);
 		}
 		

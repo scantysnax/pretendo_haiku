@@ -7,7 +7,8 @@
 
 class PretendoWindow;
 
-const int32 MSG_LEAVE_FULLSCREEN = 'LVFS';
+
+constexpr uint32 MSG_LEAVE_FULLSCREEN = 'LVFS';
 
 
 class VideoScreen : public BWindowScreen
@@ -22,17 +23,17 @@ class VideoScreen : public BWindowScreen
 	virtual void ScreenConnected (bool connected);
 	
 	public:
-	bool Connected (void) { return fConnected; };
-	uint8 *Bits (void) { return fBits; };
-	int32 RowBytes (void) { return fRowBytes; };
-	int32 PixelWidth (void) { return fPixelWidth; };
+	bool Connected (void) const 	{ return fConnected; 	};
+	uint8 *Bits (void) const 		{ return fBits; 		};
+	int32 RowBytes (void) const 	{ return fRowBytes; 	};
+	int32 PixelWidth (void) const 	{ return fPixelWidth; 	};
 	
 	private:
-	PretendoWindow *fOwner;
-	volatile bool fConnected;
-	uint8 *fBits;
-	int32 fRowBytes;
-	int32 fPixelWidth;
+	PretendoWindow *fOwner = nullptr;
+	volatile bool fConnected = false;
+	uint8 *fBits = nullptr;
+	int32 fRowBytes = 0;
+	int32 fPixelWidth = 0;
 };
 
 #endif // _VIDEO_SCREEN_H_

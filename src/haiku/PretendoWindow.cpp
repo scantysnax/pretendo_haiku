@@ -1,4 +1,3 @@
-#include <iostream>
 
 // nes stuff
 #include "Apu.h"
@@ -24,6 +23,7 @@
 // use mmx blitters and memcpy()
 #include "asm/blitters.h"
 #include "asm/copies.h"
+
 
 PretendoWindow::PretendoWindow()
 	: BDirectWindow (BRect (0, 0, 0, 0), "Pretendo", B_TITLED_WINDOW, B_NOT_RESIZABLE, 0)		
@@ -110,16 +110,20 @@ PretendoWindow::PretendoWindow()
 	if (overlayOK) {
 		ChangeFramework(VF_OVERLAY);
 	} else {
+		// make sure we can use windowed mode, if not default to bitmap framework
 		if (BDirectWindow::SupportsWindowMode() == false) {
 			fVideoMenu->ItemAt(3)->SetEnabled(false);
 			ChangeFramework(VF_BITMAP);
 		} else {
-			// there will be mouse "trails" on the BDirectWindow until we get
-			// a hardware cursor.  Again, no accelerated video yet
+			// there will be mouse "trails" on the BDirectWindow until we get a hardware cursor. 
+			
 			//ChangeFramework(VF_DIRECT);
 			ChangeFramework(VF_BITMAP);
 		}
 	}
+	
+	// we can't change to full screen yet
+	fVideoMenu->ItemAt(VF_FULLSCREEN)->SetEnabled(false);
 	
 	memset(&fKeyStates, 0, sizeof(key_info));
 	fOpenPanel = new ROMFilePanel;
@@ -145,7 +149,7 @@ PretendoWindow::PretendoWindow()
 
 	int32 const index = (rand() % 10);
 	fThread = spawn_thread(emulator_thread, threadNames[index], B_DISPLAY_PRIORITY, 
-						   reinterpret_cast<void *>(this));
+				reinterpret_cast<void *>(this));
 	if (fThread < B_OK) {
 		// we couldn't spawn the main thread, party over.  everyone go home
 		(new BAlert("Error", "Couldn't spawn main thread.  Quitting.", "Sorry",
@@ -171,11 +175,6 @@ PretendoWindow::~PretendoWindow()
 	fRunning = fDirectConnected = false;
 	fThread = B_BAD_THREAD_ID;
 	
-	// sefgaults.  did i miss something?
-	// if (fView->Looper()->IsLocked()) {
-	//	fView->UnlockLooper();
-	//}
-
 	if (fOpenPanel->Window()) {
 		fOpenPanel->Window()->Lock();
 		fOpenPanel->Window()->Quit();
@@ -219,6 +218,21 @@ PretendoWindow::~PretendoWindow()
 	if (fNameTable0Window != nullptr) {
 		fNameTable0Window->Lock();
 		fNameTable0Window->Quit();
+	}
+	
+	if (fNameTable1Window != nullptr) {
+		fNameTable1Window->Lock();
+		fNameTable1Window->Quit();
+	}
+	
+	if (fNameTable2Window != nullptr) {
+		fNameTable2Window->Lock();
+		fNameTable2Window->Quit();
+	}
+	
+	if (fNameTable3Window != nullptr) {
+		fNameTable3Window->Lock();
+		fNameTable3Window->Quit();
 	}
 	
 	fMutex->Unlock();
@@ -339,50 +353,35 @@ PretendoWindow::MessageReceived (BMessage *message)
 			
 		case MSG_DRAW_BITMAP:
 			// this has to go here, since the window is guaranteed to be locked
-			//	fView->DrawBitmap(fBitmap, fView->Bounds());
+			fView->DrawBitmap(fBitmap, fView->Bounds());
 			break;
 			
 		case MSG_ADJ_PALETTE:
-		//	if (fPaletteWindow == nullptr) {
-		//		fPaletteWindow = new PaletteWindow(this);
-		//	}
-		//	
-		//	fPaletteWindow->Show();
 			OnAdjustPalette();
 			break;
 			
-		case MSG_PTNTBL0:
-			//if (fPatternTable0Window == nullptr) {
-			//	fPatternTable0Window = new PatternTableWindow(this, 0);
-			//}
-			
-			//fPatternTable0Window->Show();				
-			OnShowPatternTable0();
+		case MSG_PTNTBL0:			
+			OnViewPatternTable0();
 			break;
 			
 		case MSG_PTNTBL1:
-			//if (fPatternTable1Window == nullptr) {
-			//	fPatternTable1Window = new PatternTableWindow(this, 1);
-			//}
-
-			//fPatternTable1Window->Show();
-			OnShowPatternTable1();
+			OnViewPatternTable1();
 			break;
 		
 		case MSG_NTBL0:
-			OnShowNameTable0();
+			OnViewNameTable0();
 			break;
 			
 		case MSG_NTBL1:
-			OnShowNameTable1();
+			OnViewNameTable1();
 			break;
 			
 		case MSG_NTBL2:
-			OnShowNameTable2();
+			OnViewNameTable2();
 			break;
 		
 		case MSG_NTBL3:
-			OnShowNameTable3();
+			OnViewNameTable3();
 			break;
 	}
 	
@@ -461,21 +460,17 @@ PretendoWindow::Zoom (BPoint origin, float width, float height)
 	(void)width;
 	(void)height;
 	
-	float w = Bounds().right - Bounds().left;	
-		
+	float const w = Bounds().Width();
+			
 	if (w == SCREEN_WIDTH) {
 		ResizeTo ((SCREEN_WIDTH*2), (SCREEN_HEIGHT*2));
 		fDoubled = true;
-	} else {
-		if (w == SCREEN_WIDTH*2) {
-			ResizeTo (SCREEN_WIDTH, SCREEN_HEIGHT);
-		} 
-		
+	} else if (w == SCREEN_WIDTH*2) {
+		ResizeTo (SCREEN_WIDTH, SCREEN_HEIGHT);
 		fDoubled = false;
-	}
+	} 
 	
-	Hide();
-	Show();
+	// do not call the default //
 }
 
 
@@ -513,21 +508,25 @@ PretendoWindow::AddMenu()
 	fVideoMenu = new BMenu("Video");
 	fEmuMenu->AddItem(fVideoMenu);
 	fVideoMenu->AddItem(new BMenuItem ("None", new BMessage (MSG_CHANGE_RENDER)));
-	fVideoMenu->AddItem(new BMenuItem ("BBitmap", new BMessage(MSG_CHANGE_RENDER)));
+	fVideoMenu->AddItem(new BMenuItem ("Bitmap", new BMessage(MSG_CHANGE_RENDER)));
 	fVideoMenu->AddItem(new BMenuItem ("Overlay", new BMessage(MSG_CHANGE_RENDER)));
-	fVideoMenu->AddItem(new BMenuItem ("BDirectWindow", new BMessage(MSG_CHANGE_RENDER)));
-	fVideoMenu->AddItem(new BMenuItem ("BWindowScreen", new BMessage(MSG_CHANGE_RENDER), 'F'));
+	fVideoMenu->AddItem(new BMenuItem ("DirectWindow", new BMessage(MSG_CHANGE_RENDER)));
+	fVideoMenu->AddItem(new BMenuItem ("WindowScreen", new BMessage(MSG_CHANGE_RENDER), 'F'));
 	fVideoMenu->SetRadioMode(true);
-	//fVideoMenu->ItemAt(2)->SetMarked(true);
 	
 	
-	fToolMenu->AddItem(new BMenuItem("Pattern Table 0", new BMessage(MSG_PTNTBL0)));
-	fToolMenu->AddItem(new BMenuItem("Pattern Table 1", new BMessage(MSG_PTNTBL1)));
+	fToolMenu->AddItem(new BMenuItem("Adjust Palette" B_UTF8_ELLIPSIS, new BMessage(MSG_ADJ_PALETTE)));
 	fToolMenu->AddSeparatorItem();
-	fToolMenu->AddItem(new BMenuItem("Name Table 0", new BMessage(MSG_NTBL0)));
-	fToolMenu->AddItem(new BMenuItem("Name Table 1", new BMessage(MSG_NTBL1)));
-	fToolMenu->AddItem(new BMenuItem("Name Table 2", new BMessage(MSG_NTBL2)));
-	fToolMenu->AddItem(new BMenuItem("Name Table 3", new BMessage(MSG_NTBL3)));
+	fPatternTableMenu = new BMenu("View Pattern Tables");
+	fPatternTableMenu->AddItem(new BMenuItem("0 (0x0-0xfff)", new BMessage(MSG_PTNTBL0)));
+	fPatternTableMenu->AddItem(new BMenuItem("1 (0x1000-0x1fff)", new BMessage(MSG_PTNTBL1)));
+	fToolMenu->AddItem(fPatternTableMenu);
+	fNameTableMenu = new BMenu("View Name Tables");
+	fNameTableMenu->AddItem(new BMenuItem("0 (0x2000-0x23ff)", new BMessage(MSG_NTBL0)));
+	fNameTableMenu->AddItem(new BMenuItem("1 (0x2400-0x27ff)", new BMessage(MSG_NTBL1)));
+	fNameTableMenu->AddItem(new BMenuItem("2 (0x2800-0x2bff)", new BMessage(MSG_NTBL2)));
+	fNameTableMenu->AddItem(new BMenuItem("3 (0x2c00-0x2fff)", new BMessage(MSG_NTBL3)));
+	fToolMenu->AddItem(fNameTableMenu);
 
 	fMenuHeight = fMenu->Bounds().IntegerHeight();
 	
@@ -545,13 +544,7 @@ PretendoWindow::OnLoadCart (BMessage *message)
 		if (nes::cart.load(path.String()) == false) {
 			(new BAlert("Error", "Error, Invalid ROM Image", "Okay", nullptr, nullptr,
 				B_WIDTH_AS_USUAL, B_STOP_ALERT))->Go();
-		}
-		
-		if (fFramework == VF_OVERLAY) {
-			ClearBitmap (true);
-		} else {
-			fView->SetViewColor (0, 0, 0);
-			fView->Invalidate();
+			return;
 		}
 	}
 }
@@ -596,6 +589,7 @@ PretendoWindow::OnRun()
 			fMutex->Unlock(); // unlock the mutual exclusion
 			fRunning = true;  // signal the thread that we're running
 			fAudioStream->Start();
+			fVideoMenu->ItemAt(VF_FULLSCREEN)->SetEnabled(true); // we can now go fullscreen
 		}
 	} else if (fPaused) {
 		OnPause();
@@ -623,6 +617,7 @@ PretendoWindow::OnStop()
 			fView->SetViewColor(0, 0, 0);
 			fView->Invalidate();
 		}
+		fVideoMenu->ItemAt(VF_FULLSCREEN)->SetEnabled(false); // make sure we can't go fullscreen
 	}
 	
 	fPaused = false;
@@ -672,7 +667,7 @@ PretendoWindow::OnAdjustPalette()
 {
 	puts(__PRETTY_FUNCTION__);
 	
-	/*
+#if 0
 	if (fPaletteWindow && fPaletteWindow->Lock()) {
 		//fPaletteWindow->Quit();
 		//fPaletteWindow = nullptr;
@@ -693,13 +688,15 @@ PretendoWindow::OnAdjustPalette()
 	}
 	
 	fPaletteWindow->Show();
-	*/
+#endif
 }
 
 void
-PretendoWindow::OnShowPatternTable0()
+PretendoWindow::OnViewPatternTable0()
 {
-	/*
+	puts(__PRETTY_FUNCTION__);
+	
+#if 0
 	if (fPatternTable0Window && fPatternTable0Window->Lock()) {
 		//fPaletteWindow->Quit();
 		//fPaletteWindow = nullptr;
@@ -720,20 +717,21 @@ PretendoWindow::OnShowPatternTable0()
 	}
 	
 	fPatternTable0Window->Show();
-	*/
+#endif
+}
+
+void
+PretendoWindow::OnViewPatternTable1()
+{
+	puts(__PRETTY_FUNCTION__);
+}
+
+void
+PretendoWindow::OnViewNameTable0()
+{
+	puts(__PRETTY_FUNCTION__);
 	
-	puts(__PRETTY_FUNCTION__);
-}
-
-void
-PretendoWindow::OnShowPatternTable1()
-{
-	puts(__PRETTY_FUNCTION__);
-}
-
-void
-PretendoWindow::OnShowNameTable0()
-{
+#if 0
 		//if (fNameTable0Window && fNameTable0Window->Lock()) {
 		//fNameTable0Window->Quit();
 		//fNameTable0Window = nullptr;
@@ -743,25 +741,24 @@ PretendoWindow::OnShowNameTable0()
 	//	fNameTable0Window = new NameTableWindow(this, 0);
 	//	fNameTable0Window->Show();
 	//}
-	
-	puts(__PRETTY_FUNCTION__);
+#endif
 }
 
 void
-PretendoWindow::OnShowNameTable1()
+PretendoWindow::OnViewNameTable1()
 {
 	puts(__PRETTY_FUNCTION__);
 }
 
 void
-PretendoWindow::OnShowNameTable2()
+PretendoWindow::OnViewNameTable2()
 {
 	puts(__PRETTY_FUNCTION__);
 }
 
 
 void
-PretendoWindow::OnShowNameTable3()
+PretendoWindow::OnViewNameTable3()
 {
 	puts(__PRETTY_FUNCTION__);
 }
@@ -824,7 +821,7 @@ PretendoWindow::RenderLine32 (uint8 *dest, const uint32_t *source)
 void
 PretendoWindow::ClearDirty()
 {
-	// clear our "dirty" buffer
+	// clear dirty buffer
 	uint32 *start = reinterpret_cast<uint32 *>(fDirtyBuffer.bits);
 	uint32 *end = reinterpret_cast<uint32 *>(fDirtyBuffer.bits) + (SCREEN_WIDTH*2) * (SCREEN_HEIGHT*2);
 	
@@ -930,7 +927,7 @@ PretendoWindow::ChangeFramework (video_framework fw)
 	
 	fVideoMenu->ItemAt(fFramework)->SetMarked(true);
 			
-	// tear down previous framework
+	// break down previous framework
 	switch (fPrevFramework) {
 		case VF_NONE:
 		case VF_DIRECT:
@@ -963,10 +960,11 @@ PretendoWindow::ChangeFramework (video_framework fw)
 			break;
 			
 		case VF_BITMAP:
-			// i think the 4 is a kludge here.  need a proper way to calculate it
-			SetFrontBuffer (fBitmapBits, B_CMAP8, 4, fBitmap->BytesPerRow());
+			SetFrontBuffer(fBitmapBits, B_CMAP8, 4, fBitmap->BytesPerRow());
+			
+			// force a screen update in case we are coming from WindowScreen
 			ClearBitmap (false);
-			fView->Invalidate();
+			ClearDirty();
 			break;
 			
 		case VF_OVERLAY:
@@ -1036,7 +1034,6 @@ PretendoWindow::DrawDirect()
 	} else {
 		// 2:1
 		int32 h = fClipInfo.bounds.bottom - fClipInfo.bounds.top + 1;
-				
 		for (int32 i = 0; i < fClipInfo.clip_count; i++, clip++) {
 			int32 x = ((clip->left - fClipInfo.bounds.left) / 2) * fPixelWidth;
 			int32 w = clip->right - clip->left + 1;
@@ -1055,9 +1052,12 @@ PretendoWindow::DrawDirect()
 	}
 }
 
+
 void
 PretendoWindow::DrawBitmap()
 {
+	// drawing code for BBitmap
+	
 	uint8 *dest = fBitmapBits;
 	uint8 *source = fBackBuffer.bits;
 	uint8 *dirty = fDirtyBuffer.bits;
@@ -1076,24 +1076,19 @@ PretendoWindow::DrawBitmap()
 	// FIXME: what is the right way to do this?	
 	
 	// this crashes/hangs sometimes on exit
-	LockLooper();
-	fView->DrawBitmap(fBitmap, fView->Bounds());
-	UnlockLooper();
+	//Lock();
+	//fView->DrawBitmap(fBitmap, fView->Bounds());
+	//Unlock();
 	
-	// oddly, this works well
-	//PostMessage (MSG_DRAW_BITMAP);	
+	// oddly, this method seems to work well
+	PostMessage (MSG_DRAW_BITMAP);	
 }
-
-
-
-
-
 
 
 void
 PretendoWindow::DrawOverlay()
 {
-	// blit to overlay bitmap
+	// drawing code for overlay
 	// no point to compile this code since we don't have overlay, and it's 32-bit only
 
 #if 0
@@ -1129,7 +1124,7 @@ PretendoWindow::DrawOverlay()
 				  		  	  "movl (%%edx,%%ecx,4), %%ecx\n"
 		  
 		  				  	  "orl %%ebx, %%ecx\n"
-				  
+
 				  		  	  "movl %%ecx, (%%edi)\n"
 				  		  	  "addl $4, %%edi\n" 
 				  		  	  "addl $4, %%esi\n"
@@ -1181,7 +1176,7 @@ PretendoWindow::BlitScreen()
 {	
 	// decide which blitter to use based on the current video framework
 	
-	if (fFrameworkChanging  || ! fFramework) {
+	if (fFrameworkChanging) {
 		return;
 	}
 
@@ -1276,17 +1271,18 @@ void
 PretendoWindow::start_frame()
 {	
 	// setup DirectWindow if we need
-	if (fDirectConnected) {
+	//if (fDirectConnected) {
 		fPixelWidth = fFrontBuffer.pixel_width;
 		fBackBuffer.row_bytes = SCREEN_WIDTH * fPixelWidth;
-	}
+	//}
 }
 
 
 void
 PretendoWindow::end_frame()
 {
-	uint8 sampleBuffer[nes::apu::frequency / nes::apu::frame_rate];
+	size_t const bufferSize = nes::apu::frequency / nes::apu::frame_rate;
+	uint8 sampleBuffer[bufferSize];
 	size_t const bufferCount = nes::apu::read_samples(sampleBuffer, sizeof(sampleBuffer));
 	
 	BlitScreen();
@@ -1325,7 +1321,6 @@ PretendoWindow::CheckKey (int32 index, int32 key) const
 {
 	// read keystates as explained in the BeBook
 	// note the window does not need to have focus for this to work
-	// extra instances of Pretendo are not a good idea.
 	
 	nes::input::controller1.keystate_[index] = 
 		fKeyStates.key_states[key >> 3] & (1 << (7 - (key % 8)));

@@ -13,7 +13,6 @@
 #include <Screen.h>
 #include <RecentItems.h>
 
-
 #include <malloc.h>
 
 #include "Palette.h"
@@ -26,37 +25,41 @@
 #include "PretendoView.h"
 #include "PatternTableWindow.h"
 #include "NameTableWindow.h"
+#include "PretendoView.h"
 
 #include "asm/blitters.h"
 #include "asm/copies.h"
 
-#define MSG_ROM_LOADED 	'LOAD'
-#define MSG_SHOW_OPEN	'OPEN'
-#define MSG_LOAD_RECENT	'RCNT'
-#define MSG_FREE_ROM	'FREE'
-#define MSG_ABOUT		'BOUT'
-#define MSG_CART_INFO	'INFO'
-#define MSG_QUIT		'QUIT'
-//
-#define MSG_CPU_RUN		'RUN_'
-#define MSG_CPU_STOP	'STOP'
-#define MSG_CPU_PAUSE	'PAUS'
-#define MSG_CPU_DEBUG	'DEBG'
-#define MSG_RST_SOFT	'SOFT'
-#define MSG_RST_HARD	'HARD'
-//
-#define MSG_FULLSCREEN 		'FULL'
-#define MSG_CHANGE_RENDER 	'CHRN'
-#define MSG_DRAW_BITMAP 	'DRAW'
-#define MSG_ADJ_PALETTE 	'ADJP'
+// messages
+constexpr uint32 MSG_ROM_LOADED =	'LOAD';
+constexpr uint32 MSG_SHOW_OPEN =	'OPEN';
+constexpr uint32 MSG_LOAD_RECENT =	'RCNT';
+constexpr uint32 MSG_FREE_ROM =		'FREE';
+constexpr uint32 MSG_ABOUT =		'BOUT';
+constexpr uint32 MSG_CART_INFO =	'INFO';
+constexpr uint32 MSG_QUIT =			'QUIT';
+// cpu
+constexpr uint32 MSG_CPU_RUN =		'RUN ';
+constexpr uint32 MSG_CPU_STOP =		'STOP';
+constexpr uint32 MSG_CPU_PAUSE =	'PAUS';
+constexpr uint32 MSG_CPU_DEBUG =	'DEBG';
+constexpr uint32 MSG_RST_SOFT =		'SOFT';
+constexpr uint32 MSG_RST_HARD = 	'HARD';
+// video
+constexpr uint32 MSG_FULLSCREEN =		'FULL';
+constexpr uint32 MSG_CHANGE_RENDER = 	'CHRN';
+constexpr uint32 MSG_DRAW_BITMAP =		'DRAW';
+constexpr uint32 MSG_ADJ_PALETTE =		'ADJP';
+// tools
+constexpr uint32 MSG_PTNTBL0 = 	'PTB0';
+constexpr uint32 MSG_PTNTBL1 = 	'PTB1';
+constexpr uint32 MSG_NTBL0 = 	'NTB0';
+constexpr uint32 MSG_NTBL1 = 	'NTB1';
+constexpr uint32 MSG_NTBL2 = 	'NTB2';
+constexpr uint32 MSG_NTBL3 = 	'NTB3';
 
-#define MSG_PTNTBL0 'PTB0'
-#define MSG_PTNTBL1 'PTB1'
-#define MSG_NTBL0	'NTB0'
-#define MSG_NTBL1	'NTB1'
-#define MSG_NTBL2	'NTB2'
-#define MSG_NTBL3	'NTB3'
-
+// we need to forward declare this
+class PretendoView;
 
 class PretendoWindow : public BDirectWindow
 {
@@ -100,10 +103,13 @@ class PretendoWindow : public BDirectWindow
 		clipping_rect *clip_list;
 	} clipping_info_t;
 
+	
 	public:
 			PretendoWindow();
 	virtual ~PretendoWindow();
 	
+	
+	// inherited from B(Direct)Window
 	public:
 	virtual void DirectConnected (direct_buffer_info *info);
 	virtual void MessageReceived (BMessage *message);
@@ -117,7 +123,7 @@ class PretendoWindow : public BDirectWindow
 	private:
 	void AddMenu();
 	
-	// handlers
+	// handlers for ui
 	private:
 	void OnLoadCart (BMessage *message);
 	void OnFreeCart();
@@ -129,12 +135,12 @@ class PretendoWindow : public BDirectWindow
 	void OnSoftReset();
 	void OnHardReset();
 	void OnAdjustPalette();
-	void OnShowPatternTable0();
-	void OnShowPatternTable1();
-	void OnShowNameTable0();
-	void OnShowNameTable1();
-	void OnShowNameTable2();
-	void OnShowNameTable3();
+	void OnViewPatternTable0();
+	void OnViewPatternTable1();
+	void OnViewNameTable0();
+	void OnViewNameTable1();
+	void OnViewNameTable2();
+	void OnViewNameTable3();
 	
 
 	// video stuff
@@ -164,20 +170,24 @@ class PretendoWindow : public BDirectWindow
 	private:
 	void SetDefaultPalette();
 	
+	// menus
 	private:
-	BView *fView = nullptr; // don't know why this works, PretendoView does not.
+	PretendoView *fView = nullptr;
 	BMenuBar *fMenu = nullptr;
 	BMenu *fFileMenu = nullptr;
 	BMenu *fLoadMenu = nullptr;
 	BMenu *fEmuMenu = nullptr;
 	BMenu *fVideoMenu = nullptr;
 	BMenu *fToolMenu = nullptr;
-	ROMFilePanel *fOpenPanel = nullptr;
+	BMenu *fPatternTableMenu = nullptr;
+	BMenu *fNameTableMenu = nullptr;
 	int32 fMenuHeight;
 	
+	// open panel
 	private:
-	CartInfoWindow *fCartInfoWindow = nullptr;
+	ROMFilePanel *fOpenPanel = nullptr;
 	
+	// palettes	
 	private:
 	uint8 *fLineOffsets[SCREEN_HEIGHT];
 	int32 fPixelWidth;
@@ -188,6 +198,7 @@ class PretendoWindow : public BDirectWindow
 	uint32 fPaletteYCbCr[65536];
 	uint8 *fMappedPalette[8];
 		
+	// video	
 	private:
 	video_framework fFramework = VF_NONE;
 	video_framework fPrevFramework = VF_NONE;
@@ -208,10 +219,13 @@ class PretendoWindow : public BDirectWindow
 	bool fDoubled = false;
 	int32 fClear = 0;
 	
+	// sound
 	private:
 	AudioStream *fAudioStream = nullptr;
 	
+	// children
 	private:
+	CartInfoWindow *fCartInfoWindow = nullptr;
 	PaletteWindow *fPaletteWindow = nullptr;
 	PatternTableWindow *fPatternTable0Window = nullptr;
 	PatternTableWindow *fPatternTable1Window = nullptr;
@@ -223,6 +237,7 @@ class PretendoWindow : public BDirectWindow
 	private:
 	bool fPaused = false;
 	
+	// thread stuff
 	private:
 	thread_id fThread = B_BAD_THREAD_ID;
 	static status_t emulator_thread (void *data);
@@ -231,11 +246,13 @@ class PretendoWindow : public BDirectWindow
 	public:
 	bool Running() const { return fRunning; }
 
+	// input
 	private:
 	key_info fKeyStates;
 	inline void CheckKey (int32 index, int32 key) const;
 	inline void ReadKeyStates();
 	
+	// mutex
 	private:
 	SimpleMutex *fMutex = nullptr;
 	bool LockMutex() const		{ return fMutex->Lock();	};
