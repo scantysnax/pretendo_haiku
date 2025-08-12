@@ -575,7 +575,7 @@ PretendoWindow::OnCartInfo()
 void
 PretendoWindow::OnQuit()
 {	
-	this->QuitRequested();
+	be_app->PostMessage(B_QUIT_REQUESTED);
 }
 
 
