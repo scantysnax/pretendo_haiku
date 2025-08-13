@@ -5,6 +5,8 @@
 #include "Input.h"
 #include "Mapper.h"
 #include "Nes.h"
+#include "Reset.h"
+#include "Palette.h"
 
 // ui and other things
 #include "PretendoWindow.h"
@@ -17,8 +19,6 @@
 #include "PretendoView.h"
 #include "Controller.h"
 #include "AudioStream.h"
-#include "Reset.h"
-#include "Palette.h"
 
 // use mmx blitters and memcpy()
 #include "asm/blitters.h"
@@ -35,12 +35,13 @@ PretendoWindow::PretendoWindow()
 	BRect bounds (Bounds());
 	bounds.OffsetTo(B_ORIGIN);
 	bounds.top = fMenuHeight;
-	
 	fView = new PretendoView(bounds, this);
 	AddChild(fView);
+	
 	// if we can't create even the simplest video interface there is no point
 	// to keep the app running.
-	fBitmap = new BBitmap (BRect (0, 0, SCREEN_WIDTH-1, SCREEN_HEIGHT-1), B_CMAP8);
+	fBitmap = new BBitmap (BRect (0, 0, SCREEN_WIDTH-1, SCREEN_HEIGHT-1), B_CMAP8, false, true);
+	
 	if (! fBitmap || ! fBitmap->IsValid()) {
 		(new BAlert ("Error", "Not enough memory for video bitmap.  Quitting.",
 			"Sorry", nullptr, nullptr, B_WIDTH_AS_USUAL, B_STOP_ALERT))->Go();
@@ -110,12 +111,13 @@ PretendoWindow::PretendoWindow()
 	if (overlayOK) {
 		ChangeFramework(VF_OVERLAY);
 	} else {
-		// make sure we can use windowed mode, if not default to bitmap framework
+		// make sure we can use windowed mode.  if not default to bitmap framework
 		if (BDirectWindow::SupportsWindowMode() == false) {
 			fVideoMenu->ItemAt(VF_DIRECT)->SetEnabled(false);
 			ChangeFramework(VF_BITMAP);
 		} else {
 			// there will be mouse "trails" on the BDirectWindow until we get a hardware cursor. 
+			// this is not ideal, so default to bitmap framework
 			
 			//ChangeFramework(VF_DIRECT);
 			ChangeFramework(VF_BITMAP);
@@ -354,7 +356,7 @@ PretendoWindow::MessageReceived (BMessage *message)
 			break;
 			
 		case MSG_DRAW_BITMAP:
-			// this has to go here, since the window is guaranteed to be locked
+			// this has to go here, since the window is apparently guaranteed to be locked
 			fView->DrawBitmap(fBitmap, fView->Bounds());
 			break;
 			
@@ -607,6 +609,7 @@ PretendoWindow::OnStop()
 	// running, lock the mutual exclusion and stop the sound stream
 	if (fRunning) {
 		fRunning = false;
+		
 		if (! fPaused) {
 			fMutex->Lock();
 			fAudioStream->Stop();
@@ -620,6 +623,7 @@ PretendoWindow::OnStop()
 			fView->SetViewColor(0, 0, 0);
 			fView->Invalidate();
 		}
+		
 		fVideoMenu->ItemAt(VF_FULLSCREEN)->SetEnabled(false); // make sure we can't go fullscreen
 	}
 	
@@ -952,7 +956,6 @@ PretendoWindow::ChangeFramework (video_framework fw)
 			if (fVideoScreen->Lock()) {
 				fVideoScreen->Quit();
 			}
-			
 			break;
 	}
 	
@@ -1036,7 +1039,8 @@ PretendoWindow::DrawDirect()
 		}
 	} else {
 		// 2:1
-		int32 h = fClipInfo.bounds.bottom - fClipInfo.bounds.top + 1;
+		int32 const h = fClipInfo.bounds.bottom - fClipInfo.bounds.top + 1;
+		
 		for (int32 i = 0; i < fClipInfo.clip_count; i++, clip++) {
 			int32 const x = ((clip->left - fClipInfo.bounds.left) / 2) * fPixelWidth;
 			int32 const w = clip->right - clip->left + 1;

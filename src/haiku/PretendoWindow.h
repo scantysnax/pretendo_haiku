@@ -255,8 +255,8 @@ class PretendoWindow : public BDirectWindow
 	// mutex
 	private:
 	SimpleMutex const *fMutex = nullptr;
-	bool LockMutex() const	 { return fMutex->Lock();	};
-	bool UnlockMutex() const { return fMutex->Unlock();	}; 
+	bool LockMutex() const	 { return fMutex->Lock();	}
+	bool UnlockMutex() const { return fMutex->Unlock();	}
 };
 				
 #endif // _PRETENDO_WINDOW_H_
