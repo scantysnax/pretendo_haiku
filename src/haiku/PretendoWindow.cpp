@@ -112,7 +112,7 @@ PretendoWindow::PretendoWindow()
 	} else {
 		// make sure we can use windowed mode, if not default to bitmap framework
 		if (BDirectWindow::SupportsWindowMode() == false) {
-			fVideoMenu->ItemAt(3)->SetEnabled(false);
+			fVideoMenu->ItemAt(VF_DIRECT)->SetEnabled(false);
 			ChangeFramework(VF_BITMAP);
 		} else {
 			// there will be mouse "trails" on the BDirectWindow until we get a hardware cursor. 
@@ -575,6 +575,7 @@ PretendoWindow::OnCartInfo()
 void
 PretendoWindow::OnQuit()
 {	
+	// seeya!
 	be_app->PostMessage(B_QUIT_REQUESTED);
 }
 
@@ -1283,6 +1284,7 @@ PretendoWindow::end_frame()
 {
 	size_t const bufferSize = nes::apu::frequency / nes::apu::frame_rate;
 	uint8 sampleBuffer[bufferSize];
+	
 	size_t const bufferCount = nes::apu::read_samples(sampleBuffer, sizeof(sampleBuffer));
 	
 	BlitScreen();
