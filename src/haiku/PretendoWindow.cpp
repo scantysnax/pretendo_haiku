@@ -259,7 +259,9 @@ PretendoWindow::DirectConnected (direct_buffer_info *info)
 		
 			fClipInfo.clip_list = nullptr;
 			fDirectConnected = true;	// ready to go
+		
 		// intentional fall through //	
+		
 		case B_DIRECT_MODIFY:
 			// (re)calculate clipping rects
 			fClear = 5;
@@ -280,7 +282,7 @@ PretendoWindow::DirectConnected (direct_buffer_info *info)
 			break;
 			
 		case B_DIRECT_STOP:
-			// we're done, clean up and free clip list
+			// we're done.  disconnect and free clip list
 			fDirectConnected = false;
 			free(fClipInfo.clip_list);
 			break;
@@ -1014,9 +1016,9 @@ PretendoWindow::DrawDirect()
 	if (! fDoubled) {
 		// 1:1
 		for (int32 i = 0; i < fClipInfo.clip_count; i++, clip++) {
-			int32 x = (clip->left - fClipInfo.bounds.left) * fPixelWidth;
-			int32 y = (clip->top - fClipInfo.bounds.top) + 1;
-			int32 w = clip->right - clip->left + 1;
+			int32 const x = (clip->left - fClipInfo.bounds.left) * fPixelWidth;
+			int32 const y = (clip->top - fClipInfo.bounds.top) + 1;
+			int32 const w = clip->right - clip->left + 1;
 			int32 h = clip->bottom - clip->top + 1;
 			
 			dest = fFrontBuffer.bits + y * fFrontBuffer.row_bytes + clip->left * fPixelWidth;
@@ -1036,8 +1038,8 @@ PretendoWindow::DrawDirect()
 		// 2:1
 		int32 h = fClipInfo.bounds.bottom - fClipInfo.bounds.top + 1;
 		for (int32 i = 0; i < fClipInfo.clip_count; i++, clip++) {
-			int32 x = ((clip->left - fClipInfo.bounds.left) / 2) * fPixelWidth;
-			int32 w = clip->right - clip->left + 1;
+			int32 const x = ((clip->left - fClipInfo.bounds.left) / 2) * fPixelWidth;
+			int32 const w = clip->right - clip->left + 1;
 		
 			for (int32 y = 0; y < h; y += 2) {
 				if (clip->top - fClipInfo.bounds.top <= y && clip->bottom - fClipInfo.bounds.top >= y) {
@@ -1063,7 +1065,7 @@ PretendoWindow::DrawBitmap()
 	uint8 *source = fBackBuffer.bits;
 	uint8 *dirty = fDirtyBuffer.bits;
 	
-	size_t size = SCREEN_WIDTH;
+	size_t const size = SCREEN_WIDTH;
 	size_t height = SCREEN_HEIGHT;
 	
 	while (height--) {
@@ -1284,7 +1286,6 @@ PretendoWindow::end_frame()
 {
 	size_t const bufferSize = nes::apu::frequency / nes::apu::frame_rate;
 	uint8 sampleBuffer[bufferSize];
-	
 	size_t const bufferCount = nes::apu::read_samples(sampleBuffer, sizeof(sampleBuffer));
 	
 	BlitScreen();
