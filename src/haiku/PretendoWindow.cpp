@@ -28,44 +28,31 @@
 PretendoWindow::PretendoWindow()
 	: BDirectWindow (BRect (0, 0, 0, 0), "Pretendo", B_TITLED_WINDOW, B_NOT_RESIZABLE, 0)		
 {
+	// ui things
 	AddMenu();
 	ResizeTo(SCREEN_WIDTH, SCREEN_HEIGHT);
 	CenterOnScreen();
 	
-	BRect bounds (Bounds());
+	BRect bounds(Bounds());
 	bounds.OffsetTo(B_ORIGIN);
 	bounds.top = fMenuHeight;
 	fView = new PretendoView(bounds, this);
 	AddChild(fView);
 	
-	// if we can't create even the simplest video interface there is no point
-	// to keep the app running.
-	fBitmap = new BBitmap (BRect (0, 0, SCREEN_WIDTH-1, SCREEN_HEIGHT-1), B_CMAP8, false, true);
-	
-	if (! fBitmap || ! fBitmap->IsValid()) {
-		(new BAlert ("Error", "Not enough memory for video bitmap.  Quitting.",
-			"Sorry", nullptr, nullptr, B_WIDTH_AS_USUAL, B_STOP_ALERT))->Go();
-		be_app->PostMessage(B_QUIT_REQUESTED);
-	} else {
-		// set up the BBitmap based framework
-		fBitmapBits = reinterpret_cast<uint8 *>(fBitmap->Bits());
-		ClearBitmap (false);
-	}
-
-	// use these to share buffers across threads
-	void *bitsArea = nullptr;
-	void *dirtyArea = nullptr;
+	// setup video buffers
+	void *bitsArea;
+	void *dirtyArea;
 	
 	fBitsArea = create_area ("pretendo_frame_buffer", &bitsArea, B_ANY_ADDRESS,
 					((SCREEN_WIDTH * 2) * (SCREEN_HEIGHT * 2) * 4 + B_PAGE_SIZE-1) & 
 					((uint32)-1 ^ (B_PAGE_SIZE-1)), B_NO_LOCK, B_READ_AREA | B_WRITE_AREA);
-	
+					
 	fDirtyArea = create_area ("pretendo_dirty_buffer", &dirtyArea, B_ANY_ADDRESS,
 					((SCREEN_WIDTH * 2) * (SCREEN_HEIGHT * 2) * 4 + B_PAGE_SIZE-1) & 
 					((uint32)-1 ^ (B_PAGE_SIZE-1)), B_NO_LOCK, B_READ_AREA | B_WRITE_AREA);
 					
 	if (fBitsArea < B_OK || fDirtyArea < B_OK) {
-		(new BAlert ("Error", "Not enough memory for video buffers.  Quitting.",
+		(new BAlert ("Error", "Can't allocate video buffers.  Quitting.",
 			"Sorry", nullptr, nullptr, B_WIDTH_AS_USUAL, B_STOP_ALERT))->Go();
 		be_app->PostMessage(B_QUIT_REQUESTED);
 	} else {
@@ -74,9 +61,21 @@ PretendoWindow::PretendoWindow()
 		
 		fBackBuffer.bits = reinterpret_cast<uint8 *>(bitsArea);
 		fDirtyBuffer.bits = reinterpret_cast<uint8 *>(dirtyArea);
-	}					
+	}
 	
-	// create a BBitmap for overlay framework (checks for overlay support inherently)
+	// setup BBitmap
+	fBitmap = new BBitmap (BRect (0, 0, SCREEN_WIDTH-1, SCREEN_HEIGHT-1), B_CMAP8, false, true);
+	
+	if (! fBitmap || ! fBitmap->IsValid()) {
+		(new BAlert ("Error", "Can't create video bitmap.  Quitting.","Sorry", 
+					nullptr, nullptr, B_WIDTH_AS_USUAL, B_STOP_ALERT))->Go();
+		be_app->PostMessage(B_QUIT_REQUESTED);
+	} else {
+		fBitmapBits = reinterpret_cast<uint8 *>(fBitmap->Bits());
+		ClearBitmap (false);
+	}
+
+	// setup a BBitmap for overlay framework (checks for overlay support inherently)
 	// this will always fail until we get hardware accelerated video
 	bool overlayOK = false;
 
