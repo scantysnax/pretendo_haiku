@@ -18,8 +18,6 @@ PaletteView::PaletteView (PretendoWindow *parent, BRect frame, int32 swatchSize)
 PaletteView::~PaletteView()
 {
 	delete[] fPalette;
-	//delete fMsgChangePalette;
-
 }
 
 

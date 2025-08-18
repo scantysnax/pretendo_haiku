@@ -2,9 +2,10 @@
 #include "SimpleMutex.h"
 
 
-SimpleMutex::SimpleMutex (char const *debugName)
+SimpleMutex::SimpleMutex (char const *debugName, bigtime_t timeOut)
 {
 	fLocker = create_sem(1, debugName);
+	fTimeOut = timeOut;
 }
 
 
@@ -17,7 +18,11 @@ SimpleMutex::~SimpleMutex()
 bool
 SimpleMutex::Lock() const
 {
-	status_t error = acquire_sem(fLocker);
+	status_t error;
+	
+	do {
+		error = acquire_sem_etc(fLocker, 1, B_RELATIVE_TIMEOUT, fTimeOut);
+	} while (error == B_INTERRUPTED);
 	
 	return (error == B_NO_ERROR) ? true : false;
 }
@@ -26,7 +31,7 @@ SimpleMutex::Lock() const
 bool
 SimpleMutex::Unlock() const
 {
-	status_t error = release_sem(fLocker);
+	status_t error = release_sem_etc(fLocker, 1, B_DO_NOT_RESCHEDULE);
 	
 	return (error == B_NO_ERROR) ? true : false;
 }

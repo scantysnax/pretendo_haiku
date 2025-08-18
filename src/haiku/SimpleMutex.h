@@ -8,7 +8,7 @@
 class SimpleMutex
 {
 	public:
-			SimpleMutex (char const *debugName);
+			SimpleMutex (char const *debugName, bigtime_t timeOut = B_INFINITE_TIMEOUT);
 	virtual ~SimpleMutex();
 	
 	public:
@@ -18,6 +18,7 @@ class SimpleMutex
 	
 	private:
 	sem_id fLocker;
+	bigtime_t fTimeOut;
 };
 
 #endif // _SIMPLE_MUTEX_H_

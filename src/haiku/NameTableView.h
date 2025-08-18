@@ -6,7 +6,7 @@
 #include <Bitmap.h>
 
 
-constexpr int32 NameTableWidth = 32*8;
+constexpr int32 kNameTableWidth = 32*8;
 constexpr int32 kNameTableHeight = 30*8;
 
 

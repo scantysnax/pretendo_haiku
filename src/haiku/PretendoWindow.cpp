@@ -63,7 +63,7 @@ PretendoWindow::PretendoWindow()
 		fDirtyBuffer.bits = reinterpret_cast<uint8 *>(dirtyArea);
 	}
 	
-	// setup BBitmap
+	// setup BBitmap.  keep it contiguous in memory
 	fBitmap = new BBitmap (BRect (0, 0, SCREEN_WIDTH-1, SCREEN_HEIGHT-1), B_CMAP8, false, true);
 	
 	if (! fBitmap || ! fBitmap->IsValid()) {
@@ -130,8 +130,8 @@ PretendoWindow::PretendoWindow()
 	fOpenPanel = new ROMFilePanel;
 	
 	// sound
-	// we don't need to upscale the buffer size using the MediaKit, so divide it out
-	fAudioStream = new AudioStream (nes::apu::frequency, 8, 1, nes::apu::buffer_size / 4);
+	// we don't need to upscale the buffer size if using the MediaKit, so divide it out
+	fAudioStream = new AudioStream(nes::apu::frequency, 8, 1, nes::apu::buffer_size / 4);
 
 	// this is the emulator processing loop
 	// thread gets a cheeky name, as per the Be Book
@@ -172,7 +172,7 @@ PretendoWindow::PretendoWindow()
 
 PretendoWindow::~PretendoWindow()
 {	
-	// tear everything down and clean up
+	// break everything down and clean up
 	fRunning = fDirectConnected = false;
 	fThread = B_BAD_THREAD_ID;
 	
@@ -700,24 +700,32 @@ PretendoWindow::OnAdjustPalette()
 void
 PretendoWindow::OnViewPatternTable0()
 {
-	puts(__PRETTY_FUNCTION__);
-	
-#if 0
-	if (fPatternTable0Window && fPatternTable0Window->Lock()) {
-		//fPaletteWindow->Quit();
-		//fPaletteWindow = nullptr;
-		fPatternTable0Window->Show();
-	} else {
-		fPatternTable0Window = new PatternTableWindow(this, 0);
-		fPatternTable0Window->Show();
+	if (! nes::cart.mapper()) {
+		return;
 	}
 
+	//if (fPatternTable0Window && fPatternTable0Window->Lock()) {
+		//fPatternTable0Window->Quit();
+		//fPatternTable0Window = nullptr;
+		//fPatternTable0Window->Show();
+	//} else {
+		if (fPatternTable0Window == nullptr) {
+			fPatternTable0Window = new PatternTableWindow(this, 0);
+			fPatternTable0Window->Show();
+		} else {
+			fPatternTable0Window->Activate();
+			
+		}
+	//}
+	
+#if 0
 	if (fPatternTable0Window != nullptr) {
 		fPatternTable0Window->Activate();
 	} else {
 		fPatternTable0Window = new PatternTableWindow(this, 0);
 		fPatternTable0Window->Show();
 	}
+	
 	if (fPatternTable0Window == nullptr) {
 		fPatternTable0Window = new PatternTableWindow(this, 0);
 	}
