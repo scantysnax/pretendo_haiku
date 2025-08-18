@@ -5,6 +5,10 @@
 #include <OS.h>
 
 
+constexpr uint32 kThreadCount = 1;
+constexpr bigtime_t kTimeOut = 1000000LL;
+
+
 class SimpleMutex
 {
 	public:
