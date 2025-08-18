@@ -6,7 +6,6 @@ SimpleMutex::SimpleMutex (char const *debugName, bigtime_t timeOut)
 {
 	fLocker = create_sem(kThreadCount, debugName);
 	fTimeOut = timeOut;
-	
 }
 
 
