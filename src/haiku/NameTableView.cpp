@@ -22,7 +22,7 @@ NameTableView::~NameTableView()
 void
 NameTableView::AttachedToWindow()
 {
-	fBitmap = new BBitmap(BRect(0, 0,kNameTableWidth-1, kNameTableWidth-1), B_CMAP8);
+	fBitmap = new BBitmap(BRect(0, 0,kNameTableWidth-1, kNameTableHeight-1), B_CMAP8);
 	fBits = (uint8 *)fBitmap->Bits();
 	fRowBytes = fBitmap->BytesPerRow();
 	memset (fBits, 0x0, fBitmap->BitsLength());	

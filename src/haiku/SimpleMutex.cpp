@@ -1,6 +1,6 @@
 
 #include "SimpleMutex.h"
-
+#include <cstdio>
 
 SimpleMutex::SimpleMutex (char const *debugName, bigtime_t timeOut)
 {
@@ -20,9 +20,14 @@ SimpleMutex::Lock() const
 {
 	status_t error;
 	
+	int32 a = 0;
+	
 	do {
 		error = acquire_sem_etc(fLocker, kThreadCount, B_RELATIVE_TIMEOUT, fTimeOut);
+		a++;
 	} while (error == B_INTERRUPTED);
+	
+	printf("interrupted: %d\n", a);
 	
 	return (error == B_NO_ERROR) ? true : false;
 }

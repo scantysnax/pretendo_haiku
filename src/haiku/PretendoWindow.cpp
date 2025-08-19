@@ -709,13 +709,13 @@ PretendoWindow::OnViewPatternTable0()
 		//fPatternTable0Window = nullptr;
 		//fPatternTable0Window->Show();
 	//} else {
-		if (fPatternTable0Window == nullptr) {
-			fPatternTable0Window = new PatternTableWindow(this, 0);
-			fPatternTable0Window->Show();
-		} else {
-			fPatternTable0Window->Activate();
-			
-		}
+	//	if (fPatternTable0Window == nullptr) {
+	//		fPatternTable0Window = new PatternTableWindow(this, 0);
+	//		fPatternTable0Window->Show();
+	//	} else {
+	//		fPatternTable0Window->Activate();
+	//		
+	//	}
 	//}
 	
 #if 0
