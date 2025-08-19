@@ -47,7 +47,6 @@ CPP_FILES := \
 	src/SaveState.cpp \
 	src/Palette.cpp \
 	\
-	src/mappers/Bandai.cpp \
 	src/mappers/Mapper000.cpp \
 	src/mappers/Mapper001.cpp \
 	src/mappers/Mapper002.cpp \
@@ -110,6 +109,7 @@ CPP_FILES := \
 	src/mappers/Mapper242.cpp \
 	src/mappers/Mapper243.cpp \
 	src/mappers/Mapper245.cpp \
+	src/mappers/Bandai.cpp \
 	src/mappers/MMC3.cpp \
 	src/mappers/VRC2.cpp \
 	src/mappers/VRC4.cpp \
