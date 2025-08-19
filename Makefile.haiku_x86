@@ -28,24 +28,24 @@ CPP_FILES := \
 	libines2/lib/Rom.cpp	\
 	\
 	src/Apu.cpp \
-	src/Cpu.cpp \
-	src/Dmc.cpp \
-	src/Noise.cpp \
-	src/Triangle.cpp \
-	src/Envelope.cpp \
-	src/LengthCounter.cpp \
-	src/LinearCounter.cpp \
-	src/Timer.cpp \
 	src/Bus.cpp \
 	src/Cart.cpp \
-	src/Mapper.cpp \
-	src/Nes.cpp \
-	src/Ppu.cpp \
-	src/Input.cpp \
 	src/Controller.cpp \
+	src/Cpu.cpp \
+	src/Dmc.cpp \
+	src/Envelope.cpp \
+	src/Input.cpp \
+	src/LengthCounter.cpp \
+	src/LinearCounter.cpp \
+	src/Mapper.cpp \
 	src/MemoryMappedFile.cpp \
-	src/SaveState.cpp \
+	src/Nes.cpp \
+	src/Noise.cpp \
 	src/Palette.cpp \
+	src/Ppu.cpp \
+	src/SaveState.cpp \
+	src/Timer.cpp \
+	src/Triangle.cpp \
 	\
 	src/mappers/Mapper000.cpp \
 	src/mappers/Mapper001.cpp \
@@ -115,33 +115,31 @@ CPP_FILES := \
 	src/mappers/VRC4.cpp \
 	src/mappers/VRC6.cpp \
 	\
-	src/haiku/HaikuMain.cpp \
-	src/haiku/PretendoApp.cpp \
 	src/haiku/AboutWindow.cpp \
-	src/haiku/LinkView.cpp \
-	src/haiku/Settings.cpp \
-	src/haiku/SimpleMutex.cpp \
-	src/haiku/ROMFilePanel.cpp \
 	src/haiku/AudioStream.cpp \
-	src/haiku/VideoScreen.cpp \
-	src/haiku/PretendoWindow.cpp \
-	src/haiku/PretendoView.cpp \
 	src/haiku/CartInfoWindow.cpp \
 	src/haiku/CartInfoView.cpp \
-	src/haiku/PaletteView.cpp \
+	src/haiku/HaikuMain.cpp \
+	src/haiku/LinkView.cpp \
+	src/haiku/NameTableWindow.cpp \
+	src/haiku/NameTableView.cpp\
 	src/haiku/PaletteWindow.cpp \
+	src/haiku/PaletteView.cpp \
 	src/haiku/PatternTableWindow.cpp \
 	src/haiku/PatternTableView.cpp \
-	src/haiku/NameTableWindow.cpp \
-	src/haiku/NameTableView.cpp
-
-
+	src/haiku/PretendoApp.cpp \
+	src/haiku/PretendoWindow.cpp \
+	src/haiku/PretendoView.cpp \
+	src/haiku/ROMFilePanel.cpp \
+	src/haiku/Settings.cpp \
+	src/haiku/SimpleMutex.cpp \
+	src/haiku/VideoScreen.cpp
+	
 SOURCES 	:= $(CPP_FILES) $(ASM_FILES)
 RESOURCES 	:= src/haiku/pretendo.rsrc
 OBJECTS 	:= $(CPP_FILES:.cpp=.o) $(ASM_FILES:.asm=.o)
                 
 .SUFFIXES: .cpp .h .asm .o
-
 
 .cpp.o:
 	@echo compiling $<...

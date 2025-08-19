@@ -1,6 +1,6 @@
 
 #include "SimpleMutex.h"
-#include <cstdio>
+
 
 SimpleMutex::SimpleMutex (char const *debugName, bigtime_t timeOut)
 {
