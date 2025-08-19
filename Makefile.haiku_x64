@@ -139,9 +139,7 @@ CPP_FILES := \
 SOURCES 	:= $(CPP_FILES) $(ASM_FILES)
 RESOURCES 	:= src/haiku/pretendo.rsrc
 OBJECTS 	:= $(CPP_FILES:.cpp=.o) $(ASM_FILES:.asm=.o)
-
-
-.SUFFIXES:                
+               
 .SUFFIXES: .cpp .h .asm .o
 
 
