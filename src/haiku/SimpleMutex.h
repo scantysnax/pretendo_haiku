@@ -6,7 +6,7 @@
 
 
 constexpr uint32 kThreadCount = 1;
-constexpr bigtime_t kTimeOut = 1000000LL;
+//constexpr bigtime_t kTimeOut = 1000000;
 
 
 class SimpleMutex
