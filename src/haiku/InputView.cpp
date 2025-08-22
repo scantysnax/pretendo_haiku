@@ -3,9 +3,9 @@
 
 
 InputView::InputView (BRect frame)
-	: BView (frame, "pattern_table", B_FOLLOW_ALL_SIDES, B_WILL_DRAW)
+	: BView (frame, "input_view", B_FOLLOW_ALL_SIDES, B_WILL_DRAW)
 {
-	
+	//
 }
 
 

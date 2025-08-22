@@ -5,7 +5,7 @@
 #include <Window.h>
 #include <Bitmap.h>
 
-//#include "InputView.h"
+#include "InputView.h"
 
 class PretendoWindow;
 
@@ -21,7 +21,7 @@ class InputWindow : public BWindow
 	virtual void MessageReceived(BMessage *message);
 	
 	private:
-	//InputView *fView = nullptr;
+	InputView *fView = nullptr;
 	PretendoWindow *fParent = nullptr;
 };
 
