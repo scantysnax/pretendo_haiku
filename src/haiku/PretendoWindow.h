@@ -26,6 +26,7 @@
 #include "PatternTableWindow.h"
 #include "NameTableWindow.h"
 #include "PretendoView.h"
+#include "InputWindow.h"
 
 #include "asm/blitters.h"
 #include "asm/copies.h"
@@ -233,6 +234,7 @@ class PretendoWindow : public BDirectWindow
 	NameTableWindow *fNameTable1Window = nullptr;
 	NameTableWindow *fNameTable2Window = nullptr;
 	NameTableWindow *fNameTable3Window = nullptr;
+	InputWindow *fInputWindow = nullptr;
 	
 	private:
 	bool fPaused = false;
