@@ -700,6 +700,8 @@ PretendoWindow::OnAdjustPalette()
 void
 PretendoWindow::OnViewPatternTable0()
 {
+	puts(__PRETTY_FUNCTION__);
+	
 	if (! nes::cart.mapper()) {
 		return;
 	}
@@ -738,12 +740,20 @@ void
 PretendoWindow::OnViewPatternTable1()
 {
 	puts(__PRETTY_FUNCTION__);
+	
+	if (! nes::cart.mapper()) {
+		return;
+	}
 }
 
 void
 PretendoWindow::OnViewNameTable0()
 {
 	puts(__PRETTY_FUNCTION__);
+	
+	if (! nes::cart.mapper()) {
+		return;
+	}
 	
 #if 0
 		//if (fNameTable0Window && fNameTable0Window->Lock()) {
@@ -762,12 +772,20 @@ void
 PretendoWindow::OnViewNameTable1()
 {
 	puts(__PRETTY_FUNCTION__);
+	
+	if (! nes::cart.mapper()) {
+		return;
+	}
 }
 
 void
 PretendoWindow::OnViewNameTable2()
 {
 	puts(__PRETTY_FUNCTION__);
+	
+	if (! nes::cart.mapper()) {
+		return;
+	}
 }
 
 
@@ -775,6 +793,10 @@ void
 PretendoWindow::OnViewNameTable3()
 {
 	puts(__PRETTY_FUNCTION__);
+	
+	if (! nes::cart.mapper()) {
+		return;
+	}
 }
 
 

@@ -21,7 +21,7 @@ class InputWindow : public BWindow
 	virtual void MessageReceived(BMessage *message);
 	
 	private:
-	InputView *fView = nullptr;
+	InputView *fInputView = nullptr;
 	PretendoWindow *fParent = nullptr;
 };
 
