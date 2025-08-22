@@ -123,6 +123,7 @@ CPP_FILES := \
 	src/haiku/InputView.cpp \
 	src/haiku/InputWindow.cpp \
 	src/haiku/LinkView.cpp \
+	src/haiku/Mutex.cpp \
 	src/haiku/NameTableWindow.cpp \
 	src/haiku/NameTableView.cpp\
 	src/haiku/PaletteWindow.cpp \
@@ -134,7 +135,6 @@ CPP_FILES := \
 	src/haiku/PretendoView.cpp \
 	src/haiku/ROMFilePanel.cpp \
 	src/haiku/Settings.cpp \
-	src/haiku/SimpleMutex.cpp \
 	src/haiku/VideoScreen.cpp
 	
 SOURCES 	:= $(CPP_FILES) $(ASM_FILES)
