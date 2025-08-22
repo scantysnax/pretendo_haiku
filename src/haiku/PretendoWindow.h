@@ -20,7 +20,7 @@
 #include "ROMFilePanel.h"
 #include "PaletteWindow.h"
 #include "CartInfoWindow.h"
-#include "SimpleMutex.h"
+#include "Mutex.h"
 #include "AudioStream.h"
 #include "PretendoView.h"
 #include "PatternTableWindow.h"
@@ -64,7 +64,6 @@ class PretendoView;
 
 class PretendoWindow : public BDirectWindow
 {
-	
 	private:
 	enum {
 		kKeyUp = 0x57,
@@ -256,7 +255,7 @@ class PretendoWindow : public BDirectWindow
 	
 	// mutex
 	private:
-	SimpleMutex const *fMutex = nullptr;
+	Mutex const *fMutex = nullptr;
 	bool LockMutex() const	 { return fMutex->Lock();	}
 	bool UnlockMutex() const { return fMutex->Unlock();	}
 };

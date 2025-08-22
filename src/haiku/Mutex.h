@@ -1,19 +1,17 @@
 
-#ifndef _SIMPLE_MUTEX_H_
-#define _SIMPLE_MUTEX_H_
+#ifndef _MUTEX_H_
+#define _MUTEX_H_
 
 #include <OS.h>
-
 
 constexpr uint32 kThreadCount = 1;
 //constexpr bigtime_t kTimeOut = 1000000;
 
-
-class SimpleMutex
+class Mutex
 {
 	public:
-			SimpleMutex (char const *debugName, bigtime_t timeOut = B_INFINITE_TIMEOUT);
-	virtual ~SimpleMutex();
+			Mutex (char const *debugName, bigtime_t timeOut = B_INFINITE_TIMEOUT);
+	virtual ~Mutex();
 	
 	public:
 	bool Lock() const;
@@ -25,4 +23,4 @@ class SimpleMutex
 	bigtime_t fTimeOut;
 };
 
-#endif // _SIMPLE_MUTEX_H_
+#endif // _MUTEX_H_

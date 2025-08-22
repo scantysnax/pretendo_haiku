@@ -6,7 +6,7 @@
 
 #include <cstring>
 
-#include "SimpleMutex.h"
+#include "Mutex.h"
 
 #include "asm/copies.h"
 
@@ -33,7 +33,7 @@ class AudioStream
 	size_t fPlayPosition;
 	size_t fBufferSize;
 	uint8 *fSoundBuffer;
-	SimpleMutex *fMutex;
+	Mutex *fMutex;
 	
 	private:
 	bool fStreaming;

@@ -15,7 +15,7 @@
 #include "VideoScreen.h"
 #include "ROMFilePanel.h"
 #include "PaletteWindow.h"
-#include "SimpleMutex.h"
+#include "Mutex.h"
 #include "PretendoView.h"
 #include "Controller.h"
 #include "AudioStream.h"
@@ -162,7 +162,7 @@ PretendoWindow::PretendoWindow()
 	}
 	
 	// we need a mutual exclusion to protect threaded code
-	fMutex = new SimpleMutex("pretendo_mutex");
+	fMutex = new Mutex("pretendo_mutex");
 	fMutex->Lock();
 	resume_thread(fThread);
 	

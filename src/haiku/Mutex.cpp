@@ -1,22 +1,22 @@
 
-#include "SimpleMutex.h"
+#include "Mutex.h"
 
 
-SimpleMutex::SimpleMutex (char const *debugName, bigtime_t timeOut)
+Mutex::Mutex (char const *debugName, bigtime_t timeOut)
 {
 	fLocker = create_sem(kThreadCount, debugName);
 	fTimeOut = timeOut;
 }
 
 
-SimpleMutex::~SimpleMutex()
+Mutex::~Mutex()
 {
 	delete_sem(fLocker);
 }
 
 
 bool
-SimpleMutex::Lock() const
+Mutex::Lock() const
 {
 	status_t error;
 
@@ -29,7 +29,7 @@ SimpleMutex::Lock() const
 
 
 bool
-SimpleMutex::Unlock() const
+Mutex::Unlock() const
 {
 	status_t error = release_sem_etc(fLocker, kThreadCount, B_DO_NOT_RESCHEDULE);
 	
