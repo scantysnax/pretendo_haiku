@@ -5,7 +5,7 @@
 #include <iostream>
 #include <sys/stat.h>
 #include <sys/types.h>
-#ifdef __linux__
+#if defined(__linux__) || defined(__HAIKU__)
 #include <sys/mman.h>
 #include <unistd.h>
 #endif
@@ -13,7 +13,7 @@
 MemoryMappedFile::MemoryMappedFile(const std::string &filename, size_t size) {
 	(void)filename;
 
-#ifdef __linux__
+#if defined(__linux__) || defined(__HAIKU__)
 	int fd = ::open(filename.c_str(), O_CREAT | O_RDWR, S_IRUSR | S_IWUSR);
 	if (fd != -1) {
 		::ftruncate(fd, size);
