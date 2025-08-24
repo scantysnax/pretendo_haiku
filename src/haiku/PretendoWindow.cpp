@@ -297,6 +297,11 @@ void
 PretendoWindow::MessageReceived (BMessage *message)
 {
 	switch (message->what) {
+		case MSG_DRAW_BITMAP:
+			// this has to go here, since the window is apparently guaranteed to be locked
+			fView->DrawBitmap(fBitmap, fView->Bounds());
+			break;
+		
 		case MSG_CHANGE_RENDER:
 			ChangeFramework(
 				static_cast<video_framework>(fVideoMenu->IndexOf(fVideoMenu->FindMarked())));
@@ -353,10 +358,9 @@ PretendoWindow::MessageReceived (BMessage *message)
 		case MSG_RST_HARD:
 			OnHardReset();
 			break;
-			
-		case MSG_DRAW_BITMAP:
-			// this has to go here, since the window is apparently guaranteed to be locked
-			fView->DrawBitmap(fBitmap, fView->Bounds());
+				
+		case MSG_SETUP_INPUT:
+			OnSetupInput();
 			break;
 			
 		case MSG_ADJ_PALETTE:
@@ -516,7 +520,7 @@ PretendoWindow::AddMenu()
 	fVideoMenu->AddItem(new BMenuItem ("DirectWindow", new BMessage(MSG_CHANGE_RENDER)));
 	fVideoMenu->AddItem(new BMenuItem ("WindowScreen", new BMessage(MSG_CHANGE_RENDER), 'F'));
 	fVideoMenu->SetRadioMode(true);
-	
+	fEmuMenu->AddItem(new BMenuItem("Input" B_UTF8_ELLIPSIS, new BMessage(MSG_SETUP_INPUT)));
 	
 	fToolMenu->AddItem(new BMenuItem("Adjust Palette" B_UTF8_ELLIPSIS, new BMessage(MSG_ADJ_PALETTE)));
 	fToolMenu->AddSeparatorItem();
@@ -665,6 +669,13 @@ void
 PretendoWindow::OnHardReset()
 {
 	reset(nes::Reset::Hard);
+}
+
+
+void
+PretendoWindow::OnSetupInput()
+{
+	puts(__PRETTY_FUNCTION__);
 }
 
 

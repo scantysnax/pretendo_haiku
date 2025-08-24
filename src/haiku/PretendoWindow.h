@@ -51,6 +51,8 @@ constexpr uint32 MSG_FULLSCREEN =		'FULL';
 constexpr uint32 MSG_CHANGE_RENDER = 	'CHRN';
 constexpr uint32 MSG_DRAW_BITMAP =		'DRAW';
 constexpr uint32 MSG_ADJ_PALETTE =		'ADJP';
+// input
+constexpr uint32 MSG_SETUP_INPUT = 'INPT';
 // tools
 constexpr uint32 MSG_PTNTBL0 = 	'PTB0';
 constexpr uint32 MSG_PTNTBL1 = 	'PTB1';
@@ -134,6 +136,7 @@ class PretendoWindow : public BDirectWindow
 	void OnPause();
 	void OnSoftReset();
 	void OnHardReset();
+	void OnSetupInput();
 	void OnAdjustPalette();
 	void OnViewPatternTable0();
 	void OnViewPatternTable1();
