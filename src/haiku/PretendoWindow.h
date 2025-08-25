@@ -39,7 +39,7 @@ constexpr uint32 MSG_FREE_ROM =		'FREE';
 constexpr uint32 MSG_ABOUT =		'BOUT';
 constexpr uint32 MSG_CART_INFO =	'INFO';
 constexpr uint32 MSG_QUIT =			'QUIT';
-// cpu
+// emulator
 constexpr uint32 MSG_CPU_RUN =		'RUN ';
 constexpr uint32 MSG_CPU_STOP =		'STOP';
 constexpr uint32 MSG_CPU_PAUSE =	'PAUS';
@@ -52,7 +52,7 @@ constexpr uint32 MSG_CHANGE_RENDER = 	'CHRN';
 constexpr uint32 MSG_DRAW_BITMAP =		'DRAW';
 constexpr uint32 MSG_ADJ_PALETTE =		'ADJP';
 // input
-constexpr uint32 MSG_SETUP_INPUT = 'INPT';
+constexpr uint32 MSG_CFG_INPUT = 'INPT';
 // tools
 constexpr uint32 MSG_PTNTBL0 = 	'PTB0';
 constexpr uint32 MSG_PTNTBL1 = 	'PTB1';
@@ -60,6 +60,7 @@ constexpr uint32 MSG_NTBL0 = 	'NTB0';
 constexpr uint32 MSG_NTBL1 = 	'NTB1';
 constexpr uint32 MSG_NTBL2 = 	'NTB2';
 constexpr uint32 MSG_NTBL3 = 	'NTB3';
+
 
 // we need to forward declare this
 class PretendoView;
@@ -136,7 +137,7 @@ class PretendoWindow : public BDirectWindow
 	void OnPause();
 	void OnSoftReset();
 	void OnHardReset();
-	void OnSetupInput();
+	void OnConfigureInput();
 	void OnAdjustPalette();
 	void OnViewPatternTable0();
 	void OnViewPatternTable1();

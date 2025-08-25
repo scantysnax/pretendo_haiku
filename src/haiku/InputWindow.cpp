@@ -9,6 +9,10 @@ InputWindow::InputWindow(PretendoWindow *parent)
 {
 	ResizeTo(300, 300);
 	SetTitle("Configure Input");
+	
+	fBackgroundView = new BView(Bounds(),"_input_bg_view", B_FOLLOW_ALL, 0);
+	AddChild(fBackgroundView);
+	fBackgroundView->SetViewColor(ui_color(B_PANEL_BACKGROUND_COLOR));
 }
 
 InputWindow::~InputWindow()

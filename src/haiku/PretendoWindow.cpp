@@ -359,8 +359,8 @@ PretendoWindow::MessageReceived (BMessage *message)
 			OnHardReset();
 			break;
 				
-		case MSG_SETUP_INPUT:
-			OnSetupInput();
+		case MSG_CFG_INPUT:
+			OnConfigureInput();
 			break;
 			
 		case MSG_ADJ_PALETTE:
@@ -520,7 +520,7 @@ PretendoWindow::AddMenu()
 	fVideoMenu->AddItem(new BMenuItem ("DirectWindow", new BMessage(MSG_CHANGE_RENDER)));
 	fVideoMenu->AddItem(new BMenuItem ("WindowScreen", new BMessage(MSG_CHANGE_RENDER), 'F'));
 	fVideoMenu->SetRadioMode(true);
-	fEmuMenu->AddItem(new BMenuItem("Input" B_UTF8_ELLIPSIS, new BMessage(MSG_SETUP_INPUT)));
+	fEmuMenu->AddItem(new BMenuItem("Input" B_UTF8_ELLIPSIS, new BMessage(MSG_CFG_INPUT)));
 	
 	fToolMenu->AddItem(new BMenuItem("Adjust Palette" B_UTF8_ELLIPSIS, new BMessage(MSG_ADJ_PALETTE)));
 	fToolMenu->AddSeparatorItem();
@@ -673,9 +673,15 @@ PretendoWindow::OnHardReset()
 
 
 void
-PretendoWindow::OnSetupInput()
+PretendoWindow::OnConfigureInput()
 {
-	puts(__PRETTY_FUNCTION__);
+	if (fInputWindow && fInputWindow->Lock()) {
+		fInputWindow->Quit();
+		fInputWindow = nullptr;
+	}
+		
+	fInputWindow = new InputWindow(this);
+	fInputWindow->Show();	
 }
 
 

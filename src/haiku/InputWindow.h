@@ -3,9 +3,9 @@
 #define _INPUT_WINDOW_H_
 
 #include <Window.h>
-#include <Bitmap.h>
 
 #include "InputView.h"
+
 
 class PretendoWindow;
 
@@ -21,8 +21,9 @@ class InputWindow : public BWindow
 	virtual void MessageReceived(BMessage *message);
 	
 	private:
-	InputView *fInputView = nullptr;
 	PretendoWindow *fParent = nullptr;
+	BView *fBackgroundView = nullptr;
+	InputView *fInputView = nullptr;
 };
 
 

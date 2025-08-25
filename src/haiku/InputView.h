@@ -4,6 +4,7 @@
 
 #include <View.h>
 #include <Bitmap.h>
+#include <TranslationUtils.h>
 
 
 class InputView : public BView
