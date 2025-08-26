@@ -20,15 +20,15 @@ InputView::AttachedToWindow()
 {
 	//fBitmap = new BBitmap(BRect(0, 0,width-1, height-1), B_CMAP8);
 	
-	DrawBitmap(fControllerBitmap);
-	
 	BView::AttachedToWindow();
 }
 
 
 void 
 InputView::Draw (BRect updateRect)
-{		
+{
+	DrawBitmap(fControllerBitmap);		
+	
 	BView::Draw(updateRect);
 }
 
