@@ -18,7 +18,7 @@ InputView::~InputView()
 void
 InputView::AttachedToWindow()
 {
-	//fBitmap = new BBitmap(BRect(0, 0,width-1, height-1), B_CMAP8);
+	SetViewColor(ui_color(B_PANEL_BACKGROUND_COLOR));
 	
 	BView::AttachedToWindow();
 }

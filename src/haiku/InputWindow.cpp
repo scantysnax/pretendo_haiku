@@ -7,14 +7,12 @@ InputWindow::InputWindow(PretendoWindow *parent)
 			B_NORMAL_WINDOW_FEEL, B_NOT_RESIZABLE|B_NOT_ZOOMABLE),
 		fParent(parent)
 {
-	ResizeTo(300, 300);
+	ResizeTo(539, 291);
 	CenterOnScreen();
 	SetTitle("Configure Input");
 	
-	fBackgroundView = new BView(Bounds(),"input_bg_view", B_FOLLOW_ALL, 0);
-	AddChild(fBackgroundView);
-	
-	fBackgroundView->SetViewColor(ui_color(B_PANEL_BACKGROUND_COLOR));
+	fInputView = new InputView(Bounds());
+	AddChild(fInputView);
 }
 
 
