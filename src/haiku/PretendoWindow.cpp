@@ -1384,14 +1384,14 @@ PretendoWindow::ReadKeyStates()
 {
 	get_key_info(&fKeyStates);
 	
-	CheckKey(Controller::INDEX_UP, kKeyUp);
-	CheckKey(Controller::INDEX_DOWN, kKeyDown);
-	CheckKey(Controller::INDEX_LEFT, kKeyLeft);
-	CheckKey(Controller::INDEX_RIGHT, kKeyRight);
-	CheckKey(Controller::INDEX_SELECT, kKeySelect);
-	CheckKey(Controller::INDEX_START, kKeyStart);
-	CheckKey(Controller::INDEX_B, kKeyB);
-	CheckKey(Controller::INDEX_A, kKeyA);
+	CheckKey(Controller::INDEX_UP, kDefaultKeyUp);
+	CheckKey(Controller::INDEX_DOWN, kDefaultKeyDown);
+	CheckKey(Controller::INDEX_LEFT, kDefaultKeyLeft);
+	CheckKey(Controller::INDEX_RIGHT, kDefaultKeyRight);
+	CheckKey(Controller::INDEX_SELECT, kDefaultKeySelect);
+	CheckKey(Controller::INDEX_START, kDefaultKeyStart);
+	CheckKey(Controller::INDEX_B, kDefaultKeyB);
+	CheckKey(Controller::INDEX_A, kDefaultKeyA);
 }
 
 

@@ -69,14 +69,14 @@ class PretendoWindow : public BDirectWindow
 {
 	private:
 	enum {
-		kKeyUp = 0x57,
-		kKeyDown = 0x62,
-		kKeyLeft = 0x61,
-		kKeyRight = 0x63,
-		kKeySelect = 0x3c,
-		kKeyStart = 0x3d,
-		kKeyB = 0x4c,
-		kKeyA = 0x4d
+		kDefaultKeyUp = 0x57,
+		kDefaultKeyDown = 0x62,
+		kDefaultKeyLeft = 0x61,
+		kDefaultKeyRight = 0x63,
+		kDefaultKeySelect = 0x3c,
+		kDefaultKeyStart = 0x3d,
+		kDefaultKeyB = 0x4c,
+		kDefaultKeyA = 0x4d
 	};
 	
 	public:

@@ -5,7 +5,14 @@
 #include <View.h>
 #include <Bitmap.h>
 #include <TranslationUtils.h>
+#include <TextView.h>
 
+
+constexpr int32 kControllerWidth = 539;
+constexpr int32 kControllerHeight = 291;
+constexpr int32 kBorderWidth = 16;
+//constexpr int32 kControllerWidth = 673;
+//constexpr int32 kControllerHeight = 364;
 
 class InputView : public BView
 {
@@ -20,7 +27,7 @@ class InputView : public BView
 	
 	private:
 	BBitmap *fControllerBitmap = nullptr;
-	BView *fControllerView = nullptr;
+	BTextView *fUpTextView = nullptr;
 };
 
 #endif //_INPUT_VIEW_H_

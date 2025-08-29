@@ -22,7 +22,6 @@ class InputWindow : public BWindow
 	
 	private:
 	PretendoWindow *fParent = nullptr;
-	BView *fBackgroundView = nullptr;
 	InputView *fInputView = nullptr;
 };
 
