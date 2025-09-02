@@ -553,6 +553,8 @@ PretendoWindow::OnLoadCart (BMessage *message)
 				B_WIDTH_AS_USUAL, B_STOP_ALERT))->Go();
 			return;
 		}
+		
+		(new BAlert(0, path.String(), "Okay"))->Go();
 	}
 }
 

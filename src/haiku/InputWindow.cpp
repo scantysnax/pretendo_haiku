@@ -7,7 +7,7 @@ InputWindow::InputWindow(PretendoWindow *parent)
 			B_NORMAL_WINDOW_FEEL, B_NOT_RESIZABLE|B_NOT_ZOOMABLE),
 		fParent(parent)
 {
-	ResizeTo(kControllerWidth+kBorderWidth*2, 500);
+	ResizeTo(kControllerWidth+kControllerBorder*2, 500);
 	CenterOnScreen();
 	SetTitle("Configure Input");
 	

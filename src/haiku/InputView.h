@@ -10,9 +10,11 @@
 
 constexpr int32 kControllerWidth = 539;
 constexpr int32 kControllerHeight = 291;
-constexpr int32 kBorderWidth = 16;
-//constexpr int32 kControllerWidth = 673;
-//constexpr int32 kControllerHeight = 364;
+constexpr int32 kControllerBorder = 16;
+
+
+class ButtonTextView;
+
 
 class InputView : public BView
 {
@@ -27,7 +29,31 @@ class InputView : public BView
 	
 	private:
 	BBitmap *fControllerBitmap = nullptr;
-	BTextView *fUpTextView = nullptr;
+	
+	ButtonTextView *fUpView = nullptr;
+	ButtonTextView *fDownView = nullptr;
+	ButtonTextView *fLeftView = nullptr;
+	ButtonTextView *fRightView = nullptr;
+	ButtonTextView *fSelectView = nullptr;
+	ButtonTextView *fStartView = nullptr;
+	ButtonTextView *fBView = nullptr;
+	ButtonTextView *fAView = nullptr;
+	
+};
+
+
+class ButtonTextView : public BTextView
+{
+	public:
+			ButtonTextView (BRect frame);
+	virtual ~ButtonTextView();
+	
+	public:
+	virtual void AttachedToWindow();
+	virtual void Draw (BRect updateRect);
+	
+	private:
+	
 };
 
 #endif //_INPUT_VIEW_H_
