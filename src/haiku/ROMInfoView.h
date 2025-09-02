@@ -1,23 +1,23 @@
 
-#ifndef _CART_INFO_VIEW_
-#define _CART_INFO_VIEW_
+#ifndef _ROM_INFO_VIEW_
+#define _ROM_INFO_VIEW_
 
 #include <OutlineListView.h>
 #include <libxml2/libxml/parser.h>
 #include "sha1.h"
 
 
-class CartInfoView : public BOutlineListView
+class ROMInfoView : public BOutlineListView
 {
+	public:
+	ROMInfoView(BRect frame);
+	~ROMInfoView();
+	
 	public:
 	typedef struct rom_match {
 		xmlNodePtr game;
 		xmlNodePtr cart;
 	} rom_match_t;
-	
-	public:
-	CartInfoView(BRect frame);
-	~CartInfoView();
 	
 	public:
 	virtual void AttachedToWindow (void);
@@ -31,4 +31,4 @@ class CartInfoView : public BOutlineListView
 };
 	
 
-#endif // _CART_INFO_VIEW
+#endif // _ROM_INFO_VIEW

@@ -19,7 +19,7 @@
 #include "VideoScreen.h"
 #include "ROMFilePanel.h"
 #include "PaletteWindow.h"
-#include "CartInfoWindow.h"
+#include "ROMInfoWindow.h"
 #include "Mutex.h"
 #include "AudioStream.h"
 #include "PretendoView.h"
@@ -229,7 +229,7 @@ class PretendoWindow : public BDirectWindow
 	
 	// children
 	private:
-	CartInfoWindow *fCartInfoWindow = nullptr;
+	ROMInfoWindow *fROMInfoWindow = nullptr;
 	PaletteWindow *fPaletteWindow = nullptr;
 	PatternTableWindow *fPatternTable0Window = nullptr;
 	PatternTableWindow *fPatternTable1Window = nullptr;

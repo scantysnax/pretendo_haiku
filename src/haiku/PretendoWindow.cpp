@@ -10,7 +10,7 @@
 
 // ui and other things
 #include "PretendoWindow.h"
-#include "CartInfoWindow.h"
+#include "ROMInfoWindow.h"
 #include "PaletteWindow.h"
 #include "VideoScreen.h"
 #include "ROMFilePanel.h"
@@ -196,9 +196,9 @@ PretendoWindow::~PretendoWindow()
 	delete fAudioStream;
 	
 	
-	if (fCartInfoWindow != nullptr) {
-		fCartInfoWindow->Lock();
-		fCartInfoWindow->Quit();
+	if (fROMInfoWindow != nullptr) {
+		fROMInfoWindow->Lock();
+		fROMInfoWindow->Quit();
 	}
 	
 	if (fPaletteWindow != nullptr) {
@@ -570,14 +570,14 @@ PretendoWindow::OnFreeCart()
 void
 PretendoWindow::OnCartInfo()
 {
-	if (fCartInfoWindow && fCartInfoWindow->Lock()) {
-		fCartInfoWindow->Quit();
-		fCartInfoWindow = nullptr;
+	if (fROMInfoWindow && fROMInfoWindow->Lock()) {
+		fROMInfoWindow->Quit();
+		fROMInfoWindow = nullptr;
 	}
 	
 	if (nes::cart.mapper() != nullptr) { // && ! fCartInfoWindow) {
-		fCartInfoWindow = new CartInfoWindow();
-		fCartInfoWindow->Show();
+		fROMInfoWindow = new ROMInfoWindow();
+		fROMInfoWindow->Show();
 	}
 }
 

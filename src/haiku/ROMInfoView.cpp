@@ -11,26 +11,26 @@
 #include "Cart.h"
 #include "sha1.h"
 
-#include "CartInfoView.h"
+#include "ROMInfoView.h"
 
 
 using nes::cart;
 
-CartInfoView::CartInfoView(BRect frame)
-	: BOutlineListView(frame, "_cart_info_view")
+ROMInfoView::ROMInfoView(BRect frame)
+	: BOutlineListView(frame, "rom_info_view")
 {
 }
 
 
 
 
-CartInfoView::~CartInfoView()
+ROMInfoView::~ROMInfoView()
 {
 }
 
 
 void
-CartInfoView::AttachedToWindow (void)
+ROMInfoView::AttachedToWindow (void)
 {	
 	SetFont(be_fixed_font);
 	SetViewColor(216, 216, 216);
@@ -78,7 +78,7 @@ CartInfoView::AttachedToWindow (void)
 
 
 void
-CartInfoView::Draw (BRect updateRect)
+ROMInfoView::Draw (BRect updateRect)
 {
 	BOutlineListView::Draw(updateRect);
 }
@@ -91,7 +91,7 @@ CartInfoView::Draw (BRect updateRect)
 //          property/value pair
 //------------------------------------------------------------------------------
 xmlNodePtr 
-CartInfoView::ProcessGame(xmlNodePtr game, const xmlChar *search_key, const xmlChar *search_value) {
+ROMInfoView::ProcessGame(xmlNodePtr game, const xmlChar *search_key, const xmlChar *search_value) {
 	// get the list of children, this should be text nodes and <cartridge> nodes
 	for(xmlNodePtr cartridge = game->children; cartridge; cartridge = cartridge->next) {
 		if (xmlStrcmp(cartridge->name, reinterpret_cast<const xmlChar *>("cartridge")) == 0) {
@@ -119,8 +119,8 @@ CartInfoView::ProcessGame(xmlNodePtr game, const xmlChar *search_key, const xmlC
 //          no need to free it
 //------------------------------------------------------------------------------
 
-CartInfoView::rom_match_t*
-CartInfoView::ProcessDatabase(xmlNodePtr root, const xmlChar *search_key, const xmlChar *search_value) {
+ROMInfoView::rom_match_t*
+ROMInfoView::ProcessDatabase(xmlNodePtr root, const xmlChar *search_key, const xmlChar *search_value) {
 
 	static rom_match match;
 
@@ -143,7 +143,7 @@ CartInfoView::ProcessDatabase(xmlNodePtr root, const xmlChar *search_key, const 
 // Desc: prints the info associated with a given game/cart
 //------------------------------------------------------------------------------
 void
-CartInfoView::PrintInfo(rom_match *rom)
+ROMInfoView::PrintInfo(rom_match *rom)
 {	
 	char buffer[1024];
 	BListItem *gameInfo = new BStringItem("Game Info");

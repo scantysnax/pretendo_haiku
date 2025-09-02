@@ -1,6 +1,6 @@
 
-#ifndef _CART_INFO_WINDOW_H_
-#define _CART_INFO_WINDOW_H_
+#ifndef _ROM_INFO_WINDOW_H_
+#define _ROM_INFO_WINDOW_H_
 
 #include <Window.h>
 #include <TabView.h>
@@ -9,34 +9,35 @@
 #include <libxml2/libxml/parser.h>
 #include <string>
 
-#include "CartInfoView.h"
+#include "ROMInfoView.h"
 
 using std::string;
 
-class CartInfoScrollView : public BScrollView
+class ROMInfoScrollView : public BScrollView
 {
 	public:
-	CartInfoScrollView();
-	virtual ~CartInfoScrollView();
+	ROMInfoScrollView();
+	virtual ~ROMInfoScrollView();
 	
 	public:
 	virtual void Draw(BRect updateRect);
 	virtual void AttachedToWindow (void);
 };
 
-class CartInfoWindow : public BWindow
+
+class ROMInfoWindow : public BWindow
 {	
 	public:
-			CartInfoWindow();
-	virtual ~CartInfoWindow();
+			ROMInfoWindow();
+	virtual ~ROMInfoWindow();
 	
 	public:
 	virtual void MessageReceived (BMessage *message);
 	virtual bool QuitRequested (void);
 	
 	private:
-	CartInfoView *fCartInfoView;
+	ROMInfoView *fROMInfoView;
 };
 
 
-#endif //_CART_INFOWINDOW_H_
+#endif //_ROM_INFO_WINDOW_H_

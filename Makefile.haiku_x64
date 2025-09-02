@@ -116,8 +116,6 @@ CPP_FILES := \
 	\
 	src/haiku/AboutWindow.cpp \
 	src/haiku/AudioStream.cpp \
-	src/haiku/CartInfoWindow.cpp \
-	src/haiku/CartInfoView.cpp \
 	src/haiku/HaikuMain.cpp \
 	src/haiku/InputView.cpp \
 	src/haiku/InputWindow.cpp \
@@ -133,6 +131,8 @@ CPP_FILES := \
 	src/haiku/PretendoWindow.cpp \
 	src/haiku/PretendoView.cpp \
 	src/haiku/ROMFilePanel.cpp \
+	src/haiku/ROMInfoWindow.cpp \
+	src/haiku/ROMInfoView.cpp \
 	src/haiku/Settings.cpp \
 	src/haiku/VideoScreen.cpp
 
