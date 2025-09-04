@@ -554,7 +554,7 @@ PretendoWindow::OnLoadCart (BMessage *message)
 			return;
 		}
 		
-		(new BAlert(0, path.String(), "Okay"))->Go();
+		puts(__PRETTY_FUNCTION__);
 	}
 }
 
