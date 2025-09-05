@@ -42,7 +42,7 @@ PretendoApp::AboutRequested()
 void
 PretendoApp::RefsReceived (BMessage *message)
 {		
-	puts(__PRETTY_FUNCTION__);
+	//puts(__PRETTY_FUNCTION__);
 	
 	switch (message->what) {
 		case B_REFS_RECEIVED:
