@@ -19,6 +19,7 @@ using nes::cart;
 ROMInfoView::ROMInfoView(BRect frame)
 	: BOutlineListView(frame, "rom_info_view")
 {
+	
 }
 
 
@@ -26,6 +27,7 @@ ROMInfoView::ROMInfoView(BRect frame)
 
 ROMInfoView::~ROMInfoView()
 {
+	
 }
 
 
