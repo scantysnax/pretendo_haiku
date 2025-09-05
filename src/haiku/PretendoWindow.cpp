@@ -312,7 +312,7 @@ PretendoWindow::MessageReceived (BMessage *message)
 		 	break;
 			
 		case MSG_ROM_LOADED:
-			OnLoadCart(message);
+			OnLoadROM(message);
 			break;
 			
 		case MSG_SHOW_OPEN:
@@ -324,11 +324,11 @@ PretendoWindow::MessageReceived (BMessage *message)
 			break;
 
 		case MSG_FREE_ROM:
-			OnFreeCart();
+			OnFreeROM();
 			break;
 			
-		case MSG_CART_INFO:
-			OnCartInfo();
+		case MSG_ROM_INFO:
+			OnROMInfo();
 			break;
 			
 		case MSG_ABOUT:
@@ -498,7 +498,7 @@ PretendoWindow::AddMenu()
 	fMenu->AddItem (fToolMenu);
 
 	fFileMenu->AddItem (new BMenuItem ("Free ROM", new BMessage (MSG_FREE_ROM)));
-	fFileMenu->AddItem(new BMenuItem("ROM Info", new BMessage(MSG_CART_INFO)));
+	fFileMenu->AddItem(new BMenuItem("ROM Info", new BMessage(MSG_ROM_INFO)));
 	fFileMenu->AddSeparatorItem();
 	fFileMenu->AddItem (new BMenuItem ("About" B_UTF8_ELLIPSIS, new BMessage(MSG_ABOUT)));
 	fFileMenu->AddSeparatorItem();
@@ -542,25 +542,23 @@ PretendoWindow::AddMenu()
 
 
 void
-PretendoWindow::OnLoadCart (BMessage *message)
+PretendoWindow::OnLoadROM (BMessage *message)
 {
 	BString path;
 	
 	if (message->FindString ("rom_path", &path) == B_OK) {
-		OnFreeCart();
+		OnFreeROM();
 		if (nes::cart.load(path.String()) == false) {
-			(new BAlert("Error", "Error, Invalid ROM Image", "Okay", nullptr, nullptr,
+			(new BAlert("Error", "Error. Invalid ROM Image.", "Okay", nullptr, nullptr,
 				B_WIDTH_AS_USUAL, B_STOP_ALERT))->Go();
 			return;
 		}
-		
-		puts(__PRETTY_FUNCTION__);
 	}
 }
 
 
 void
-PretendoWindow::OnFreeCart()
+PretendoWindow::OnFreeROM()
 {	
 	OnStop();
 	nes::cart.unload();
@@ -568,7 +566,7 @@ PretendoWindow::OnFreeCart()
 
 
 void
-PretendoWindow::OnCartInfo()
+PretendoWindow::OnROMInfo()
 {
 	if (fROMInfoWindow && fROMInfoWindow->Lock()) {
 		fROMInfoWindow->Quit();

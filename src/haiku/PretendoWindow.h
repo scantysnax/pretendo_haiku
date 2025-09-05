@@ -37,7 +37,7 @@ constexpr uint32 MSG_SHOW_OPEN =	'OPEN';
 constexpr uint32 MSG_LOAD_RECENT =	'RCNT';
 constexpr uint32 MSG_FREE_ROM =		'FREE';
 constexpr uint32 MSG_ABOUT =		'BOUT';
-constexpr uint32 MSG_CART_INFO =	'INFO';
+constexpr uint32 MSG_ROM_INFO =		'INFO';
 constexpr uint32 MSG_QUIT =			'QUIT';
 // emulator
 constexpr uint32 MSG_CPU_RUN =		'RUN ';
@@ -128,9 +128,9 @@ class PretendoWindow : public BDirectWindow
 	
 	// handlers for ui
 	private:
-	void OnLoadCart (BMessage *message);
-	void OnFreeCart();
-	void OnCartInfo();
+	void OnLoadROM (BMessage *message);
+	void OnFreeROM();
+	void OnROMInfo();
 	void OnQuit();
 	void OnRun();
 	void OnStop();

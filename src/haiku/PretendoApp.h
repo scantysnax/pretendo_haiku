@@ -23,7 +23,7 @@ class PretendoApp : public BApplication
 	virtual void ArgvReceived (int32 argc, char **argv);
 	
 	private:
-	PretendoWindow *fWindow;
+	PretendoWindow *fWindow = nullptr;
 };
 
 

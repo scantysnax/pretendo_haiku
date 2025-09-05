@@ -8,22 +8,19 @@
 PretendoApp::PretendoApp()
 	: BApplication("application/x-vnd.scantysnax-Pretendo") 
 {
-	puts(__PRETTY_FUNCTION__); 	
+	fWindow = new PretendoWindow;
 }
 
 
 PretendoApp::~PretendoApp()
 {
-	puts(__PRETTY_FUNCTION__);
+
 }
 
 
 void
 PretendoApp::ReadyToRun()
 {
-	puts(__PRETTY_FUNCTION__);
-	
-	fWindow = new PretendoWindow;
 	fWindow->Show();
 	
 	BApplication::ReadyToRun();
@@ -42,8 +39,6 @@ PretendoApp::AboutRequested()
 void
 PretendoApp::RefsReceived (BMessage *message)
 {		
-	puts(__PRETTY_FUNCTION__);
-	
 	switch (message->what) {
 		case B_REFS_RECEIVED:
 		{      	
@@ -70,9 +65,15 @@ PretendoApp::RefsReceived (BMessage *message)
 
 void
 PretendoApp::ArgvReceived (int32 argc, char **argv)
-{
-	puts(__PRETTY_FUNCTION__);
+{	
+	if (argv[1] == nullptr) {
+		return;
+	}
 	
+	BMessage *msg = new BMessage(MSG_ROM_LOADED);
+	msg->AddString("rom_path", argv[1]);
+	fWindow->PostMessage(msg);
+	delete msg;
 	
 	BApplication::ArgvReceived(argc, argv);
 	
