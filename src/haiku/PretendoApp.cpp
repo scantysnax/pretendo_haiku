@@ -65,15 +65,12 @@ PretendoApp::RefsReceived (BMessage *message)
 void
 PretendoApp::ArgvReceived (int32 argc, char **argv)
 {	
-	if (argv[1] == nullptr) {
-		return;
+	if (argv[1] != nullptr) {
+		BMessage msg(MSG_ROM_LOADED);
+		msg.AddString("rom_path", argv[1]);
+		fWindow->PostMessage(&msg);
 	}
 	
-	BMessage msg(MSG_ROM_LOADED);
-	msg.AddString("rom_path", argv[1]);
-	fWindow->PostMessage(&msg);
-	
 	BApplication::ArgvReceived(argc, argv);
-	
 }
 
