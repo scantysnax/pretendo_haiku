@@ -39,23 +39,18 @@ PretendoApp::AboutRequested()
 void
 PretendoApp::RefsReceived (BMessage *message)
 {		
-	switch (message->what) {
-		case B_REFS_RECEIVED:
-		{      	
-			entry_ref ref;
-			
-			if (message->FindRef("refs", 0, &ref) == B_OK) {
-				BEntry entry;
-				BPath path;
-
-				entry.SetTo(&ref, true);
-				entry.GetPath(&path);
-
-				BMessage msg(MSG_ROM_LOADED);
-				msg.AddString("rom_path", path.Path());
-				fWindow->PostMessage(&msg);
-			}
-		} break;
+	entry_ref ref;
+		
+	if (message->FindRef("refs", 0, &ref) == B_OK) {
+		BEntry entry;
+		BPath path;
+		
+		entry.SetTo(&ref, true);
+		entry.GetPath(&path);
+		
+		BMessage msg(MSG_ROM_LOADED);
+		msg.AddString("rom_path", path.Path());
+		fWindow->PostMessage(&msg);
 	}
 	
 	BApplication::RefsReceived(message);
