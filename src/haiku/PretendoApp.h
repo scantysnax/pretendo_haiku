@@ -2,9 +2,8 @@
 #ifndef _PRETENDO_APP_H_
 #define _PRETENDO_APP_H_
 
-
 #include <Application.h>
-
+#include <Path.h>
 
 #include "PretendoWindow.h"
 #include "AboutWindow.h"

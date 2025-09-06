@@ -1,7 +1,4 @@
 
-#include <Path.h>
-#include <Alert.h>
-
 #include "PretendoApp.h"
 
 
