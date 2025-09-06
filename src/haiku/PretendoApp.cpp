@@ -51,10 +51,9 @@ PretendoApp::RefsReceived (BMessage *message)
 				entry.SetTo(&ref, true);
 				entry.GetPath(&path);
 
-				BMessage *msg = new BMessage(MSG_ROM_LOADED);
-				msg->AddString("rom_path", path.Path());
-				fWindow->PostMessage(msg);
-				delete msg;
+				BMessage msg(MSG_ROM_LOADED);
+				msg.AddString("rom_path", path.Path());
+				fWindow->PostMessage(&msg);
 			}
 		} break;
 	}
@@ -70,10 +69,9 @@ PretendoApp::ArgvReceived (int32 argc, char **argv)
 		return;
 	}
 	
-	BMessage *msg = new BMessage(MSG_ROM_LOADED);
-	msg->AddString("rom_path", argv[1]);
-	fWindow->PostMessage(msg);
-	delete msg;
+	BMessage msg(MSG_ROM_LOADED);
+	msg.AddString("rom_path", argv[1]);
+	fWindow->PostMessage(&msg);
 	
 	BApplication::ArgvReceived(argc, argv);
 	
