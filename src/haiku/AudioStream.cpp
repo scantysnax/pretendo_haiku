@@ -42,7 +42,7 @@ void
 AudioStream::Start()
 {
 	if (fSoundPlayer->InitCheck() == B_OK) {
-		fSoundPlayer->SetHasData (true);
+		fSoundPlayer->SetHasData(true);
 		fSoundPlayer->Start();
 		fStreaming = true;
 	} else {

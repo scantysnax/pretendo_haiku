@@ -13,12 +13,12 @@ class PretendoWindow;
 class InputWindow : public BWindow
 {
 	public:
-			InputWindow(PretendoWindow *parent);
+			InputWindow (PretendoWindow *parent);
 	virtual ~InputWindow();
 	
 	public:
 	virtual bool QuitRequested();
-	virtual void MessageReceived(BMessage *message);
+	virtual void MessageReceived (BMessage *message);
 	
 	private:
 	PretendoWindow *fParent = nullptr;

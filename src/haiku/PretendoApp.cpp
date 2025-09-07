@@ -50,7 +50,7 @@ PretendoApp::RefsReceived (BMessage *message)
 		fWindow->PostMessage(&msg);
 	}
 	
-	BApplication::RefsReceived(message);
+	BApplication::RefsReceived (message);
 }
 
 
@@ -63,6 +63,6 @@ PretendoApp::ArgvReceived (int32 argc, char **argv)
 		fWindow->PostMessage(&msg);
 	}
 	
-	BApplication::ArgvReceived(argc, argv);
+	BApplication::ArgvReceived (argc, argv);
 }
 

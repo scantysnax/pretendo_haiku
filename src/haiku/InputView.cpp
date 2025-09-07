@@ -3,7 +3,7 @@
 
 
 InputView::InputView (BRect frame)
-	: BView (frame, "input_view", B_FOLLOW_ALL_SIDES, B_WILL_DRAW)
+	: BView(frame, "input_view", B_FOLLOW_ALL_SIDES, B_WILL_DRAW)
 {
 	fControllerBitmap = BTranslationUtils::GetBitmap('bits', "Controller");	
 }
@@ -36,7 +36,7 @@ InputView::Draw (BRect updateRect)
 	r.OffsetTo(kControllerBorder, kControllerBorder);
 	DrawBitmap(fControllerBitmap, r);		
 	
-	BView::Draw(updateRect);
+	BView::Draw (updateRect);
 }
 
 
@@ -59,6 +59,7 @@ ButtonTextView::~ButtonTextView()
 
 }
 
+
 void
 ButtonTextView::AttachedToWindow()
 {
@@ -69,15 +70,10 @@ ButtonTextView::AttachedToWindow()
 
 }
 
+
 void
 ButtonTextView::Draw (BRect updateRect)
 {
 	BTextView::Draw(updateRect);
 }
-
-
-
-	 
-
-
 

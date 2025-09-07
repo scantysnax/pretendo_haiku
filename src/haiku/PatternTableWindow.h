@@ -3,7 +3,6 @@
 #define _PATTERNTABLE_WINDOW_H_
 
 #include <Window.h>
-#include <Bitmap.h>
 
 #include "PatternTableView.h"
 

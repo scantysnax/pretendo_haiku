@@ -2,10 +2,10 @@
 #ifndef _INPUT_VIEW_H_
 #define _INPUT_VIEW_H_
 
-#include <View.h>
+
 #include <Bitmap.h>
-#include <TranslationUtils.h>
 #include <TextView.h>
+#include <TranslationUtils.h>
 
 
 constexpr int32 kControllerWidth = 539;
@@ -19,7 +19,7 @@ class ButtonTextView;
 class InputView : public BView
 {
 	public:
-			InputView(BRect frame);
+			InputView (BRect frame);
 	virtual ~InputView();
 	
 	public:

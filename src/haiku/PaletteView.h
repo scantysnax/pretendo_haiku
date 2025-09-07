@@ -1,11 +1,13 @@
 
-#ifndef _PALETTEVIEW_H_
-#define _PALETTEVIEW_H_
+#ifndef _PALETTE_VIEW_H_
+#define _PALETTE_VIEW_H_
 
 #include <View.h>
 #include <Box.h>
 #include <Slider.h>
 #include <Button.h>
+
+#include <iostream>
 
 #include "PretendoWindow.h"
 
@@ -50,8 +52,6 @@ class PaletteView : public BView
 	rgb_color *const fPalette;
 	rgb_color *fWorkPalette;
 	
-	
-	
 	private:
 	float fPrevHue;
 	float fPrevSaturation;
@@ -73,4 +73,4 @@ class PaletteView : public BView
 	PretendoWindow *fParent;
 };
 
-#endif
+#endif // _PALETTE_VIEW_H_

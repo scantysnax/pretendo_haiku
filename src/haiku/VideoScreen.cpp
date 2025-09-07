@@ -41,7 +41,7 @@ VideoScreen::MessageReceived (BMessage *message)
 
 
 bool
-VideoScreen::QuitRequested (void)
+VideoScreen::QuitRequested()
 {
 	fConnected = false;
 	return true;

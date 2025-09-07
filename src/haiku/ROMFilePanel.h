@@ -2,14 +2,13 @@
 #ifndef	_ROM_FILEPANEL_H_
 #define _ROM_FILEPANEL_H_
 
-#include <View.h>
+
 #include <Window.h>
 #include <FilePanel.h>
 #include <Entry.h>
 #include <Path.h>
 #include <String.h>
 
-#include <iostream>
 
 class ROMFilePanel : public BFilePanel
 {

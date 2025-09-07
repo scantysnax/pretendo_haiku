@@ -1,15 +1,11 @@
 
 #include "NameTableView.h"
 
-#include "Cart.h"
-#include "Nes.h"
-
 
 NameTableView::NameTableView (BRect frame, int32 which)
-	: BView (frame, "name_table", B_FOLLOW_ALL_SIDES, B_WILL_DRAW|B_PULSE_NEEDED),
-	fWhichNameTable(which)
+	: BView (frame, "name_table", B_FOLLOW_ALL_SIDES, B_WILL_DRAW|B_PULSE_NEEDED)
 {
-	
+	fWhichNameTable = which;
 }
 
 
@@ -23,9 +19,9 @@ void
 NameTableView::AttachedToWindow()
 {
 	fBitmap = new BBitmap(BRect(0, 0,kNameTableWidth-1, kNameTableHeight-1), B_CMAP8);
-	fBits = (uint8 *)fBitmap->Bits();
+	fBits = reinterpret_cast<uint8 *>(fBitmap->Bits());
 	fRowBytes = fBitmap->BytesPerRow();
-	memset (fBits, 0x0, fBitmap->BitsLength());	
+	memset(fBits, 0x0, fBitmap->BitsLength());	
 	
 	BView::AttachedToWindow();
 }
@@ -37,7 +33,7 @@ NameTableView::Draw (BRect updateRect)
 	DrawNameTable(fWhichNameTable);
 	DrawBitmap(fBitmap, Bounds());	
 	
-	BView::Draw(updateRect);
+	BView::Draw (updateRect);
 }
 
 

@@ -1,7 +1,4 @@
 
-#include <Application.h>
-#include <Entry.h>
-
 #include "LinkView.h"
 
 
@@ -21,11 +18,13 @@ uint8 link_cursor[] = {
 
 
 LinkView::LinkView (BRect frame, const char *text, const char *link)
-	: BStringView(frame, "_linkview", text, B_FOLLOW_LEFT|B_FOLLOW_TOP, B_WILL_DRAW),
-	fText(text), fLink(link)
+	: BStringView(frame, "_linkview", text, B_FOLLOW_ALL, B_WILL_DRAW)
 {
+	fText = text;
+	fLink = link;
 	fLinkCursor = new BCursor(link_cursor);
 }
+
 
 LinkView::~LinkView()
 {
@@ -52,7 +51,7 @@ LinkView::MouseUp (BPoint point)
 	
 	be_roster->Launch("text/html", 1, const_cast<char **>(&fLink));
 	
-	BStringView::MouseUp(point);
+	BStringView::MouseUp (point);
 }
 
 
@@ -63,7 +62,7 @@ LinkView::MouseDown (BPoint point)
 	
 	BRect frame(Frame());
 	frame.OffsetTo(B_ORIGIN);
-	BStringView::Draw(frame);
+	Invalidate();
 	
 	BStringView::MouseDown (point);
 }

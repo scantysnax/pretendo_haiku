@@ -10,16 +10,16 @@ class PaletteView;
 class PaletteWindow : public BWindow
 {	
 	public:
-			PaletteWindow(PretendoWindow *parent);
+			PaletteWindow (PretendoWindow *parent);
 	virtual ~PaletteWindow();
 	
 	public:
-	virtual bool QuitRequested (void);
+	virtual bool QuitRequested();
 	virtual void MessageReceived (BMessage *message);
 	
 	private:
-	PaletteView *fPaletteView;
-	PretendoWindow *fParent;
+	PaletteView *fPaletteView = nullptr;
+	PretendoWindow *fParent = nullptr;
 };
 
 

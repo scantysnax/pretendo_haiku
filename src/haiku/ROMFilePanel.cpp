@@ -1,19 +1,17 @@
 
-#include	"ROMFilePanel.h"
+#include "ROMFilePanel.h"
 
-ROMFilePanel::ROMFilePanel ()
+
+ROMFilePanel::ROMFilePanel()
 	: BFilePanel (B_OPEN_PANEL, NULL, NULL, 0, false, NULL, NULL, true, true)
 {
 	Window()->Lock();
 	
-	SetRefFilter (new ROMFilter);
+	SetRefFilter(new ROMFilter);
 	
 	// FIXME: hack.
-	//SetPanelDirectory ("/void/roms/nes");
-	//SetPanelDirectory ("/the dump/roms/nes");
-	SetPanelDirectory ("/pretendo/roms");
-	//fTempCart = new NESCart;
-	
+	SetPanelDirectory("/boot/home/roms/NES/us");
+
 	Customize();
 	
 	Window()->Unlock();
@@ -22,11 +20,12 @@ ROMFilePanel::ROMFilePanel ()
 
 ROMFilePanel::~ROMFilePanel()
 {
+	
 }
 
 
 void
-ROMFilePanel::Customize (void)
+ROMFilePanel::Customize()
 {
 	
 	BWindow *window = this->Window();
@@ -38,15 +37,16 @@ ROMFilePanel::Customize (void)
 	BView	*vscr = view->FindView ("VScrollBar");
 	*/
 
-	window->SetTitle ("Pretendo: Choose a ROM Image...");
-	SetButtonLabel (B_DEFAULT_BUTTON, "Load");
+	window->SetTitle("Pretendo: Choose a ROM Image" B_UTF8_ELLIPSIS);
+	SetButtonLabel(B_DEFAULT_BUTTON, "Load");
 }
 
 
 void
-ROMFilePanel::SelectionChanged (void)
+ROMFilePanel::SelectionChanged()
 {
 	BFilePanel::SelectionChanged();
+	
 	#if 0
 	entry_ref	ref;
 	

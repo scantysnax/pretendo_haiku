@@ -2,9 +2,8 @@
 #ifndef _PRETENDO_VIEW_H_
 #define _PRETENDO_VIEW_H_
 
-#include <View.h>
-
 #include "PretendoWindow.h"
+
 
 class PretendoView : public BView
 {
@@ -16,7 +15,7 @@ class PretendoView : public BView
 	virtual void MessageReceived (BMessage *message);
 
 	private:
-	PretendoWindow *fParent;	
+	PretendoWindow *fParent = nullptr;	
 };
 
 #endif // _PRETENDO_VIEW_H_

@@ -31,6 +31,7 @@
 #include "asm/blitters.h"
 #include "asm/copies.h"
 
+
 // messages
 constexpr uint32 MSG_ROM_LOADED =	'LOAD';
 constexpr uint32 MSG_SHOW_OPEN =	'OPEN';
@@ -262,6 +263,7 @@ class PretendoWindow : public BDirectWindow
 	Mutex const *fMutex = nullptr;
 	bool LockMutex() const	 { return fMutex->Lock();	}
 	bool UnlockMutex() const { return fMutex->Unlock();	}
+	
 };
 				
 #endif // _PRETENDO_WINDOW_H_

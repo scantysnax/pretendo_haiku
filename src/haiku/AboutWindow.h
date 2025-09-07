@@ -4,9 +4,14 @@
 
 #include <Window.h>
 #include <Bitmap.h>
-#include <Screen.h>
-#include <View.h>
 #include <Button.h>
+#include <Roster.h>
+#include <String.h>
+#include <TranslationUtils.h>
+#include <TextView.h>
+
+#include "LinkView.h"
+#include "version.h"
 
 
 class AboutView : public BView
@@ -16,7 +21,7 @@ class AboutView : public BView
 	virtual ~AboutView();
 	
 	public:
-	virtual void AttachedToWindow (void);
+	virtual void AttachedToWindow();
 	virtual void Draw (BRect updateRect);
 	
 	private:
@@ -32,7 +37,7 @@ class AboutWindow : public BWindow
 	virtual ~AboutWindow();
 	
 	public:
-	virtual bool QuitRequested (void);
+	virtual bool QuitRequested();
 	virtual void MessageReceived (BMessage *message);
 	
 	private:

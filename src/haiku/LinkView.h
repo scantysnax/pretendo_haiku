@@ -5,25 +5,26 @@
 #include <StringView.h>
 #include <Cursor.h>
 #include <Roster.h>
-#include <Alert.h>
+#include <Application.h>
+
 
 class LinkView : public BStringView
 {
 	public:
-	LinkView (BRect frame, const char *text, const char *link);
+	LinkView (BRect frame, char const  *text, char const *link);
 	~LinkView();
 	
 	public:
-	virtual void AttachedToWindow (void);
+	virtual void AttachedToWindow();
 	virtual void Draw (BRect updateRect);
 	virtual void MouseUp (BPoint point);
 	virtual void MouseDown (BPoint point);
 	virtual void MouseMoved (BPoint point, uint32 transit, const BMessage *message);
 	
 	private:
-	const char *fText;
-	const char *fLink;
-	BCursor *fLinkCursor;
+	char const *fText = nullptr;
+	char const *fLink = nullptr;
+	BCursor *fLinkCursor = nullptr;
 };
 
 #endif // _LINKVIEW_H_

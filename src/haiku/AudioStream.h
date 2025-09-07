@@ -3,11 +3,9 @@
 #define _AUDIO_STREAM_H_
 
 #include <SoundPlayer.h>
-
 #include <cstring>
 
 #include "Mutex.h"
-
 #include "asm/copies.h"
 
 

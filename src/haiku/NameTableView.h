@@ -5,6 +5,9 @@
 #include <View.h>
 #include <Bitmap.h>
 
+#include "Cart.h"
+#include "Nes.h"
+
 
 constexpr int32 kNameTableWidth = 32*8;
 constexpr int32 kNameTableHeight = 30*8;

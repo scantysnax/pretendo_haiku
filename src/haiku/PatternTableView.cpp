@@ -1,14 +1,11 @@
 
 #include "PatternTableView.h"
 
-#include "Cart.h"
-#include "Nes.h"
-
 
 PatternTableView::PatternTableView (BRect frame, int32 which)
-	: BView (frame, "pattern_table", B_FOLLOW_ALL_SIDES, B_WILL_DRAW|B_PULSE_NEEDED),
-	fWhichPatternTable(which)
+	: BView (frame, "pattern_table", B_FOLLOW_ALL_SIDES, B_WILL_DRAW|B_PULSE_NEEDED)
 {
+	fWhichPatternTable = which;
 	
 }
 
@@ -23,10 +20,10 @@ void
 PatternTableView::AttachedToWindow()
 {
 	fBitmap = new BBitmap(BRect(0, 0,kPatternTableWidth-1, 
-							kPatternTableHeight-1), B_CMAP8);
-	fBits = (uint8 *)fBitmap->Bits();
+					kPatternTableHeight-1), B_CMAP8);
+	fBits = reinterpret_cast<uint8 *>(fBitmap->Bits());
 	fRowBytes = fBitmap->BytesPerRow();
-	memset (fBits, 0x0, fBitmap->BitsLength());	
+	memset(fBits, 0x0, fBitmap->BitsLength());	
 	
 	fPopUpMenu = new BPopUpMenu("Tile Size");
 	BMenuItem *tile8x8 = new  BMenuItem("8x8", new BMessage('8x8 '));
@@ -61,13 +58,13 @@ PatternTableView::MessageReceived (BMessage *message)
 	switch (message->what) {
 		case '8x8 ':
 			fViewMode = 0;
-			memset (fBits, 0x0, fBitmap->BitsLength());
+			memset(fBits, 0x0, fBitmap->BitsLength());
 			Invalidate();
 			break;
 		
 		case '8x16':
 			fViewMode = 1;
-			memset (fBits, 0x0, fBitmap->BitsLength());
+			memset(fBits, 0x0, fBitmap->BitsLength());
 			Invalidate();
 			break;
 	}

@@ -19,14 +19,14 @@ class VideoScreen : public BWindowScreen
 	
 	public:
 	virtual void MessageReceived (BMessage *message);
-	virtual	bool QuitRequested (void);
+	virtual	bool QuitRequested();
 	virtual void ScreenConnected (bool connected);
 	
 	public:
-	bool Connected (void) const 	{ return fConnected; 	};
-	uint8 *Bits (void) const 		{ return fBits; 		};
-	int32 RowBytes (void) const 	{ return fRowBytes; 	};
-	int32 PixelWidth (void) const 	{ return fPixelWidth; 	};
+	bool Connected() const 		{ return fConnected; 	}
+	uint8 *Bits() const 		{ return fBits; 		}
+	int32 RowBytes() const 		{ return fRowBytes; 	}
+	int32 PixelWidth() const 	{ return fPixelWidth; 	}
 	
 	private:
 	PretendoWindow *fOwner = nullptr;

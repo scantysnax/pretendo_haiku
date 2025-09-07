@@ -7,6 +7,9 @@
 #include <PopUpMenu.h>
 #include <MenuItem.h>
 
+#include "Cart.h"
+#include "Nes.h"
+
 
 constexpr int32 kPatternTableWidth = 128;
 constexpr int32 kPatternTableHeight = 128;
@@ -22,7 +25,7 @@ class PatternTableView : public BView
 	virtual void AttachedToWindow();
 	virtual void Draw (BRect updateRect);
 	virtual void MessageReceived (BMessage *message);
-	virtual void MouseDown(BPoint point);
+	virtual void MouseDown (BPoint point);
 	virtual void Pulse();
 	
 	private:

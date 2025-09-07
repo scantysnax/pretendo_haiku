@@ -43,16 +43,16 @@ PretendoWindow::PretendoWindow()
 	void *bitsArea;
 	void *dirtyArea;
 	
-	fBitsArea = create_area ("pretendo_frame_buffer", &bitsArea, B_ANY_ADDRESS,
+	fBitsArea = create_area("pretendo_frame_buffer", &bitsArea, B_ANY_ADDRESS,
 					((SCREEN_WIDTH * 2) * (SCREEN_HEIGHT * 2) * 4 + B_PAGE_SIZE-1) & 
 					((uint32)-1 ^ (B_PAGE_SIZE-1)), B_NO_LOCK, B_READ_AREA | B_WRITE_AREA);
 					
-	fDirtyArea = create_area ("pretendo_dirty_buffer", &dirtyArea, B_ANY_ADDRESS,
+	fDirtyArea = create_area("pretendo_dirty_buffer", &dirtyArea, B_ANY_ADDRESS,
 					((SCREEN_WIDTH * 2) * (SCREEN_HEIGHT * 2) * 4 + B_PAGE_SIZE-1) & 
 					((uint32)-1 ^ (B_PAGE_SIZE-1)), B_NO_LOCK, B_READ_AREA | B_WRITE_AREA);
 					
 	if (fBitsArea < B_OK || fDirtyArea < B_OK) {
-		(new BAlert ("Error", "Can't allocate video buffers.  Quitting.",
+		(new BAlert("Error", "Can't allocate video buffers.  Quitting.",
 			"Sorry", nullptr, nullptr, B_WIDTH_AS_USUAL, B_STOP_ALERT))->Go();
 		be_app->PostMessage(B_QUIT_REQUESTED);
 	} else {
@@ -64,29 +64,29 @@ PretendoWindow::PretendoWindow()
 	}
 	
 	// setup BBitmap.  keep it contiguous in memory
-	fBitmap = new BBitmap (BRect (0, 0, SCREEN_WIDTH-1, SCREEN_HEIGHT-1), B_CMAP8, false, true);
+	fBitmap = new BBitmap(BRect(0, 0, SCREEN_WIDTH-1, SCREEN_HEIGHT-1), B_CMAP8, false, true);
 	
 	if (! fBitmap || ! fBitmap->IsValid()) {
-		(new BAlert ("Error", "Can't create video bitmap.  Quitting.","Sorry", 
+		(new BAlert("Error", "Can't create video bitmap.  Quitting.","Sorry", 
 					nullptr, nullptr, B_WIDTH_AS_USUAL, B_STOP_ALERT))->Go();
 		be_app->PostMessage(B_QUIT_REQUESTED);
 	} else {
 		fBitmapBits = reinterpret_cast<uint8 *>(fBitmap->Bits());
-		ClearBitmap (false);
+		ClearBitmap(false);
 	}
 
 	// setup a BBitmap for overlay framework (checks for overlay support inherently)
 	// this will always fail until we get hardware accelerated video
 	bool overlayOK = false;
 
-	bounds.Set (0, 0, SCREEN_WIDTH-1, SCREEN_HEIGHT-1);
-	fOverlayBitmap = new BBitmap (bounds, B_BITMAP_WILL_OVERLAY, B_YCbCr422);
+	bounds.Set(0, 0, SCREEN_WIDTH-1, SCREEN_HEIGHT-1);
+	fOverlayBitmap = new BBitmap(bounds, B_BITMAP_WILL_OVERLAY, B_YCbCr422);
 	overlayOK = fOverlayBitmap && fOverlayBitmap->IsValid();
 
 	if (overlayOK) {
 		fVideoMenu->ItemAt(2)->SetEnabled(true);
 		fOverlayBits = reinterpret_cast<uint8 *>(fOverlayBitmap->Bits());
-		ClearBitmap (true);
+		ClearBitmap(true);
 	} else {
 		fOverlayBits = nullptr;
 		if (fOverlayBitmap) {
@@ -126,7 +126,7 @@ PretendoWindow::PretendoWindow()
 	// we can't change to full screen yet
 	fVideoMenu->ItemAt(VF_FULLSCREEN)->SetEnabled(false);
 	
-	memset(&fKeyStates, 0, sizeof(key_info));
+	memset(&fKeyStates, 0, sizeof (key_info));
 	fOpenPanel = new ROMFilePanel;
 	
 	// sound
@@ -189,8 +189,8 @@ PretendoWindow::~PretendoWindow()
 		delete fOverlayBitmap;
 	}
 	
-	delete_area (fBitsArea);
-	delete_area (fDirtyArea);
+	delete_area(fBitsArea);
+	delete_area(fDirtyArea);
 
 	fAudioStream->Stop();
 	delete fAudioStream;
@@ -253,7 +253,7 @@ PretendoWindow::DirectConnected (direct_buffer_info *info)
 			fClipInfo.bounds.top += fMenuHeight + 1;
 	
 			if (fFramework == VF_DIRECT) {
-				SetFrontBuffer (reinterpret_cast<uint8 *>(info->bits)
+				SetFrontBuffer(reinterpret_cast<uint8 *>(info->bits)
 					+ (fClipInfo.bounds.top * info->bytes_per_row), info->pixel_format,
 					info->bits_per_pixel / 8, info->bytes_per_row);
 			}
@@ -470,10 +470,10 @@ PretendoWindow::Zoom (BPoint origin, float width, float height)
 	float const w = Bounds().Width();
 			
 	if (w == SCREEN_WIDTH) {
-		ResizeTo ((SCREEN_WIDTH*2), (SCREEN_HEIGHT*2));
+		ResizeTo((SCREEN_WIDTH*2), (SCREEN_HEIGHT*2));
 		fDoubled = true;
 	} else if (w == SCREEN_WIDTH*2) {
-		ResizeTo (SCREEN_WIDTH, SCREEN_HEIGHT);
+		ResizeTo(SCREEN_WIDTH, SCREEN_HEIGHT);
 		fDoubled = false;
 	} 
 	
@@ -484,41 +484,41 @@ PretendoWindow::Zoom (BPoint origin, float width, float height)
 void
 PretendoWindow::AddMenu()
 {
-	fMenu = new BMenuBar (BRect (0, 0, 0, 0), "pretendo_menu");
+	fMenu = new BMenuBar(BRect(0, 0, 0, 0), "pretendo_menu");
 	fMenu->ResizeToPreferred();
-	AddChild (fMenu);
+	AddChild(fMenu);
 	
-	fFileMenu = new BMenu ("File");
-	fMenu->AddItem (fFileMenu);
+	fFileMenu = new BMenu("File");
+	fMenu->AddItem(fFileMenu);
 	
-	fEmuMenu = new BMenu ("Emulator");
-	fMenu->AddItem (fEmuMenu);
+	fEmuMenu = new BMenu("Emulator");
+	fMenu->AddItem(fEmuMenu);
 	
-	fToolMenu = new BMenu ("Tools");
-	fMenu->AddItem (fToolMenu);
+	fToolMenu = new BMenu("Tools");
+	fMenu->AddItem(fToolMenu);
 
-	fFileMenu->AddItem (new BMenuItem ("Free ROM", new BMessage (MSG_FREE_ROM)));
+	fFileMenu->AddItem(new BMenuItem("Free ROM", new BMessage(MSG_FREE_ROM)));
 	fFileMenu->AddItem(new BMenuItem("ROM Info", new BMessage(MSG_ROM_INFO)));
 	fFileMenu->AddSeparatorItem();
-	fFileMenu->AddItem (new BMenuItem ("About" B_UTF8_ELLIPSIS, new BMessage(MSG_ABOUT)));
+	fFileMenu->AddItem (new BMenuItem("About" B_UTF8_ELLIPSIS, new BMessage(MSG_ABOUT)));
 	fFileMenu->AddSeparatorItem();
-	fFileMenu->AddItem (new BMenuItem ("Quit", new BMessage (MSG_QUIT)));
+	fFileMenu->AddItem(new BMenuItem("Quit", new BMessage(MSG_QUIT)));
 	
-	fEmuMenu->AddItem (new BMenuItem ("Start", new BMessage (MSG_CPU_RUN)));
-	fEmuMenu->AddItem (new BMenuItem ("Pause", new BMessage (MSG_CPU_PAUSE)));
-	fEmuMenu->AddItem (new BMenuItem ("Stop", new BMessage (MSG_CPU_STOP)));
+	fEmuMenu->AddItem(new BMenuItem("Start", new BMessage(MSG_CPU_RUN)));
+	fEmuMenu->AddItem(new BMenuItem("Pause", new BMessage(MSG_CPU_PAUSE)));
+	fEmuMenu->AddItem(new BMenuItem("Stop", new BMessage(MSG_CPU_STOP)));
 	fEmuMenu->AddSeparatorItem();
-	fEmuMenu->AddItem (new BMenuItem ("Reset (soft)", new BMessage (MSG_RST_SOFT)));
-	fEmuMenu->AddItem (new BMenuItem ("Reset (hard)", new BMessage (MSG_RST_HARD)));
+	fEmuMenu->AddItem(new BMenuItem("Reset (soft)", new BMessage(MSG_RST_SOFT)));
+	fEmuMenu->AddItem(new BMenuItem("Reset (hard)", new BMessage(MSG_RST_HARD)));
 	fEmuMenu->AddSeparatorItem();
 	
 	fVideoMenu = new BMenu("Video");
 	fEmuMenu->AddItem(fVideoMenu);
-	fVideoMenu->AddItem(new BMenuItem ("None", new BMessage (MSG_CHANGE_RENDER)));
-	fVideoMenu->AddItem(new BMenuItem ("Bitmap", new BMessage(MSG_CHANGE_RENDER)));
-	fVideoMenu->AddItem(new BMenuItem ("Overlay", new BMessage(MSG_CHANGE_RENDER)));
-	fVideoMenu->AddItem(new BMenuItem ("DirectWindow", new BMessage(MSG_CHANGE_RENDER)));
-	fVideoMenu->AddItem(new BMenuItem ("WindowScreen", new BMessage(MSG_CHANGE_RENDER), 'F'));
+	fVideoMenu->AddItem(new BMenuItem("None", new BMessage (MSG_CHANGE_RENDER)));
+	fVideoMenu->AddItem(new BMenuItem("Bitmap", new BMessage(MSG_CHANGE_RENDER)));
+	fVideoMenu->AddItem(new BMenuItem("Overlay", new BMessage(MSG_CHANGE_RENDER)));
+	fVideoMenu->AddItem(new BMenuItem("DirectWindow", new BMessage(MSG_CHANGE_RENDER)));
+	fVideoMenu->AddItem(new BMenuItem("WindowScreen", new BMessage(MSG_CHANGE_RENDER), 'F'));
 	fVideoMenu->SetRadioMode(true);
 	fEmuMenu->AddItem(new BMenuItem("Input" B_UTF8_ELLIPSIS, new BMessage(MSG_CFG_INPUT)));
 	
@@ -536,7 +536,7 @@ PretendoWindow::AddMenu()
 	fToolMenu->AddItem(fNameTableMenu);
 
 	fMenuHeight = fMenu->Bounds().IntegerHeight();
-	
+		
 	SetKeyMenuBar(fMenu);
 }
 
@@ -549,7 +549,7 @@ PretendoWindow::OnLoadROM (BMessage *message)
 	if (message->FindString ("rom_path", &path) == B_OK) {
 		OnFreeROM();
 		if (nes::cart.load(path.String()) == false) {
-			(new BAlert("Error", "Error. Invalid ROM Image.", "Okay", nullptr, nullptr,
+			(new BAlert("Error", "Error.  Invalid ROM Image.", "Okay", nullptr, nullptr,
 				B_WIDTH_AS_USUAL, B_STOP_ALERT))->Go();
 			return;
 		}
@@ -962,7 +962,7 @@ PretendoWindow::SetFrontBuffer (uint8 *bits, color_space cs, int32 pixel_width, 
 	}
 	
 	// choose appropriate line renderer
-	SetRenderer (cs);
+	SetRenderer(cs);
 }
 
 
@@ -988,11 +988,11 @@ PretendoWindow::ChangeFramework (video_framework fw)
 			break;
 			
 		case VF_BITMAP:
-			ClearBitmap (false);
+			ClearBitmap(false);
 			break;
 			
 		case VF_OVERLAY:
-			ClearBitmap (true);
+			ClearBitmap(true);
 			fView->ClearViewOverlay();
 			fView->SetViewColor(0, 0, 0);
 			fView->Invalidate();
@@ -1015,18 +1015,18 @@ PretendoWindow::ChangeFramework (video_framework fw)
 			SetFrontBuffer(fBitmapBits, B_CMAP8, 4, fBitmap->BytesPerRow());
 			
 			// force a screen update in case we are coming from WindowScreen
-			ClearBitmap (false);
+			ClearBitmap(false);
 			ClearDirty();
 			break;
 			
 		case VF_OVERLAY:
 			rgb_color key;
-			SetFrontBuffer (fOverlayBits, B_RGB16, 2, fOverlayBitmap->BytesPerRow());
-			ClearBitmap (true);
+			SetFrontBuffer(fOverlayBits, B_RGB16, 2, fOverlayBitmap->BytesPerRow());
+			ClearBitmap(true);
 			fView->SetViewOverlay (fOverlayBitmap, fOverlayBitmap->Bounds(), 
 				fView->Bounds(), &key, B_FOLLOW_ALL, B_OVERLAY_FILTER_HORIZONTAL 
 				| B_OVERLAY_FILTER_VERTICAL);
-			fView->SetViewColor (key);
+			fView->SetViewColor(key);
 			fView->Invalidate();
 			break;
 			
@@ -1034,14 +1034,14 @@ PretendoWindow::ChangeFramework (video_framework fw)
 			// front buffer *must* be set in DirectConnected(), not here.
 			Hide();
 			Show();
-			SetRenderer (BScreen().ColorSpace());
+			SetRenderer(BScreen().ColorSpace());
 			break;
 			
 		case VF_FULLSCREEN:
 			fVideoScreen = new VideoScreen (this);
 			fVideoScreen->Show();
 			snooze (1000000); 	// wait a little while for the screen to connect
-			SetFrontBuffer (fVideoScreen->Bits(), B_CMAP8, 
+			SetFrontBuffer(fVideoScreen->Bits(), B_CMAP8, 
 							fVideoScreen->PixelWidth() / 2, fVideoScreen->RowBytes());
 			fFullScreen = true;
 			break;
@@ -1278,7 +1278,7 @@ PretendoWindow::set_palette(const color_emphasis_t *intensity, const rgb_color_t
 			c.green = (pal[j].g * intensity[i].g);
 			c.blue  = (pal[j].b * intensity[i].b);
 			
-			fPalette8[i][j] = BScreen().IndexForColor (c.red, c.green, c.blue);
+			fPalette8[i][j] = BScreen().IndexForColor(c.red, c.green, c.blue);
 						
 			fPalette16[i][j] = ((c.red & 0xf8) << 8);
 			fPalette16[i][j] |= ((c.green & 0xfc) << 3);  
@@ -1378,6 +1378,7 @@ PretendoWindow::CheckKey (int32 index, int32 key) const
 	nes::input::controller1.keystate_[index] = 
 		fKeyStates.key_states[key >> 3] & (1 << (7 - (key % 8)));
 }
+
 
 inline void
 PretendoWindow::ReadKeyStates()
