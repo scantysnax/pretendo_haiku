@@ -29,10 +29,10 @@ class ROMInfoView : public BOutlineListView
 	
 	public:
 	virtual void AttachedToWindow();
-	virtual void Draw (BRect frame);
+	virtual void Draw (BRect updateRect);
 	
 	private:
-	void PrintInfo (rom_match *rom);
+	void DrawROMInfo (rom_match *rom);
 	rom_match_t *ProcessDatabase (xmlNodePtr root, const xmlChar *search_key, 
 									const xmlChar *search_value);
 	xmlNodePtr ProcessGame (xmlNodePtr game, const xmlChar *search_key, 

@@ -23,16 +23,13 @@ ROMInfoView::~ROMInfoView()
 void
 ROMInfoView::AttachedToWindow()
 {	
-	SetFont(be_fixed_font);
-	SetViewColor(216, 216, 216);
-	SetFontSize(11.0f);
-	
 	app_info ai;
 	be_app->GetAppInfo(&ai);
 	entry_ref ref = ai.ref;
 	BPath path(&ref);
 	path.GetParent(&path);
 	path.Append("nescarts.xml");
+
 	
 	std::vector<uint8_t> image = nes::cart.raw_image();
 	hash::sha1 h(image.begin(), image.end());
@@ -51,7 +48,7 @@ ROMInfoView::AttachedToWindow()
 					reinterpret_cast<const xmlChar *>("sha1"), 
 					reinterpret_cast<const xmlChar *>(sha1.c_str()))) {
 					// goto work!
-					PrintInfo(rom);
+					DrawROMInfo(rom);
 				} else {
 					(new BAlert(0, "Couldn't find a match.", "Sorry"))->Go();
 				}
@@ -63,6 +60,10 @@ ROMInfoView::AttachedToWindow()
 		
 	xmlFreeDoc(file);
 	xmlCleanupParser();	
+	
+	SetFont(be_fixed_font);
+	SetViewColor(ui_color(B_PANEL_BACKGROUND_COLOR));
+	SetFontSize(11.0f);
 	
 	BOutlineListView::AttachedToWindow();
 }
@@ -136,7 +137,7 @@ ROMInfoView::ProcessDatabase(xmlNodePtr root, const xmlChar *search_key, const x
 // Desc: prints the info associated with a given game/cart
 //------------------------------------------------------------------------------
 void
-ROMInfoView::PrintInfo(rom_match *rom)
+ROMInfoView::DrawROMInfo(rom_match *rom)
 {	
 	char buffer[1024];
 	BListItem *gameInfo = new BStringItem("Game Info");

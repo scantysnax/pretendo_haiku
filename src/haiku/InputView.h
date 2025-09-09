@@ -2,7 +2,6 @@
 #ifndef _INPUT_VIEW_H_
 #define _INPUT_VIEW_H_
 
-
 #include <Bitmap.h>
 #include <TextView.h>
 #include <TranslationUtils.h>
@@ -51,6 +50,7 @@ class ButtonTextView : public BTextView
 	public:
 	virtual void AttachedToWindow();
 	virtual void Draw (BRect updateRect);
+	virtual void KeyDown (const char *bytes, int32 numBytes);
 	
 	private:
 	
