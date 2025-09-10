@@ -121,12 +121,12 @@ CPP_FILES := \
 	src/haiku/InputWindow.cpp \
 	src/haiku/LinkView.cpp \
 	src/haiku/Mutex.cpp \
+	src/haiku/NameTableView.cpp \
 	src/haiku/NameTableWindow.cpp \
-	src/haiku/NameTableView.cpp\
-	src/haiku/PaletteWindow.cpp \
 	src/haiku/PaletteView.cpp \
-	src/haiku/PatternTableWindow.cpp \
+	src/haiku/PaletteWindow.cpp \
 	src/haiku/PatternTableView.cpp \
+	src/haiku/PatternTableWindow.cpp \
 	src/haiku/PretendoApp.cpp \
 	src/haiku/PretendoView.cpp \
 	src/haiku/PretendoWindow.cpp \

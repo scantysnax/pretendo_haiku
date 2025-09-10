@@ -6,8 +6,6 @@ PretendoApp::PretendoApp()
 	: BApplication("application/x-vnd.scantysnax-Pretendo") 
 {
 	fWindow = new PretendoWindow;
-	
-	(new BAlert(0, __PRETTY_FUNCTION__, "Okay"))->Go();
 }
 
 
@@ -21,9 +19,7 @@ void
 PretendoApp::ReadyToRun()
 {	
 	fWindow->Show();
-	
-	(new BAlert(0, __PRETTY_FUNCTION__, "Okay"))->Go();
-	
+		
 	BApplication::ReadyToRun();
 }
 
@@ -40,8 +36,6 @@ PretendoApp::AboutRequested()
 void
 PretendoApp::RefsReceived (BMessage *message)
 {	
-	(new BAlert(0, __PRETTY_FUNCTION__, "Okay"))->Go();
-	
 	entry_ref ref;
 		
 	if (message->FindRef("refs", 0, &ref) == B_OK) {
@@ -64,7 +58,6 @@ void
 PretendoApp::ArgvReceived (int32 argc, char **argv)
 {	
 	if (argv[1] != nullptr) {
-		(new BAlert(0, __PRETTY_FUNCTION__, "Okay"))->Go();
 		BMessage msg(MSG_ROM_LOADED);
 		
 		msg.AddString("rom_path", argv[1]);
