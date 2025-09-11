@@ -103,8 +103,28 @@ AboutView::AttachedToWindow()
 			   		"trademarks of " "Nintendo Co., Ltd\n\n";
 
 	textview->SetText(aboutText.String());
-	//textview->SetViewColor(0, 255, 255);
+	textview->SetViewColor(0, 255, 255);
 	AddChild(textview);
+	
+	/*
+	BRect r;	
+	r.Set(53, 225, 53+105, 238);
+	fAboutView->AddChild(new LinkView(r, 
+		"Pretendo on GitHub", 
+		"https://github.com/eteran/pretendo"));
+	
+	
+	r.Set(53, 243, 53+75, 256);
+	fAboutView->AddChild(new LinkView(r,
+		"Evan's website", 
+		"http://www.codef00.com"));
+	
+
+	r.Set(53, 261, 53+63, 274);	
+	fAboutView->AddChild(new LinkView(r,
+		"Eli's website", 
+		"http://www.pathtoground.org/"));
+	*/
 	
 	BButton *button = new BButton(r, "okay_button", "Okay ", new BMessage ('OKAY'));
 	button->ResizeToPreferred();
