@@ -100,7 +100,7 @@ AboutView::AttachedToWindow()
 			  << "Built with: gcc " << __GNUC__ << "." << __GNUC_MINOR__ << "."
 			  << __GNUC_PATCHLEVEL__ << "\n" 
 			  << "\n\"Nintendo\" and \"Nintendo Entertainment System\" are registered "
-			   		"trademarks of " "Nintendo Co., Ltd.\n\n";
+			   		"trademarks of " "Nintendo Co., Ltd\n\n";
 
 	textview->SetText(aboutText.String());
 	textview->SetViewColor(0, 255, 255);
@@ -109,7 +109,7 @@ AboutView::AttachedToWindow()
 	/*
 	BRect r;	
 	r.Set(53, 225, 53+105, 238);
-	fAboutView->AddChild(new LinkView(r, 
+	fAboutView->AddChild(new LinkView(r,
 		"Pretendo on GitHub", 
 		"https://github.com/eteran/pretendo"));
 	
