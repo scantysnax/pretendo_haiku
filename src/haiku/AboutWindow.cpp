@@ -7,12 +7,13 @@ AboutWindow::AboutWindow()
 		B_NOT_CLOSABLE | B_NOT_RESIZABLE)
 {
 
-	ResizeTo(340, 360);
+	ResizeTo(340, 460);
 	CenterOnScreen();
 	
 	fAboutView = new AboutView(Bounds());
 	AddChild(fAboutView);
 	
+	/*
 	BRect r;	
 	r.Set(53, 225, 53+105, 238);
 	fAboutView->AddChild(new LinkView(r, 
@@ -30,6 +31,7 @@ AboutWindow::AboutWindow()
 	fAboutView->AddChild(new LinkView(r,
 		"Eli's website", 
 		"http://www.pathtoground.org/"));	
+	*/
 }
 
 
@@ -78,13 +80,13 @@ AboutView::AttachedToWindow()
 	SetViewColor(ui_color(B_PANEL_BACKGROUND_COLOR));
 	
 	BRect r;
-	r.Set(53, 60, Frame().Width()-8, 220);
-	BTextView *textview = new BTextView(r, "_textview", 
+	r.Set(53, 60, Frame().Width()-8, 260);
+	BTextView *textview = new BTextView(r, "text_view", 
 		BRect(3, 3, r.Width() - 3, r.Height() - 3), 
 		B_FOLLOW_ALL, B_WILL_DRAW);
 		
 	BFont f = be_plain_font;
-	f.SetSize(11.0f);
+	f.SetSize(12.0f);
 	textview->SetViewColor(ui_color(B_PANEL_BACKGROUND_COLOR));
 	textview->SetFontAndColor(&f);	
 	textview->MakeEditable(false);
@@ -100,15 +102,17 @@ AboutView::AttachedToWindow()
 			  << "\n\"Nintendo\" and \"Nintendo Entertainment System\" are registered "
 			   		"trademarks of " "Nintendo Co., Ltd\n\n";
 
-
 	textview->SetText(aboutText.String());
+	//textview->SetViewColor(0, 255, 255);
 	AddChild(textview);
 	
-	BButton *button = new BButton(r, "_okay", "Okay ", new BMessage ('OKAY'));
+	BButton *button = new BButton(r, "okay_button", "Okay ", new BMessage ('OKAY'));
 	button->ResizeToPreferred();
 	button->MakeDefault(true);
 	button->MoveTo((Frame().Width() - button->Frame().Width()) / 2, 300);
 	AddChild(button);
+	
+	//(new BAlert(0, aboutText.String(), "Okay"))->Go();
 
 	BView::AttachedToWindow();
 }
