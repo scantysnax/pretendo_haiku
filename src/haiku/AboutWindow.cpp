@@ -15,11 +15,10 @@ AboutWindow::AboutWindow()
 	
 	/*
 	BRect r;	
-	r.Set(53, 225, 53+105, 238);
+	r.Set(53, 325, 53+105, 358);
 	fAboutView->AddChild(new LinkView(r, 
 		"Pretendo on GitHub", 
 		"https://github.com/eteran/pretendo"));
-	
 	
 	r.Set(53, 243, 53+75, 256);
 	fAboutView->AddChild(new LinkView(r,
@@ -103,17 +102,16 @@ AboutView::AttachedToWindow()
 			   		"trademarks of " "Nintendo Co., Ltd\n\n";
 
 	textview->SetText(aboutText.String());
-	textview->SetViewColor(0, 255, 255);
+	textview->SetViewColor(ui_color(B_PANEL_BACKGROUND_COLOR));
 	AddChild(textview);
 	
-	/*
-	BRect r;	
-	r.Set(53, 225, 53+105, 238);
-	fAboutView->AddChild(new LinkView(r,
+		
+	r.Set(53, (textview->Bounds().bottom+80), 53+110, textview->Bounds().bottom+94);
+	AddChild(new LinkView(r,
 		"Pretendo on GitHub", 
 		"https://github.com/eteran/pretendo"));
 	
-	
+	/*
 	r.Set(53, 243, 53+75, 256);
 	fAboutView->AddChild(new LinkView(r,
 		"Evan's website", 
@@ -129,7 +127,7 @@ AboutView::AttachedToWindow()
 	BButton *button = new BButton(r, "okay_button", "Okay ", new BMessage ('OKAY'));
 	button->ResizeToPreferred();
 	button->MakeDefault(true);
-	button->MoveTo((Frame().Width() - button->Frame().Width()) / 2, 300);
+	button->MoveTo((Frame().Width() - button->Frame().Width()) / 2, 400);
 	AddChild(button);
 	
 	//(new BAlert(0, aboutText.String(), "Okay"))->Go();

@@ -36,7 +36,7 @@ LinkView::AttachedToWindow (void)
 {
 	SetViewColor(0,0,0);
 	SetHighColor(0, 0, 255);
-	SetFontSize(11.0f);
+	SetFontSize(12.0f);
 	
 	BStringView::AttachedToWindow();
 }
