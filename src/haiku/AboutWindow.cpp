@@ -107,7 +107,8 @@ AboutView::AttachedToWindow()
 		"Eli's website", 
 		"http://www.pathtoground.org/"));
 			
-	BButton *button = new BButton(r, "okay_button", "Okay ", new BMessage ('OKAY'));
+	BButton *button = new BButton(BRect(0,0,0,0), "okay_button", "Okay", 
+		new BMessage ('OKAY'));
 	button->ResizeToPreferred();
 	button->MakeDefault(true);
 	button->MoveTo((Frame().Width() - button->Frame().Width()) / 2, 360);
