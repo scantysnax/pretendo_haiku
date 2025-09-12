@@ -7,30 +7,11 @@ AboutWindow::AboutWindow()
 		B_NOT_CLOSABLE | B_NOT_RESIZABLE)
 {
 
-	ResizeTo(340, 460);
+	ResizeTo(340, 440);
 	CenterOnScreen();
 	
 	fAboutView = new AboutView(Bounds());
 	AddChild(fAboutView);
-	
-	/*
-	BRect r;	
-	r.Set(53, 325, 53+105, 358);
-	fAboutView->AddChild(new LinkView(r, 
-		"Pretendo on GitHub", 
-		"https://github.com/eteran/pretendo"));
-	
-	r.Set(53, 243, 53+75, 256);
-	fAboutView->AddChild(new LinkView(r,
-		"Evan's website", 
-		"http://www.codef00.com"));
-	
-
-	r.Set(53, 261, 53+63, 274);	
-	fAboutView->AddChild(new LinkView(r,
-		"Eli's website", 
-		"http://www.pathtoground.org/"));	
-	*/
 }
 
 
@@ -80,19 +61,19 @@ AboutView::AttachedToWindow()
 	
 	BRect r;
 	r.Set(53, 60, Frame().Width()-8, 260);
-	BTextView *textview = new BTextView(r, "text_view", 
+	BTextView *textView = new BTextView(r, "text_view", 
 		BRect(3, 3, r.Width() - 3, r.Height() - 3), 
 		B_FOLLOW_ALL, B_WILL_DRAW);
 		
 	BFont f = be_plain_font;
 	f.SetSize(12.0f);
-	textview->SetViewColor(ui_color(B_PANEL_BACKGROUND_COLOR));
-	textview->SetFontAndColor(&f);	
-	textview->MakeEditable(false);
-	textview->MakeSelectable(false);
+	textView->SetViewColor(ui_color(B_PANEL_BACKGROUND_COLOR));
+	textView->SetFontAndColor(&f);	
+	textView->MakeEditable(false);
+	textView->MakeSelectable(false);
 	
 	BString aboutText;
-	aboutText << "A freeware, multiplatform Nintendo NES emulator\n\n"
+	aboutText << "A freeware multiplatform Nintendo NES emulator\n\n"
 			  << "Version: " << __PRETENDO_VERSION__ << "\n"
 			  << "Written by: Evan Teran and Eli Dayan\n"
 			  << "Built on: " << __DATE__ << " " << __TIME__ << "\n"
@@ -101,36 +82,37 @@ AboutView::AttachedToWindow()
 			  << "\n\"Nintendo\" and \"Nintendo Entertainment System\" are registered "
 			   		"trademarks of " "Nintendo Co., Ltd\n\n";
 
-	textview->SetText(aboutText.String());
-	textview->SetViewColor(ui_color(B_PANEL_BACKGROUND_COLOR));
-	AddChild(textview);
+	textView->SetText(aboutText.String());
+	textView->SetViewColor(ui_color(B_PANEL_BACKGROUND_COLOR));
+	AddChild(textView);
 	
-		
-	r.Set(53, (textview->Bounds().bottom+80), 53+110, textview->Bounds().bottom+94);
+	int32 top = textView->Bounds().bottom + 70;
+	
+	r.Set(53, top, 53+148, top+18);
+	AddChild(new LinkView(r,
+		"Pretendo Haiku on GitHub", 
+		"https://github.com/scantysnax/pretendo_haiku/tree/haiku-port/"));	
+	
+	r.Set(53, top+24, 53+109, top+40);
 	AddChild(new LinkView(r,
 		"Pretendo on GitHub", 
 		"https://github.com/eteran/pretendo"));
 	
-	/*
-	r.Set(53, 243, 53+75, 256);
-	fAboutView->AddChild(new LinkView(r,
-		"Evan's website", 
-		"http://www.codef00.com"));
-	
-
-	r.Set(53, 261, 53+63, 274);	
-	fAboutView->AddChild(new LinkView(r,
+	r.Set(53, 312, 53+68, 330);
+	AddChild(new LinkView(r,
 		"Eli's website", 
 		"http://www.pathtoground.org/"));
-	*/
+
+	r.Set(53, 326, 53+82, 350);	
+	AddChild(new LinkView(r,
+		"Evan's website", 
+		"http://www.codef00.com"));
 	
 	BButton *button = new BButton(r, "okay_button", "Okay ", new BMessage ('OKAY'));
 	button->ResizeToPreferred();
 	button->MakeDefault(true);
-	button->MoveTo((Frame().Width() - button->Frame().Width()) / 2, 400);
+	button->MoveTo((Frame().Width() - button->Frame().Width()) / 2, 380);
 	AddChild(button);
-	
-	//(new BAlert(0, aboutText.String(), "Okay"))->Go();
 
 	BView::AttachedToWindow();
 }
