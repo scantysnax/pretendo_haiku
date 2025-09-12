@@ -76,7 +76,7 @@ ButtonTextView::AttachedToWindow()
 void
 ButtonTextView::Draw (BRect updateRect)
 {	
-	BTextView::Draw(updateRect);
+	BTextView::Draw (updateRect);
 }
 
 
