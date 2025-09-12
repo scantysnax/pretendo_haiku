@@ -95,7 +95,6 @@ AboutView::AttachedToWindow()
 		"Pretendo on GitHub",
 		"github.com/eteran/pretendo"));
 	
-	
 	r.Set(left, top+24, left+84, top+40);
 	AddChild(new LinkView(r,
 		"Evan's Website", 
