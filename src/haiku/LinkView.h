@@ -1,6 +1,6 @@
 
-#ifndef _LINKVIEW_H_
-#define _LINKVIEW_H_
+#ifndef _LINK_VIEW_H_
+#define _LINK_VIEW_H_
 
 #include <StringView.h>
 #include <Cursor.h>
@@ -27,4 +27,4 @@ class LinkView : public BStringView
 	BCursor *fLinkCursor = nullptr;
 };
 
-#endif // _LINKVIEW_H_
+#endif // _LINK_VIEW_H_

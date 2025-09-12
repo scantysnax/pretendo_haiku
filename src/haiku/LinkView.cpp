@@ -17,7 +17,7 @@ uint8 link_cursor[] = {
 };
 
 
-LinkView::LinkView (BRect frame, const char *text, const char *link)
+LinkView::LinkView (BRect frame, char const *text, char const *link)
 	: BStringView(frame, "_linkview", text, B_FOLLOW_ALL, B_WILL_DRAW)
 {
 	fText = text;
@@ -32,11 +32,16 @@ LinkView::~LinkView()
 
 
 void
-LinkView::AttachedToWindow (void)
-{
-	SetViewColor(0,0,0);
+LinkView::AttachedToWindow()
+{	
+	BFont f;
+	GetFont(&f);
+	f.SetSize(12.0f);
+	f.SetFace(B_UNDERSCORE_FACE);
+	SetFont(&f);
 	SetHighColor(0, 0, 255);
-	SetFontSize(12.0f);
+	
+	SetViewColor(255,255,255);
 	
 	BStringView::AttachedToWindow();
 }
@@ -47,7 +52,7 @@ LinkView::MouseUp (BPoint point)
 	SetHighColor(0x55, 0x1a, 0x8b);
 	BRect frame(Frame());
 	frame.OffsetTo(B_ORIGIN);
-	BStringView::Draw(frame);
+	Invalidate();
 	
 	be_roster->Launch("text/html", 1, const_cast<char **>(&fLink));
 	

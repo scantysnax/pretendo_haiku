@@ -7,7 +7,7 @@ AboutWindow::AboutWindow()
 		B_NOT_CLOSABLE | B_NOT_RESIZABLE)
 {
 
-	ResizeTo(340, 440);
+	ResizeTo(340, 420);
 	CenterOnScreen();
 	
 	fAboutView = new AboutView(Bounds());
@@ -87,31 +87,30 @@ AboutView::AttachedToWindow()
 	AddChild(textView);
 	
 	int32 top = textView->Bounds().bottom + 70;
+	int32 left = 53;
+	int32 bottom = top+16;
 	
-	r.Set(53, top, 53+148, top+18);
+	r.Set(left, top, left+112, bottom);
 	AddChild(new LinkView(r,
-		"Pretendo Haiku on GitHub", 
-		"https://github.com/scantysnax/pretendo_haiku/tree/haiku-port/"));	
+		"Pretendo on GitHub",
+		"github.com/eteran/pretendo"));
 	
-	r.Set(53, top+24, 53+109, top+40);
+	
+	r.Set(left, top+24, left+84, top+40);
 	AddChild(new LinkView(r,
-		"Pretendo on GitHub", 
-		"https://github.com/eteran/pretendo"));
+		"Evan's Website", 
+		"https://www.codef00.com/"));
 	
-	r.Set(53, 312, 53+68, 330);
+	top = r.bottom;//+24;
+	r.Set(left, r.bottom, 120, top+24);
 	AddChild(new LinkView(r,
 		"Eli's website", 
 		"http://www.pathtoground.org/"));
-
-	r.Set(53, 326, 53+82, 350);	
-	AddChild(new LinkView(r,
-		"Evan's website", 
-		"http://www.codef00.com"));
-	
+			
 	BButton *button = new BButton(r, "okay_button", "Okay ", new BMessage ('OKAY'));
 	button->ResizeToPreferred();
 	button->MakeDefault(true);
-	button->MoveTo((Frame().Width() - button->Frame().Width()) / 2, 380);
+	button->MoveTo((Frame().Width() - button->Frame().Width()) / 2, 360);
 	AddChild(button);
 
 	BView::AttachedToWindow();
