@@ -39,6 +39,10 @@ InputView::AttachedToWindow()
 	fRightView = new ButtonTextView(r);
 	AddChild(fRightView);
 	
+	r.Set(228, 204, 248, 228);
+	fSelectView = new ButtonTextView(r);
+	AddChild(fSelectView);
+	
 	
 	
 	BView::AttachedToWindow();
