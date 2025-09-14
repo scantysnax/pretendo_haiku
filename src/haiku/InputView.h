@@ -5,12 +5,17 @@
 #include <Bitmap.h>
 #include <TextView.h>
 #include <TranslationUtils.h>
+#include <View.h>
 
 
 constexpr int32 kControllerWidth = 539;
 constexpr int32 kControllerHeight = 291;
 constexpr int32 kControllerBorder = 16;
-
+ 
+//constexpr int32 kKeyLeft = ←;
+//constexpr int32 kKeyRight = →;
+//constexpr int32 kKeyUp = ↑;
+//constexpr int32 kKeyDown = ↓;
 
 class ButtonTextView;
 
@@ -37,7 +42,6 @@ class InputView : public BView
 	ButtonTextView *fStartView = nullptr;
 	ButtonTextView *fBView = nullptr;
 	ButtonTextView *fAView = nullptr;
-	
 };
 
 

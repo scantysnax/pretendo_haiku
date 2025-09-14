@@ -20,12 +20,26 @@ InputView::~InputView()
 void
 InputView::AttachedToWindow()
 {
+	BRect r;
 	SetViewColor(ui_color(B_PANEL_BACKGROUND_COLOR));
 	
-	BRect r;
-	r.Set(32, 400, 48, 420);
+	r.Set(107, 128, 131, 148);
 	fUpView = new ButtonTextView(r);
 	AddChild(fUpView);
+	
+	r.Set(107, 204, 131, 224);
+	fDownView = new ButtonTextView(r);
+	AddChild(fDownView);
+	
+	r.Set(74, 166, 98, 184);
+	fLeftView = new ButtonTextView(r);
+	AddChild(fLeftView);
+	
+	r.Set(140, 166, 164, 184);
+	fRightView = new ButtonTextView(r);
+	AddChild(fRightView);
+	
+	
 	
 	BView::AttachedToWindow();
 }
@@ -80,15 +94,38 @@ ButtonTextView::Draw (BRect updateRect)
 }
 
 
+
 void
 ButtonTextView::KeyDown (const char *bytes, int32 numBytes)
-{
+{	
 	BString keyString;
-	keyString << bytes[0];
 	
-	keyString.Capitalize();
-	SetText(keyString.String());
+	switch (bytes[0]) {
+		case B_UP_ARROW:
+		keyString << "↑";
+		SetText(keyString.String());
+		break;
+		
+		case B_DOWN_ARROW:
+		keyString << "↓";
+		SetText(keyString.String());
+		break;
+		
+		case B_LEFT_ARROW:
+		keyString << "←";
+		SetText(keyString.String());
+		break;
+		
+		case B_RIGHT_ARROW:
+		keyString << "→";
+		SetText(keyString.String());
+		break;
+		
+		case('e'):
+			(new BAlert(0, "e", "Okay"))->Go();
+		break;
+	}
 	
-	BTextView::KeyDown (bytes, numBytes);
+ 	BTextView::KeyDown (bytes, numBytes);
 }
 
