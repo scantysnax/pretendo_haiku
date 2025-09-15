@@ -51,9 +51,12 @@ InputView::AttachedToWindow()
 	fBView = new ButtonTextView(r);
 	AddChild(fBView);
 	
-	r.Set(462, 200, 482,220);
+	r.Set(462, 200, 482, 220);
 	fAView = new ButtonTextView(r);
 	AddChild(fAView);
+	
+	//(new BAlert(0, "scanty", "snax"))->Go();	// good.
+	//(new BAlert(0, "scanty", "snax"))->Show();  // bad.
 	
 	
 	
@@ -100,6 +103,7 @@ ButtonTextView::AttachedToWindow()
 	BRect r(Bounds());
 	SetTextRect(BRect(2, 2, r.Width() - 2, r.Height() - 2));
 	SetMaxBytes(1);
+	SetAlignment(B_ALIGN_CENTER);
 }
 
 
@@ -110,11 +114,13 @@ ButtonTextView::Draw (BRect updateRect)
 }
 
 
-
+#include <ctype.h>
 void
 ButtonTextView::KeyDown (const char *bytes, int32 numBytes)
 {	
 	BString keyString;
+	
+	
 	
 	switch (bytes[0]) {
 		case B_UP_ARROW:
@@ -137,9 +143,10 @@ ButtonTextView::KeyDown (const char *bytes, int32 numBytes)
 		SetText(keyString.String());
 		break;
 		
-		case('e'):
-			(new BAlert(0, "e", "Okay"))->Go();
-		break;
+		default:
+		keyString << bytes[0];
+		keyString.Capitalize();
+		SetText(keyString.String());
 	}
 	
  	BTextView::KeyDown (bytes, numBytes);
