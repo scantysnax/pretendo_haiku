@@ -114,13 +114,10 @@ ButtonTextView::Draw (BRect updateRect)
 }
 
 
-#include <ctype.h>
 void
 ButtonTextView::KeyDown (const char *bytes, int32 numBytes)
 {	
 	BString keyString;
-	
-	
 	
 	switch (bytes[0]) {
 		case B_UP_ARROW:
