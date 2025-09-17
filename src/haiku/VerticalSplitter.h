@@ -3,7 +3,7 @@
 
 #include <Box.h>
 
-class HorizontalSplitter
+class VerticalSplitter
 {
 	public:
 			VerticalSplitter();
