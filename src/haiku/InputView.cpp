@@ -23,8 +23,9 @@ InputView::AttachedToWindow()
 	BRect r;
 	SetViewColor(ui_color(B_PANEL_BACKGROUND_COLOR));
 	
-	r.Set(107, 128, 131, 148);
+	r.Set(107, 132, 131, 152);
 	fUpView = new ButtonTextView(r);
+	fUpView->SetViewColor(82,76,63);
 	AddChild(fUpView);
 	
 	r.Set(107, 204, 131, 224);
@@ -54,11 +55,6 @@ InputView::AttachedToWindow()
 	r.Set(462, 200, 482, 220);
 	fAView = new ButtonTextView(r);
 	AddChild(fAView);
-	
-	//(new BAlert(0, "scanty", "snax"))->Go();	// good.
-	//(new BAlert(0, "scanty", "snax"))->Show();  // bad.
-	
-	
 	
 	BView::AttachedToWindow();
 }
