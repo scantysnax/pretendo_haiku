@@ -7,7 +7,7 @@
 class HorizontalSplitter : public BBox
 {
 	public:
-			HorizontalSplitter (BRect frame);
+			HorizontalSplitter(int32 x, int32 y, int32 width);
 	virtual ~HorizontalSplitter();
 	
 	private:

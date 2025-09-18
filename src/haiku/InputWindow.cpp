@@ -8,7 +8,7 @@ InputWindow::InputWindow (PretendoWindow *parent)
 {
 	fParent = parent;
 	
-	ResizeTo(kControllerWidth+kControllerBorder*2, 400);
+	ResizeTo(kControllerWidth+kControllerBorder*2, 430);
 	CenterOnScreen();
 	SetTitle("Configure Input");
 	

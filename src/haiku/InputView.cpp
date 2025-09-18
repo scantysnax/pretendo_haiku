@@ -1,8 +1,6 @@
 
 #include "InputView.h"
 
-#include <Alert.h>
-
 
 InputView::InputView (BRect frame)
 	: BView(frame, "input_view", B_FOLLOW_ALL_SIDES, B_WILL_DRAW)
@@ -56,18 +54,10 @@ InputView::AttachedToWindow()
 	fAView = new ButtonTextView(r);
 	AddChild(fAView);
 	
-	/*
-	BRect r;
-	r.Set(fSwatchSize,
-		(fSwatchSize*5)+32,
-		(fSwatchSize*16)+64,
-		(fSwatchSize*5)+36);
-	
-	fHorizSeparator = new BBox(r);
-	AddChild(fHorizSeparator);
-	*/
-	
-	HorizontalSplitter *hs = new HorizontalSplitter(BRect(16, 350, 320, 354));
+	int32 x = kControllerBorder*2;
+	int32 y = 336;
+	int32 width = kControllerWidth - kControllerBorder;
+	HorizontalSplitter *hs = new HorizontalSplitter(x,y, width);
 	AddChild(hs);
 	
 	
