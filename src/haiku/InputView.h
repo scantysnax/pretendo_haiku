@@ -7,6 +7,8 @@
 #include <TranslationUtils.h>
 #include <View.h>
 
+#include "HorizontalSplitter.h"
+
 
 constexpr int32 kControllerWidth = 539;
 constexpr int32 kControllerHeight = 291;

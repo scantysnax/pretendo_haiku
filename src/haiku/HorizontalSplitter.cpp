@@ -3,7 +3,8 @@
 
 
 
-HorizontalSplitter::HorizontalSplitter()
+HorizontalSplitter::HorizontalSplitter (BRect frame)
+	: BBox(frame, "hsplitter")
 {
 }
 

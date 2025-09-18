@@ -690,7 +690,7 @@ PretendoWindow::OnAdjustPalette()
 {
 	puts(__PRETTY_FUNCTION__);
 	
-//#if 0
+#if 0
 	if (fPaletteWindow && fPaletteWindow->Lock()) {
 		fPaletteWindow->Quit();
 		fPaletteWindow = nullptr;
@@ -711,7 +711,7 @@ PretendoWindow::OnAdjustPalette()
 	}
 	
 	fPaletteWindow->Show();
-//#endif
+#endif
 }
 
 void

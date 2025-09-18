@@ -4,10 +4,10 @@
 
 #include <Box.h>
 
-class HorizontalSplitter
+class HorizontalSplitter : public BBox
 {
 	public:
-			HorizontalSplitter();
+			HorizontalSplitter (BRect frame);
 	virtual ~HorizontalSplitter();
 	
 	private:

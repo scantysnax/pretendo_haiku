@@ -56,6 +56,22 @@ InputView::AttachedToWindow()
 	fAView = new ButtonTextView(r);
 	AddChild(fAView);
 	
+	/*
+	BRect r;
+	r.Set(fSwatchSize,
+		(fSwatchSize*5)+32,
+		(fSwatchSize*16)+64,
+		(fSwatchSize*5)+36);
+	
+	fHorizSeparator = new BBox(r);
+	AddChild(fHorizSeparator);
+	*/
+	
+	HorizontalSplitter *hs = new HorizontalSplitter(BRect(16, 350, 320, 354));
+	AddChild(hs);
+	
+	
+	
 	BView::AttachedToWindow();
 }
 
