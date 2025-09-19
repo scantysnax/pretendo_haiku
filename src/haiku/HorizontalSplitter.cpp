@@ -11,3 +11,4 @@ HorizontalSplitter::HorizontalSplitter(int32 x, int32 y, int32 width)
 HorizontalSplitter::~HorizontalSplitter()
 {
 }
+
