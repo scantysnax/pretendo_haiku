@@ -1,18 +1,17 @@
-#ifndef _HORIZ_SPLITTER_H_
-#define _HORIZ_SPLITTER_H_
+#ifndef _VERT_SPLITTER_H_
+#define _VERT_SPLITTER_H_
 
 #include <Box.h>
 
-class VerticalSplitter
+class VerticalSplitter : public BBox
 {
 	public:
-			VerticalSplitter();
+			VerticalSplitter(int32 x, int32 y, int32 height);
 	virtual ~VerticalSplitter();
 	
-	private:
-	
+	private:	
 };
 	
 
 
-#endif //_HORIZ_SPLITTER_H_
+#endif // VERT_SPLITTER_H_

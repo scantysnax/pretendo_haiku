@@ -8,6 +8,7 @@
 #include <View.h>
 
 #include "HorizontalSplitter.h"
+#include "VerticalSplitter.h"
 
 
 constexpr int32 kControllerWidth = 539;

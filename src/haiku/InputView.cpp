@@ -2,6 +2,7 @@
 #include "InputView.h"
 
 
+
 InputView::InputView (BRect frame)
 	: BView(frame, "input_view", B_FOLLOW_ALL_SIDES, B_WILL_DRAW)
 {
@@ -13,7 +14,6 @@ InputView::~InputView()
 {
 	delete fControllerBitmap;
 }
-
 
 void
 InputView::AttachedToWindow()
@@ -54,13 +54,8 @@ InputView::AttachedToWindow()
 	fAView = new ButtonTextView(r);
 	AddChild(fAView);
 	
-	int32 x = kControllerBorder*2;
-	int32 y = 336;
-	int32 width = kControllerWidth - kControllerBorder;
-	HorizontalSplitter *hs = new HorizontalSplitter(x,y, width);
-	AddChild(hs);
-	
-	
+	int32 y = kControllerHeight+(kControllerBorder*2)+8;
+	AddChild(new HorizontalSplitter(kControllerBorder, y, kControllerWidth));
 	
 	BView::AttachedToWindow();
 }
