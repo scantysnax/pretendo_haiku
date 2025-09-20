@@ -10,6 +10,7 @@
 #include <iostream>
 
 #include "PretendoWindow.h"
+#include "Splitters.h"
 
 
 class PaletteView : public BView
@@ -37,10 +38,10 @@ class PaletteView : public BView
 	BSlider *fContrastSlider = nullptr;
 	BSlider *fBrightnessSlider = nullptr;
 	BSlider *fGammaSlider = nullptr;
-	
+
 	private:
-	BBox *fHorizSeparator = nullptr;
-	BBox *fVertSeparator = nullptr;
+	HorizontalSplitter *fHorizSplitter = nullptr;
+	VerticalSplitter *fVertSplitter = nullptr;
 	
 	private:
 	BButton *fSaveButton = nullptr;
@@ -49,7 +50,7 @@ class PaletteView : public BView
 	
 	private:
 	int32 fSwatchSize;
-	rgb_color *const fPalette;
+	rgb_color *fPalette;
 	rgb_color *fWorkPalette;
 	
 	private:

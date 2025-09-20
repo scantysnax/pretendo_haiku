@@ -168,7 +168,7 @@ PretendoWindow::PretendoWindow()
 	
 	SetDefaultPalette();
 }
-
+#include <iostream>
 
 PretendoWindow::~PretendoWindow()
 {	
@@ -689,17 +689,16 @@ void
 PretendoWindow::OnAdjustPalette()
 {
 	puts(__PRETTY_FUNCTION__);
-	
-#if 0
+
 	if (fPaletteWindow && fPaletteWindow->Lock()) {
 		fPaletteWindow->Quit();
 		fPaletteWindow = nullptr;
-		fPaletteWindow->Show();
-	} else {
-		fPaletteWindow = new PaletteWindow(this);
-		fPaletteWindow->Show();
-	}
+	} 
+	
+	fPaletteWindow = new PaletteWindow(this);
+	fPaletteWindow->Show();
 
+#if 0
 	if (fPaletteWindow != nullptr) {
 		fPaletteWindow->Activate();
 	} else {

@@ -117,7 +117,6 @@ CPP_FILES := \
 	src/haiku/AboutWindow.cpp \
 	src/haiku/AudioStream.cpp \
 	src/haiku/HaikuMain.cpp \
-	src/haiku/HorizontalSplitter.cpp \
 	src/haiku/InputView.cpp \
 	src/haiku/InputWindow.cpp \
 	src/haiku/LinkView.cpp \
@@ -135,7 +134,7 @@ CPP_FILES := \
 	src/haiku/ROMInfoWindow.cpp \
 	src/haiku/ROMInfoView.cpp \
 	src/haiku/Settings.cpp \
-	src/haiku/VerticalSplitter.cpp \
+	src/haiku/Splitters.cpp \
 	src/haiku/VideoScreen.cpp
 
 

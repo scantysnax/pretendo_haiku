@@ -6,18 +6,22 @@
 
 
 PaletteView::PaletteView (PretendoWindow *parent, BRect frame, int32 swatchSize)
-	: BView (frame, "palette", B_FOLLOW_ALL_SIDES, B_WILL_DRAW),
-	fSwatchSize(swatchSize),
-	fPalette(new rgb_color[64]),
-	fParent(parent)
+	: BView (frame, "palette", B_FOLLOW_ALL_SIDES, B_WILL_DRAW)
 {
+	fParent = parent;
+	fSwatchSize = swatchSize;
+	
+	fPalette = new rgb_color[64];
+	
 	//SetDefaultPalette();
 }
 
 
 PaletteView::~PaletteView()
 {
-	delete[] fPalette;
+	if (fPalette != nullptr) {
+		delete[] fPalette;
+	}
 }
 
 
@@ -26,19 +30,18 @@ PaletteView::AttachedToWindow()
 {
 	SetViewColor (ui_color(B_PANEL_BACKGROUND_COLOR));
 	
-	BRect r;
-	r.Set(fSwatchSize,
-		(fSwatchSize*5)+32,
-		(fSwatchSize*16)+64,
-		(fSwatchSize*5)+36);
-	
-	fHorizSeparator = new BBox(r);
-	AddChild(fHorizSeparator);
+	int32 x, y, width, height;
+	x = fSwatchSize;
+	y = (fSwatchSize*5)+32;
+	width = (fSwatchSize*16)+64;
+	fHorizSplitter = new HorizontalSplitter(x, y, width);
+	AddChild(fHorizSplitter);
 	
 	float const left = 16.0f;
-	float const right = Frame().Width() * 0.65f;
+	float const right = Frame().Width() * 0.66f;
+	BRect r;
 	                
-	r.Set(left, fHorizSeparator->Frame().top+32, right, 0);
+	r.Set(left, fHorizSplitter->Frame().top+32, right, 0);
 	fHueSlider = new BSlider (r, "_hue_slider", "Hue", new BMessage('HUE_'),
 		-10000, +10000);
 	fHueSlider->SetLimitLabels("-1.0 (-30°)", "1.0 (30°)");
@@ -47,6 +50,7 @@ PaletteView::AttachedToWindow()
 	fHueSlider->SetValue(0);
 	fHueSlider->SetTarget(this);
 	AddChild(fHueSlider);
+
 		
 	r.Set(left, fHueSlider->Frame().bottom+32, right, 0);
 	fSaturationSlider = new BSlider (r, "_sat_slider", "Saturation", new BMessage('SAT_'),
@@ -58,7 +62,6 @@ PaletteView::AttachedToWindow()
 	fSaturationSlider->SetValue(10000);
 	AddChild(fSaturationSlider);
 
-
 	r.Set(left, fSaturationSlider->Frame().bottom+32, right, 0);
 	fContrastSlider = new BSlider (r, "_contrast_slider", "Contrast", new BMessage('CONT'),
 		5000, 20000);
@@ -69,7 +72,6 @@ PaletteView::AttachedToWindow()
 	fContrastSlider->SetValue(10000);
 	AddChild(fContrastSlider);
 
-	
 	r.Set(left, fContrastSlider->Frame().bottom+32, right, 0);
 	fBrightnessSlider = new BSlider (r, "_brightness_slider", "Brightness", new BMessage('BRIT'),
 		5000, 20000);
@@ -88,26 +90,24 @@ PaletteView::AttachedToWindow()
 	fGammaSlider->SetHashMarkCount(25);
 	fGammaSlider->SetTarget(this);
 	fGammaSlider->SetValue(20000);
-	AddChild(fGammaSlider);
+	AddChild(fGammaSlider);		
+
+	x = fHueSlider->Frame().right + 16;
+	y = fHueSlider->Frame().top - 4;
+	height = fGammaSlider->Frame().bottom + 16;
+	fVertSplitter = new VerticalSplitter(x, y, height);
+	AddChild(fVertSplitter);
 	
-	r.Set (fHueSlider->Frame().right + 16,
-			fHueSlider->Frame().top - 4,
-			fHueSlider->Frame().right + 20,
-			fGammaSlider->Frame().bottom + 16);
-	
-	fVertSeparator = new BBox(r);
-	AddChild(fVertSeparator);
-	
-	r.Set(fVertSeparator->Frame().right, 
-			fVertSeparator->Frame().top,
-			fVertSeparator->Frame().right, 0);
+	r.Set(fVertSplitter->Frame().right + 0, 
+			fVertSplitter->Frame().top,
+			fVertSplitter->Frame().right, 0);
 	fSaveButton = new BButton(r,"_save_button","Save", new BMessage('SAVE'));
 	fSaveButton->ResizeToPreferred();
 	fSaveButton->MakeDefault(true);
 	fSaveButton->SetTarget(this);
 	AddChild(fSaveButton);
 	
-	r.Set(fVertSeparator->Frame().right,
+	r.Set(fVertSplitter->Frame().right,
 			fSaveButton->Frame().bottom + 16,
 			0, 0);
 	fDefaultButton = new BButton(r, "_default_button", "Default", new BMessage('DFLT'));
@@ -115,32 +115,33 @@ PaletteView::AttachedToWindow()
 	fDefaultButton->SetTarget(this);
 	AddChild(fDefaultButton);
 	
-	r.Set(fVertSeparator->Frame().right,
+	r.Set(fVertSplitter->Frame().right,
 			fDefaultButton->Frame().bottom + 16,
 			0, 0);
 	fRevertButton = new BButton(r, "_revert_button", "Revert", new BMessage('RVRT'));
 	fRevertButton->ResizeToPreferred();
 	fRevertButton->SetTarget(this);
 	AddChild(fRevertButton);
-	
-	float width = Window()->Frame().Width() - fVertSeparator->Frame().right;
-	float diff = width - fDefaultButton->Frame().Width() + fVertSeparator->Frame().Width();
-	float const x = diff / 2;
+
+
+	float windowWidth = Window()->Frame().Width() - fVertSplitter->Frame().right;
+	float diff = windowWidth - fDefaultButton->Frame().Width() + fVertSplitter->Frame().Width();
+	float const x2 = diff / 2;
 	
 	float buttonHeight = fDefaultButton->Frame().Height();
 	float buttonSpace = fRevertButton->Frame().top - fDefaultButton->Frame().bottom; 
 	float totalSpace = (buttonHeight * 3) + (buttonSpace * 2); // three buttons, two spaces
-	float totalHeight = fVertSeparator->Frame().Height();
-	float const y = (totalHeight - totalSpace) / 2;
+	float totalHeight = fVertSplitter->Frame().Height();
+	float const y2 = (totalHeight - totalSpace) / 2;
 	
-	fSaveButton->MoveBy(x, y);
-	fDefaultButton->MoveBy(x, y);
-	fRevertButton->MoveBy(x, y);
-	
+	fSaveButton->MoveBy(x2, y2);
+	fDefaultButton->MoveBy(x2, y2);
+	fRevertButton->MoveBy(x2, y2);
+
 	// first try to read the palette from the config file.  if we can't
 	// then we'll use the defaults
 	
-	// if (......) {
+	// if (...) {
 	//		read from config
 	// } else {
 		SetDefaultPalette();
