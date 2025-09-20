@@ -4,6 +4,7 @@
 
 #include <Box.h>
 
+
 class HorizontalSplitter : public BBox
 {
 	public:

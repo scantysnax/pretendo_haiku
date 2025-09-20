@@ -3,14 +3,13 @@
 #define _PALETTE_VIEW_H_
 
 #include <View.h>
-#include <Box.h>
 #include <Slider.h>
 #include <Button.h>
 
-#include <iostream>
-
 #include "PretendoWindow.h"
 #include "Splitters.h"
+
+#include <iostream>
 
 
 class PaletteView : public BView
