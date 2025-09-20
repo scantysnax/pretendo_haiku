@@ -12,7 +12,6 @@ class HorizontalSplitter : public BBox
 	virtual ~HorizontalSplitter();
 	
 	private:
-	
 };
 
 

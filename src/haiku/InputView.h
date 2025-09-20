@@ -6,6 +6,7 @@
 #include <TextView.h>
 #include <TranslationUtils.h>
 #include <View.h>
+#include <Button.h>
 
 #include "Splitters.h"
 
