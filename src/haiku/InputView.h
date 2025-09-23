@@ -5,7 +5,6 @@
 #include <Bitmap.h>
 #include <TextView.h>
 #include <TranslationUtils.h>
-#include <View.h>
 #include <Button.h>
 
 #include "Splitters.h"
@@ -14,6 +13,10 @@
 constexpr int32 kControllerWidth = 539;
 constexpr int32 kControllerHeight = 291;
 constexpr int32 kControllerBorder = 16;
+
+constexpr uint32 MSG_REVERT = 'RVRT';
+constexpr uint32 MSG_DEFAULT = 'DFLT';
+constexpr uint32 MSG_SAVE = 'SAVE';
  
 //constexpr int32 kKeyLeft = ←;
 //constexpr int32 kKeyRight = →;
@@ -35,6 +38,11 @@ class InputView : public BView
 	virtual void MessageReceived (BMessage *message);
 	
 	private:
+	void OnRevert();
+	void OnDefault();
+	void OnSave();
+	
+	private:
 	BBitmap *fControllerBitmap = nullptr;
 	
 	ButtonTextView *fUpView = nullptr;
@@ -45,6 +53,12 @@ class InputView : public BView
 	ButtonTextView *fStartView = nullptr;
 	ButtonTextView *fBView = nullptr;
 	ButtonTextView *fAView = nullptr;
+	
+	private:
+	BButton *fRevertButton = nullptr;
+	BButton *fDefaultButton = nullptr;
+	BButton *fSaveButton = nullptr;
+	
 };
 
 
@@ -62,5 +76,6 @@ class ButtonTextView : public BTextView
 	private:
 	
 };
+
 
 #endif //_INPUT_VIEW_H_

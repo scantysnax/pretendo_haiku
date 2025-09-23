@@ -1,6 +1,6 @@
 
 #include "InputWindow.h"
-
+#include <Alert.h>
 
 InputWindow::InputWindow (PretendoWindow *parent)
 	: BWindow(BRect(0, 0, 0, 0), nullptr, B_FLOATING_WINDOW_LOOK,

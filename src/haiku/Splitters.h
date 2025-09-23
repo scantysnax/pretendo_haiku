@@ -8,7 +8,7 @@
 class HorizontalSplitter : public BBox
 {
 	public:
-			HorizontalSplitter(int32 x, int32 y, int32 width);
+			HorizontalSplitter (int32 x, int32 y, int32 width);
 	virtual ~HorizontalSplitter();
 	
 	private:
@@ -18,7 +18,7 @@ class HorizontalSplitter : public BBox
 class VerticalSplitter : public BBox
 {
 	public:
-			VerticalSplitter(int32 x, int32 y, int32 height);
+			VerticalSplitter (int32 x, int32 y, int32 height);
 	virtual ~VerticalSplitter();
 	
 	private:	
