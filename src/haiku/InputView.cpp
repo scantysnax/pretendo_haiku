@@ -83,7 +83,6 @@ InputView::AttachedToWindow()
 	AddChild(hs);
 	
 	int32 top = hs->Frame().bottom+32;
-	
 	r.Set(0, top, 0, 0);
 	fRevertButton = new BButton(r, "revert_button", "Revert", new BMessage(MSG_REVERT));
 	fRevertButton->ResizeToPreferred();
