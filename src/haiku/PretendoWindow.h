@@ -54,6 +54,12 @@ constexpr uint32 MSG_DRAW_BITMAP =		'DRAW';
 constexpr uint32 MSG_ADJ_PALETTE =		'ADJP';
 // input
 constexpr uint32 MSG_CFG_INPUT = 'INPT';
+// audio
+constexpr uint32 MSG_AUDIO_SQ1 = 	'SQR1';
+constexpr uint32 MSG_AUDIO_SQ2 = 	'SQR2';
+constexpr uint32 MSG_AUDIO_TRI = 	'TRIA';
+constexpr uint32 MSG_AUDIO_NOISE = 	'NOIS';
+constexpr uint32 MSG_AUDIO_DMC = 	'DPCM';
 // tools
 constexpr uint32 MSG_PTNTBL0 = 	'PTB0';
 constexpr uint32 MSG_PTNTBL1 = 	'PTB1';
@@ -146,6 +152,11 @@ class PretendoWindow : public BDirectWindow
 	void OnViewNameTable1();
 	void OnViewNameTable2();
 	void OnViewNameTable3();
+	void OnAudioSquare1();
+	void OnAudioSquare2();
+	void OnAudioTriangle();
+	void OnAudioNoise();
+	void OnAudioDMC();
 	
 
 	// video stuff
@@ -183,6 +194,7 @@ class PretendoWindow : public BDirectWindow
 	BMenu *fLoadMenu = nullptr;
 	BMenu *fEmuMenu = nullptr;
 	BMenu *fVideoMenu = nullptr;
+	BMenu *fAudioMenu = nullptr;
 	BMenu *fToolMenu = nullptr;
 	BMenu *fPatternTableMenu = nullptr;
 	BMenu *fNameTableMenu = nullptr;

@@ -390,7 +390,27 @@ PretendoWindow::MessageReceived (BMessage *message)
 		case MSG_NTBL3:
 			OnViewNameTable3();
 			break;
-	}
+			
+		case MSG_AUDIO_SQ1:
+			OnAudioSquare1();
+			break;
+			
+		case MSG_AUDIO_SQ2:
+			OnAudioSquare2();
+			break;
+			
+		case MSG_AUDIO_TRI:
+			OnAudioTriangle();
+			break;
+			
+		case MSG_AUDIO_NOISE:
+			OnAudioNoise();
+			break;
+			
+		case MSG_AUDIO_DMC:
+			OnAudioDMC();
+			break;
+		}
 	
 	BDirectWindow::MessageReceived (message);
 }
@@ -521,6 +541,14 @@ PretendoWindow::AddMenu()
 	fVideoMenu->AddItem(new BMenuItem("WindowScreen", new BMessage(MSG_CHANGE_RENDER), 'F'));
 	fVideoMenu->SetRadioMode(true);
 	fEmuMenu->AddItem(new BMenuItem("Input" B_UTF8_ELLIPSIS, new BMessage(MSG_CFG_INPUT)));
+	
+	fAudioMenu = new BMenu("Audio");
+	fEmuMenu->AddItem(fAudioMenu);
+	fAudioMenu->AddItem(new BMenuItem("Square 1", new BMessage(MSG_AUDIO_SQ1)));
+	fAudioMenu->AddItem(new BMenuItem("Square 2", new BMessage(MSG_AUDIO_SQ2)));
+	fAudioMenu->AddItem(new BMenuItem("Triangle", new BMessage(MSG_AUDIO_TRI)));
+	fAudioMenu->AddItem(new BMenuItem("Noise", new BMessage(MSG_AUDIO_NOISE)));
+	fAudioMenu->AddItem(new BMenuItem("DMC/DPCM", new BMessage(MSG_AUDIO_DMC)));
 	
 	fToolMenu->AddItem(new BMenuItem("Adjust Palette" B_UTF8_ELLIPSIS, new BMessage(MSG_ADJ_PALETTE)));
 	fToolMenu->AddSeparatorItem();
@@ -813,6 +841,37 @@ PretendoWindow::OnViewNameTable3()
 	if (! nes::cart.mapper()) {
 		return;
 	}
+}
+
+void
+PretendoWindow::OnAudioSquare1()
+{
+	puts(__PRETTY_FUNCTION__);
+}
+
+
+void
+PretendoWindow::OnAudioSquare2()
+{
+	puts(__PRETTY_FUNCTION__);
+}
+
+void
+PretendoWindow::OnAudioTriangle()
+{
+	puts(__PRETTY_FUNCTION__);
+}
+
+void
+PretendoWindow::OnAudioNoise()
+{
+	puts(__PRETTY_FUNCTION__);
+}
+	
+void 
+PretendoWindow::OnAudioDMC()
+{
+	puts(__PRETTY_FUNCTION__);
 }
 
 
