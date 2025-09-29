@@ -1,5 +1,4 @@
 
-
 #ifndef _PRETENDO_WINDOW_H_
 #define _PRETENDO_WINDOW_H_
 

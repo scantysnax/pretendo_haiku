@@ -550,6 +550,13 @@ PretendoWindow::AddMenu()
 	fAudioMenu->AddItem(new BMenuItem("Noise", new BMessage(MSG_AUDIO_NOISE)));
 	fAudioMenu->AddItem(new BMenuItem("DMC/DPCM", new BMessage(MSG_AUDIO_DMC)));
 	
+	(fAudioMenu->ItemAt(0))->SetMarked(true);
+	(fAudioMenu->ItemAt(1))->SetMarked(true);
+	(fAudioMenu->ItemAt(2))->SetMarked(true);
+	(fAudioMenu->ItemAt(3))->SetMarked(true);
+	(fAudioMenu->ItemAt(4))->SetMarked(true);
+	
+	
 	fToolMenu->AddItem(new BMenuItem("Adjust Palette" B_UTF8_ELLIPSIS, new BMessage(MSG_ADJ_PALETTE)));
 	fToolMenu->AddSeparatorItem();
 	fPatternTableMenu = new BMenu("View Pattern Tables");
@@ -843,35 +850,60 @@ PretendoWindow::OnViewNameTable3()
 	}
 }
 
+
 void
 PretendoWindow::OnAudioSquare1()
 {
 	puts(__PRETTY_FUNCTION__);
+	
+	bool checked = fAudioMenu->ItemAt(0)->IsMarked();
+	checked = ! checked;
+	(fAudioMenu->ItemAt(0))->SetMarked(checked);
 }
+
 
 
 void
 PretendoWindow::OnAudioSquare2()
 {
 	puts(__PRETTY_FUNCTION__);
+	
+	int32 checked = fAudioMenu->ItemAt(1)->IsMarked();
+	checked = ! checked;
+	(fAudioMenu->ItemAt(1))->SetMarked(checked);
 }
+
 
 void
 PretendoWindow::OnAudioTriangle()
 {
 	puts(__PRETTY_FUNCTION__);
+	
+	int32 checked = fAudioMenu->ItemAt(2)->IsMarked();
+	checked = ! checked;
+	(fAudioMenu->ItemAt(2))->SetMarked(checked);
 }
+
 
 void
 PretendoWindow::OnAudioNoise()
 {
 	puts(__PRETTY_FUNCTION__);
+	
+	int32 checked = fAudioMenu->ItemAt(3)->IsMarked();
+	checked = ! checked;
+	(fAudioMenu->ItemAt(3))->SetMarked(checked);
 }
+
 	
 void 
 PretendoWindow::OnAudioDMC()
 {
 	puts(__PRETTY_FUNCTION__);
+	
+	int32 checked = fAudioMenu->ItemAt(4)->IsMarked();
+	checked = ! checked;
+	(fAudioMenu->ItemAt(4))->SetMarked(checked);
 }
 
 
