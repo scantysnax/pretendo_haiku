@@ -540,7 +540,7 @@ PretendoWindow::AddMenu()
 	fVideoMenu->AddItem(new BMenuItem("DirectWindow", new BMessage(MSG_CHANGE_RENDER)));
 	fVideoMenu->AddItem(new BMenuItem("WindowScreen", new BMessage(MSG_CHANGE_RENDER), 'F'));
 	fVideoMenu->SetRadioMode(true);
-	fEmuMenu->AddItem(new BMenuItem("Input" B_UTF8_ELLIPSIS, new BMessage(MSG_CFG_INPUT)));
+	//fEmuMenu->AddItem(new BMenuItem("Input" B_UTF8_ELLIPSIS, new BMessage(MSG_CFG_INPUT)));
 	
 	fAudioMenu = new BMenu("Audio");
 	fEmuMenu->AddItem(fAudioMenu);
@@ -555,6 +555,8 @@ PretendoWindow::AddMenu()
 	(fAudioMenu->ItemAt(2))->SetMarked(true);
 	(fAudioMenu->ItemAt(3))->SetMarked(true);
 	(fAudioMenu->ItemAt(4))->SetMarked(true);
+	
+	fEmuMenu->AddItem(new BMenuItem("Input" B_UTF8_ELLIPSIS, new BMessage(MSG_CFG_INPUT)));
 	
 	
 	fToolMenu->AddItem(new BMenuItem("Adjust Palette" B_UTF8_ELLIPSIS, new BMessage(MSG_ADJ_PALETTE)));
