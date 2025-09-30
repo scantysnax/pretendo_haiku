@@ -1,6 +1,6 @@
 
-#ifndef TRIANGLE_20130206_H_
-#define TRIANGLE_20130206_H_
+#ifndef _TRIANGLE_H_
+#define _TRIANGLE_H_
 
 #include "LengthCounter.h"
 #include "LinearCounter.h"
@@ -31,14 +31,24 @@ public:
 public:
 	void tick();
 	uint8_t output() const;
+	
+	void mute() { 
+		channel_muted_ = true;
+	}
+	
+	void unmute() {
+		channel_muted_ = false;
+	}
+		
 
 private:
 	bool enabled_          = false;
 	uint16_t timer_load_   = 0;
 	size_t sequence_index_ = 0;
 	Timer timer_;
+	bool channel_muted_	= false;
 };
 
 }
 
-#endif
+#endif // _TRIANGLE_H_

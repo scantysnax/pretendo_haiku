@@ -1,6 +1,6 @@
 
-#ifndef APU_20130206_H_
-#define APU_20130206_H_
+#ifndef _APU_H_
+#define _APU_H_
 
 #include "BitField.h"
 #include "Reset.h"
@@ -60,8 +60,11 @@ void write4017(uint8_t value);
 uint8_t read4015();
 uint64_t cycle_count();
 void tick();
-
 void start_frame();
+
+void mute_channel (int32_t channel);
+void unmute_channel (int32_t channel);
+
 size_t read_samples(uint8_t *buffer, size_t size);
 
 template <int Cycles>
@@ -79,7 +82,15 @@ extern DMC dmc;
 
 extern APUStatus status;
 
+typedef enum {
+	SQUARE1 = 0,
+	SQUARE2 = 1,
+	TRIANGLE = 2,
+	NOISE = 3,
+	DPCM = 4
+} channel_which;
+
 }
 
 
-#endif
+#endif // _APU_H_

@@ -1,6 +1,6 @@
 
-#ifndef NOISE_20130206_H_
-#define NOISE_20130206_H_
+#ifndef _NOISE_H_
+#define _NOISE_H_
 
 #include "Envelope.h"
 #include "LengthCounter.h"
@@ -27,6 +27,16 @@ public:
 public:
 	void tick();
 	uint8_t output() const;
+	
+	void mute() { 
+		channel_muted_ = true;
+	}
+	
+	void unmute() {
+		channel_muted_ = false;
+	}
+	
+	
 
 public:
 	LengthCounter length_counter;
@@ -36,9 +46,10 @@ private:
 	bool enabled_ = false;
 	Timer timer_;
 	LFSR lfsr_;
+	bool channel_muted_ = false;
 };
 
 }
 
 
-#endif
+#endif // _NOISE_H_

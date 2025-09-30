@@ -854,56 +854,75 @@ PretendoWindow::OnViewNameTable3()
 void
 PretendoWindow::OnAudioSquare1()
 {
-	puts(__PRETTY_FUNCTION__);
+	bool marked = fAudioMenu->ItemAt(nes::apu::SQUARE1)->IsMarked();
+	marked = ! marked;
+	(fAudioMenu->ItemAt(nes::apu::SQUARE1))->SetMarked(marked);
 	
-	bool checked = fAudioMenu->ItemAt(0)->IsMarked();
-	checked = ! checked;
-	(fAudioMenu->ItemAt(0))->SetMarked(checked);
+	if (marked) {
+		nes::apu::unmute_channel(nes::apu::SQUARE1);
+	} else {
+		nes::apu::mute_channel(nes::apu::SQUARE1);
+	}
 }
-
 
 
 void
 PretendoWindow::OnAudioSquare2()
-{
-	puts(__PRETTY_FUNCTION__);
+{	
+	bool marked = fAudioMenu->ItemAt(nes::apu::SQUARE2)->IsMarked();
+	marked = ! marked;
+	(fAudioMenu->ItemAt(nes::apu::SQUARE2))->SetMarked(marked);
 	
-	int32 checked = fAudioMenu->ItemAt(1)->IsMarked();
-	checked = ! checked;
-	(fAudioMenu->ItemAt(1))->SetMarked(checked);
+	if (marked) {
+		nes::apu::unmute_channel(nes::apu::SQUARE2);
+	} else {
+		nes::apu::mute_channel(nes::apu::SQUARE2);
+	}
 }
 
 
 void
 PretendoWindow::OnAudioTriangle()
 {
-	puts(__PRETTY_FUNCTION__);
+	bool marked = fAudioMenu->ItemAt(nes::apu::TRIANGLE)->IsMarked();
+	marked = ! marked;
+	(fAudioMenu->ItemAt(nes::apu::TRIANGLE))->SetMarked(marked);
 	
-	int32 checked = fAudioMenu->ItemAt(2)->IsMarked();
-	checked = ! checked;
-	(fAudioMenu->ItemAt(2))->SetMarked(checked);
+	if (marked) {
+		nes::apu::unmute_channel(nes::apu::TRIANGLE);
+	} else {
+		nes::apu::mute_channel(nes::apu::TRIANGLE);
+	}
 }
 
 
 void
 PretendoWindow::OnAudioNoise()
 {
-	puts(__PRETTY_FUNCTION__);
+	bool marked = fAudioMenu->ItemAt(nes::apu::NOISE)->IsMarked();
+	marked = ! marked;
+	(fAudioMenu->ItemAt(nes::apu::NOISE))->SetMarked(marked);
 	
-	int32 checked = fAudioMenu->ItemAt(3)->IsMarked();
-	checked = ! checked;
-	(fAudioMenu->ItemAt(3))->SetMarked(checked);
+	if (marked) {
+		nes::apu::unmute_channel(nes::apu::NOISE);
+	} else {
+		nes::apu::mute_channel(nes::apu::NOISE);
+	}
 }
 
 	
 void 
 PretendoWindow::OnAudioDMC()
 {
-	puts(__PRETTY_FUNCTION__);
+	bool marked = fAudioMenu->ItemAt(nes::apu::DPCM)->IsMarked();
+	marked = ! marked;
+	(fAudioMenu->ItemAt(nes::apu::DPCM))->SetMarked(marked);
 	
-	int32 checked = fAudioMenu->ItemAt(4)->IsMarked();
-	checked = ! checked;
-	(fAudioMenu->ItemAt(4))->SetMarked(checked);
+	if (marked) {
+		nes::apu::unmute_channel(nes::apu::DPCM);
+	} else {
+		nes::apu::mute_channel(nes::apu::DPCM);
+	}
 }
 
 

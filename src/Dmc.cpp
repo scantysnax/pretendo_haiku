@@ -234,6 +234,11 @@ void DMC::tick() {
 // Name: output
 //------------------------------------------------------------------------------
 uint8_t DMC::output() const {
+	
+	if (channel_muted_) {
+		return 0;
+	}
+	
 	return output_ & 0x7f;
 }
 

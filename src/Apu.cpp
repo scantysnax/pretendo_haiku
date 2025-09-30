@@ -27,7 +27,7 @@ union APUFrameCounter {
 	BitField<uint8_t, 7> mode;
 };
 
-constexpr double CPUFrequency = 1789772.67; // 1.78977267Mhz
+constexpr double CPUFrequency = 1789772.72; // 1.78977267Mhz
 // CPUFrequency / 44100Hz  = 40.5844142857 clocks per sample
 // CPUFrequency / 48000Hz  = 37.286930625  clocks per sample
 // CPUFrequency / 192000Hz = 9.32173265625 clocks per sample
@@ -519,5 +519,60 @@ size_t read_samples(uint8_t *buffer, size_t size) {
 void start_frame() {
 	sample_buffer_start = sample_buffer_end;
 }
+
+
+void
+mute_channel (int32_t channel)
+{	
+	switch (channel) {
+		case channel_which::SQUARE1:
+		square_0.mute();
+		break;
+		
+		case channel_which::SQUARE2:
+		square_1.mute();
+		break;
+		
+		case channel_which::TRIANGLE:
+		triangle.mute();
+		break;
+		
+		case channel_which::NOISE:
+		noise.mute();
+		break;
+		
+		case channel_which::DPCM:
+		dmc.mute();
+		break;
+	}			
+}
+
+
+void
+unmute_channel (int32_t channel)
+{
+	switch (channel) {
+		case channel_which::SQUARE1:
+		square_0.unmute();
+		break;
+		
+		case channel_which::SQUARE2:
+		square_1.unmute();
+		break;
+		
+		case channel_which::TRIANGLE:
+		triangle.unmute();
+		break;
+		
+		case channel_which::NOISE:
+		noise.unmute();
+		break;
+		
+		case channel_which::DPCM:
+		dmc.unmute();
+		break;
+	}			
+}
+
 }
 

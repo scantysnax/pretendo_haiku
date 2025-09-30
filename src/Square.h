@@ -1,6 +1,6 @@
 
-#ifndef SQUARE_20130206_H_
-#define SQUARE_20130206_H_
+#ifndef _SQUARE_H_
+#define _SQUARE_H_
 
 #include "Envelope.h"
 #include "LengthCounter.h"
@@ -73,6 +73,14 @@ public:
 	bool enabled() const {
 		return enabled_;
 	}
+	
+	void mute() {
+		channel_muted_ = true;
+	}
+	
+	void unmute() {
+		channel_muted_ = false;
+	}
 
 public:
 	void tick() {
@@ -88,6 +96,10 @@ public:
 			{0, 1, 1, 1, 1, 0, 0, 0},
 			{1, 0, 0, 1, 1, 1, 1, 1},
 		};
+		
+		if (channel_muted_) {
+			return 0;
+		}
 
 		if ((timer_.frequency - 1) < 8) {
 			return 0;
@@ -113,8 +125,9 @@ private:
 	uint8_t duty_           = 0;
 	uint8_t sequence_index_ = 0;
 	bool enabled_           = false;
+	bool channel_muted_		= false;
 };
 
 }
 
-#endif
+#endif // _SQUARE_H_

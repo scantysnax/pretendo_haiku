@@ -1,6 +1,6 @@
 
-#ifndef DMC_20130206_H_
-#define DMC_20130206_H_
+#ifndef _DMC_H_
+#define _DMC_H_
 
 #include "BitField.h"
 #include "ShiftRegister.h"
@@ -35,6 +35,14 @@ public:
 public:
 	void tick();
 	uint8_t output() const;
+	
+	void mute() { 
+		channel_muted_ = true;
+	}
+	
+	void unmute() {
+		channel_muted_ = false;
+	}
 
 private:
 	bool irq_enabled() const;
@@ -56,9 +64,10 @@ private:
 	ShiftRegister<uint8_t> shift_register_{0};
 	DMCControl control_{0};
 	Timer timer_;
+	bool channel_muted_ = false;
 };
 
 }
 
 
-#endif
+#endif // _DMC_H_

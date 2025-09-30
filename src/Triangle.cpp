@@ -98,6 +98,11 @@ void Triangle::tick() {
 // Name: dac
 //------------------------------------------------------------------------------
 uint8_t Triangle::output() const {
+	
+	if (channel_muted_) {
+		return 0x00;
+	}
+	
 	if (timer_.frequency < 4) {
 		return 0x00;
 	} else {

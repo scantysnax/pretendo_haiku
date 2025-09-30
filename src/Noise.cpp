@@ -93,6 +93,11 @@ void Noise::tick() {
 // Name: output
 //------------------------------------------------------------------------------
 uint8_t Noise::output() const {
+	
+	if (channel_muted_) {
+		return 0;
+	}
+	
 	if (length_counter.value() == 0 || ((lfsr_.value() & 1) == 0)) {
 		return 0;
 	} else {
