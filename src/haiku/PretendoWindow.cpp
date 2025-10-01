@@ -169,7 +169,7 @@ PretendoWindow::PretendoWindow()
 	
 	SetDefaultPalette();
 }
-#include <iostream>
+
 
 PretendoWindow::~PretendoWindow()
 {	
