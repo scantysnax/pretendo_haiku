@@ -206,19 +206,14 @@ PretendoWindow::~PretendoWindow()
 		fPaletteWindow->Quit();
 	}
 	
-	if (fPatternTable0Window != nullptr) {
-		fPatternTable0Window->Lock();
-		fPatternTable0Window->Quit();
-	}
-
 	if (fPatternTable1Window != nullptr) {
 		fPatternTable1Window->Lock();
 		fPatternTable1Window->Quit();
 	}
-	
-	if (fNameTable0Window != nullptr) {
-		fNameTable0Window->Lock();
-		fNameTable0Window->Quit();
+
+	if (fPatternTable2Window != nullptr) {
+		fPatternTable2Window->Lock();
+		fPatternTable2Window->Quit();
 	}
 	
 	if (fNameTable1Window != nullptr) {
@@ -234,6 +229,11 @@ PretendoWindow::~PretendoWindow()
 	if (fNameTable3Window != nullptr) {
 		fNameTable3Window->Lock();
 		fNameTable3Window->Quit();
+	}
+	
+	if (fNameTable4Window != nullptr) {
+		fNameTable4Window->Lock();
+		fNameTable4Window->Quit();
 	}
 	
 	fMutex->Unlock();

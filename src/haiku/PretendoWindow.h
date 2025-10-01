@@ -129,6 +129,7 @@ class PretendoWindow : public BDirectWindow
 	virtual void MenusBeginning();
 	virtual void MenusEnded();
 	
+	// menu
 	private:
 	void AddMenu();
 	
@@ -156,7 +157,6 @@ class PretendoWindow : public BDirectWindow
 	void OnAudioTriangle();
 	void OnAudioNoise();
 	void OnAudioDMC();
-	
 
 	// video stuff
 	private:
@@ -243,12 +243,12 @@ class PretendoWindow : public BDirectWindow
 	private:
 	ROMInfoWindow *fROMInfoWindow = nullptr;
 	PaletteWindow *fPaletteWindow = nullptr;
-	PatternTableWindow *fPatternTable0Window = nullptr;
 	PatternTableWindow *fPatternTable1Window = nullptr;
-	NameTableWindow *fNameTable0Window = nullptr;
+	PatternTableWindow *fPatternTable2Window = nullptr;
 	NameTableWindow *fNameTable1Window = nullptr;
 	NameTableWindow *fNameTable2Window = nullptr;
 	NameTableWindow *fNameTable3Window = nullptr;
+	NameTableWindow *fNameTable4Window = nullptr;
 	InputWindow *fInputWindow = nullptr;
 	
 	private:
