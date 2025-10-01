@@ -5,20 +5,21 @@
 #include "Input.h"
 #include "Mapper.h"
 #include "Nes.h"
-#include "Reset.h"
 #include "Palette.h"
+#include "Reset.h"
+
 
 // ui and other things
-#include "PretendoWindow.h"
-#include "ROMInfoWindow.h"
-#include "PaletteWindow.h"
-#include "VideoScreen.h"
-#include "ROMFilePanel.h"
-#include "PaletteWindow.h"
-#include "Mutex.h"
-#include "PretendoView.h"
-#include "Controller.h"
 #include "AudioStream.h"
+#include "Controller.h"
+#include "Mutex.h"
+#include "PaletteWindow.h"
+#include "PretendoView.h"
+#include "PretendoWindow.h"
+#include "ROMFilePanel.h"
+#include "ROMInfoWindow.h"
+#include "VideoScreen.h"
+
 
 // use mmx blitters and memcpy()
 #include "asm/blitters.h"
