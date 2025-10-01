@@ -549,11 +549,11 @@ PretendoWindow::AddMenu()
 	fAudioMenu->AddItem(new BMenuItem("Noise", new BMessage(MSG_AUDIO_NOISE)));
 	fAudioMenu->AddItem(new BMenuItem("DMC/DPCM", new BMessage(MSG_AUDIO_DMC)));
 	
-	(fAudioMenu->ItemAt(0))->SetMarked(true);
-	(fAudioMenu->ItemAt(1))->SetMarked(true);
-	(fAudioMenu->ItemAt(2))->SetMarked(true);
-	(fAudioMenu->ItemAt(3))->SetMarked(true);
-	(fAudioMenu->ItemAt(4))->SetMarked(true);
+	(fAudioMenu->ItemAt(nes::apu::channel_which::SQUARE1))->SetMarked(true);
+	(fAudioMenu->ItemAt(nes::apu::channel_which::SQUARE2))->SetMarked(true);
+	(fAudioMenu->ItemAt(nes::apu::channel_which::TRIANGLE))->SetMarked(true);
+	(fAudioMenu->ItemAt(nes::apu::channel_which::NOISE))->SetMarked(true);
+	(fAudioMenu->ItemAt(nes::apu::channel_which::DPCM))->SetMarked(true);
 	
 	fEmuMenu->AddItem(new BMenuItem("Input" B_UTF8_ELLIPSIS, new BMessage(MSG_CFG_INPUT)));
 	
