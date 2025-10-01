@@ -367,18 +367,14 @@ PretendoWindow::MessageReceived (BMessage *message)
 			OnAdjustPalette();
 			break;
 			
-		case MSG_PTNTBL0:			
-			OnViewPatternTable0();
-			break;
-			
-		case MSG_PTNTBL1:
+		case MSG_PTNTBL1:			
 			OnViewPatternTable1();
 			break;
-		
-		case MSG_NTBL0:
-			OnViewNameTable0();
-			break;
 			
+		case MSG_PTNTBL2:
+			OnViewPatternTable2();
+			break;
+		
 		case MSG_NTBL1:
 			OnViewNameTable1();
 			break;
@@ -386,9 +382,13 @@ PretendoWindow::MessageReceived (BMessage *message)
 		case MSG_NTBL2:
 			OnViewNameTable2();
 			break;
-		
+			
 		case MSG_NTBL3:
 			OnViewNameTable3();
+			break;
+		
+		case MSG_NTBL4:
+			OnViewNameTable4();
 			break;
 			
 		case MSG_AUDIO_SQ1:
@@ -560,14 +560,14 @@ PretendoWindow::AddMenu()
 	fToolMenu->AddItem(new BMenuItem("Adjust Palette" B_UTF8_ELLIPSIS, new BMessage(MSG_ADJ_PALETTE)));
 	fToolMenu->AddSeparatorItem();
 	fPatternTableMenu = new BMenu("View Pattern Tables");
-	fPatternTableMenu->AddItem(new BMenuItem("0 (0x0-0xfff)", new BMessage(MSG_PTNTBL0)));
-	fPatternTableMenu->AddItem(new BMenuItem("1 (0x1000-0x1fff)", new BMessage(MSG_PTNTBL1)));
+	fPatternTableMenu->AddItem(new BMenuItem("1 (0x0-0xfff)", new BMessage(MSG_PTNTBL1)));
+	fPatternTableMenu->AddItem(new BMenuItem("2 (0x1000-0x1fff)", new BMessage(MSG_PTNTBL2)));
 	fToolMenu->AddItem(fPatternTableMenu);
 	fNameTableMenu = new BMenu("View Name Tables");
-	fNameTableMenu->AddItem(new BMenuItem("0 (0x2000-0x23ff)", new BMessage(MSG_NTBL0)));
-	fNameTableMenu->AddItem(new BMenuItem("1 (0x2400-0x27ff)", new BMessage(MSG_NTBL1)));
-	fNameTableMenu->AddItem(new BMenuItem("2 (0x2800-0x2bff)", new BMessage(MSG_NTBL2)));
-	fNameTableMenu->AddItem(new BMenuItem("3 (0x2c00-0x2fff)", new BMessage(MSG_NTBL3)));
+	fNameTableMenu->AddItem(new BMenuItem("1 (0x2000-0x23ff)", new BMessage(MSG_NTBL1)));
+	fNameTableMenu->AddItem(new BMenuItem("2 (0x2400-0x27ff)", new BMessage(MSG_NTBL2)));
+	fNameTableMenu->AddItem(new BMenuItem("3 (0x2800-0x2bff)", new BMessage(MSG_NTBL3)));
+	fNameTableMenu->AddItem(new BMenuItem("4 (0x2c00-0x2fff)", new BMessage(MSG_NTBL4)));
 	fToolMenu->AddItem(fNameTableMenu);
 
 	fMenuHeight = fMenu->Bounds().IntegerHeight();
@@ -749,7 +749,7 @@ PretendoWindow::OnAdjustPalette()
 }
 
 void
-PretendoWindow::OnViewPatternTable0()
+PretendoWindow::OnViewPatternTable1()
 {
 	puts(__PRETTY_FUNCTION__);
 	
@@ -788,7 +788,7 @@ PretendoWindow::OnViewPatternTable0()
 }
 
 void
-PretendoWindow::OnViewPatternTable1()
+PretendoWindow::OnViewPatternTable2()
 {
 	puts(__PRETTY_FUNCTION__);
 	
@@ -798,7 +798,7 @@ PretendoWindow::OnViewPatternTable1()
 }
 
 void
-PretendoWindow::OnViewNameTable0()
+PretendoWindow::OnViewNameTable1()
 {
 	puts(__PRETTY_FUNCTION__);
 	
@@ -820,16 +820,6 @@ PretendoWindow::OnViewNameTable0()
 }
 
 void
-PretendoWindow::OnViewNameTable1()
-{
-	puts(__PRETTY_FUNCTION__);
-	
-	if (! nes::cart.mapper()) {
-		return;
-	}
-}
-
-void
 PretendoWindow::OnViewNameTable2()
 {
 	puts(__PRETTY_FUNCTION__);
@@ -839,9 +829,19 @@ PretendoWindow::OnViewNameTable2()
 	}
 }
 
-
 void
 PretendoWindow::OnViewNameTable3()
+{
+	puts(__PRETTY_FUNCTION__);
+	
+	if (! nes::cart.mapper()) {
+		return;
+	}
+}
+
+
+void
+PretendoWindow::OnViewNameTable4()
 {
 	puts(__PRETTY_FUNCTION__);
 	

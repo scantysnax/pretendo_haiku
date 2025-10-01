@@ -60,12 +60,12 @@ constexpr uint32 MSG_AUDIO_TRI = 	'TRIA';
 constexpr uint32 MSG_AUDIO_NOISE = 	'NOIS';
 constexpr uint32 MSG_AUDIO_DMC = 	'DPCM';
 // tools
-constexpr uint32 MSG_PTNTBL0 = 	'PTB0';
 constexpr uint32 MSG_PTNTBL1 = 	'PTB1';
-constexpr uint32 MSG_NTBL0 = 	'NTB0';
-constexpr uint32 MSG_NTBL1 = 	'NTB1';
+constexpr uint32 MSG_PTNTBL2 = 	'PTB2';
+constexpr uint32 MSG_NTBL1  = 	'NTB1';
 constexpr uint32 MSG_NTBL2 = 	'NTB2';
 constexpr uint32 MSG_NTBL3 = 	'NTB3';
+constexpr uint32 MSG_NTBL4 = 	'NTB4';
 
 
 // we need to forward declare this
@@ -145,12 +145,12 @@ class PretendoWindow : public BDirectWindow
 	void OnHardReset();
 	void OnConfigureInput();
 	void OnAdjustPalette();
-	void OnViewPatternTable0();
 	void OnViewPatternTable1();
-	void OnViewNameTable0();
-	void OnViewNameTable1();
+	void OnViewPatternTable2();
+	void OnViewNameTable1(); 
 	void OnViewNameTable2();
 	void OnViewNameTable3();
+	void OnViewNameTable4();
 	void OnAudioSquare1();
 	void OnAudioSquare2();
 	void OnAudioTriangle();
