@@ -8,8 +8,26 @@ NameTableWindow::NameTableWindow (PretendoWindow *parent, int32 which)
 {
 	fParent = parent;
 	
-	ResizeTo(256, 240);
-	SetTitle("Name Table #0");
+	ResizeTo(kNameTableWidth, kNameTableHeight);
+	
+	switch (which) {
+		case 0:
+		SetTitle("Name Table 1 (0x2000-0x23ff");
+		break;
+		
+		case 1:
+		SetTitle("Name Table 2 (0x2400-0x27ff");
+		break;
+		
+		case 2:
+		SetTitle("Name Table 3 (0x2800-0x2bff");
+		break;
+		
+		case 3:
+		SetTitle("Name Table 4 (0x2c00-0x2fff");
+		break;
+	}
+		
 	
 	fView = new NameTableView(Bounds(), which);
 	AddChild(fView);	
