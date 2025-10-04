@@ -285,7 +285,6 @@ class PretendoWindow : public BDirectWindow
 	{ 
 		return fMutex->Unlock();
 	}
-	
 };
 				
 #endif // _PRETENDO_WINDOW_H_

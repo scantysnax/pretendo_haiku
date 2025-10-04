@@ -23,10 +23,25 @@ class VideoScreen : public BWindowScreen
 	virtual void ScreenConnected (bool connected);
 	
 	public:
-	bool Connected() const 		{ return fConnected; 	}
-	uint8 *Bits() const 		{ return fBits; 		}
-	int32 RowBytes() const 		{ return fRowBytes; 	}
-	int32 PixelWidth() const 	{ return fPixelWidth; 	}
+	bool Connected() const
+	{
+		return fConnected;
+	}
+	
+	uint8 *Bits() const 	
+	{ 
+		return fBits;
+	}
+	
+	int32 RowBytes() const 
+	{
+		return fRowBytes;
+	}
+	
+	int32 PixelWidth() const 
+	{ 
+		return fPixelWidth;
+	}
 	
 	private:
 	PretendoWindow *fOwner = nullptr;

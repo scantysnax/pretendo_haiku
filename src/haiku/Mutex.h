@@ -16,7 +16,10 @@ class Mutex
 	public:
 	bool Lock() const;
 	bool Unlock() const;
-	sem_id Locker() const { return fLocker; }
+	sem_id Locker() const
+	{ 
+		return fLocker; 
+	}
 	
 	private:
 	sem_id fLocker;
