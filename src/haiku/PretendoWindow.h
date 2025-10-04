@@ -261,7 +261,10 @@ class PretendoWindow : public BDirectWindow
 	bool fRunning = false;
 	
 	public:
-	bool Running() const { return fRunning; }
+	bool Running() const
+	{ 
+		return fRunning;
+	}
 
 	// input
 	private:
@@ -272,8 +275,16 @@ class PretendoWindow : public BDirectWindow
 	// mutex
 	private:
 	Mutex const *fMutex = nullptr;
-	bool LockMutex() const	 { return fMutex->Lock();	}
-	bool UnlockMutex() const { return fMutex->Unlock();	}
+	
+	bool LockMutex() const	 
+	{ 
+		return fMutex->Lock();
+	}
+	
+	bool UnlockMutex() const
+	{ 
+		return fMutex->Unlock();
+	}
 	
 };
 				
