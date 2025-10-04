@@ -44,7 +44,7 @@ class VideoScreen : public BWindowScreen
 	}
 	
 	private:
-	PretendoWindow *fOwner = nullptr;
+	PretendoWindow *fParent = nullptr;
 	volatile bool fConnected = false;
 	uint8 *fBits = nullptr;
 	int32 fRowBytes = 0;
