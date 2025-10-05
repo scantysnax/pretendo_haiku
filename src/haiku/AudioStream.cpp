@@ -2,7 +2,7 @@
 #include "AudioStream.h"
 
 
-AudioStream::AudioStream (float sampleRate, size_t sampleBits, size_t channels, size_t bufferSize)
+AudioStream::AudioStream (float sampleRate, int32 sampleBits, int32 channels, size_t bufferSize)
 {	
 	media_raw_audio_format format;
 	memset(&format, 0, sizeof(format));
