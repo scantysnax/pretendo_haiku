@@ -276,6 +276,7 @@ class PretendoWindow : public BDirectWindow
 	private:
 	Mutex const *fMutex = nullptr;
 	
+	public:
 	bool LockMutex() const	 
 	{ 
 		return fMutex->Lock();
