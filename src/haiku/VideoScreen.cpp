@@ -26,16 +26,14 @@ VideoScreen::~VideoScreen()
 void
 VideoScreen::MessageReceived (BMessage *message)
 {
-	switch (message->what) {
-		case B_KEY_DOWN:
-			int8 key;
-			
-			if ((message->FindInt8("byte", 0, &key) == B_OK) && key == B_ESCAPE) {
-				fParent->PostMessage(MSG_LEAVE_FULLSCREEN);
-			}
-			break;
+	if (message->what == B_KEY_DOWN) {
+		int8 key;
+		
+		if ((message->FindInt8("byte", 0, &key) == B_OK) && key == B_ESCAPE) {
+			fParent->PostMessage(MSG_LEAVE_FULLSCREEN);
+		}
 	}
-	
+		
 	BWindowScreen::MessageReceived (message);
 }
 
