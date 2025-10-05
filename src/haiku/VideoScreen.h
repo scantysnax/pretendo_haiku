@@ -14,7 +14,7 @@ constexpr uint32 MSG_LEAVE_FULLSCREEN = 'LVFS';
 class VideoScreen : public BWindowScreen
 {
 	public:
-			VideoScreen (PretendoWindow *owner);
+			VideoScreen (PretendoWindow *parent);
 	virtual ~VideoScreen();
 	
 	public:
