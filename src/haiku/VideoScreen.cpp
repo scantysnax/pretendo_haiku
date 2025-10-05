@@ -54,7 +54,8 @@ VideoScreen::ScreenConnected (bool connected)
 	if (fConnected == true) {
 		status_t error;
 		error = SetSpace (B_8_BIT_640x480);
-	if (error != B_OK) {
+		
+		if (error != B_OK) {
 			PostMessage (B_QUIT_REQUESTED, this);
 		}
 		
