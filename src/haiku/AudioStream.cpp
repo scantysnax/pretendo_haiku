@@ -14,8 +14,6 @@ AudioStream::AudioStream (float sampleRate, int32 sampleBits, int32 channels, si
 	format.buffer_size = bufferSize;
 
 	fSoundPlayer = new BSoundPlayer(&format, "Pretendo output", &play_buffer, nullptr, this);
-	fWritePosition = 0;
-	fPlayPosition = 0;
 	fBufferSize = bufferSize * (sampleBits / 8);
 	fSoundBuffer = reinterpret_cast<uint8 *>(malloc(fBufferSize));	
 	fStreaming = false;

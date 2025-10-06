@@ -26,15 +26,15 @@ class AudioStream
 	static void play_buffer (void *cookie, void *buffer, size_t size, 
 							 const media_raw_audio_format &format);				   
 	private:
-	BSoundPlayer *fSoundPlayer;
-	size_t fWritePosition;
-	size_t fPlayPosition;
-	size_t fBufferSize;
-	uint8 *fSoundBuffer;
-	Mutex *fMutex;
+	BSoundPlayer *fSoundPlayer = nullptr;
+	size_t fWritePosition = 0;
+	size_t fPlayPosition = 0;
+	size_t fBufferSize = 0;
+	uint8 *fSoundBuffer = nullptr;
+	Mutex *fMutex = nullptr;
 	
 	private:
-	bool fStreaming;
+	bool fStreaming = false;
 };
 
 #endif // _AUDIO_STREAM_H_
