@@ -16,7 +16,6 @@ AudioStream::AudioStream (float sampleRate, int32 sampleBits, int32 channels, si
 	fSoundPlayer = new BSoundPlayer(&format, "Pretendo output", &play_buffer, nullptr, this);
 	fBufferSize = bufferSize * (sampleBits / 8);
 	fSoundBuffer = reinterpret_cast<uint8 *>(malloc(fBufferSize));	
-	fStreaming = false;
 	fMutex = new Mutex("pretendo_audio_mutex");
 	
 	memset(fSoundBuffer, 0x80, fBufferSize);	
