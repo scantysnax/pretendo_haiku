@@ -34,3 +34,10 @@ InputWindow::QuitRequested()
 {
 	return true;
 }
+
+
+void
+InputWindow::SetDefaultInputs()
+{
+	
+}

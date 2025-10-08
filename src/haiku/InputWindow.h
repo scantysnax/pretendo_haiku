@@ -20,6 +20,9 @@ class InputWindow : public BWindow
 	virtual bool QuitRequested();
 	virtual void MessageReceived (BMessage *message);
 	
+	public:
+	void SetDefaultInputs();
+	
 	private:
 	PretendoWindow *fParent = nullptr;
 	InputView *fInputView = nullptr;
