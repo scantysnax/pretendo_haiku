@@ -88,7 +88,7 @@ typedef enum {
 	TRIANGLE = 2,
 	NOISE = 3,
 	DPCM = 4
-} channel_which;
+} sound_channel;
 
 }
 

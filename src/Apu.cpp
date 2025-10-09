@@ -525,23 +525,23 @@ void
 mute_channel (int32_t channel)
 {	
 	switch (channel) {
-		case channel_which::SQUARE1:
+		case sound_channel::SQUARE1:
 		square_0.mute();
 		break;
 		
-		case channel_which::SQUARE2:
+		case sound_channel::SQUARE2:
 		square_1.mute();
 		break;
 		
-		case channel_which::TRIANGLE:
+		case sound_channel::TRIANGLE:
 		triangle.mute();
 		break;
 		
-		case channel_which::NOISE:
+		case sound_channel::NOISE:
 		noise.mute();
 		break;
 		
-		case channel_which::DPCM:
+		case sound_channel::DPCM:
 		dmc.mute();
 		break;
 	}			
@@ -552,23 +552,23 @@ void
 unmute_channel (int32_t channel)
 {
 	switch (channel) {
-		case channel_which::SQUARE1:
+		case sound_channel::SQUARE1:
 		square_0.unmute();
 		break;
 		
-		case channel_which::SQUARE2:
+		case sound_channel::SQUARE2:
 		square_1.unmute();
 		break;
 		
-		case channel_which::TRIANGLE:
+		case sound_channel::TRIANGLE:
 		triangle.unmute();
 		break;
 		
-		case channel_which::NOISE:
+		case sound_channel::NOISE:
 		noise.unmute();
 		break;
 		
-		case channel_which::DPCM:
+		case sound_channel::DPCM:
 		dmc.unmute();
 		break;
 	}			
