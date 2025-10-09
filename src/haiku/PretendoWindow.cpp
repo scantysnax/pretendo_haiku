@@ -31,7 +31,7 @@ PretendoWindow::PretendoWindow()
 {
 	// ui things
 	AddMenu();
-	ResizeTo(SCREEN_WIDTH, SCREEN_HEIGHT);
+	ResizeTo(screen_size::WIDTH, screen_size::HEIGHT);
 	CenterOnScreen();
 	
 	BRect bounds(Bounds());
@@ -45,11 +45,11 @@ PretendoWindow::PretendoWindow()
 	void *dirtyArea;
 	
 	fBitsArea = create_area("pretendo_frame_buffer", &bitsArea, B_ANY_ADDRESS,
-					((SCREEN_WIDTH * 2) * (SCREEN_HEIGHT * 2) * 4 + B_PAGE_SIZE-1) & 
+					((screen_size::WIDTH * 2) * (screen_size::HEIGHT * 2) * 4 + B_PAGE_SIZE-1) & 
 					((uint32)-1 ^ (B_PAGE_SIZE-1)), B_NO_LOCK, B_READ_AREA | B_WRITE_AREA);
 					
 	fDirtyArea = create_area("pretendo_dirty_buffer", &dirtyArea, B_ANY_ADDRESS,
-					((SCREEN_WIDTH * 2) * (SCREEN_HEIGHT * 2) * 4 + B_PAGE_SIZE-1) & 
+					((screen_size::WIDTH * 2) * (screen_size::HEIGHT * 2) * 4 + B_PAGE_SIZE-1) & 
 					((uint32)-1 ^ (B_PAGE_SIZE-1)), B_NO_LOCK, B_READ_AREA | B_WRITE_AREA);
 					
 	if (fBitsArea < B_OK || fDirtyArea < B_OK) {
@@ -57,15 +57,15 @@ PretendoWindow::PretendoWindow()
 			"Sorry", nullptr, nullptr, B_WIDTH_AS_USUAL, B_STOP_ALERT))->Go();
 		be_app->PostMessage(B_QUIT_REQUESTED);
 	} else {
-		memset(bitsArea, 0x0, (SCREEN_WIDTH*2) * (SCREEN_HEIGHT*2) * 4);
-		memset(dirtyArea, 0xff, (SCREEN_WIDTH*2) * (SCREEN_HEIGHT*2) * 4);
+		memset(bitsArea, 0x0, (screen_size::WIDTH*2) * (screen_size::HEIGHT*2) * 4);
+		memset(dirtyArea, 0xff, (screen_size::WIDTH*2) * (screen_size::HEIGHT*2) * 4);
 		
 		fBackBuffer.bits = reinterpret_cast<uint8 *>(bitsArea);
 		fDirtyBuffer.bits = reinterpret_cast<uint8 *>(dirtyArea);
 	}
 	
 	// setup BBitmap.  keep it contiguous in memory
-	fBitmap = new BBitmap(BRect(0, 0, SCREEN_WIDTH-1, SCREEN_HEIGHT-1), B_CMAP8, false, true);
+	fBitmap = new BBitmap(BRect(0, 0, screen_size::WIDTH-1, screen_size::HEIGHT-1), B_CMAP8, false, true);
 	
 	if (! fBitmap || ! fBitmap->IsValid()) {
 		(new BAlert("Error", "Can't create video bitmap.  Quitting.","Sorry", 
@@ -80,7 +80,7 @@ PretendoWindow::PretendoWindow()
 	// this will always fail until we get hardware accelerated video
 	bool overlayOK = false;
 
-	bounds.Set(0, 0, SCREEN_WIDTH-1, SCREEN_HEIGHT-1);
+	bounds.Set(0, 0, screen_size::WIDTH-1, screen_size::HEIGHT-1);
 	fOverlayBitmap = new BBitmap(bounds, B_BITMAP_WILL_OVERLAY, B_YCbCr422);
 	overlayOK = fOverlayBitmap && fOverlayBitmap->IsValid();
 
@@ -104,28 +104,28 @@ PretendoWindow::PretendoWindow()
 	fFullScreen = 
 	fFrameworkChanging = false;	
 	fFramework = 
-	fPrevFramework = VF_NONE;
+	fPrevFramework = video_framework::NONE;
 	fDoubled = false;
 	fClear = 0;
 	
 	if (overlayOK) {
-		ChangeFramework(VF_OVERLAY);
+		ChangeFramework(video_framework::OVERLAY);
 	} else {
 		// make sure we can use windowed mode.  if not default to bitmap framework
 		if (BDirectWindow::SupportsWindowMode() == false) {
-			fVideoMenu->ItemAt(VF_DIRECT)->SetEnabled(false);
-			ChangeFramework(VF_BITMAP);
+			fVideoMenu->ItemAt(video_framework::DIRECT)->SetEnabled(false);
+			ChangeFramework(video_framework::BITMAP);
 		} else {
 			// there will be mouse "trails" on the BDirectWindow until we get a hardware cursor. 
 			// this is not ideal, so default to bitmap framework
 			
-			//ChangeFramework(VF_DIRECT);
-			ChangeFramework(VF_BITMAP);
+			//ChangeFramework(video_framework::DIRECT);
+			ChangeFramework(video_framework::BITMAP);
 		}
 	}
 	
 	// we can't change to full screen yet
-	fVideoMenu->ItemAt(VF_FULLSCREEN)->SetEnabled(false);
+	fVideoMenu->ItemAt(video_framework::FULLSCREEN)->SetEnabled(false);
 	
 	memset(&fKeyStates, 0, sizeof (key_info));
 	fOpenPanel = new ROMFilePanel;
@@ -253,7 +253,7 @@ PretendoWindow::DirectConnected (direct_buffer_info *info)
 			fClipInfo.bounds = info->window_bounds;
 			fClipInfo.bounds.top += fMenuHeight + 1;
 	
-			if (fFramework == VF_DIRECT) {
+			if (fFramework == video_framework::DIRECT) {
 				SetFrontBuffer(reinterpret_cast<uint8 *>(info->bits)
 					+ (fClipInfo.bounds.top * info->bytes_per_row), info->pixel_format,
 					info->bits_per_pixel / 8, info->bytes_per_row);
@@ -490,11 +490,11 @@ PretendoWindow::Zoom (BPoint origin, float width, float height)
 	
 	float const w = Bounds().Width();
 			
-	if (w == SCREEN_WIDTH) {
-		ResizeTo((SCREEN_WIDTH*2), (SCREEN_HEIGHT*2));
+	if (w == screen_size::WIDTH) {
+		ResizeTo((screen_size::WIDTH*2), (screen_size::HEIGHT*2));
 		fDoubled = true;
-	} else if (w == SCREEN_WIDTH*2) {
-		ResizeTo(SCREEN_WIDTH, SCREEN_HEIGHT);
+	} else if (w == screen_size::WIDTH*2) {
+		ResizeTo(screen_size::WIDTH, screen_size::HEIGHT);
 		fDoubled = false;
 	} 
 	
@@ -633,7 +633,7 @@ PretendoWindow::OnRun()
 			fMutex->Unlock(); // unlock the mutual exclusion
 			fRunning = true;  // signal the thread that we're running
 			fAudioStream->Start();
-			fVideoMenu->ItemAt(VF_FULLSCREEN)->SetEnabled(true); // we can now go fullscreen
+			fVideoMenu->ItemAt(video_framework::FULLSCREEN)->SetEnabled(true); // we can now go fullscreen
 		}
 	} else if (fPaused) {
 		OnPause();
@@ -655,7 +655,7 @@ PretendoWindow::OnStop()
 		}
 
 		// clear the window contents
-		if (fFramework == VF_OVERLAY) {
+		if (fFramework == video_framework::OVERLAY) {
 			ClearBitmap(true);
 		} else {
 			ClearBitmap(false);
@@ -663,7 +663,7 @@ PretendoWindow::OnStop()
 			fView->Invalidate();
 		}
 		
-		fVideoMenu->ItemAt(VF_FULLSCREEN)->SetEnabled(false); // make sure we can't go fullscreen
+		fVideoMenu->ItemAt(video_framework::FULLSCREEN)->SetEnabled(false); // make sure we can't go fullscreen
 	}
 	
 	fPaused = false;
@@ -932,7 +932,7 @@ PretendoWindow::RenderLine8 (uint8 *dest, const uint32_t *source)
 {
 	// render to 8-bit buffer
 	int32 intensity = 0;
-	int32 width = SCREEN_WIDTH / 4;
+	int32 width = screen_size::WIDTH / 4;
 	uint8 *palette = reinterpret_cast<uint8 *>(fMappedPalette[intensity]);
 	
 	while (width--) {
@@ -950,7 +950,7 @@ PretendoWindow::RenderLine16 (uint8 *dest, const uint32_t *source)
 {
 	// render to 16-bit buffer
 	int32 intensity = 0;
-	int32 width = SCREEN_WIDTH / 4;
+	int32 width = screen_size::WIDTH / 4;
 	uint16 *palette = reinterpret_cast<uint16 *>(fMappedPalette[intensity]);
 
 	while (width--) {
@@ -968,7 +968,7 @@ PretendoWindow::RenderLine32 (uint8 *dest, const uint32_t *source)
 {
 	// render to 32-bit buffer
 	int32 intensity = 0;
-	int32 width = SCREEN_WIDTH / 4;
+	int32 width = screen_size::WIDTH / 4;
 	uint32 const *palette = reinterpret_cast<uint32 *>(fMappedPalette[intensity]);
 	
 	while (width--) {
@@ -986,7 +986,7 @@ PretendoWindow::ClearDirty()
 {
 	// clear dirty buffer
 	uint32 *start = reinterpret_cast<uint32 *>(fDirtyBuffer.bits);
-	uint32 *end = reinterpret_cast<uint32 *>(fDirtyBuffer.bits) + (SCREEN_WIDTH*2) * (SCREEN_HEIGHT*2);
+	uint32 *end = reinterpret_cast<uint32 *>(fDirtyBuffer.bits) + (screen_size::WIDTH*2) * (screen_size::HEIGHT*2);
 	
 	if (fClear > 0) {
 		while (start < end) {
@@ -1004,7 +1004,7 @@ PretendoWindow::ClearBitmap (bool overlay)
 	// clear any bitmaps used for rendering
 	if (overlay) {
 		uint8 *bits = fOverlayBits;
-		for (int32 y = 0; y < PretendoWindow::SCREEN_HEIGHT; y++) {
+		for (int32 y = 0; y < PretendoWindow::screen_size::HEIGHT; y++) {
 			for (int32 row = 0; row < fOverlayBitmap->BytesPerRow(); row += 2) {
 				*(uint16 *)(bits+row) = (128 << 8) | (16 >> 0);
 			}
@@ -1060,14 +1060,14 @@ PretendoWindow::SetFrontBuffer (uint8 *bits, color_space cs, int32 pixel_width, 
 	fFrontBuffer.row_bytes = row_bytes;
 	
 	// prepare WindowScreen if necessary
-	if (fFramework == VF_FULLSCREEN) {
+	if (fFramework == video_framework::FULLSCREEN) {
 		memset(fFrontBuffer.bits, 0x0, 480 * fFrontBuffer.row_bytes);
 		memset(fDirtyBuffer.bits, 0xff, 480 * fFrontBuffer.row_bytes);
-		fFrontBuffer.bits += (640 - SCREEN_WIDTH*2) / 2;
+		fFrontBuffer.bits += (640 - screen_size::WIDTH*2) / 2;
 	} else {
 		// setup windowed buffer
-		for (int32 y = 0; y < SCREEN_HEIGHT; y++) {
-			fLineOffsets[y] = fBackBuffer.bits + y * SCREEN_WIDTH * pixel_width;
+		for (int32 y = 0; y < screen_size::HEIGHT; y++) {
+			fLineOffsets[y] = fBackBuffer.bits + y * screen_size::WIDTH * pixel_width;
 		}
 	}
 	
@@ -1092,23 +1092,23 @@ PretendoWindow::ChangeFramework (video_framework fw)
 			
 	// break down previous framework
 	switch (fPrevFramework) {
-		case VF_NONE:
-		case VF_DIRECT:
+		case video_framework::NONE:
+		case video_framework::DIRECT:
 			// nothing to do here
 			break;
 			
-		case VF_BITMAP:
+		case video_framework::BITMAP:
 			ClearBitmap(false);
 			break;
 			
-		case VF_OVERLAY:
+		case video_framework::OVERLAY:
 			ClearBitmap(true);
 			fView->ClearViewOverlay();
 			fView->SetViewColor(0, 0, 0);
 			fView->Invalidate();
 			break;
 			
-		case VF_FULLSCREEN:			
+		case video_framework::FULLSCREEN:			
 			if (fVideoScreen->Lock()) {
 				fVideoScreen->Quit();
 			}
@@ -1117,11 +1117,11 @@ PretendoWindow::ChangeFramework (video_framework fw)
 	
 	// build new framework
 	switch (fFramework) {
-		case VF_NONE:	
+		case video_framework::NONE:	
 			fView->Invalidate();
 			break;
 			
-		case VF_BITMAP:
+		case video_framework::BITMAP:
 			SetFrontBuffer(fBitmapBits, B_CMAP8, 4, fBitmap->BytesPerRow());
 			
 			// force a screen update in case we are coming from WindowScreen
@@ -1129,7 +1129,7 @@ PretendoWindow::ChangeFramework (video_framework fw)
 			ClearDirty();
 			break;
 			
-		case VF_OVERLAY:
+		case video_framework::OVERLAY:
 			rgb_color key;
 			SetFrontBuffer(fOverlayBits, B_RGB16, 2, fOverlayBitmap->BytesPerRow());
 			ClearBitmap(true);
@@ -1140,14 +1140,14 @@ PretendoWindow::ChangeFramework (video_framework fw)
 			fView->Invalidate();
 			break;
 			
-		case VF_DIRECT:
+		case video_framework::DIRECT:
 			// front buffer *must* be set in DirectConnected(), not here.
 			Hide();
 			Show();
 			SetRenderer(BScreen().ColorSpace());
 			break;
 			
-		case VF_FULLSCREEN:
+		case video_framework::FULLSCREEN:
 			fVideoScreen = new VideoScreen (this);
 			fVideoScreen->Show();
 			snooze (1000000); 	// wait a little while for the screen to connect
@@ -1225,8 +1225,8 @@ PretendoWindow::DrawBitmap()
 	uint8 *source = fBackBuffer.bits;
 	uint8 *dirty = fDirtyBuffer.bits;
 	
-	size_t const size = SCREEN_WIDTH;
-	size_t height = SCREEN_HEIGHT;
+	size_t const size = screen_size::WIDTH;
+	size_t height = screen_size::HEIGHT;
 	
 	while (height--) {
 		blit_windowed_dirty_mmx(source, dirty, dest, size, fPixelWidth);
@@ -1257,12 +1257,12 @@ PretendoWindow::DrawOverlay()
 #if 0
 			source = reinterpret_cast<uint8 *>(fBackBuffer.bits);
 			dest = reinterpret_cast<uint8 *>(fOverlayBits);
-			size = PretendoWindow::SCREEN_WIDTH / 2;
+			size = PretendoWindow::screen_size::WIDTH / 2;
 			
 			blit_overlay(dest, source, size, fPaletteY, fPaletteYCbCr);
 		
 			
-			for (int32 y = 0; y < PretendoWindow::SCREEN_HEIGHT; y++) {
+			for (int32 y = 0; y < PretendoWindow::screen_size::HEIGHT; y++) {
 				asm volatile  ("pushl %%edi\n"
 					  		  "pushl %%esi\n"
 				  			  "pushl %%ebx\n"
@@ -1324,8 +1324,8 @@ PretendoWindow::DrawFullScreen()
 		int32 const dx = fFrontBuffer.row_bytes;
 		int32 const sx = fBackBuffer.row_bytes;
 				
-		for (int32 y = 0; y < SCREEN_HEIGHT; y++) {
-			blit_2x_dirty_mmx(dest, source, dirty, dx, SCREEN_WIDTH);
+		for (int32 y = 0; y < screen_size::HEIGHT; y++) {
+			blit_2x_dirty_mmx(dest, source, dirty, dx, screen_size::WIDTH);
 			dest += (dx * 2);
 			source += sx;
 			dirty += sx;
@@ -1344,25 +1344,25 @@ PretendoWindow::BlitScreen()
 	}
 
 	switch (fFramework) {
-		case VF_NONE:
+		case video_framework::NONE:
 			break;
 			
-		case VF_BITMAP:
+		case video_framework::BITMAP:
 			DrawBitmap();
 			break;
 			
-		case VF_OVERLAY:
+		case video_framework::OVERLAY:
 			DrawOverlay();
 			break;
 			
-		case VF_DIRECT:
+		case video_framework::DIRECT:
 			if (fDirectConnected) {				
 				ClearDirty();
 				DrawDirect();
 			}
 			break;
 			
-		case VF_FULLSCREEN:
+		case video_framework::FULLSCREEN:
 			DrawFullScreen();
 			break;
 	}
@@ -1436,7 +1436,7 @@ PretendoWindow::start_frame()
 	// setup DirectWindow if we need
 	//if (fDirectConnected) {
 		fPixelWidth = fFrontBuffer.pixel_width;
-		fBackBuffer.row_bytes = SCREEN_WIDTH * fPixelWidth;
+		fBackBuffer.row_bytes = screen_size::WIDTH * fPixelWidth;
 	//}
 }
 
@@ -1495,14 +1495,14 @@ PretendoWindow::ReadKeyStates()
 {
 	get_key_info(&fKeyStates);
 	
-	CheckKey(Controller::INDEX_UP, kDefaultKeyUp);
-	CheckKey(Controller::INDEX_DOWN, kDefaultKeyDown);
-	CheckKey(Controller::INDEX_LEFT, kDefaultKeyLeft);
-	CheckKey(Controller::INDEX_RIGHT, kDefaultKeyRight);
-	CheckKey(Controller::INDEX_SELECT, kDefaultKeySelect);
-	CheckKey(Controller::INDEX_START, kDefaultKeyStart);
-	CheckKey(Controller::INDEX_B, kDefaultKeyB);
-	CheckKey(Controller::INDEX_A, kDefaultKeyA);
+	CheckKey(Controller::INDEX_UP, default_keys::UP);
+	CheckKey(Controller::INDEX_DOWN, default_keys::DOWN);
+	CheckKey(Controller::INDEX_LEFT, default_keys::LEFT);
+	CheckKey(Controller::INDEX_RIGHT, default_keys::RIGHT);
+	CheckKey(Controller::INDEX_SELECT, default_keys::SELECT);
+	CheckKey(Controller::INDEX_START, default_keys::START);
+	CheckKey(Controller::INDEX_B, default_keys::B);
+	CheckKey(Controller::INDEX_A, default_keys::A);
 }
 
 

@@ -74,29 +74,28 @@ class PretendoView;
 class PretendoWindow : public BDirectWindow
 {
 	private:
-	enum {
-		kDefaultKeyUp = 0x57,
-		kDefaultKeyDown = 0x62,
-		kDefaultKeyLeft = 0x61,
-		kDefaultKeyRight = 0x63,
-		kDefaultKeySelect = 0x3c,
-		kDefaultKeyStart = 0x3d,
-		kDefaultKeyB = 0x4c,
-		kDefaultKeyA = 0x4d
-	};
-	
-	public:
-	enum {
-		SCREEN_WIDTH = 256,
-		SCREEN_HEIGHT = 240
-	};
+	typedef enum {
+		UP = 0x57,
+		DOWN = 0x62,
+		LEFT = 0x61,
+		RIGHT = 0x63,
+		SELECT = 0x3c,
+		START = 0x3d,
+		B = 0x4c,
+		A = 0x4d
+	} default_keys;
 	
 	typedef enum {
-		VF_NONE = 0,
-		VF_BITMAP = 1,
-		VF_OVERLAY = 2,
-		VF_DIRECT = 3,
-		VF_FULLSCREEN = 4
+		WIDTH = 256,
+		HEIGHT = 240
+	} screen_size;
+	
+	typedef enum {
+		NONE = 0,
+		BITMAP = 1,
+		OVERLAY = 2,
+		DIRECT = 3,
+		FULLSCREEN = 4
 	} video_framework;
 	
 	typedef struct {
@@ -205,7 +204,7 @@ class PretendoWindow : public BDirectWindow
 	
 	// palettes	
 	private:
-	uint8 *fLineOffsets[SCREEN_HEIGHT];
+	uint8 *fLineOffsets[screen_size::HEIGHT];
 	int32 fPixelWidth;
 	uint8 fPalette8[8][64];
 	uint16 fPalette16[8][64];
@@ -216,8 +215,8 @@ class PretendoWindow : public BDirectWindow
 		
 	// video	
 	private:
-	video_framework fFramework = VF_NONE;
-	video_framework fPrevFramework = VF_NONE;
+	video_framework fFramework = video_framework::NONE;
+	video_framework fPrevFramework = video_framework::NONE;
 	BBitmap *fBitmap = nullptr;
 	BBitmap *fOverlayBitmap = nullptr;
 	uint8 *fBitmapBits = nullptr;
