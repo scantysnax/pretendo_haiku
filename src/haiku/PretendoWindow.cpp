@@ -45,12 +45,14 @@ PretendoWindow::PretendoWindow()
 	void *dirtyArea;
 	
 	fBitsArea = create_area("pretendo_frame_buffer", &bitsArea, B_ANY_ADDRESS,
-					((screen_size::WIDTH * 2) * (screen_size::HEIGHT * 2) * 4 + B_PAGE_SIZE-1) & 
-					((uint32)-1 ^ (B_PAGE_SIZE-1)), B_NO_LOCK, B_READ_AREA | B_WRITE_AREA);
+					((screen_size::WIDTH * 2) * (screen_size::HEIGHT * 2) * 4 + 
+						B_PAGE_SIZE-1) & ((uint32)-1 ^ (B_PAGE_SIZE-1)), B_NO_LOCK,
+						B_READ_AREA | B_WRITE_AREA);
 					
 	fDirtyArea = create_area("pretendo_dirty_buffer", &dirtyArea, B_ANY_ADDRESS,
-					((screen_size::WIDTH * 2) * (screen_size::HEIGHT * 2) * 4 + B_PAGE_SIZE-1) & 
-					((uint32)-1 ^ (B_PAGE_SIZE-1)), B_NO_LOCK, B_READ_AREA | B_WRITE_AREA);
+					((screen_size::WIDTH * 2) * (screen_size::HEIGHT * 2) * 4 +
+						B_PAGE_SIZE-1) & ((uint32)-1 ^ (B_PAGE_SIZE-1)), B_NO_LOCK, 
+						B_READ_AREA | B_WRITE_AREA);
 					
 	if (fBitsArea < B_OK || fDirtyArea < B_OK) {
 		(new BAlert("Error", "Can't allocate video buffers.  Quitting.",
@@ -65,7 +67,8 @@ PretendoWindow::PretendoWindow()
 	}
 	
 	// setup BBitmap.  keep it contiguous in memory
-	fBitmap = new BBitmap(BRect(0, 0, screen_size::WIDTH-1, screen_size::HEIGHT-1), B_CMAP8, false, true);
+	fBitmap = new BBitmap(BRect(0, 0, screen_size::WIDTH-1, 
+		screen_size::HEIGHT-1), B_CMAP8, false, true);
 	
 	if (! fBitmap || ! fBitmap->IsValid()) {
 		(new BAlert("Error", "Can't create video bitmap.  Quitting.","Sorry", 
@@ -116,8 +119,10 @@ PretendoWindow::PretendoWindow()
 			fVideoMenu->ItemAt(video_framework::DIRECT)->SetEnabled(false);
 			ChangeFramework(video_framework::BITMAP);
 		} else {
-			// there will be mouse "trails" on the BDirectWindow until we get a hardware cursor. 
+			// there will be mouse "trails" on the BDirectWindow
+			// until we get a hardware cursor. 
 			// this is not ideal, so default to bitmap framework
+			// but making it available for testing
 			
 			//ChangeFramework(video_framework::DIRECT);
 			ChangeFramework(video_framework::BITMAP);
@@ -585,7 +590,7 @@ PretendoWindow::OnLoadROM (BMessage *message)
 	if (message->FindString ("rom_path", &path) == B_OK) {
 		OnFreeROM();
 		if (nes::cart.load(path.String()) == false) {
-			(new BAlert("Error", "Error.  Invalid ROM Image.", "Okay", nullptr, nullptr,
+			(new BAlert("Error", "Error.  Couldnt't load ROM Image.", "Okay", nullptr, nullptr,
 				B_WIDTH_AS_USUAL, B_STOP_ALERT))->Go();
 			return;
 		}
@@ -663,7 +668,8 @@ PretendoWindow::OnStop()
 			fView->Invalidate();
 		}
 		
-		fVideoMenu->ItemAt(video_framework::FULLSCREEN)->SetEnabled(false); // make sure we can't go fullscreen
+		// make sure we can't go fullscreen
+		fVideoMenu->ItemAt(video_framework::FULLSCREEN)->SetEnabled(false);
 	}
 	
 	fPaused = false;
@@ -986,7 +992,8 @@ PretendoWindow::ClearDirty()
 {
 	// clear dirty buffer
 	uint32 *start = reinterpret_cast<uint32 *>(fDirtyBuffer.bits);
-	uint32 *end = reinterpret_cast<uint32 *>(fDirtyBuffer.bits) + (screen_size::WIDTH*2) * (screen_size::HEIGHT*2);
+	uint32 *end = reinterpret_cast<uint32 *>(fDirtyBuffer.bits) + 
+		(screen_size::WIDTH*2) * (screen_size::HEIGHT*2);
 	
 	if (fClear > 0) {
 		while (start < end) {
@@ -1208,7 +1215,8 @@ PretendoWindow::DrawDirect()
 					dirty = fDirtyBuffer.bits + (y / 2) * fBackBuffer.row_bytes + x;
 					size = w * fPixelWidth;						
 
-					blit_2x_windowed_dirty_mmx(source, dirty, dest, size, fPixelWidth, fFrontBuffer.row_bytes);									
+					blit_2x_windowed_dirty_mmx(source, dirty, dest, size, 
+						fPixelWidth, fFrontBuffer.row_bytes);									
 				}
 			}
 		}
@@ -1495,14 +1503,14 @@ PretendoWindow::ReadKeyStates()
 {
 	get_key_info(&fKeyStates);
 	
-	CheckKey(Controller::INDEX_UP, default_keys::UP);
-	CheckKey(Controller::INDEX_DOWN, default_keys::DOWN);
-	CheckKey(Controller::INDEX_LEFT, default_keys::LEFT);
-	CheckKey(Controller::INDEX_RIGHT, default_keys::RIGHT);
-	CheckKey(Controller::INDEX_SELECT, default_keys::SELECT);
-	CheckKey(Controller::INDEX_START, default_keys::START);
-	CheckKey(Controller::INDEX_B, default_keys::B);
-	CheckKey(Controller::INDEX_A, default_keys::A);
+	CheckKey(Controller::INDEX_UP, 		default_keys::UP);
+	CheckKey(Controller::INDEX_DOWN, 	default_keys::DOWN);
+	CheckKey(Controller::INDEX_LEFT, 	default_keys::LEFT);
+	CheckKey(Controller::INDEX_RIGHT, 	default_keys::RIGHT);
+	CheckKey(Controller::INDEX_SELECT,	default_keys::SELECT);
+	CheckKey(Controller::INDEX_START, 	default_keys::START);
+	CheckKey(Controller::INDEX_B, 		default_keys::B);
+	CheckKey(Controller::INDEX_A, 		default_keys::A);
 }
 
 
