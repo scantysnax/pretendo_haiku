@@ -183,11 +183,11 @@ uint8_t mix_channels() {
 	int const output = 			(square_out + tnd_out) * 255.0;
 #else
 	int const output = (square1_out +
-							square2_out +
-							triangle_out +
-							noise_out +
-							dmc_out +
-							0);
+						square2_out +
+						triangle_out +
+						noise_out +
+						dmc_out +
+						0);
 #endif
 
 	return std::clamp(output, 0, 255);
