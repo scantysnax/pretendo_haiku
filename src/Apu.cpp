@@ -180,7 +180,7 @@ uint8_t mix_channels() {
 	double const tnd_out = 		0.00851 * triangle_out + 
 							 	0.00494 * noise_out + 
 							 	0.00335 * dmc_out;
-	int const output = 		(square_out + tnd_out) * 255.0;
+	int const output = 			(square_out + tnd_out) * 255.0;
 #else
 	int const output = (square1_out +
 							square2_out +
