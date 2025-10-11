@@ -26,61 +26,54 @@
 #include "ROMInfoWindow.h"
 #include "VideoScreen.h"
 
-
 #include "asm/blitters.h"
 #include "asm/copies.h"
 
-
-// messages
-
-
-
 class PretendoView;
-
 
 class PretendoWindow : public BDirectWindow
 {
 	public:
 	typedef enum {
-	// file
-	ROM_LOADED = 	'LOAD',
-	SHOW_OPEN = 	'OPEN',
-	LOAD_RECENT = 	'RCNT',
-	FREE_ROM = 		'FREE',
-	SHOW_ABOUT = 	'ABOU',
-	ROM_INFO = 		'INFO',
-	QUIT = 			'QUIT',
-	// emulator
-	CPU_RUN = 		'RUN_',
-	CPU_STOP = 		'STOP',
-	CPU_PAUSE =		'PAUS',
-	CPU_DEBUG = 	'DBUG',
-	RST_SOFT = 		'SOFT',
-	RST_HARD = 		'HARD',
-	// video
-	CHANGE_RENDER = 	'CHRN',
-	DRAW_BITMAP = 		'DRAW',
-	ENTER_FULLSCREEN = 	'ENFS',
-	LEAVE_FULLSCREEN = 	'LVFS',
-	// input
-	CFG_INPUT = 'CFGI',
-	// sound channel enable/disable
-	ENABLE_SQ1 = 	'SQR1',
-	ENABLE_SQ2 = 	'SQR2',
-	ENABLE_TRI = 	'TRIA',
-	ENABLE_NOISE = 	'NOIS',
-	ENABLE_DMC = 	'DPCM',
-	// tools
-	ADJ_PALETTE =	'ADJP',
-	SHOW_PTNTBL1 = 	'PTB1',
-	SHOW_PTNTBL2 = 	'PTB2',
-	SHOW_NTBL1 = 	'NTB1',
-	SHOW_NTBL2 = 	'NTB2',
-	SHOW_NTBL3 = 	'NTB3',
-	SHOW_NTBL4 = 	'NTB4'
-} messages;	
+		// file
+		ROM_LOADED = 	'LOAD',
+		SHOW_OPEN = 	'OPEN',
+		LOAD_RECENT = 	'RCNT',
+		FREE_ROM = 		'FREE',
+		SHOW_ABOUT = 	'ABOU',
+		ROM_INFO = 		'INFO',
+		QUIT = 			'QUIT',
+		// emulator
+		CPU_RUN = 		'RUN_',
+		CPU_STOP = 		'STOP',
+		CPU_PAUSE =		'PAUS',
+		CPU_DEBUG = 	'DBUG',
+		RST_SOFT = 		'SOFT',
+		RST_HARD = 		'HARD',
+		// video
+		CHANGE_RENDER = 	'CHRN',
+		DRAW_BITMAP = 		'DRAW',
+		ENTER_FULLSCREEN = 	'ENFS', 
+		LEAVE_FULLSCREEN = 	'LVFS',
+		// input
+		CFG_INPUT = 'CFGI',
+		// sound channel enable/disable
+		ENABLE_SQ1 = 	'SQR1',
+		ENABLE_SQ2 = 	'SQR2',
+		ENABLE_TRI = 	'TRIA',
+		ENABLE_NOISE = 	'NOIS',
+		ENABLE_DMC = 	'DPCM',
+		// tools
+		ADJ_PALETTE =	'ADJP',
+		SHOW_PTNTBL1 = 	'PTB1',
+		SHOW_PTNTBL2 = 	'PTB2',
+		SHOW_NTBL1 = 	'NTB1',
+		SHOW_NTBL2 = 	'NTB2',
+		SHOW_NTBL3 = 	'NTB3',
+		SHOW_NTBL4 = 	'NTB4'
+	} messages;	
 	
-	private:
+	public:
 	typedef enum {
 		UP = 0x57,
 		DOWN = 0x62,
@@ -92,11 +85,13 @@ class PretendoWindow : public BDirectWindow
 		A = 0x4d
 	} default_keys;
 	
+	public:
 	typedef enum {
 		WIDTH = 256,
 		HEIGHT = 240
 	} screen_size;
 	
+	public:
 	typedef enum {
 		NONE = 0,
 		BITMAP = 1,
@@ -105,6 +100,8 @@ class PretendoWindow : public BDirectWindow
 		FULLSCREEN = 4
 	} video_framework;
 	
+	
+	private:
 	typedef struct {
 		uint8 *bits;
 		color_space pixel_format;

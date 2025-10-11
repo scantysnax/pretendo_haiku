@@ -1,6 +1,6 @@
 
-#include "PaletteView.h"
 #include "Palette.h"
+#include "PaletteView.h"
 
 #include <cstdio>
 
@@ -42,7 +42,7 @@ PaletteView::AttachedToWindow()
 	BRect r;
 	                
 	r.Set(left, fHorizSplitter->Frame().top+32, right, 0);
-	fHueSlider = new BSlider (r, "_hue_slider", "Hue", new BMessage('HUE_'),
+	fHueSlider = new BSlider (r, "_hue_slider", "Hue", new BMessage(messages::CHANGE_HUE),
 		-10000, +10000);
 	fHueSlider->SetLimitLabels("-1.0 (-30°)", "1.0 (30°)");
 	fHueSlider->SetHashMarks(B_HASH_MARKS_BOTTOM);	
@@ -53,8 +53,8 @@ PaletteView::AttachedToWindow()
 
 		
 	r.Set(left, fHueSlider->Frame().bottom+32, right, 0);
-	fSaturationSlider = new BSlider (r, "_sat_slider", "Saturation", new BMessage('SAT_'),
-		0, 50000);
+	fSaturationSlider = new BSlider (r, "_sat_slider", "Saturation", 
+		new BMessage(messages::CHANGE_SATURATION), 0, 50000);
 	fSaturationSlider->SetLimitLabels("0.0 (grayscale)", "5.0");
 	fSaturationSlider->SetHashMarks(B_HASH_MARKS_BOTTOM);
 	fSaturationSlider->SetHashMarkCount(25);
@@ -63,8 +63,8 @@ PaletteView::AttachedToWindow()
 	AddChild(fSaturationSlider);
 
 	r.Set(left, fSaturationSlider->Frame().bottom+32, right, 0);
-	fContrastSlider = new BSlider (r, "_contrast_slider", "Contrast", new BMessage('CONT'),
-		5000, 20000);
+	fContrastSlider = new BSlider (r, "_contrast_slider", "Contrast", 
+		new BMessage(messages::CHANGE_CONTRAST), 5000, 20000);
 	fContrastSlider->SetLimitLabels("0.5 (reduced)", "2.0");
 	fContrastSlider->SetHashMarks(B_HASH_MARKS_BOTTOM);
 	fContrastSlider->SetHashMarkCount(25);
@@ -73,8 +73,8 @@ PaletteView::AttachedToWindow()
 	AddChild(fContrastSlider);
 
 	r.Set(left, fContrastSlider->Frame().bottom+32, right, 0);
-	fBrightnessSlider = new BSlider (r, "_brightness_slider", "Brightness", new BMessage('BRIT'),
-		5000, 20000);
+	fBrightnessSlider = new BSlider (r, "_brightness_slider", "Brightness", 
+		new BMessage(messages::CHANGE_BRIGHTNESS), 5000, 20000);
 	fBrightnessSlider->SetLimitLabels("0.5 (reduced)", "2.0");
 	fBrightnessSlider->SetHashMarks(B_HASH_MARKS_BOTTOM);
 	fBrightnessSlider->SetHashMarkCount(25);
@@ -83,8 +83,8 @@ PaletteView::AttachedToWindow()
 	AddChild(fBrightnessSlider);
 
 	r.Set(left, fBrightnessSlider->Frame().bottom+32, right, 0);
-	fGammaSlider = new BSlider (r, "_gamma_slider", "Gamma", new BMessage('GAMA'),
-		10000, 25000);
+	fGammaSlider = new BSlider (r, "_gamma_slider", "Gamma", 
+		new BMessage(messages::CHANGE_GAMMA), 10000, 25000);
 	fGammaSlider->SetLimitLabels("1.0", "2.5");
 	fGammaSlider->SetHashMarks(B_HASH_MARKS_BOTTOM);
 	fGammaSlider->SetHashMarkCount(25);
@@ -101,7 +101,7 @@ PaletteView::AttachedToWindow()
 	r.Set(fVertSplitter->Frame().right + 0, 
 			fVertSplitter->Frame().top,
 			fVertSplitter->Frame().right, 0);
-	fSaveButton = new BButton(r,"_save_button","Save", new BMessage('SAVE'));
+	fSaveButton = new BButton(r,"_save_button","Save", new BMessage(messages::SAVE_PALETTE));
 	fSaveButton->ResizeToPreferred();
 	fSaveButton->MakeDefault(true);
 	fSaveButton->SetTarget(this);
@@ -110,7 +110,7 @@ PaletteView::AttachedToWindow()
 	r.Set(fVertSplitter->Frame().right,
 			fSaveButton->Frame().bottom + 16,
 			0, 0);
-	fDefaultButton = new BButton(r, "_default_button", "Default", new BMessage('DFLT'));
+	fDefaultButton = new BButton(r, "_default_button", "Default", new BMessage(messages::SET_DEFAULT));
 	fDefaultButton->ResizeToPreferred();
 	fDefaultButton->SetTarget(this);
 	AddChild(fDefaultButton);
@@ -118,10 +118,10 @@ PaletteView::AttachedToWindow()
 	r.Set(fVertSplitter->Frame().right,
 			fDefaultButton->Frame().bottom + 16,
 			0, 0);
-	fRevertButton = new BButton(r, "_revert_button", "Revert", new BMessage('RVRT'));
-	fRevertButton->ResizeToPreferred();
-	fRevertButton->SetTarget(this);
-	AddChild(fRevertButton);
+	fCancelButton = new BButton(r, "_cancel_button", "Cancel", new BMessage(messages::CANCEL));
+	fCancelButton->ResizeToPreferred();
+	fCancelButton->SetTarget(this);
+	AddChild(fCancelButton);
 
 
 	float windowWidth = Window()->Frame().Width() - fVertSplitter->Frame().right;
@@ -129,14 +129,14 @@ PaletteView::AttachedToWindow()
 	float const x2 = diff / 2;
 	
 	float buttonHeight = fDefaultButton->Frame().Height();
-	float buttonSpace = fRevertButton->Frame().top - fDefaultButton->Frame().bottom; 
+	float buttonSpace = fCancelButton->Frame().top - fDefaultButton->Frame().bottom; 
 	float totalSpace = (buttonHeight * 3) + (buttonSpace * 2); // three buttons, two spaces
 	float totalHeight = fVertSplitter->Frame().Height();
 	float const y2 = (totalHeight - totalSpace) / 2;
 	
 	fSaveButton->MoveBy(x2, y2);
 	fDefaultButton->MoveBy(x2, y2);
-	fRevertButton->MoveBy(x2, y2);
+	fCancelButton->MoveBy(x2, y2);
 
 	// first try to read the palette from the config file.  if we can't
 	// then we'll use the defaults
@@ -153,36 +153,36 @@ void
 PaletteView::MessageReceived (BMessage *message)
 {
 	switch (message->what) {
-		case 'HUE_':	
+		case messages::CHANGE_HUE:	
 			fCurrentHue = static_cast<float>(fHueSlider->Value() / 10000.0f);
 			SetPalette();
 			break;
 		
-		case 'SAT_':
+		case messages::CHANGE_SATURATION:
 			fCurrentSaturation = static_cast<float>(fSaturationSlider->Value() / 10000.0f);
 			SetPalette();
 			break;
 
-		case 'CONT':
+		case messages::CHANGE_CONTRAST:
 			fCurrentContrast = static_cast<float>(fContrastSlider->Value() / 10000.0f);
 			SetPalette();	
 			break;
 			
-		case 'BRIT':
+		case messages::CHANGE_BRIGHTNESS:
 			fCurrentBrightness = static_cast<float>(fBrightnessSlider->Value() / 10000.0f);
 			SetPalette();
 			break;
 		
-		case 'GAMA':
+		case messages::CHANGE_GAMMA:
 			fCurrentGamma = static_cast<float>(fGammaSlider->Value() / 10000.0f);
 			SetPalette();
 			break;
 
-		case 'SAVE':
+		case messages::SAVE_PALETTE:
 			std::cout << "SAVE" << std::endl;
 			break;
 		
-		case 'DFLT':
+		case messages::SET_DEFAULT:
 			SetDefaultPalette();
 			fHueSlider->SetValue(0);
 			fSaturationSlider->SetValue(10000);
@@ -191,8 +191,8 @@ PaletteView::MessageReceived (BMessage *message)
 			fGammaSlider->SetValue(20000);
 			break;
 		
-		case 'RVRT':
-			std::cout << "RVRT" << std::endl;
+		case messages::CANCEL:
+			std::cout << "CANCEL" << std::endl;
 			break;	
 				
 		default:

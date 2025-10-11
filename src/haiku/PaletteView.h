@@ -2,9 +2,9 @@
 #ifndef _PALETTE_VIEW_H_
 #define _PALETTE_VIEW_H_
 
-#include <View.h>
-#include <Slider.h>
 #include <Button.h>
+#include <Slider.h>
+#include <View.h>
 
 #include "PretendoWindow.h"
 #include "Splitters.h"
@@ -14,6 +14,18 @@
 
 class PaletteView : public BView
 {
+	private:
+	typedef enum {
+		CHANGE_HUE = 		'HUE ',
+		CHANGE_SATURATION = 'SAT ',
+		CHANGE_CONTRAST = 	'CONT',
+		CHANGE_BRIGHTNESS = 'BRIT',
+		CHANGE_GAMMA = 		'GAMA',
+		SAVE_PALETTE = 		'SAVE',
+		SET_DEFAULT = 		'DFLT',
+		CANCEL = 			'CNCL'
+	} messages;
+	
 	public:
 	PaletteView (PretendoWindow *parent, BRect frame, int32 swatchSize);
 	virtual ~PaletteView();
@@ -44,7 +56,7 @@ class PaletteView : public BView
 	
 	private:
 	BButton *fSaveButton = nullptr;
-	BButton *fRevertButton = nullptr;
+	BButton *fCancelButton = nullptr;
 	BButton *fDefaultButton = nullptr;
 	
 	private:
