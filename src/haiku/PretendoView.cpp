@@ -36,7 +36,7 @@ PretendoView::MessageReceived (BMessage *message)
 			entry.SetTo(&ref, true);
 			entry.GetPath(&path);
 			
-			msg = new BMessage(messages::ROM_LOADED);
+			msg = new BMessage(PretendoWindow::messages::ROM_LOADED);
 			msg->AddString("rom_path", path.Path());
 			fParent->PostMessage(msg);
 			

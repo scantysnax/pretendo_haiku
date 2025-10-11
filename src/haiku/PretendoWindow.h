@@ -32,7 +32,16 @@
 
 
 // messages
-typedef enum {
+
+
+
+class PretendoView;
+
+
+class PretendoWindow : public BDirectWindow
+{
+	public:
+	typedef enum {
 	// file
 	ROM_LOADED = 	'LOAD',
 	SHOW_OPEN = 	'OPEN',
@@ -69,14 +78,8 @@ typedef enum {
 	SHOW_NTBL2 = 	'NTB2',
 	SHOW_NTBL3 = 	'NTB3',
 	SHOW_NTBL4 = 	'NTB4'
-} messages;
-
-
-class PretendoView;
-
-
-class PretendoWindow : public BDirectWindow
-{	
+} messages;	
+	
 	private:
 	typedef enum {
 		UP = 0x57,

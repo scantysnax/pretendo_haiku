@@ -46,7 +46,7 @@ PretendoApp::RefsReceived (BMessage *message)
 		entry.SetTo(&ref, true);
 		entry.GetPath(&path);
 		
-		BMessage msg(messages::ROM_LOADED);
+		BMessage msg(PretendoWindow::messages::ROM_LOADED);
 		msg.AddString("rom_path", path.Path());
 		fWindow->PostMessage(&msg);
 	}
@@ -59,7 +59,7 @@ void
 PretendoApp::ArgvReceived (int32 argc, char **argv)
 {	
 	if (argv[1] != nullptr) {
-		BMessage msg(messages::ROM_LOADED);
+		BMessage msg(PretendoWindow::messages::ROM_LOADED);
 		msg.AddString("rom_path", argv[1]);
 		fWindow->PostMessage(&msg);
 	}
