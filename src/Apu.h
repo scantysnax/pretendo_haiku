@@ -4,8 +4,10 @@
 
 #include "BitField.h"
 #include "Reset.h"
+
 #include <cstddef>
 #include <cstdint>
+
 
 namespace nes::apu {
 
@@ -62,8 +64,8 @@ uint64_t cycle_count();
 void tick();
 void start_frame();
 
-void mute_channel (int32_t channel);
-void unmute_channel (int32_t channel);
+void mute_channel (int const channel);
+void unmute_channel (int const channel);
 
 size_t read_samples(uint8_t *buffer, size_t size);
 

@@ -5,21 +5,27 @@
 #include "Noise.h"
 #include "Square.h"
 #include "Triangle.h"
+
 #include <algorithm>
 #include <iostream>
+
+// note: DMC and DPCM may be used interchangeably
 
 namespace nes::apu {
 namespace {
 
-enum {
-	STATUS_DMC_IRQ         = 0x80,
-	STATUS_FRAME_IRQ       = 0x40,
-	STATUS_ENABLE_DMC      = 0x10,
-	STATUS_ENABLE_NOISE    = 0x08,
-	STATUS_ENABLE_TRIANGLE = 0x04,
-	STATUS_ENABLE_SQUARE_2 = 0x02,
-	STATUS_ENABLE_SQUARE_1 = 0x01,
-};
+
+typedef enum {
+	ENABLE_SQUARE1 = 	0x1,
+	ENABLE_SQUARE2 = 	0x2,
+	ENABLE_TRIANGLE = 	0x4,
+	ENABLE_NOISE = 		0x8,
+	ENABLE_DMC = 		0x10,
+	FRAME_IRQ = 		0x40,
+	DMC_IRQ = 			0x80
+} apu_status;
+	
+	
 
 union APUFrameCounter {
 	uint8_t raw;
@@ -27,11 +33,11 @@ union APUFrameCounter {
 	BitField<uint8_t, 7> mode;
 };
 
-constexpr double CPUFrequency = 1789772.72; // 1.78977267Mhz
-// CPUFrequency / 44100Hz  = 40.5844142857 clocks per sample
-// CPUFrequency / 48000Hz  = 37.286930625  clocks per sample
-// CPUFrequency / 192000Hz = 9.32173265625 clocks per sample
-constexpr auto ClocksPerSample = static_cast<int>(CPUFrequency / frequency);
+constexpr double CPUFrequency = 1789772.7272; // 1.7897727272MHz
+// CPUFrequency / 44100Hz  = 40.5844155828 clocks per sample
+// CPUFrequency / 48000Hz  = 37.2869318167  clocks per sample
+// CPUFrequency / 192000Hz = 9.32173295417 clocks per sample
+constexpr auto ClocksPerSample = static_cast<int32_t>(CPUFrequency / frequency);
 
 auto apu_cycles_               = static_cast<uint64_t>(-1);
 auto next_clock_               = static_cast<uint64_t>(-1);
@@ -52,9 +58,7 @@ uint8_t sample_buffer_[buffer_size];
 size_t sample_buffer_start = 0;
 size_t sample_buffer_end   = 0;
 
-//------------------------------------------------------------------------------
-// Name: clock_linear
-//------------------------------------------------------------------------------
+
 void clock_linear() {
 	triangle.linear_counter.clock();
 
@@ -63,9 +67,7 @@ void clock_linear() {
 	noise.envelope.clock();
 }
 
-//------------------------------------------------------------------------------
-// Name: clock_length
-//------------------------------------------------------------------------------
+
 void clock_length() {
 	square_0.length_counter.clock();
 	square_1.length_counter.clock();
@@ -76,9 +78,7 @@ void clock_length() {
 	square_1.sweep.clock();
 }
 
-//------------------------------------------------------------------------------
-// Name: clock_frame_mode_0
-//------------------------------------------------------------------------------
+
 void clock_frame_mode_0() {
 
 	// 4 step sequence
@@ -129,9 +129,7 @@ void clock_frame_mode_0() {
 	clock_step_ = (clock_step_ + 1) % 6;
 }
 
-//------------------------------------------------------------------------------
-// Name: clock_frame_mode_1
-//------------------------------------------------------------------------------
+
 void clock_frame_mode_1() {
 
 	// 5 step sequence
@@ -171,31 +169,31 @@ void clock_frame_mode_1() {
 //------------------------------------------------------------------------------
 uint8_t mix_channels() {
 
-	const int pulse1_out   = square_0.output();
-	const int pulse2_out   = square_1.output();
-	const int triangle_out = triangle.output();
-	const int noise_out    = noise.output();
-	const int dmc_out      = dmc.output();
+	int const square1_out =		square_0.output();
+	int const square2_out = 	square_1.output();
+	int const triangle_out = 	triangle.output();
+	int const noise_out = 		noise.output();
+	int const dmc_out = 		dmc.output();
 
 #if 1
-	const double pulse_out = 0.00752 * (pulse1_out + pulse2_out);
-	const double tnd_out   = 0.00851 * triangle_out + 0.00494 * noise_out + 0.00335 * dmc_out;
-	const int result       = (pulse_out + tnd_out) * 255.0;
+	double const square_out = 	0.00752 * (square1_out + square2_out);
+	double const tnd_out = 		0.00851 * triangle_out + 
+							 	0.00494 * noise_out + 
+							 	0.00335 * dmc_out;
+	int const output = 		(square_out + tnd_out) * 255.0;
 #else
-	const int result = (pulse1_out +
-						pulse2_out +
-						triangle_out +
-						noise_out +
-						dmc_out +
-						0);
+	int const output = (square1_out +
+							square2_out +
+							triangle_out +
+							noise_out +
+							dmc_out +
+							0);
 #endif
 
-	return std::clamp(result, 0, 255);
+	return std::clamp(output, 0, 255);
 }
 
-//------------------------------------------------------------------------------
-// Name: reset
-//------------------------------------------------------------------------------
+
 void reset(Reset reset_type) {
 
 	status.raw     = 0;
@@ -254,181 +252,142 @@ void reset(Reset reset_type) {
 		exec<2>();
 	}
 
-	std::cout << "APU reset complete" << std::endl;
+	std::cout << "APU Reset complete" << std::endl;
 }
 
-//------------------------------------------------------------------------------
-// Name: write4000
-//------------------------------------------------------------------------------
+
 void write4000(uint8_t value) {
 	square_0.write_reg0(value);
 }
 
-//------------------------------------------------------------------------------
-// Name: write4001
-//------------------------------------------------------------------------------
+
+
 void write4001(uint8_t value) {
 	square_0.write_reg1(value);
 }
 
-//------------------------------------------------------------------------------
-// Name: write4002
-//------------------------------------------------------------------------------
+
 void write4002(uint8_t value) {
 	square_0.write_reg2(value);
 }
 
-//------------------------------------------------------------------------------
-// Name: write4003
-//------------------------------------------------------------------------------
+
 void write4003(uint8_t value) {
 	square_0.write_reg3(value);
 }
 
-//------------------------------------------------------------------------------
-// Name: write4004
-//------------------------------------------------------------------------------
+
 void write4004(uint8_t value) {
 	square_1.write_reg0(value);
 }
 
-//------------------------------------------------------------------------------
-// Name: write4005
-//------------------------------------------------------------------------------
+
 void write4005(uint8_t value) {
 	square_1.write_reg1(value);
 }
 
-//------------------------------------------------------------------------------
-// Name: write4006
-//------------------------------------------------------------------------------
+
 void write4006(uint8_t value) {
 	square_1.write_reg2(value);
 }
 
-//------------------------------------------------------------------------------
-// Name: write4007
-//------------------------------------------------------------------------------
+
 void write4007(uint8_t value) {
 	square_1.write_reg3(value);
 }
 
-//------------------------------------------------------------------------------
-// Name: write4008
-//------------------------------------------------------------------------------
+
 void write4008(uint8_t value) {
 	triangle.write_reg0(value);
 }
 
-//------------------------------------------------------------------------------
-// Name: write400A
-//------------------------------------------------------------------------------
+
 void write400A(uint8_t value) {
 	triangle.write_reg2(value);
 }
 
-//------------------------------------------------------------------------------
-// Name: write400B
-//------------------------------------------------------------------------------
+
 void write400B(uint8_t value) {
 	triangle.write_reg3(value);
 }
 
-//------------------------------------------------------------------------------
-// Name: write400C
-//------------------------------------------------------------------------------
+
 void write400C(uint8_t value) {
 	noise.write_reg0(value);
 }
 
-//------------------------------------------------------------------------------
-// Name: write400E
-//------------------------------------------------------------------------------
+
 void write400E(uint8_t value) {
 	noise.write_reg2(value);
 }
 
-//------------------------------------------------------------------------------
-// Name: write400F
-//------------------------------------------------------------------------------
+
 void write400F(uint8_t value) {
 	noise.write_reg3(value);
 }
 
-//------------------------------------------------------------------------------
-// Name: write4010
-//------------------------------------------------------------------------------
+
 void write4010(uint8_t value) {
 	dmc.write_reg0(value);
 }
 
-//------------------------------------------------------------------------------
-// Name:
-//------------------------------------------------------------------------------
+
 void write4011(uint8_t value) {
 	dmc.write_reg1(value);
 }
 
-//------------------------------------------------------------------------------
-// Name:
-//------------------------------------------------------------------------------
+
 void write4012(uint8_t value) {
 	dmc.write_reg2(value);
 }
 
-//------------------------------------------------------------------------------
-// Name: write4013
-//------------------------------------------------------------------------------
+
 void write4013(uint8_t value) {
 	dmc.write_reg3(value);
 }
 
-//------------------------------------------------------------------------------
-// Name: write4015
-//------------------------------------------------------------------------------
+
 void write4015(uint8_t value) {
 
-	// Writing to this register clears the DMC interrupt flag.
+	// writing to this register clears the DMC interrupt flag.
 	status.dmc_irq = false;
 
-	square_0.set_enabled(value & STATUS_ENABLE_SQUARE_1);
-	square_1.set_enabled(value & STATUS_ENABLE_SQUARE_2);
-	triangle.set_enabled(value & STATUS_ENABLE_TRIANGLE);
-	noise.set_enabled(value & STATUS_ENABLE_NOISE);
-	dmc.set_enabled(value & STATUS_ENABLE_DMC);
+	square_0.set_enabled(value & apu_status::ENABLE_SQUARE1);
+	square_1.set_enabled(value & apu_status::ENABLE_SQUARE2);
+	triangle.set_enabled(value & apu_status::ENABLE_TRIANGLE);
+	noise.set_enabled(value & apu_status::ENABLE_NOISE);
+	dmc.set_enabled(value & apu_status::ENABLE_DMC);
 
 	if (!status.irq_firing) {
 		cpu::clear_irq(cpu::APU_IRQ);
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: read4015
-//------------------------------------------------------------------------------
+
 uint8_t read4015() {
-	uint8_t ret = status.raw & (STATUS_DMC_IRQ | STATUS_FRAME_IRQ);
+	uint8_t ret = status.raw & (apu_status::DMC_IRQ | apu_status::FRAME_IRQ);
 
 	// reading this register clears the Frame interrupt flag.
 	status.frame_irq = false;
 
 	if (square_0.length_counter.value() > 0) {
-		ret |= STATUS_ENABLE_SQUARE_1;
+		ret |= apu_status::ENABLE_SQUARE1;
 	}
 
 	if (square_1.length_counter.value() > 0) {
-		ret |= STATUS_ENABLE_SQUARE_2;
+		ret |= apu_status::ENABLE_SQUARE2;
 	}
 
 	if (triangle.length_counter.value() > 0) {
-		ret |= STATUS_ENABLE_TRIANGLE;
+		ret |= apu_status::ENABLE_TRIANGLE;
 	}
 
 	if (noise.length_counter.value() > 0) {
-		ret |= STATUS_ENABLE_NOISE;
+		ret |= apu_status::ENABLE_NOISE;
 	}
 
 	if (dmc.bytes_remaining() > 0) {
-		ret |= STATUS_ENABLE_DMC;
+		ret |= apu_status::ENABLE_DMC;
 	}
 
 	if (!status.irq_firing) {
@@ -438,9 +397,7 @@ uint8_t read4015() {
 	return ret;
 }
 
-//------------------------------------------------------------------------------
-// Name: write4017
-//------------------------------------------------------------------------------
+
 void write4017(uint8_t value) {
 
 	frame_counter_.raw  = value;
@@ -462,9 +419,7 @@ void write4017(uint8_t value) {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: tick
-//------------------------------------------------------------------------------
+
 void tick() {
 	if (!(frame_counter_.inihibit_frame_irq) && (status.frame_irq)) {
 		cpu::irq(cpu::APU_IRQ);
@@ -480,7 +435,8 @@ void tick() {
 
 	if ((apu_cycles_ % ClocksPerSample) == 0) {
 		sample_buffer_[sample_buffer_end] = mix_channels();
-		sample_buffer_end                 = (sample_buffer_end + 1) % sizeof(sample_buffer_);
+		
+		sample_buffer_end = (sample_buffer_end + 1) % sizeof(sample_buffer_);
 	}
 
 	dmc.tick();
@@ -492,15 +448,12 @@ void tick() {
 	++apu_cycles_;
 }
 
-//------------------------------------------------------------------------------
-// Name:
-//------------------------------------------------------------------------------
+
 uint64_t cycle_count() {
 	return apu_cycles_;
 }
-//------------------------------------------------------------------------------
-// Name:
-//------------------------------------------------------------------------------
+
+
 size_t read_samples(uint8_t *buffer, size_t size) {
 
     size_t index = sample_buffer_start;
@@ -513,16 +466,14 @@ size_t read_samples(uint8_t *buffer, size_t size) {
     return i;
 }
 
-//------------------------------------------------------------------------------
-// Name:
-//------------------------------------------------------------------------------
+
 void start_frame() {
 	sample_buffer_start = sample_buffer_end;
 }
 
 
 void
-mute_channel (int32_t channel)
+mute_channel (int const channel)
 {	
 	switch (channel) {
 		case sound_channel::SQUARE1:
@@ -549,7 +500,7 @@ mute_channel (int32_t channel)
 
 
 void
-unmute_channel (int32_t channel)
+unmute_channel (int const channel)
 {
 	switch (channel) {
 		case sound_channel::SQUARE1:
