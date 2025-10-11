@@ -30,7 +30,8 @@
 #include "asm/blitters.h"
 #include "asm/copies.h"
 
-// message
+
+// messages
 typedef enum {
 	// file
 	ROM_LOADED = 	'LOAD',
@@ -48,9 +49,9 @@ typedef enum {
 	RST_SOFT = 		'SOFT',
 	RST_HARD = 		'HARD',
 	// video
-	DRAW_BITMAP = 		'DRAW',
-	FULLSCREEN = 		'FULL',
 	CHANGE_RENDER = 	'CHRN',
+	DRAW_BITMAP = 		'DRAW',
+	ENTER_FULLSCREEN = 	'ENFS',
 	LEAVE_FULLSCREEN = 	'LVFS',
 	// input
 	CFG_INPUT = 'CFGI',
