@@ -42,7 +42,7 @@ PaletteView::AttachedToWindow()
 	BRect r;
 	                
 	r.Set(left, fHorizSplitter->Frame().top+32, right, 0);
-	fHueSlider = new BSlider (r, "_hue_slider", "Hue", new BMessage(messages::CHANGE_HUE),
+	fHueSlider = new BSlider (r, "hue_slider", "Hue", new BMessage(messages::CHANGE_HUE),
 		-10000, +10000);
 	fHueSlider->SetLimitLabels("-1.0 (-30°)", "1.0 (30°)");
 	fHueSlider->SetHashMarks(B_HASH_MARKS_BOTTOM);	
@@ -53,7 +53,7 @@ PaletteView::AttachedToWindow()
 
 		
 	r.Set(left, fHueSlider->Frame().bottom+32, right, 0);
-	fSaturationSlider = new BSlider (r, "_sat_slider", "Saturation", 
+	fSaturationSlider = new BSlider (r, "sat_slider", "Saturation", 
 		new BMessage(messages::CHANGE_SATURATION), 0, 50000);
 	fSaturationSlider->SetLimitLabels("0.0 (grayscale)", "5.0");
 	fSaturationSlider->SetHashMarks(B_HASH_MARKS_BOTTOM);
@@ -63,7 +63,7 @@ PaletteView::AttachedToWindow()
 	AddChild(fSaturationSlider);
 
 	r.Set(left, fSaturationSlider->Frame().bottom+32, right, 0);
-	fContrastSlider = new BSlider (r, "_contrast_slider", "Contrast", 
+	fContrastSlider = new BSlider (r, "contrast_slider", "Contrast", 
 		new BMessage(messages::CHANGE_CONTRAST), 5000, 20000);
 	fContrastSlider->SetLimitLabels("0.5 (reduced)", "2.0");
 	fContrastSlider->SetHashMarks(B_HASH_MARKS_BOTTOM);
@@ -73,7 +73,7 @@ PaletteView::AttachedToWindow()
 	AddChild(fContrastSlider);
 
 	r.Set(left, fContrastSlider->Frame().bottom+32, right, 0);
-	fBrightnessSlider = new BSlider (r, "_brightness_slider", "Brightness", 
+	fBrightnessSlider = new BSlider (r, "brightness_slider", "Brightness", 
 		new BMessage(messages::CHANGE_BRIGHTNESS), 5000, 20000);
 	fBrightnessSlider->SetLimitLabels("0.5 (reduced)", "2.0");
 	fBrightnessSlider->SetHashMarks(B_HASH_MARKS_BOTTOM);
@@ -83,7 +83,7 @@ PaletteView::AttachedToWindow()
 	AddChild(fBrightnessSlider);
 
 	r.Set(left, fBrightnessSlider->Frame().bottom+32, right, 0);
-	fGammaSlider = new BSlider (r, "_gamma_slider", "Gamma", 
+	fGammaSlider = new BSlider (r, "gamma_slider", "Gamma", 
 		new BMessage(messages::CHANGE_GAMMA), 10000, 25000);
 	fGammaSlider->SetLimitLabels("1.0", "2.5");
 	fGammaSlider->SetHashMarks(B_HASH_MARKS_BOTTOM);
@@ -110,7 +110,7 @@ PaletteView::AttachedToWindow()
 	r.Set(fVertSplitter->Frame().right,
 			fSaveButton->Frame().bottom + 16,
 			0, 0);
-	fDefaultButton = new BButton(r, "_default_button", "Default", new BMessage(messages::SET_DEFAULT));
+	fDefaultButton = new BButton(r, "default_button", "Default", new BMessage(messages::SET_DEFAULT));
 	fDefaultButton->ResizeToPreferred();
 	fDefaultButton->SetTarget(this);
 	AddChild(fDefaultButton);
@@ -118,7 +118,7 @@ PaletteView::AttachedToWindow()
 	r.Set(fVertSplitter->Frame().right,
 			fDefaultButton->Frame().bottom + 16,
 			0, 0);
-	fCancelButton = new BButton(r, "_cancel_button", "Cancel", new BMessage(messages::CANCEL));
+	fCancelButton = new BButton(r, "cancel_button", "Cancel", new BMessage(messages::CANCEL));
 	fCancelButton->ResizeToPreferred();
 	fCancelButton->SetTarget(this);
 	AddChild(fCancelButton);
