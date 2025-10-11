@@ -2,77 +2,80 @@
 #ifndef _PRETENDO_WINDOW_H_
 #define _PRETENDO_WINDOW_H_
 
-#include <Application.h>
-#include <DirectWindow.h>
 #include <Alert.h>
+#include <Application.h>
 #include <Bitmap.h>
+#include <DirectWindow.h>
 #include <Menu.h>
 #include <MenuBar.h>
 #include <MenuItem.h>
-#include <Screen.h>
 #include <RecentItems.h>
+#include <Screen.h>
 
 #include <malloc.h>
 
-#include "Palette.h"
-#include "VideoScreen.h"
-#include "ROMFilePanel.h"
-#include "PaletteWindow.h"
-#include "ROMInfoWindow.h"
-#include "Mutex.h"
 #include "AudioStream.h"
-#include "PretendoView.h"
-#include "PatternTableWindow.h"
-#include "NameTableWindow.h"
-#include "PretendoView.h"
 #include "InputWindow.h"
+#include "Mutex.h"
+#include "NameTableWindow.h"
+#include "Palette.h"
+#include "PaletteWindow.h"
+#include "PatternTableWindow.h"
+#include "PretendoView.h" 
+#include "ROMFilePanel.h"
+#include "ROMInfoWindow.h"
+#include "VideoScreen.h"
+
 
 #include "asm/blitters.h"
 #include "asm/copies.h"
 
+// message
+typedef enum {
+	// file
+	ROM_LOADED = 	'LOAD',
+	SHOW_OPEN = 	'OPEN',
+	LOAD_RECENT = 	'RCNT',
+	FREE_ROM = 		'FREE',
+	SHOW_ABOUT = 	'ABOU',
+	ROM_INFO = 		'INFO',
+	QUIT = 			'QUIT',
+	// emulator
+	CPU_RUN = 		'RUN_',
+	CPU_STOP = 		'STOP',
+	CPU_PAUSE =		'PAUS',
+	CPU_DEBUG = 	'DBUG',
+	RST_SOFT = 		'SOFT',
+	RST_HARD = 		'HARD',
+	// video
+	DRAW_BITMAP = 		'DRAW',
+	FULLSCREEN = 		'FULL',
+	CHANGE_RENDER = 	'CHRN',
+	LEAVE_FULLSCREEN = 	'LVFS',
+	// input
+	CFG_INPUT = 'CFGI',
+	// sound channel enable/disable
+	ENABLE_SQ1 = 	'SQR1',
+	ENABLE_SQ2 = 	'SQR2',
+	ENABLE_TRI = 	'TRIA',
+	ENABLE_NOISE = 	'NOIS',
+	ENABLE_DMC = 	'DPCM',
+	// tools
+	ADJ_PALETTE =	'ADJP',
+	SHOW_PTNTBL1 = 	'PTB1',
+	SHOW_PTNTBL2 = 	'PTB2',
+	SHOW_NTBL1 = 	'NTB1',
+	SHOW_NTBL2 = 	'NTB2',
+	SHOW_NTBL3 = 	'NTB3',
+	SHOW_NTBL4 = 	'NTB4'
+} messages;
 
-// messages
-constexpr uint32 MSG_ROM_LOADED =	'LOAD';
-constexpr uint32 MSG_SHOW_OPEN =	'OPEN';
-constexpr uint32 MSG_LOAD_RECENT =	'RCNT';
-constexpr uint32 MSG_FREE_ROM =		'FREE';
-constexpr uint32 MSG_ABOUT =		'BOUT';
-constexpr uint32 MSG_ROM_INFO =		'INFO';
-constexpr uint32 MSG_QUIT =			'QUIT';
-// emulator
-constexpr uint32 MSG_CPU_RUN =		'RUN ';
-constexpr uint32 MSG_CPU_STOP =		'STOP';
-constexpr uint32 MSG_CPU_PAUSE =	'PAUS';
-constexpr uint32 MSG_CPU_DEBUG =	'DEBG';
-constexpr uint32 MSG_RST_SOFT =		'SOFT';
-constexpr uint32 MSG_RST_HARD = 	'HARD';
-// video
-constexpr uint32 MSG_FULLSCREEN =		'FULL';
-constexpr uint32 MSG_CHANGE_RENDER = 	'CHRN';
-constexpr uint32 MSG_DRAW_BITMAP =		'DRAW';
-constexpr uint32 MSG_ADJ_PALETTE =		'ADJP';
-// input
-constexpr uint32 MSG_CFG_INPUT = 'INPT';
-// audio
-constexpr uint32 MSG_AUDIO_SQ1 = 	'SQR1';
-constexpr uint32 MSG_AUDIO_SQ2 = 	'SQR2';
-constexpr uint32 MSG_AUDIO_TRI = 	'TRIA';
-constexpr uint32 MSG_AUDIO_NOISE = 	'NOIS';
-constexpr uint32 MSG_AUDIO_DMC = 	'DPCM';
-// tools
-constexpr uint32 MSG_PTNTBL1 = 	'PTB1';
-constexpr uint32 MSG_PTNTBL2 = 	'PTB2';
-constexpr uint32 MSG_NTBL1  = 	'NTB1';
-constexpr uint32 MSG_NTBL2 = 	'NTB2';
-constexpr uint32 MSG_NTBL3 = 	'NTB3';
-constexpr uint32 MSG_NTBL4 = 	'NTB4';
 
-
-// we need to forward declare this
 class PretendoView;
 
+
 class PretendoWindow : public BDirectWindow
-{
+{	
 	private:
 	typedef enum {
 		UP = 0x57,

@@ -10,6 +10,7 @@ VideoScreen::VideoScreen (PretendoWindow *parent)
 {
 	if (error != B_OK) {
 		PostMessage (B_QUIT_REQUESTED, this);
+		
 	}
 	
 	fParent = parent;
@@ -30,7 +31,7 @@ VideoScreen::MessageReceived (BMessage *message)
 		int8 key;
 		
 		if ((message->FindInt8("byte", 0, &key) == B_OK) && key == B_ESCAPE) {
-			fParent->PostMessage(MSG_LEAVE_FULLSCREEN);
+			fParent->PostMessage(messages::LEAVE_FULLSCREEN);
 		}
 	}
 		

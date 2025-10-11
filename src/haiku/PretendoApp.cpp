@@ -1,6 +1,7 @@
 
 #include "PretendoApp.h"
 
+class PretendoWindow;
 
 PretendoApp::PretendoApp()
 	: BApplication("application/x-vnd.scantysnax-Pretendo") 
@@ -45,7 +46,7 @@ PretendoApp::RefsReceived (BMessage *message)
 		entry.SetTo(&ref, true);
 		entry.GetPath(&path);
 		
-		BMessage msg(MSG_ROM_LOADED);
+		BMessage msg(messages::ROM_LOADED);
 		msg.AddString("rom_path", path.Path());
 		fWindow->PostMessage(&msg);
 	}
@@ -58,7 +59,7 @@ void
 PretendoApp::ArgvReceived (int32 argc, char **argv)
 {	
 	if (argv[1] != nullptr) {
-		BMessage msg(MSG_ROM_LOADED);
+		BMessage msg(messages::ROM_LOADED);
 		msg.AddString("rom_path", argv[1]);
 		fWindow->PostMessage(&msg);
 	}

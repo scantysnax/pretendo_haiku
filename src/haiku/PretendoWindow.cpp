@@ -303,25 +303,25 @@ void
 PretendoWindow::MessageReceived (BMessage *message)
 {
 	switch (message->what) {
-		case MSG_DRAW_BITMAP:
+		case messages::DRAW_BITMAP:
 			// this has to go here, since the window is apparently guaranteed to be locked
 			fView->DrawBitmap(fBitmap, fView->Bounds());
 			break;
 		
-		case MSG_CHANGE_RENDER:
+		case messages::CHANGE_RENDER:
 			ChangeFramework(
 				static_cast<video_framework>(fVideoMenu->IndexOf(fVideoMenu->FindMarked())));
 			break;
 		
-		case MSG_LEAVE_FULLSCREEN:
+		case messages::LEAVE_FULLSCREEN:
 			ChangeFramework(fPrevFramework);
 		 	break;
 			
-		case MSG_ROM_LOADED:
+		case messages::ROM_LOADED:
 			OnLoadROM(message);
 			break;
 			
-		case MSG_SHOW_OPEN:
+		case messages::SHOW_OPEN:
 			fOpenPanel->Show();
 			break;
 			
@@ -329,91 +329,91 @@ PretendoWindow::MessageReceived (BMessage *message)
 			be_app->PostMessage(message);
 			break;
 
-		case MSG_FREE_ROM:
+		case messages::FREE_ROM:
 			OnFreeROM();
 			break;
 			
-		case MSG_ROM_INFO:
+		case messages::ROM_INFO:
 			OnROMInfo();
 			break;
 			
-		case MSG_ABOUT:
+		case messages::SHOW_ABOUT:
 			be_app->PostMessage(B_ABOUT_REQUESTED);
 			break;
 			
-		case MSG_QUIT:
+		case messages::QUIT:
 			OnQuit();
 			break;
 			
-		case MSG_CPU_RUN:
+		case messages::CPU_RUN:
 			OnRun();
 			break;
 			
-		case MSG_CPU_STOP:
+		case messages::CPU_STOP:
 			OnStop();
 			break;
 			
-		case MSG_CPU_PAUSE:
+		case messages::CPU_PAUSE:
 			OnPause();
 			break;
 						
-		case MSG_RST_SOFT:
+		case messages::RST_SOFT:
 			OnSoftReset();
 			break;
 			
-		case MSG_RST_HARD:
+		case messages::RST_HARD:
 			OnHardReset();
 			break;
 				
-		case MSG_CFG_INPUT:
+		case messages::CFG_INPUT:
 			OnConfigureInput();
 			break;
 			
-		case MSG_ADJ_PALETTE:
+		case messages::ADJ_PALETTE:
 			OnAdjustPalette();
 			break;
 			
-		case MSG_PTNTBL1:			
+		case messages::SHOW_PTNTBL1:			
 			OnViewPatternTable1();
 			break;
 			
-		case MSG_PTNTBL2:
+		case messages::SHOW_PTNTBL2:
 			OnViewPatternTable2();
 			break;
 		
-		case MSG_NTBL1:
+		case messages::SHOW_NTBL1:
 			OnViewNameTable1();
 			break;
 			
-		case MSG_NTBL2:
+		case messages::SHOW_NTBL2:
 			OnViewNameTable2();
 			break;
 			
-		case MSG_NTBL3:
+		case messages::SHOW_NTBL3:
 			OnViewNameTable3();
 			break;
 		
-		case MSG_NTBL4:
+		case messages::SHOW_NTBL4:
 			OnViewNameTable4();
 			break;
 			
-		case MSG_AUDIO_SQ1:
+		case messages::ENABLE_SQ1:
 			OnAudioSquare1();
 			break;
 			
-		case MSG_AUDIO_SQ2:
+		case messages::ENABLE_SQ2:
 			OnAudioSquare2();
 			break;
 			
-		case MSG_AUDIO_TRI:
+		case messages::ENABLE_TRI:
 			OnAudioTriangle();
 			break;
 			
-		case MSG_AUDIO_NOISE:
+		case messages::ENABLE_NOISE:
 			OnAudioNoise();
 			break;
 			
-		case MSG_AUDIO_DMC:
+		case messages::ENABLE_DMC:
 			OnAudioDMC();
 			break;
 		}
@@ -439,7 +439,7 @@ PretendoWindow::MenusBeginning()
 				  nullptr, nullptr, this->PreferredHandler(), recentItems, false, nullptr, 0, 
 				  "application/x-vnd.scantysnax-Pretendo");
 	
-	fFileMenu->AddItem(new BMenuItem(menu, new BMessage(MSG_SHOW_OPEN)), 0);
+	fFileMenu->AddItem(new BMenuItem(menu, new BMessage(messages::SHOW_OPEN)), 0);
 	
 	BDirectWindow::MenusBeginning();
 }
@@ -523,37 +523,37 @@ PretendoWindow::AddMenu()
 	fToolMenu = new BMenu("Tools");
 	fMenu->AddItem(fToolMenu);
 
-	fFileMenu->AddItem(new BMenuItem("Free ROM", new BMessage(MSG_FREE_ROM)));
-	fFileMenu->AddItem(new BMenuItem("ROM Info", new BMessage(MSG_ROM_INFO)));
+	fFileMenu->AddItem(new BMenuItem("Free ROM", new BMessage(messages::FREE_ROM)));
+	fFileMenu->AddItem(new BMenuItem("ROM Info", new BMessage(messages::ROM_INFO)));
 	fFileMenu->AddSeparatorItem();
-	fFileMenu->AddItem (new BMenuItem("About" B_UTF8_ELLIPSIS, new BMessage(MSG_ABOUT)));
+	fFileMenu->AddItem (new BMenuItem("About" B_UTF8_ELLIPSIS, new BMessage(messages::SHOW_ABOUT)));
 	fFileMenu->AddSeparatorItem();
-	fFileMenu->AddItem(new BMenuItem("Quit", new BMessage(MSG_QUIT)));
+	fFileMenu->AddItem(new BMenuItem("Quit", new BMessage(messages::QUIT)));
 	
-	fEmuMenu->AddItem(new BMenuItem("Start", new BMessage(MSG_CPU_RUN)));
-	fEmuMenu->AddItem(new BMenuItem("Pause", new BMessage(MSG_CPU_PAUSE)));
-	fEmuMenu->AddItem(new BMenuItem("Stop", new BMessage(MSG_CPU_STOP)));
+	fEmuMenu->AddItem(new BMenuItem("Start", new BMessage(messages::CPU_RUN)));
+	fEmuMenu->AddItem(new BMenuItem("Pause", new BMessage(messages::CPU_PAUSE)));
+	fEmuMenu->AddItem(new BMenuItem("Stop", new BMessage(messages::CPU_STOP)));
 	fEmuMenu->AddSeparatorItem();
-	fEmuMenu->AddItem(new BMenuItem("Reset (soft)", new BMessage(MSG_RST_SOFT)));
-	fEmuMenu->AddItem(new BMenuItem("Reset (hard)", new BMessage(MSG_RST_HARD)));
+	fEmuMenu->AddItem(new BMenuItem("Reset (soft)", new BMessage(messages::RST_SOFT)));
+	fEmuMenu->AddItem(new BMenuItem("Reset (hard)", new BMessage(messages::RST_HARD)));
 	fEmuMenu->AddSeparatorItem();
 	
 	fVideoMenu = new BMenu("Video");
 	fEmuMenu->AddItem(fVideoMenu);
-	fVideoMenu->AddItem(new BMenuItem("None", new BMessage (MSG_CHANGE_RENDER)));
-	fVideoMenu->AddItem(new BMenuItem("Bitmap", new BMessage(MSG_CHANGE_RENDER)));
-	fVideoMenu->AddItem(new BMenuItem("Overlay", new BMessage(MSG_CHANGE_RENDER)));
-	fVideoMenu->AddItem(new BMenuItem("DirectWindow", new BMessage(MSG_CHANGE_RENDER)));
-	fVideoMenu->AddItem(new BMenuItem("WindowScreen", new BMessage(MSG_CHANGE_RENDER), 'F'));
+	fVideoMenu->AddItem(new BMenuItem("None", new BMessage (messages::CHANGE_RENDER)));
+	fVideoMenu->AddItem(new BMenuItem("Bitmap", new BMessage(messages::CHANGE_RENDER)));
+	fVideoMenu->AddItem(new BMenuItem("Overlay", new BMessage(messages::CHANGE_RENDER)));
+	fVideoMenu->AddItem(new BMenuItem("DirectWindow", new BMessage(messages::CHANGE_RENDER)));
+	fVideoMenu->AddItem(new BMenuItem("WindowScreen", new BMessage(messages::CHANGE_RENDER), 'F'));
 	fVideoMenu->SetRadioMode(true);
 	
 	fAudioMenu = new BMenu("Audio");
 	fEmuMenu->AddItem(fAudioMenu);
-	fAudioMenu->AddItem(new BMenuItem("Square 1", new BMessage(MSG_AUDIO_SQ1)));
-	fAudioMenu->AddItem(new BMenuItem("Square 2", new BMessage(MSG_AUDIO_SQ2)));
-	fAudioMenu->AddItem(new BMenuItem("Triangle", new BMessage(MSG_AUDIO_TRI)));
-	fAudioMenu->AddItem(new BMenuItem("Noise", new BMessage(MSG_AUDIO_NOISE)));
-	fAudioMenu->AddItem(new BMenuItem("DMC/DPCM", new BMessage(MSG_AUDIO_DMC)));
+	fAudioMenu->AddItem(new BMenuItem("Square 1", new BMessage(messages::ENABLE_SQ1)));
+	fAudioMenu->AddItem(new BMenuItem("Square 2", new BMessage(messages::ENABLE_SQ2)));
+	fAudioMenu->AddItem(new BMenuItem("Triangle", new BMessage(messages::ENABLE_TRI)));
+	fAudioMenu->AddItem(new BMenuItem("Noise", new BMessage(messages::ENABLE_NOISE)));
+	fAudioMenu->AddItem(new BMenuItem("DMC/DPCM", new BMessage(messages::ENABLE_DMC)));
 	
 	(fAudioMenu->ItemAt(nes::apu::sound_channel::SQUARE1))->SetMarked(true);
 	(fAudioMenu->ItemAt(nes::apu::sound_channel::SQUARE2))->SetMarked(true);
@@ -561,19 +561,19 @@ PretendoWindow::AddMenu()
 	(fAudioMenu->ItemAt(nes::apu::sound_channel::NOISE))->SetMarked(true);
 	(fAudioMenu->ItemAt(nes::apu::sound_channel::DPCM))->SetMarked(true);
 	
-	fEmuMenu->AddItem(new BMenuItem("Input" B_UTF8_ELLIPSIS, new BMessage(MSG_CFG_INPUT)));
+	fEmuMenu->AddItem(new BMenuItem("Input" B_UTF8_ELLIPSIS, new BMessage(messages::CFG_INPUT)));
 	
-	fToolMenu->AddItem(new BMenuItem("Adjust Palette" B_UTF8_ELLIPSIS, new BMessage(MSG_ADJ_PALETTE)));
+	fToolMenu->AddItem(new BMenuItem("Adjust Palette" B_UTF8_ELLIPSIS, new BMessage(messages::ADJ_PALETTE)));
 	fToolMenu->AddSeparatorItem();
 	fPatternTableMenu = new BMenu("View Pattern Tables");
-	fPatternTableMenu->AddItem(new BMenuItem("1 (0x0-0xfff)", new BMessage(MSG_PTNTBL1)));
-	fPatternTableMenu->AddItem(new BMenuItem("2 (0x1000-0x1fff)", new BMessage(MSG_PTNTBL2)));
+	fPatternTableMenu->AddItem(new BMenuItem("1 (0x0-0xfff)", new BMessage(messages::SHOW_PTNTBL1)));
+	fPatternTableMenu->AddItem(new BMenuItem("2 (0x1000-0x1fff)", new BMessage(messages::SHOW_PTNTBL2)));
 	fToolMenu->AddItem(fPatternTableMenu);
 	fNameTableMenu = new BMenu("View Name Tables");
-	fNameTableMenu->AddItem(new BMenuItem("1 (0x2000-0x23ff)", new BMessage(MSG_NTBL1)));
-	fNameTableMenu->AddItem(new BMenuItem("2 (0x2400-0x27ff)", new BMessage(MSG_NTBL2)));
-	fNameTableMenu->AddItem(new BMenuItem("3 (0x2800-0x2bff)", new BMessage(MSG_NTBL3)));
-	fNameTableMenu->AddItem(new BMenuItem("4 (0x2c00-0x2fff)", new BMessage(MSG_NTBL4)));
+	fNameTableMenu->AddItem(new BMenuItem("1 (0x2000-0x23ff)", new BMessage(messages::SHOW_NTBL1)));
+	fNameTableMenu->AddItem(new BMenuItem("2 (0x2400-0x27ff)", new BMessage(messages::SHOW_NTBL2)));
+	fNameTableMenu->AddItem(new BMenuItem("3 (0x2800-0x2bff)", new BMessage(messages::SHOW_NTBL3)));
+	fNameTableMenu->AddItem(new BMenuItem("4 (0x2c00-0x2fff)", new BMessage(messages::SHOW_NTBL4)));
 	fToolMenu->AddItem(fNameTableMenu);
 
 	fMenuHeight = fMenu->Bounds().IntegerHeight();
@@ -1252,7 +1252,7 @@ PretendoWindow::DrawBitmap()
 	//Unlock();
 	
 	// oddly, this method seems to work well
-	PostMessage (MSG_DRAW_BITMAP);	
+	PostMessage (messages::DRAW_BITMAP);	
 }
 
 

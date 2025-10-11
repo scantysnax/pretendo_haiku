@@ -2,14 +2,10 @@
 #ifndef _VIDEO_SCREEN_H_
 #define _VIDEO_SCREEN_H_
 
-
 #include <WindowScreen.h>
 
 
 class PretendoWindow;
-
-
-constexpr uint32 MSG_LEAVE_FULLSCREEN = 'LVFS';
 
 
 class VideoScreen : public BWindowScreen
@@ -24,23 +20,19 @@ class VideoScreen : public BWindowScreen
 	virtual void ScreenConnected (bool connected);
 	
 	public:
-	bool Connected() const
-	{
+	bool Connected() const {
 		return fConnected;
 	}
 	
-	uint8 *Bits() const 	
-	{ 
+	uint8 *Bits() const { 
 		return fBits;
 	}
 	
-	int32 RowBytes() const 
-	{
+	int32 RowBytes() const {
 		return fRowBytes;
 	}
 	
-	int32 PixelWidth() const 
-	{ 
+	int32 PixelWidth() const { 
 		return fPixelWidth;
 	}
 	
