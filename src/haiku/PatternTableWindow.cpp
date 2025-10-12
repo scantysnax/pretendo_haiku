@@ -8,7 +8,7 @@ PatternTableWindow::PatternTableWindow (PretendoWindow *parent, int32 which)
 {
 	fParent = parent;
 	
-	ResizeTo(kPatternTableWidth*2, kPatternTableHeight*2);
+	ResizeTo(PatternTableView::screen_size::WIDTH*2, 													 PatternTableView::screen_size::HEIGHT*2);
 	SetTitle((which == 0) ? 
 							"Pattern Table 1 (0x0-0xfff)" 
 						: 	"Pattern Table 2 (0x1000-0x1fff)"

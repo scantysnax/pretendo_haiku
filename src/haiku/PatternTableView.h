@@ -11,12 +11,20 @@
 #include "Nes.h"
 
 
-constexpr int32 kPatternTableWidth = 128;
-constexpr int32 kPatternTableHeight = 128;
-
-
 class PatternTableView : public BView
 {
+	private:
+	typedef enum {
+		SHOW_8x8 = 'EBYE',
+		SHOW_8x16 = 'EBYS',
+	} messages;
+	
+	public:
+	typedef enum {
+		WIDTH = 128,
+		HEIGHT = 128
+	} screen_size;	
+		
 	public:
 	PatternTableView (BRect frame, int32 which);
 	virtual ~PatternTableView();

@@ -19,15 +19,15 @@ PatternTableView::~PatternTableView()
 void
 PatternTableView::AttachedToWindow()
 {
-	fBitmap = new BBitmap(BRect(0, 0,kPatternTableWidth-1, 
-					kPatternTableHeight-1), B_CMAP8);
+	fBitmap = new BBitmap(BRect(0, 0,screen_size::WIDTH-1, 
+					screen_size::HEIGHT-1), B_CMAP8);
 	fBits = reinterpret_cast<uint8 *>(fBitmap->Bits());
 	fRowBytes = fBitmap->BytesPerRow();
 	memset(fBits, 0x0, fBitmap->BitsLength());	
 	
 	fPopUpMenu = new BPopUpMenu("Tile Size");
-	BMenuItem *tile8x8 = new  BMenuItem("8x8", new BMessage('8x8 '));
-	BMenuItem *tile8x16 = new  BMenuItem("8x16", new BMessage('8x16'));
+	BMenuItem *tile8x8 = new  BMenuItem("8x8", new BMessage(messages::SHOW_8x8));
+	BMenuItem *tile8x16 = new  BMenuItem("8x16", new BMessage(messages::SHOW_8x16));
 	fPopUpMenu->AddItem(tile8x8);
 	fPopUpMenu->AddItem(tile8x16);
 	fPopUpMenu->SetRadioMode(true);
@@ -56,13 +56,13 @@ void
 PatternTableView::MessageReceived (BMessage *message)
 {
 	switch (message->what) {
-		case '8x8 ':
+		case messages::SHOW_8x8:
 			fViewMode = 0;
 			memset(fBits, 0x0, fBitmap->BitsLength());
 			Invalidate();
 			break;
 		
-		case '8x16':
+		case messages::SHOW_8x16:
 			fViewMode = 1;
 			memset(fBits, 0x0, fBitmap->BitsLength());
 			Invalidate();
@@ -153,7 +153,7 @@ void
 PatternTableView::DrawPatternTable8x8 (int32 which)
 {	
 	for (int32 y = 0; y < 16; y++) {
-		for (int32 x = 0; x < 16; x++){
+		for (int32 x = 0; x < 16; x++) {	
 			DrawTile(which, x+(y*16), x, y);
 		}                 
 	}

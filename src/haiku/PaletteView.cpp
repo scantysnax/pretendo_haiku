@@ -6,7 +6,7 @@
 
 
 PaletteView::PaletteView (PretendoWindow *parent, BRect frame, int32 swatchSize)
-	: BView (frame, "palette", B_FOLLOW_ALL_SIDES, B_WILL_DRAW)
+	: BView (frame, "palette_view", B_FOLLOW_ALL_SIDES, B_WILL_DRAW)
 {
 	fParent = parent;
 	fSwatchSize = swatchSize;
