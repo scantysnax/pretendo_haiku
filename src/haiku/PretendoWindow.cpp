@@ -764,20 +764,14 @@ PretendoWindow::OnViewPatternTable1()
 		return;
 	}
 
-	//if (fPatternTable0Window && fPatternTable0Window->Lock()) {
-		//fPatternTable0Window->Quit();
-		//fPatternTable0Window = nullptr;
-		//fPatternTable0Window->Show();
-	//} else {
-	//	if (fPatternTable0Window == nullptr) {
-	//		fPatternTable0Window = new PatternTableWindow(this, 0);
-	//		fPatternTable0Window->Show();
-	//	} else {
-	//		fPatternTable0Window->Activate();
-	//		
-	//	}
-	//}
+	if (fPatternTable1Window && fPatternTable1Window->Lock()) {
+		fPatternTable1Window->Quit();
+		fPatternTable1Window = nullptr;
+	} 
 	
+	fPatternTable1Window = new PatternTableWindow(this, 0);
+	fPatternTable1Window->Show();
+
 #if 0
 	if (fPatternTable0Window != nullptr) {
 		fPatternTable0Window->Activate();
@@ -802,6 +796,14 @@ PretendoWindow::OnViewPatternTable2()
 	if (! nes::cart.mapper()) {
 		return;
 	}
+
+	if (fPatternTable2Window && fPatternTable2Window->Lock()) {
+		fPatternTable2Window->Quit();
+		fPatternTable2Window = nullptr;
+	} 
+	
+	fPatternTable2Window = new PatternTableWindow(this, 1);
+	fPatternTable2Window->Show();
 }
 
 void
