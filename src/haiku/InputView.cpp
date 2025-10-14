@@ -84,19 +84,19 @@ InputView::AttachedToWindow()
 	
 	int32 top = hs->Frame().bottom+32;
 	r.Set(0, top, 0, 0);
-	fCancelButton = new BButton(r, "cancel_button", "Cancel", new BMessage(MSG_CANCEL));
+	fCancelButton = new BButton(r, "cancel_button", "Cancel", new BMessage(messages::CANCEL));
 	fCancelButton->ResizeToPreferred();
 	fCancelButton->SetTarget(this);
 	AddChild(fCancelButton);
 	
 	r.Set(fCancelButton->Frame().right+32, top, 0, 0);
-	fDefaultButton = new BButton(r, "default_button", "Default", new BMessage(MSG_DEFAULT));
+	fDefaultButton = new BButton(r, "default_button", "Default", new BMessage(messages::DEFAULT));
 	fDefaultButton->ResizeToPreferred();
 	fDefaultButton->SetTarget(this);
 	AddChild(fDefaultButton);
 	
 	r.Set(fDefaultButton->Frame().right+32, top, 0, 0);
-	fSaveButton = new BButton(r, "save_button", "Save", new BMessage(MSG_SAVE));
+	fSaveButton = new BButton(r, "save_button", "Save", new BMessage(messages::SAVE));
 	fSaveButton->ResizeToPreferred();
 	fSaveButton->SetTarget(this);
 	AddChild(fSaveButton);
@@ -127,15 +127,15 @@ void
 InputView::MessageReceived (BMessage *message)
 {
 	switch (message->what) {
-		case MSG_CANCEL:
+		case messages::CANCEL:
 		OnCancel();
 		break;
 		
-		case MSG_DEFAULT:
+		case messages::DEFAULT:
 		OnDefault();
 		break;
 		
-		case MSG_SAVE:
+		case messages::SAVE:
 		OnSave();
 		break;
 	}	

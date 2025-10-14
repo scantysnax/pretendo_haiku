@@ -14,11 +14,7 @@ constexpr int32 kControllerWidth = 539;
 constexpr int32 kControllerHeight = 291;
 constexpr int32 kControllerBorder = 16;
 
-constexpr uint32 MSG_CANCEL = 'CNCL';
-constexpr uint32 MSG_REVERT = 'RVRT';
-constexpr uint32 MSG_DEFAULT = 'DFLT';
-constexpr uint32 MSG_SAVE = 'SAVE';
- 
+
 //constexpr int32 kKeyLeft = ←;
 //constexpr int32 kKeyRight = →;
 //constexpr int32 kKeyUp = ↑;
@@ -29,6 +25,14 @@ class ButtonTextView;
 
 class InputView : public BView
 {
+	private:
+	typedef enum {
+		CANCEL = 	'CNCL',
+		DEFAULT = 	'DFLT',
+		SAVE = 		'SAVE'
+	} messages;
+	
+	
 	public:
 			InputView (BRect frame);
 	virtual ~InputView();
