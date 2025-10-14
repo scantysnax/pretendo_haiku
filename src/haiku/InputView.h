@@ -14,6 +14,7 @@ constexpr int32 kControllerWidth = 539;
 constexpr int32 kControllerHeight = 291;
 constexpr int32 kControllerBorder = 16;
 
+constexpr uint32 MSG_CANCEL = 'CNCL';
 constexpr uint32 MSG_REVERT = 'RVRT';
 constexpr uint32 MSG_DEFAULT = 'DFLT';
 constexpr uint32 MSG_SAVE = 'SAVE';
@@ -38,7 +39,7 @@ class InputView : public BView
 	virtual void MessageReceived (BMessage *message);
 	
 	private:
-	void OnRevert();
+	void OnCancel();
 	void OnDefault();
 	void OnSave();
 	
@@ -55,7 +56,7 @@ class InputView : public BView
 	ButtonTextView *fAView = nullptr;
 	
 	private:
-	BButton *fRevertButton = nullptr;
+	BButton *fCancelButton = nullptr;
 	BButton *fDefaultButton = nullptr;
 	BButton *fSaveButton = nullptr;
 	

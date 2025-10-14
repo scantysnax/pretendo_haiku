@@ -15,8 +15,8 @@ class PatternTableView : public BView
 {
 	private:
 	typedef enum {
-		SHOW_8x8 = 'EBYE',
-		SHOW_8x16 = 'EBYS',
+		SHOW_8x8 = 	'8x8 ',
+		SHOW_8x16 = '8x16'
 	} messages;
 	
 	public:

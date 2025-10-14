@@ -19,8 +19,7 @@ PatternTableView::~PatternTableView()
 void
 PatternTableView::AttachedToWindow()
 {
-	fBitmap = new BBitmap(BRect(0, 0,screen_size::WIDTH-1, 
-					screen_size::HEIGHT-1), B_CMAP8);
+	fBitmap = new BBitmap(BRect(0, 0, screen_size::WIDTH-1, screen_size::HEIGHT-1), B_CMAP8);
 	fBits = reinterpret_cast<uint8 *>(fBitmap->Bits());
 	fRowBytes = fBitmap->BytesPerRow();
 	memset(fBits, 0x0, fBitmap->BitsLength());	
@@ -76,14 +75,13 @@ PatternTableView::MessageReceived (BMessage *message)
 void
 PatternTableView::MouseDown(BPoint point)
 {
-	uint32 mouseButtons;
 	BPoint mousePos;
+	uint32 mouseButtons;
 	
 	GetMouse(&mousePos, &mouseButtons);
 	
 	if (mouseButtons & B_SECONDARY_MOUSE_BUTTON) {
 		ConvertToScreen(&point);
-	
 		fPopUpMenu->SetTargetForItems(this);
 		fPopUpMenu->Go(point, true, true, true);
 	}
@@ -96,8 +94,9 @@ void
 PatternTableView::Pulse()
 {
 	if (nes::cart.mapper()) {
-		puts(__PRETTY_FUNCTION__);
 	}
+	
+	BView::Pulse();
 }
 
 
@@ -105,7 +104,7 @@ void
 PatternTableView::DrawPixel (int32 x, int32 y, uint8 color)
 {
 	uint8 *dest = fBits;
-	int32 rowbytes = fRowBytes;
+	int32 const rowbytes = fRowBytes;
 	
 	*(uint8 *)(dest+x+(y*rowbytes)) = color;
 }

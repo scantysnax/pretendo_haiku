@@ -84,12 +84,12 @@ InputView::AttachedToWindow()
 	
 	int32 top = hs->Frame().bottom+32;
 	r.Set(0, top, 0, 0);
-	fRevertButton = new BButton(r, "revert_button", "Revert", new BMessage(MSG_REVERT));
-	fRevertButton->ResizeToPreferred();
-	fRevertButton->SetTarget(this);
-	AddChild(fRevertButton);
+	fCancelButton = new BButton(r, "cancel_button", "Cancel", new BMessage(MSG_CANCEL));
+	fCancelButton->ResizeToPreferred();
+	fCancelButton->SetTarget(this);
+	AddChild(fCancelButton);
 	
-	r.Set(fRevertButton->Frame().right+32, top, 0, 0);
+	r.Set(fCancelButton->Frame().right+32, top, 0, 0);
 	fDefaultButton = new BButton(r, "default_button", "Default", new BMessage(MSG_DEFAULT));
 	fDefaultButton->ResizeToPreferred();
 	fDefaultButton->SetTarget(this);
@@ -101,10 +101,10 @@ InputView::AttachedToWindow()
 	fSaveButton->SetTarget(this);
 	AddChild(fSaveButton);
 	
-	int32 buttonWidth = fRevertButton->Frame().Width() * 3 + (32*2);
+	int32 buttonWidth = fCancelButton->Frame().Width() * 3 + (32*2);
 	int32 windowWidth = Bounds().Width();
 	int32 x = (windowWidth - buttonWidth) / 2;
-	fRevertButton->MoveBy(x, 0);
+	fCancelButton->MoveBy(x, 0);
 	fSaveButton->MoveBy(x, 0);
 	fDefaultButton->MoveBy(x, 0);
 
@@ -127,8 +127,8 @@ void
 InputView::MessageReceived (BMessage *message)
 {
 	switch (message->what) {
-		case MSG_REVERT:
-		OnRevert();
+		case MSG_CANCEL:
+		OnCancel();
 		break;
 		
 		case MSG_DEFAULT:
@@ -145,7 +145,7 @@ InputView::MessageReceived (BMessage *message)
 
 
 void
-InputView::OnRevert()
+InputView::OnCancel()
 {
 	puts(__PRETTY_FUNCTION__);
 }
