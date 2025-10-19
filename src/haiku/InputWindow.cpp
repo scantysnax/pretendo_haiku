@@ -7,12 +7,16 @@ InputWindow::InputWindow (PretendoWindow *parent)
 {
 	fParent = parent;
 	
-	ResizeTo(kControllerWidth+kControllerBorder*2, 430);
+	ResizeTo(InputView::controller_size::WIDTH + 
+			 InputView::controller_size::BORDER*2, 
+			 430);
 	CenterOnScreen();
 	SetTitle("Configure Input");
 	
 	fInputView = new InputView(Bounds());
 	AddChild(fInputView);
+	
+	SetDefaultKeys();
 }
 
 
@@ -37,7 +41,7 @@ InputWindow::QuitRequested()
 
 
 void
-InputWindow::SetDefaultInputs()
+InputWindow::SetDefaultKeys()
 {
-	
+	fInputView->SetDefaultKeys();
 }

@@ -3,24 +3,15 @@
 #define _INPUT_VIEW_H_
 
 #include <Bitmap.h>
+#include <Button.h>
 #include <TextView.h>
 #include <TranslationUtils.h>
-#include <Button.h>
+
 
 #include "Splitters.h"
 
 
-constexpr int32 kControllerWidth = 539;
-constexpr int32 kControllerHeight = 291;
-constexpr int32 kControllerBorder = 16;
-
-
-//constexpr int32 kKeyLeft = ←;
-//constexpr int32 kKeyRight = →;
-//constexpr int32 kKeyUp = ↑;
-//constexpr int32 kKeyDown = ↓;
-
-class ButtonTextView;
+class KeyTextView;
 
 
 class InputView : public BView
@@ -32,6 +23,12 @@ class InputView : public BView
 		SAVE = 		'SAVE'
 	} messages;
 	
+	public:
+	typedef enum {
+		WIDTH = 539,
+		HEIGHT = 291,
+		BORDER = 16
+	} controller_size;
 	
 	public:
 			InputView (BRect frame);
@@ -42,6 +39,9 @@ class InputView : public BView
 	virtual void Draw (BRect updateRect);
 	virtual void MessageReceived (BMessage *message);
 	
+	public:
+	void SetDefaultKeys();
+	
 	private:
 	void OnCancel();
 	void OnDefault();
@@ -50,36 +50,37 @@ class InputView : public BView
 	private:
 	BBitmap *fControllerBitmap = nullptr;
 	
-	ButtonTextView *fUpView = nullptr;
-	ButtonTextView *fDownView = nullptr;
-	ButtonTextView *fLeftView = nullptr;
-	ButtonTextView *fRightView = nullptr;
-	ButtonTextView *fSelectView = nullptr;
-	ButtonTextView *fStartView = nullptr;
-	ButtonTextView *fBView = nullptr;
-	ButtonTextView *fAView = nullptr;
+	KeyTextView *fUpView = nullptr;
+	KeyTextView *fDownView = nullptr;
+	KeyTextView *fLeftView = nullptr;
+	KeyTextView *fRightView = nullptr;
+	KeyTextView *fSelectView = nullptr;
+	KeyTextView *fStartView = nullptr;
+	KeyTextView *fBView = nullptr;
+	KeyTextView *fAView = nullptr;
 	
 	private:
 	BButton *fCancelButton = nullptr;
 	BButton *fDefaultButton = nullptr;
-	BButton *fSaveButton = nullptr;
+	BButton *fSaveButton = nullptr;	
 	
+	private:
+	void CheckForDuplicates();
 };
 
 
-class ButtonTextView : public BTextView
+class KeyTextView : public BTextView
 {
 	public:
-			ButtonTextView (BRect frame);
-	virtual ~ButtonTextView();
+			KeyTextView (BRect frame);
+	virtual ~KeyTextView();
 	
 	public:
 	virtual void AttachedToWindow();
 	virtual void Draw (BRect updateRect);
 	virtual void KeyDown (const char *bytes, int32 numBytes);
 	
-	private:
-	
+	private:	
 };
 
 

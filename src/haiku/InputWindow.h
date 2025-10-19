@@ -21,7 +21,7 @@ class InputWindow : public BWindow
 	virtual void MessageReceived (BMessage *message);
 	
 	public:
-	void SetDefaultInputs();
+	void SetDefaultKeys();
 	
 	private:
 	PretendoWindow *fParent = nullptr;
