@@ -2,6 +2,7 @@
 #include "InputView.h"
 
 #include <cstdio>
+#include <iostream>
 
 InputView::InputView (BRect frame)
 	: BView(frame, "input_view", B_FOLLOW_ALL_SIDES, B_WILL_DRAW)
@@ -195,7 +196,7 @@ InputView::CheckForDuplicates()
 
 
 KeyTextView::KeyTextView (BRect frame)
-	: BTextView(frame, "input_text_view", BRect(0,0,0,0), B_FOLLOW_ALL, B_WILL_DRAW)
+	: BTextView(frame, "key_text_view", BRect(0, 0, 0, 0), B_FOLLOW_ALL, B_WILL_DRAW)
 {
 	
 }
@@ -231,10 +232,10 @@ KeyTextView::Draw (BRect updateRect)
 void
 KeyTextView::KeyDown (const char *bytes, int32 numBytes)
 {	
-	BString keyString;
-	bool allowed = true;
 	uint8 const key = bytes[0];
-	
+	bool allowed = true;
+	BString keyString;
+
 	switch (key) {
 		case B_FUNCTION_KEY:
 		case B_BACKSPACE:
@@ -273,8 +274,6 @@ KeyTextView::KeyDown (const char *bytes, int32 numBytes)
 	if (allowed) {		
 		SetText(keyString.String());
 	}
-	
-	
 
  	BTextView::KeyDown (bytes, numBytes);
 }

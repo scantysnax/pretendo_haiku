@@ -6,8 +6,7 @@
 #include <Button.h>
 #include <TextView.h>
 #include <TranslationUtils.h>
-
-
+#include <View.h>
 #include "Splitters.h"
 
 
@@ -50,6 +49,7 @@ class InputView : public BView
 	private:
 	BBitmap *fControllerBitmap = nullptr;
 	
+	private:
 	KeyTextView *fUpView = nullptr;
 	KeyTextView *fDownView = nullptr;
 	KeyTextView *fLeftView = nullptr;
