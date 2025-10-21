@@ -191,7 +191,41 @@ void
 InputView::CheckForDuplicates()
 {
 	puts(__PRETTY_FUNCTION__);
+		
+	BString s;
 	
+	s += fUpView->Text();
+	s += fDownView->Text();
+	s += fLeftView->Text();
+	s += fRightView->Text();
+	s += fSelectView->Text();
+	s += fStartView->Text();
+	s += fBView->Text();
+	s += fAView->Text();
+	puts(s.String());
+	
+	/*
+	putchar(s[0]);
+	putchar(s[1]);
+	putchar(s[2]);
+	putchar(s[3]);
+	putchar(s[4]);
+	putchar(s[5]);
+	
+	putchar(s[6]);
+	putchar(s[7]);
+	putchar(s[8]);
+	putchar(s[9]);
+	putchar(s[10]);
+	putchar(s[11]);
+	
+	//putchar(s[12]);
+	//putchar(s[13]);
+	//putchar(s[14]);
+	//putchar(s[15]);
+	putchar('\n');
+	*/
+
 }
 
 
