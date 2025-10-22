@@ -175,7 +175,7 @@ InputView::SetDefaultKeys()
 {
 	puts(__PRETTY_FUNCTION__);
 	
-	fUpView->SetText("↑\0");
+	fUpView->SetText("↑");
 	fDownView->SetText("↓");
 	fLeftView->SetText("←");
 	fRightView->SetText("→");
@@ -195,14 +195,14 @@ InputView::CheckForDuplicates()
 	BString s;
 	int32 l;
 	s += fUpView->Text();
-	s += fDownView->Text();
-	s += fLeftView->Text();
+	//s += fDownView->Text();
+	//s += fLeftView->Text();
 	l = s.Length();
-	
-	putchar(s[2]);
-	putchar(s[5]);
-	putchar(s[8]);
-	putchar('\n');
+	printf("character: %c\n", 'a');
+	//putchar(s[2]);
+	//putchar(s[5]);
+	//putchar(s[8]);
+	//putchar('\n');
 	//s += fDownView->Text();
 	//s += fLeftView->Text();
 	//s += fRightView->Text();
@@ -210,7 +210,7 @@ InputView::CheckForDuplicates()
 //	s += fStartView->Text();
 //	s += fBView->Text();
 //	s += fAView->Text();
-	printf("Length: %ld\n", l);
+	printf("Length: %ld\n", s.Length());
 	
 	puts(s.String());
 
