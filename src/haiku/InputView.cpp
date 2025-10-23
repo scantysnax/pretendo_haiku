@@ -186,7 +186,6 @@ InputView::SetDefaultKeys()
 	
 }
 
-#include <iostream>
 void
 InputView::CheckForDuplicates()
 {
@@ -194,46 +193,37 @@ InputView::CheckForDuplicates()
 		
 	BString s;
 	s += fUpView->Text();
+	s += fDownView->Text();
+	s += fLeftView->Text();
+	s += fRightView->Text();
 	
-	printf("length: %d\n", s.Length());
-	puts(s.String());
+	int32 down = s.FindFirst("↓");
 	
-	//std::cout << 
-	//std::ios::dec << s.ByteAt(0) << " " << s.ByteAt(1) << " " << s.ByteAt(2) <<  
-	//std::ios::dec << 
-	//std::endl;
-	printf("%02x\n", s.ByteAt(0));
+	printf("down: %ld\n", down);
 	
-	//printf("%02x %02x %02x\n", s[0], s[1], s[2]);
+	/*
+	printf("length: %ld\n", s.Length());
+	putchar(s[0]);
+	putchar(s[1]);
+	putchar(s[2]);
+	putchar('\n');
 	
-	//s += fUpView->Text();
-	//s += fDownView->Text();
-	//s += fLeftView->Text();
+	putchar(s[3]);
+	putchar(s[4]);
+	putchar(s[5]);
+	putchar('\n');
+	
+	putchar(s[6]);
+	putchar(s[7]);
+	putchar(s[8]);
+	putchar('\n');
+	
+	putchar(s[9]);
+	putchar(s[10]);
+	putchar(s[11]);
+	putchar('\n');
+	*/
 
-	l = s.Length();
-	printf("character: %c\n", 0x1e);
-	//putchar(s[2]);
-	//putchar(s[5]);
-	//putchar(s[8]);
-	//putchar('\n');
-	
-	//l = s.Length();
-	//printf("character: %c\n", s.ByteAt(3));
-	//putchar(s[0]);
-	//putchar(s[1]);
-//	putchar(s[1]);
-//	putchar('\n');
-//	putchar(0x1e);
-//	putchar('\n');
-
-	//s += fDownView->Text();
-	//s += fLeftView->Text();
-	//s += fRightView->Text();
-//	s += fSelectView->Text();
-//	s += fStartView->Text();
-//	s += fBView->Text();
-//	s += fAView->Text();
-	//printf("Length: %d\n", s.Length());
 }
 
 
