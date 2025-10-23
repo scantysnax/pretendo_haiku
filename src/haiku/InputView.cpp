@@ -186,23 +186,46 @@ InputView::SetDefaultKeys()
 	
 }
 
-
+#include <iostream>
 void
 InputView::CheckForDuplicates()
 {
 	puts(__PRETTY_FUNCTION__);
 		
 	BString s;
-	int32 l;
 	s += fUpView->Text();
+	
+	printf("length: %d\n", s.Length());
+	puts(s.String());
+	
+	std::cout << 
+	std::ios::dec << s.ByteAt(0) << " " << s.ByteAt(1) << " " << s.ByteAt(2) <<  
+	std::ios::dec << 
+	std::endl;
+	//printf("%02x\n", s.ByteAt(0));
+	
+	//printf("%02x %02x %02x\n", s[0], s[1], s[2]);
+	
+	//s += fUpView->Text();
 	//s += fDownView->Text();
 	//s += fLeftView->Text();
+
 	l = s.Length();
 	printf("character: %c\n", 0x1e);
 	//putchar(s[2]);
 	//putchar(s[5]);
 	//putchar(s[8]);
 	//putchar('\n');
+	
+	//l = s.Length();
+	//printf("character: %c\n", s.ByteAt(3));
+	//putchar(s[0]);
+	//putchar(s[1]);
+//	putchar(s[1]);
+//	putchar('\n');
+//	putchar(0x1e);
+//	putchar('\n');
+
 	//s += fDownView->Text();
 	//s += fLeftView->Text();
 	//s += fRightView->Text();
@@ -210,10 +233,7 @@ InputView::CheckForDuplicates()
 //	s += fStartView->Text();
 //	s += fBView->Text();
 //	s += fAView->Text();
-	printf("Length: %ld\n", s.Length());
-	
-	puts(s.String());
-
+	//printf("Length: %d\n", s.Length());
 }
 
 
@@ -290,7 +310,7 @@ KeyTextView::KeyDown (const char *bytes, int32 numBytes)
 		
 		default:
 		keyString = key;
-		keyString.Capitalize();
+		keyString.ToUpper();
 	}
 	
 	if (allowed) {		
