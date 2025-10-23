@@ -198,7 +198,7 @@ InputView::CheckForDuplicates()
 	//s += fDownView->Text();
 	//s += fLeftView->Text();
 	l = s.Length();
-	printf("character: %c\n", 'a');
+	printf("character: %c\n", 0x1e);
 	//putchar(s[2]);
 	//putchar(s[5]);
 	//putchar(s[8]);
