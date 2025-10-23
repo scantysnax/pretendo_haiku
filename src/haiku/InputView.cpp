@@ -198,11 +198,11 @@ InputView::CheckForDuplicates()
 	printf("length: %d\n", s.Length());
 	puts(s.String());
 	
-	std::cout << 
-	std::ios::dec << s.ByteAt(0) << " " << s.ByteAt(1) << " " << s.ByteAt(2) <<  
-	std::ios::dec << 
-	std::endl;
-	//printf("%02x\n", s.ByteAt(0));
+	//std::cout << 
+	//std::ios::dec << s.ByteAt(0) << " " << s.ByteAt(1) << " " << s.ByteAt(2) <<  
+	//std::ios::dec << 
+	//std::endl;
+	printf("%02x\n", s.ByteAt(0));
 	
 	//printf("%02x %02x %02x\n", s[0], s[1], s[2]);
 	
