@@ -1,8 +1,9 @@
 
-#ifndef QT_SETTINGS_H_
-#define QT_SETTINGS_H_
+#ifndef _SETTINGS_H_
+#define _SETTINGS_H_
 
 #include <string>
+#include <String.h>
 
 namespace Settings {
 

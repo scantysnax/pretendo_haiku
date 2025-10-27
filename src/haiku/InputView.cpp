@@ -1,13 +1,22 @@
 
 #include "InputView.h"
+#include "Settings.h"
 
 #include <cstdio>
 #include <iostream>
+
+
 
 InputView::InputView (BRect frame)
 	: BView(frame, "input_view", B_FOLLOW_ALL_SIDES, B_WILL_DRAW)
 {
 	fControllerBitmap = BTranslationUtils::GetBitmap('bits', "Controller");	
+	
+	int32 i;
+	for (i = 0; i < 8; i++) {
+		memset(&fKeys[i], 0, sizeof(fKeys[i]));
+	}
+		
 }
 
 
@@ -109,6 +118,8 @@ InputView::AttachedToWindow()
 	fSaveButton->MoveBy(x, 0);
 	fDefaultButton->MoveBy(x, 0);
 	
+	// load inputs here
+	
 	BView::AttachedToWindow();
 }
 
@@ -118,7 +129,7 @@ InputView::Draw (BRect updateRect)
 {
 	BRect r(0, 0, controller_size::WIDTH-1, controller_size::HEIGHT-1);
 	r.OffsetTo(controller_size::BORDER, controller_size::BORDER);
-	DrawBitmap(fControllerBitmap, r);		
+	DrawBitmap(fControllerBitmap, r);
 	
 	BView::Draw (updateRect);
 }
@@ -166,7 +177,7 @@ InputView::OnSave()
 {
 	puts(__PRETTY_FUNCTION__);
 	
-	CheckForDuplicates();
+	ValidateKeys();
 }
 
 
@@ -175,6 +186,15 @@ InputView::SetDefaultKeys()
 {
 	puts(__PRETTY_FUNCTION__);
 	
+	fKeys[0] = B_UP_ARROW;
+	fKeys[1] = B_DOWN_ARROW;
+	fKeys[2] = B_LEFT_ARROW;
+	fKeys[3] = B_RIGHT_ARROW;
+	fKeys[4] = 'A';
+	fKeys[5] = 'S';
+	fKeys[6] = 'Z';
+	fKeys[7] = 'X';
+	
 	fUpView->SetText("↑");
 	fDownView->SetText("↓");
 	fLeftView->SetText("←");
@@ -182,48 +202,52 @@ InputView::SetDefaultKeys()
 	fSelectView->SetText("A");
 	fStartView->SetText("S");
 	fBView->SetText("Z");
-	fAView->SetText("X");
-	
+	fAView->SetText("X");	
 }
 
+
 void
-InputView::CheckForDuplicates()
+InputView::ValidateKeys()
 {
 	puts(__PRETTY_FUNCTION__);
-		
+	
+	//BString strUp = fUpView->Text();
+	
+	//if (strUp.Length() == 3) {
+	//	}else {
+	//}
+	
+	printf("config file: %s\n", Settings::configFile().c_str());
+				
+/*
 	BString s;
 	s += fUpView->Text();
 	s += fDownView->Text();
 	s += fLeftView->Text();
 	s += fRightView->Text();
 	
+	int32 up = s.FindFirst("↑");
 	int32 down = s.FindFirst("↓");
+	int32 left = s.FindFirst("←");
+	int32 right = s.FindFirst("→");
 	
-	printf("down: %ld\n", down);
+	if (up != -1) {
+		printf ("found: %02x %02x %02x at offset %d\n", (uint8)s[0], (uint8)s[1], (uint8)s[2], up);
+	}
 	
-	/*
-	printf("length: %ld\n", s.Length());
-	putchar(s[0]);
-	putchar(s[1]);
-	putchar(s[2]);
-	putchar('\n');
+	if (down != -1) {
+		printf ("found: %02x %02x %02x at offset %d\n", (uint8)s[3], (uint8)s[4], (uint8)s[5], down);
+	}
 	
-	putchar(s[3]);
-	putchar(s[4]);
-	putchar(s[5]);
-	putchar('\n');
+	if (left != -1) {
+		printf ("found: %02x %02x %02x at offset %d\n", (uint8)s[6], (uint8)s[7], (uint8)s[8], left);
+	}
 	
-	putchar(s[6]);
-	putchar(s[7]);
-	putchar(s[8]);
-	putchar('\n');
-	
-	putchar(s[9]);
-	putchar(s[10]);
-	putchar(s[11]);
-	putchar('\n');
-	*/
-
+	if (right != -1) {
+		printf ("found: %02x %02x %02x at offset %d\n", (uint8)s[9], (uint8)s[10], (uint8)s[11], right);
+	}
+*/
+	//printf("key string: %s\n",strUp.String());
 }
 
 
@@ -266,7 +290,7 @@ KeyTextView::KeyDown (const char *bytes, int32 numBytes)
 {	
 	uint8 const key = bytes[0];
 	bool allowed = true;
-	BString keyString;
+	BString keys;
 
 	switch (key) {
 		case B_FUNCTION_KEY:
@@ -283,28 +307,28 @@ KeyTextView::KeyDown (const char *bytes, int32 numBytes)
 		break;
 	
 		case B_UP_ARROW:
-		keyString = "↑";
+		keys = "↑";
 		break;
 		
 		case B_DOWN_ARROW:
-		keyString = "↓";
+		keys = "↓";
 		break;
 		
 		case B_LEFT_ARROW:
-		keyString = "←";
+		keys = "←";
 		break;
 		
 		case B_RIGHT_ARROW:
-		keyString = "→";
+		keys = "→";
 		break;
 		
 		default:
-		keyString = key;
-		keyString.ToUpper();
+		keys = key;
+		keys.ToUpper();
 	}
 	
 	if (allowed) {		
-		SetText(keyString.String());
+		SetText(keys.String());
 	}
 
  	BTextView::KeyDown (bytes, numBytes);

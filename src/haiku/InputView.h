@@ -41,6 +41,7 @@ class InputView : public BView
 	public:
 	void SetDefaultKeys();
 	
+	
 	private:
 	void OnCancel();
 	void OnDefault();
@@ -65,7 +66,10 @@ class InputView : public BView
 	BButton *fSaveButton = nullptr;	
 	
 	private:
-	void CheckForDuplicates();
+	void ValidateKeys();
+	
+	private:
+	uint8 fKeys[8];
 };
 
 
