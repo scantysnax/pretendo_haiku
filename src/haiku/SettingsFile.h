@@ -10,7 +10,6 @@
 #include <typeinfo>
 #include <map>
 
-using namespace std;
 
 class SettingsFile 
 {

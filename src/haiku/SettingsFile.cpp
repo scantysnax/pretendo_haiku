@@ -13,7 +13,7 @@
 
 
 std::string
-ltrim (string const &s)
+ltrim (std::string const &s)
 {
 	return std::string(std::find_if(s.cbegin(), s.cend(), [](uint8 c) 
 	{

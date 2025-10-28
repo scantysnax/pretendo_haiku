@@ -293,16 +293,23 @@ KeyTextView::KeyDown (const char *bytes, int32 numBytes)
 	BString keys;
 
 	switch (key) {
-		case B_FUNCTION_KEY:
-		case B_BACKSPACE:
-		case B_DELETE:
-		case B_ESCAPE:
-		case B_INSERT:
-		case B_END:
 		case B_HOME:
+		case B_END:
+		case B_INSERT:
+		case B_BACKSPACE:
+		case B_TAB:
+		case B_ENTER:
 		case B_PAGE_UP:
 		case B_PAGE_DOWN:
-		case B_SPACE: 
+		case B_FUNCTION_KEY:
+		case B_SPACE:
+		case B_DELETE:
+		case B_ESCAPE:
+		case B_PRINT_KEY:
+		case B_SCROLL_KEY:
+		case B_NUM_LOCK_KEY:
+		case B_CAPS_LOCK_KEY:
+		case B_SPACE_BAR_KEY:
 		allowed = false;
 		break;
 	
