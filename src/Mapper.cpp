@@ -1,7 +1,7 @@
 
-#include "Mapper.h"
 #include "Cart.h"
 #include "Compiler.h"
+#include "Mapper.h"
 #include "Nes.h"
 #include "Settings.h"
 

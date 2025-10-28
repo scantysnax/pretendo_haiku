@@ -3,7 +3,6 @@
 #define _SETTINGS_H_
 
 #include <string>
-#include <String.h>
 
 namespace Settings {
 

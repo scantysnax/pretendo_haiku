@@ -10,34 +10,36 @@
 #include <typeinfo>
 #include <map>
 
+using namespace std;
 
-class SettingsFile {
-public:
-	SettingsFile();
-	~SettingsFile();
+class SettingsFile 
+{
+	public:
+			SettingsFile();
+	virtual ~SettingsFile();
 	
-private:
+	private:
 	SettingsFile(const SettingsFile &) = delete;
 	SettingsFile &operator=(const SettingsFile &) = delete;
 
-private:
+	private:
 	typedef std::map<std::string, std::string> section_type;
 
-public:
+	public:
 	bool Load();
 	bool Save();
 
-public:
-	bool NewSection(const std::string &section);
-	bool DeleteSection(const std::string &section);
-	bool NewKey(const std::string &section, const std::pair<std::string, std::string> &key);
-	bool DeleteKey(const std::string &section, const std::string &keyName);
+	public:
+	bool NewSection (std::string const &section);
+	bool DeleteSection (std::string const &section);
+	bool NewKey (std::string const &section, std::pair<std::string, std::string> const &key);
+	bool DeleteKey (std::string const &section, std::string const &keyName);
 
-public:
+	public:
 	template <class T>
-	bool ReadKey(const std::string &section, const std::string &key, T &container) {
-
-		if(section.empty() || key.empty()) {
+	bool ReadKey (std::string const &section, std::string const &key, T &container)
+	{
+		if (section.empty() || key.empty()) {
 			return false;
 		}
 				
@@ -48,11 +50,11 @@ public:
 			return false;
 		}
 
-		const section_type &kvm = it->second;
-		for(auto kvi = kvm.begin(); kvi != kvm.end(); ++kvi) {
+		section_type const &kvm = it->second;
+		for (auto kvi = kvm.begin(); kvi != kvm.end(); ++kvi) {
 			std::cout << key << ", " << kvi->first << std::endl;
 
-			if(key == kvi->first) {
+			if (key == kvi->first) {
 				container = (kvi->second);
 				return true;
 			}
@@ -62,15 +64,15 @@ public:
 	}
 
 	template <class T>
-	bool WriteKey(const std::string &section, const std::string &key, T value) {
+	bool WriteKey (std::string const &section, const std::string &key, T value) {
 
-		if(section.empty() || key.empty()) {
+		if (section.empty() || key.empty()) {
 			return false;
 		}
 		
 		auto it = sections_.find(section);
 
-		if(it == sections_.end()) {
+		if (it == sections_.end()) {
 			return false;
 		}
 
@@ -82,9 +84,9 @@ public:
 		}
 
 		section_type &kvm = it->second;
-		for(auto kvi = kvm.begin(); kvi != kvm.end(); ++kvi) {
+		for (auto kvi = kvm.begin(); kvi != kvm.end(); ++kvi) {
 			std::cout << key << ", " << kvi->first << std::endl;
-			if(key == kvi->first) {
+			if (key == kvi->first) {
 				kvi->second = oss.str();
 				return true;
 			}
@@ -93,10 +95,12 @@ public:
 		return false;
 	}
 
-private:
+	private:
 	std::string                         filename_;
 	std::map<std::string, section_type> sections_;
+
 };
 
 
 #endif	// _SETTINGS_FILE_H_
+

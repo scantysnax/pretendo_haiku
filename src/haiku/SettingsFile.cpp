@@ -1,59 +1,60 @@
 
 #include "SettingsFile.h"
 
-
-#include <FindDirectory.h>
-#include <fs_info.h>
-#include <Path.h>
 #include <Directory.h>
+#include <fs_info.h>
+#include <FindDirectory.h>
+#include <Path.h>
 
-#include <functional> 
 #include <cctype>
+#include <functional> 
 #include <locale>
 #include <vector>
-#include <sys/stat.h>
 
 
-namespace {
-
-
-std::string ltrim(const std::string &s)
+std::string
+ltrim (string const &s)
 {
-	return std::string(std::find_if(s.cbegin(), s.cend(), [](unsigned char ch) 
+	return std::string(std::find_if(s.cbegin(), s.cend(), [](uint8 c) 
 	{
-		return !std::isspace(ch);
+		return ! std::isspace(c);
 	}
 	), s.cend());
 }
 
 
-std::string rtrim(const std::string &s)
+std::string
+rtrim (std::string const &s)
 {
-	return std::string(s.cbegin(), std::find_if(s.crbegin(), s.crend(), [](unsigned char ch)
+	return std::string(s.cbegin(), std::find_if(s.crbegin(), s.crend(), [](uint8 c)
 	{
-		return !std::isspace(ch); 
+		return ! std::isspace(c); 
 	}
 	).base());
 }
 
 
-void trim(std::string &s) {
+void 
+trim(std::string &s)
+{
 	ltrim(s);
 	rtrim(s);
 }
 
 
-std::vector<std::string> explode(const std::string &delimeter, const std::string &string, int limit) {
+std::vector<std::string> 
+explode(std::string const &delimeter, std::string const &s, int limit)
+{
 	std::vector<std::string> r;
 
-	if(!string.empty()) {
+	if(! s.empty()) {
 		if(limit >= 0) {
 			if(limit == 0) {
 				limit = 1;
 			}
 
 			std::size_t first = 0;
-			std::size_t last  = string.find(delimeter);
+			std::size_t last  = s.find(delimeter);
 
 			while(last != std::string::npos) {
 
@@ -61,23 +62,23 @@ std::vector<std::string> explode(const std::string &delimeter, const std::string
 					break;
 				}
 
-				r.push_back(string.substr(first, last - first));
+				r.push_back(s.substr(first, last - first));
 				first = last + delimeter.size();
-				last  = string.find(delimeter, last + delimeter.size());
+				last  = s.find(delimeter, last + delimeter.size());
 			}
 
-			r.push_back(string.substr(first));
+			r.push_back(s.substr(first));
 		} else {
 			std::size_t first = 0;
-			std::size_t last  = string.find(delimeter);
+			std::size_t last  = s.find(delimeter);
 
 			while(last != std::string::npos) {
-				r.push_back(string.substr(first, last - first));
+				r.push_back(s.substr(first, last - first));
 				first = last + delimeter.size();
-				last  = string.find(delimeter, last + delimeter.size());
+				last  = s.find(delimeter, last + delimeter.size());
 			}
 
-			r.push_back(string.substr(first));
+			r.push_back(s.substr(first));
 			
 			while(limit < 0) {
 				r.pop_back();
@@ -90,11 +91,12 @@ std::vector<std::string> explode(const std::string &delimeter, const std::string
 }
 
 
-inline std::vector<std::string> explode(const std::string &delimeter, const std::string &string) {
-	return explode(delimeter, string, std::numeric_limits<int>::max());
+inline std::vector<std::string> 
+explode (std::string const &delimeter, std::string const &s)
+{
+	return explode(delimeter, s, std::numeric_limits<int>::max());
 }
 
-}
 
 SettingsFile::SettingsFile() 
 {
@@ -106,7 +108,7 @@ SettingsFile::SettingsFile()
 	filename_ = path.Path();
 	dir = new BDirectory(filename_.c_str());
 	dir->CreateDirectory("Pretendo", NULL);
-	filename_ += "/Pretendo/pretendo.config";
+	filename_ += "/Pretendo/pretendo_settings";
 
 	Load();
 }
@@ -119,12 +121,12 @@ SettingsFile::~SettingsFile()
 
 
 bool 
-SettingsFile::Load() {
-
-	std::cout << "Loading config from file..." << std::endl;
+SettingsFile::Load()
+{
+	std::cout << "Loading settings from file..." << std::endl;
 	std::ifstream file(filename_.c_str());
 		
-	if(! file) {
+	if (! file) {
 		// file does not exist, make a new one with some defaults
 		std::cout << "Couldn't load file. Creating new one..." << std::endl;
 		
@@ -142,39 +144,39 @@ SettingsFile::Load() {
 	std::string current_section;
 	unsigned int line_number = 0;
 
-	while(std::getline(file, linebuffer)) {
+	while (std::getline(file, linebuffer)) {
 	
 		trim(linebuffer);
 	
 		++line_number;
-		if(linebuffer.empty()) {
+		if (linebuffer.empty()) {
 			continue;
 		}
 
-		if(linebuffer[0] == '[') {
+		if (linebuffer[0] == '[') {
 		
 			// TODO: handle if there is junk after the closing ']' character
-			const size_t end = linebuffer.find_last_of(']');
+			size_t const end = linebuffer.find_last_of(']');
 
-			if(end != std::string::npos) {
+			if (end != std::string::npos) {
 				current_section = linebuffer.substr(1, end - 1);
 				NewSection(current_section);
 			} else {
 				std::cerr << "[SettingsFile::Load] Error on line " << line_number << std::endl;
 				continue;
 			}
-		} else if(linebuffer[0] == '#') {
+		} else if (linebuffer[0] == '#') {
 			// skip comments
 			continue;
 		} else {			
-			if(current_section.empty()) {
+			if (current_section.empty()) {
 				std::cerr << "Error: every configuration option must be in a section" << std::endl;
 				continue;
 			}
 			
-			const std::vector<std::string> values = explode("=", linebuffer);
+			std::vector<std::string> const values = explode("=", linebuffer);
 			
-			if(values.size() != 2) {
+			if (values.size() != 2) {
 				std::cerr << "Error: Every key must have exactly one value" << line_number << std::endl;
 				continue;
 			}
@@ -185,7 +187,7 @@ SettingsFile::Load() {
 			trim(key);
 			trim(value);
 
-			if(key.empty()) {
+			if (key.empty()) {
 				std::cerr << "Error: bad key on line " << line_number << std::endl;
 				continue;
 			}
@@ -198,23 +200,25 @@ SettingsFile::Load() {
 }
 
 
-bool SettingsFile::Save() {
+bool
+SettingsFile::Save()
+{
 
 	std::cout << "Saving Settings..." << std::endl;
 	std::ofstream file(filename_.c_str(), std::ios::trunc);
 
-	if(!file) {
+	if (! file) {
 		std::cerr << "[SettingsFile::Save] Error: couldn't open file for writing" << std::endl;
 		// TODO: throw exception or something equally creative
 		return false;
 	}
 
-	for(auto ci = sections_.begin(); ci != sections_.end(); ++ci) {
+	for (auto ci = sections_.begin(); ci != sections_.end(); ++ci) {
 
 		file << "\n[" << ci->first << "]" << std::endl;
 
-		for(auto ki = sections_[ci->first].begin(); ki != sections_[ci->first].end(); ++ki) {
-			if(ki->first.empty() || ki->second.empty()) {
+		for (auto ki = sections_[ci->first].begin(); ki != sections_[ci->first].end(); ++ki) {
+			if (ki->first.empty() || ki->second.empty()) {
 				continue;
 			}
 
@@ -226,12 +230,14 @@ bool SettingsFile::Save() {
 }
 
 
-bool SettingsFile::DeleteSection(const std::string &section) {
+bool
+SettingsFile::DeleteSection (std::string const &section)
+{
 
 	std::cout << "DeleteSection -> " << section << std::endl;
 	auto it = sections_.find(section);
 
-	if(it == sections_.end()) {
+	if (it == sections_.end()) {
 		return false;
 	}
 	
@@ -240,16 +246,18 @@ bool SettingsFile::DeleteSection(const std::string &section) {
 }
 
 
-bool SettingsFile::NewSection(const std::string &section) {
+bool 
+SettingsFile::NewSection (std::string const &section)
+{
 	std::cout << "NewSection: " << section << std::endl;
 
-	if(section.empty()) {
+	if (section.empty()) {
 		return false;
 	}
 	
 	auto it = sections_.insert(std::make_pair(section, section_type()));
 
-	if(!it.second) {
+	if (! it.second) {
 		std::cout << "Section: " << section << " already in list." << std::endl;
 		return false;
 	}
@@ -258,32 +266,37 @@ bool SettingsFile::NewSection(const std::string &section) {
 }
 
 
-bool SettingsFile::NewKey(const std::string &section, const std::pair<std::string, std::string> &key) {
-	if(section.empty()) {
+bool 
+SettingsFile::NewKey (std::string const &section, std::pair<std::string, std::string> const &key) 
+{
+	if (section.empty()) {
 		return false;
 	}
 
-	if(sections_.find(section) == sections_.end()) {
+	if (sections_.find(section) == sections_.end()) {
 		return false;
 	}
 
 	std::cout << "NewKey -> adding: " << key.first << ", " << key.second << std::endl;
 	
 	auto it = sections_[section].insert(key);
-	if(!it.second) {
+	if (! it.second) {
 		std::cout << "key " << key.first << " already exists." << std::endl;
 	}
+	
 	return true;
 }
 
 
-bool SettingsFile::DeleteKey(const std::string &section, const std::string &keyName) {
+bool
+SettingsFile::DeleteKey(std::string const &section, std::string const &keyName)
+{
 	if(section.empty()) {
 		return false;
 	}
 
-	for(auto it = sections_[section].begin(); it != sections_[section].end(); ++it){
-		if(it->first == keyName) {
+	for (auto it = sections_[section].begin(); it != sections_[section].end(); ++it){
+		if (it->first == keyName) {
 			std::cout << "DeleteKey -> " << keyName << std::endl;
 			sections_[section].erase(it);
 			return true;
