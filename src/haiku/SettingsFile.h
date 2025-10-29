@@ -76,7 +76,7 @@ class SettingsFile
 		}
 
 		std::ostringstream oss;
-		if(typeid(T) == typeid(double)) {
+		if (typeid(T) == typeid(double)) {
 			oss << std::setprecision(4) << value;
 		} else {
 			oss << value;
