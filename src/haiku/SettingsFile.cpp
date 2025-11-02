@@ -124,6 +124,7 @@ bool
 SettingsFile::Load()
 {
 	std::cout << "Loading settings from file..." << std::endl;
+	
 	std::ifstream file(filename_.c_str());
 		
 	if (! file) {

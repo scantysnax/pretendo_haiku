@@ -6,7 +6,6 @@
 #include <iostream>
 
 
-
 InputView::InputView (BRect frame)
 	: BView(frame, "input_view", B_FOLLOW_ALL_SIDES, B_WILL_DRAW)
 {
@@ -306,6 +305,11 @@ KeyTextView::KeyDown (const char *bytes, int32 numBytes)
 		case B_DELETE:
 		case B_ESCAPE:
 		case B_PRINT_KEY:
+		case B_F1_KEY:
+		case B_F2_KEY:
+		case B_F5_KEY:
+		case B_F6_KEY:
+		case B_F12_KEY:
 		case B_SCROLL_KEY:
 		case B_NUM_LOCK_KEY:
 		case B_CAPS_LOCK_KEY:

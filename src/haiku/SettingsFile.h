@@ -2,13 +2,13 @@
 #ifndef _SETTINGS_FILE_H_
 #define _SETTINGS_FILE_H_
 
-#include <iostream>
 #include <fstream>
+#include <iomanip>
+#include <iostream>
+#include <map>
 #include <sstream>
 #include <string>
-#include <iomanip>
 #include <typeinfo>
-#include <map>
 
 
 class SettingsFile 
@@ -17,10 +17,6 @@ class SettingsFile
 			SettingsFile();
 	virtual ~SettingsFile();
 	
-	private:
-	SettingsFile(const SettingsFile &) = delete;
-	SettingsFile &operator=(const SettingsFile &) = delete;
-
 	private:
 	typedef std::map<std::string, std::string> section_type;
 
@@ -44,12 +40,13 @@ class SettingsFile
 				
 		auto it = sections_.find(section);
 
-		if(it == sections_.end()) {
+		if (it == sections_.end()) {
 			std::cout << "cant find section" << std::endl;
 			return false;
 		}
 
 		section_type const &kvm = it->second;
+		
 		for (auto kvi = kvm.begin(); kvi != kvm.end(); ++kvi) {
 			std::cout << key << ", " << kvi->first << std::endl;
 
@@ -58,13 +55,14 @@ class SettingsFile
 				return true;
 			}
 		}
-
+		
 		return false;
 	}
 
+	public:
 	template <class T>
-	bool WriteKey (std::string const &section, const std::string &key, T value) {
-
+	bool WriteKey (std::string const &section, const std::string &key, T value)
+	{
 		if (section.empty() || key.empty()) {
 			return false;
 		}
@@ -76,6 +74,7 @@ class SettingsFile
 		}
 
 		std::ostringstream oss;
+		
 		if (typeid(T) == typeid(double)) {
 			oss << std::setprecision(4) << value;
 		} else {
@@ -83,8 +82,10 @@ class SettingsFile
 		}
 
 		section_type &kvm = it->second;
+		
 		for (auto kvi = kvm.begin(); kvi != kvm.end(); ++kvi) {
 			std::cout << key << ", " << kvi->first << std::endl;
+			
 			if (key == kvi->first) {
 				kvi->second = oss.str();
 				return true;

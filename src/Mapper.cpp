@@ -722,10 +722,10 @@ void Mapper::set_mirroring(uint8_t mir) {
 	// single lo:  00000000b, or $00
 	// single hi:  01010101b, or $55
 
-	vram_banks_[0x08] = {&nametables_[(mir << 0xa) & 0x0c00], VRAMBank::Ram};
-	vram_banks_[0x09] = {&nametables_[(mir << 0x8) & 0x0c00], VRAMBank::Ram};
-	vram_banks_[0x0a] = {&nametables_[(mir << 0x6) & 0x0c00], VRAMBank::Ram};
-	vram_banks_[0x0b] = {&nametables_[(mir << 0x4) & 0x0c00], VRAMBank::Ram};
+	vram_banks_[0x08] = {&nametables_[(mir << 10) & 0x0c00], VRAMBank::Ram};
+	vram_banks_[0x09] = {&nametables_[(mir << 8) & 0x0c00], VRAMBank::Ram};
+	vram_banks_[0x0a] = {&nametables_[(mir << 6) & 0x0c00], VRAMBank::Ram};
+	vram_banks_[0x0b] = {&nametables_[(mir << 4) & 0x0c00], VRAMBank::Ram};
 
 	// [$3000, $4000) mirrors [$2000, $3000)
 	vram_banks_[0x0c] = vram_banks_[0x08];

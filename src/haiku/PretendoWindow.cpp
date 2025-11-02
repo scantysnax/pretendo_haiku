@@ -174,7 +174,7 @@ PretendoWindow::PretendoWindow()
 	
 	SetDefaultPalette();
 }
-
+#include <iostream>
 
 PretendoWindow::~PretendoWindow()
 {	
@@ -203,43 +203,53 @@ PretendoWindow::~PretendoWindow()
 	
 	
 	if (fROMInfoWindow != nullptr) {
-		fROMInfoWindow->Lock();
-		fROMInfoWindow->Quit();
+		if (fROMInfoWindow->Lock()) {
+			fROMInfoWindow->Quit();
+		}
 	}
+	
 	
 	if (fPaletteWindow != nullptr) {
-		fPaletteWindow->Lock();
-		fPaletteWindow->Quit();
+		if (fPaletteWindow->Lock()) {
+			fPaletteWindow->Quit();
+		}
 	}
 	
+	
 	if (fPatternTable1Window != nullptr) {
-		fPatternTable1Window->Lock();
-		fPatternTable1Window->Quit();
+		if (fPatternTable1Window->Lock()) {
+			fPatternTable1Window->Quit();
+		}
 	}
 
 	if (fPatternTable2Window != nullptr) {
-		fPatternTable2Window->Lock();
-		fPatternTable2Window->Quit();
+		if (fPatternTable2Window->Lock()) {
+			fPatternTable2Window->Quit();
+		}
 	}
 	
 	if (fNameTable1Window != nullptr) {
-		fNameTable1Window->Lock();
-		fNameTable1Window->Quit();
+		if (fNameTable1Window->Lock()) {
+			fNameTable1Window->Quit();
+		}
 	}
 	
 	if (fNameTable2Window != nullptr) {
-		fNameTable2Window->Lock();
-		fNameTable2Window->Quit();
+		if (fNameTable2Window->Lock()) {
+			fNameTable2Window->Quit();
+		}
 	}
 	
 	if (fNameTable3Window != nullptr) {
-		fNameTable3Window->Lock();
-		fNameTable3Window->Quit();
+		if (fNameTable3Window->Lock()) {
+			fNameTable3Window->Quit();
+		}
 	}
 	
 	if (fNameTable4Window != nullptr) {
-		fNameTable4Window->Lock();
-		fNameTable4Window->Quit();
+		if (fNameTable4Window->Lock()) {
+			fNameTable4Window->Quit();
+		}
 	}
 	
 	fMutex->Unlock();

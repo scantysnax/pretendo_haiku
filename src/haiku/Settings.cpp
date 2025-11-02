@@ -1,5 +1,8 @@
 
+#include <iostream>
+
 #include "Settings.h"
+
 
 namespace Settings {
 
@@ -8,21 +11,29 @@ int zoomFactor;
 bool showSprites;
 
 std::string configFile() {
+	std::cout << __PRETTY_FUNCTION__ << std::endl;
+	
 	std::string path = "/boot/home/config/settings/Pretendo/pretendo_settings";
 	return path;
 }
 
 std::string cacheDirectory() {
+	std::cout << __PRETTY_FUNCTION__ << std::endl;
+	
 	std::string path = "/boot/home/config/settings/Pretendo/pretendo_cache";
 	return path;
 }
 
 std::string homeDirectory() {
+	std::cout << __PRETTY_FUNCTION__ << std::endl;
+	
 	std::string path = "/boot/home";
 	return path;
 }
 
 void load() {
+	std::cout << __PRETTY_FUNCTION__ << std::endl;	
+
 #if 0
 	auto filename = QString::fromStdString(configFile());
 	QSettings settings(filename, QSettings::IniFormat);
@@ -34,6 +45,8 @@ void load() {
 }
 
 void save() {
+	std::cout << __PRETTY_FUNCTION__ << std::endl;	
+
 #if 0
 	auto filename = QString::fromStdString(configFile());
 	QSettings settings(filename, QSettings::IniFormat);
@@ -44,6 +57,8 @@ void save() {
 
 	settings.sync();
 #endif
+
 }
+
 
 }
