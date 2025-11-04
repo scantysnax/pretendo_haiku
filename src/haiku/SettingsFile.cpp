@@ -35,7 +35,7 @@ rtrim (std::string const &s)
 
 
 void 
-trim(std::string &s)
+trim (std::string &s)
 {
 	ltrim(s);
 	rtrim(s);
@@ -43,7 +43,7 @@ trim(std::string &s)
 
 
 std::vector<std::string> 
-explode(std::string const &delimeter, std::string const &s, int limit)
+explode (std::string const &delimeter, std::string const &s, int limit)
 {
 	std::vector<std::string> r;
 
@@ -109,8 +109,10 @@ SettingsFile::SettingsFile()
 	dir = new BDirectory(filename_.c_str());
 	dir->CreateDirectory("Pretendo", NULL);
 	filename_ += "/Pretendo/pretendo_settings";
+	
+	std::cout << filename_ << std::endl;
 
-	Load();
+	//Load();
 }
 
 
@@ -132,10 +134,10 @@ SettingsFile::Load()
 		std::cout << "Couldn't load file. Creating new one..." << std::endl;
 		
 		NewSection("App Settings");
-		NewKey("App Settings", std::make_pair("ShowOpenOnLoad", "false"));
 		NewKey("App Settings", std::make_pair("AutoRun", "false"));
-		NewKey("App Settings", std::make_pair("SleepOnLoseFocus", "false"));
-		NewKey("App Settings", std::make_pair("ROMDirectory", "./roms"));
+		//NewKey("App Settings", std::make_pair("AutoRun", "false"));
+		//NewKey("App Settings", std::make_pair("SleepOnLoseFocus", "false"));
+		//NewKey("App Settings", std::make_pair("ROMDirectory", "./roms"));
 		
 		Save();
 		return false;

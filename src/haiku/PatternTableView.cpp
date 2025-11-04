@@ -39,9 +39,9 @@ PatternTableView::AttachedToWindow()
 void 
 PatternTableView::Draw (BRect updateRect)
 {	
-	if (fViewMode == 0) {
+	if (fViewMode == view_mode::MODE_8x8) {
 		DrawPatternTable8x8(fWhichPatternTable);
-	} else if (fViewMode == 1) {
+	} else if (fViewMode == view_mode::MODE_8x16) {
 		DrawPatternTable8x16(fWhichPatternTable);
 	}
 	
@@ -56,18 +56,16 @@ PatternTableView::MessageReceived (BMessage *message)
 {
 	switch (message->what) {
 		case messages::SHOW_8x8:
-			fViewMode = 0;
-			memset(fBits, 0x0, fBitmap->BitsLength());
-			Invalidate();
-			break;
+		fViewMode = view_mode::MODE_8x8;
+		Invalidate();
+		break;
 		
 		case messages::SHOW_8x16:
-			fViewMode = 1;
-			memset(fBits, 0x0, fBitmap->BitsLength());
-			Invalidate();
-			break;
+		fViewMode = view_mode::MODE_8x16;
+		Invalidate();
+		break;
 	}
-		
+	
 	BView::MessageReceived (message);
 }
 
@@ -93,7 +91,9 @@ PatternTableView::MouseDown(BPoint point)
 void
 PatternTableView::Pulse()
 {
-	if (nes::cart.mapper()) {
+	// if we have CHR RAM, we need to periodically update the view
+	if (nes::cart.mapper() && ! nes::cart.has_chr_rom()) {
+
 	}
 	
 	BView::Pulse();

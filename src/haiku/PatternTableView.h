@@ -23,7 +23,13 @@ class PatternTableView : public BView
 	typedef enum {
 		WIDTH = 128,
 		HEIGHT = 128
-	} screen_size;	
+	} screen_size;
+	
+	public:
+	typedef enum {
+		MODE_8x8 = 0,
+		MODE_8x16 = 1
+	} view_mode;
 		
 	public:
 	PatternTableView (BRect frame, int32 which);
@@ -50,7 +56,7 @@ class PatternTableView : public BView
 	uint8 *fBits = nullptr;
 	int32 fRowBytes = 0;
 	int32 fWhichPatternTable = 0;
-	int32 fViewMode = 0;
+	view_mode fViewMode = view_mode::MODE_8x8;
 };
 
 
