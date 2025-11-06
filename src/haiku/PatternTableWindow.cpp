@@ -1,10 +1,11 @@
 
 #include "PatternTableWindow.h"
 
+#include <iostream>
 
 PatternTableWindow::PatternTableWindow (PretendoWindow *parent, int32 which)
 	: BWindow(BRect(200, 200, 0, 0), nullptr, B_FLOATING_WINDOW_LOOK, 
-		B_NORMAL_WINDOW_FEEL, B_NOT_RESIZABLE|B_NOT_ZOOMABLE)
+		B_NORMAL_WINDOW_FEEL, B_NOT_RESIZABLE) //|B_NOT_ZOOMABLE)
 {
 	fParent = parent;
 	
@@ -38,3 +39,14 @@ PatternTableWindow::QuitRequested()
 	return true;
 }
 
+
+void
+PatternTableWindow::Zoom (BPoint origin, float width, float height)
+{
+	(void)origin;
+	(void)width;
+	(void)height;
+	
+	std::cout << __PRETTY_FUNCTION__ << std::endl;
+}
+	

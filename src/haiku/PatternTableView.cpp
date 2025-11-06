@@ -71,7 +71,7 @@ PatternTableView::MessageReceived (BMessage *message)
 
 
 void
-PatternTableView::MouseDown(BPoint point)
+PatternTableView::MouseDown (BPoint point)
 {
 	BPoint mousePos;
 	uint32 mouseButtons;

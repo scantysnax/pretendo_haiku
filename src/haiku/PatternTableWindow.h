@@ -19,6 +19,7 @@ class PatternTableWindow : public BWindow
 	public:
 	virtual bool QuitRequested();
 	virtual void MessageReceived (BMessage *message);
+	virtual void Zoom (BPoint origin, float width, float height);
 		
 	private:
 	PatternTableView *fView = nullptr;
