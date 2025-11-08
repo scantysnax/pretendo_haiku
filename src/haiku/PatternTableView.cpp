@@ -3,7 +3,7 @@
 
 
 PatternTableView::PatternTableView (BRect frame, int32 which)
-	: BView (frame, "pattern_table", B_FOLLOW_ALL_SIDES, B_WILL_DRAW|B_PULSE_NEEDED)
+	: BView (frame, "pattern_table_view", B_FOLLOW_ALL, B_WILL_DRAW|B_PULSE_NEEDED)
 {
 	fWhichPatternTable = which;
 	
@@ -19,19 +19,12 @@ PatternTableView::~PatternTableView()
 void
 PatternTableView::AttachedToWindow()
 {
-	fBitmap = new BBitmap(BRect(0, 0, screen_size::WIDTH-1, screen_size::HEIGHT-1), B_CMAP8);
+	fBitmap = new BBitmap(BRect(0, 0, screen_size::WIDTH-1, 
+								screen_size::HEIGHT-1), B_CMAP8);
 	fBits = reinterpret_cast<uint8 *>(fBitmap->Bits());
 	fRowBytes = fBitmap->BytesPerRow();
 	memset(fBits, 0x0, fBitmap->BitsLength());	
-	
-	fPopUpMenu = new BPopUpMenu("Tile Size");
-	BMenuItem *tile8x8 = new  BMenuItem("8x8", new BMessage(messages::SHOW_8x8));
-	BMenuItem *tile8x16 = new  BMenuItem("8x16", new BMessage(messages::SHOW_8x16));
-	fPopUpMenu->AddItem(tile8x8);
-	fPopUpMenu->AddItem(tile8x16);
-	fPopUpMenu->SetRadioMode(true);
-	tile8x8->SetMarked(true);
-	
+		
 	BView::AttachedToWindow();
 }
 
@@ -52,50 +45,13 @@ PatternTableView::Draw (BRect updateRect)
 
 
 void
-PatternTableView::MessageReceived (BMessage *message)
-{
-	switch (message->what) {
-		case messages::SHOW_8x8:
-		fViewMode = view_mode::MODE_8x8;
-		Invalidate();
-		break;
-		
-		case messages::SHOW_8x16:
-		fViewMode = view_mode::MODE_8x16;
-		Invalidate();
-		break;
-	}
-	
-	BView::MessageReceived (message);
-}
-
-
-void
-PatternTableView::MouseDown (BPoint point)
-{
-	BPoint mousePos;
-	uint32 mouseButtons;
-	
-	GetMouse(&mousePos, &mouseButtons);
-	
-	if (mouseButtons & B_SECONDARY_MOUSE_BUTTON) {
-		ConvertToScreen(&point);
-		fPopUpMenu->SetTargetForItems(this);
-		fPopUpMenu->Go(point, true, true, true);
-	}
-	
-   BView::MouseDown(point);	
-}
-
-
-void
 PatternTableView::Pulse()
 {
-	// if we have CHR RAM, we need to periodically update the view
-	if (nes::cart.mapper() && ! nes::cart.has_chr_rom()) {
-
+	// make sure we capture updates periodically
+	if (nes::cart.mapper()) {
+		Invalidate();
 	}
-	
+		
 	BView::Pulse();
 }
 
