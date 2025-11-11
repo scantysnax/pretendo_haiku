@@ -6,7 +6,6 @@ PatternTableView::PatternTableView (BRect frame, int32 which)
 	: BView (frame, "pattern_table_view", B_FOLLOW_ALL, B_WILL_DRAW|B_PULSE_NEEDED)
 {
 	fWhichPatternTable = which;
-	
 }
 
 

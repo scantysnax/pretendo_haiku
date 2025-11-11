@@ -1,7 +1,7 @@
 
-#include <String.h>
-
 #include "PatternTableWindow.h"
+
+#include <String.h>
 
 
 PatternTableWindow::PatternTableWindow (PretendoWindow *parent, int32 which)

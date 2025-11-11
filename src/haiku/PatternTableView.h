@@ -44,7 +44,8 @@ class PatternTableView : public BView
 		Invalidate();
 	}
 	
-	view_mode ViewMode() {
+	public:
+	view_mode ViewMode() {	
 		return fViewMode;
 	}
 
