@@ -215,9 +215,7 @@ InputView::ValidateKeys()
 	//if (strUp.Length() == 3) {
 	//	}else {
 	//}
-	
-	printf("config file: %s\n", Settings::configFile().c_str());
-				
+					
 /*
 	BString s;
 	s += fUpView->Text();
