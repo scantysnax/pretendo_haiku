@@ -12,7 +12,7 @@ PaletteWindow::PaletteWindow (PretendoWindow *parent)
 	ResizeTo(480, 648);
 	CenterOnScreen();
 	
-	BView *backView = new BView(Bounds(), "_back_view", B_FOLLOW_ALL, 0);
+	BView *backView = new BView(Bounds(), "back_view", B_FOLLOW_ALL, 0);
 	backView->SetViewColor(ui_color(B_PANEL_BACKGROUND_COLOR));
 	AddChild (backView);
 	 

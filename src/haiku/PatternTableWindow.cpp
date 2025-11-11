@@ -2,6 +2,8 @@
 
 #include <String.h>
 
+#include <iostream>
+
 
 PatternTableWindow::PatternTableWindow (PretendoWindow *parent, int32 which)
 	: BWindow(BRect(200, 200, 0, 0), nullptr, B_FLOATING_WINDOW_LOOK, 
@@ -9,7 +11,7 @@ PatternTableWindow::PatternTableWindow (PretendoWindow *parent, int32 which)
 {
 	fParent = parent;
 	
-	ResizeTo(PatternTableView::screen_size::WIDTH*2, 													 PatternTableView::screen_size::HEIGHT*2);
+	ResizeTo(PatternTableView::screen_size::WIDTH*2, PatternTableView::screen_size::HEIGHT*2);
 	SetTitle((which == 0) ? 
 							"Pattern Table 1 (8x8)" 
 						: 	"Pattern Table 2 (8x8)"
@@ -19,12 +21,14 @@ PatternTableWindow::PatternTableWindow (PretendoWindow *parent, int32 which)
 	AddChild(fView);	
 	
 	SetPulseRate(1000000ULL); // one second
+	
+	LoadSettings();
 }
 
 
 PatternTableWindow::~PatternTableWindow()
 {
-	
+	SaveSettings();
 } 
 
 
@@ -60,5 +64,18 @@ PatternTableWindow::Zoom (BPoint origin, float width, float height)
 	}
 	
 	SetTitle(title.String());	
+}
+
+void
+PatternTableWindow::LoadSettings()
+{
+	std::cout << __PRETTY_FUNCTION__ << std::endl;
+}
+
+void
+PatternTableWindow::SaveSettings()
+{
+	std::cout << __PRETTY_FUNCTION__ << std::endl;
+
 }
 	

@@ -19,10 +19,16 @@ class PatternTableWindow : public BWindow
 	virtual bool QuitRequested();
 	virtual void MessageReceived (BMessage *message);
 	virtual void Zoom (BPoint origin, float width, float height);
+	
+	public:
+	void LoadSettings();
+	void SaveSettings();
 		
 	private:
 	PatternTableView *fView = nullptr;
 	PretendoWindow *fParent = nullptr;
+	
+	BMessage *fSettingsMessage = nullptr;
 };
 
 #endif // _PATTERNTABLE_WINDOW_H_
