@@ -101,9 +101,9 @@ PaletteView::AttachedToWindow()
 	r.Set(fVertSplitter->Frame().right + 0, 
 			fVertSplitter->Frame().top,
 			fVertSplitter->Frame().right, 0);
-	fSaveButton = new BButton(r,"_save_button","Save", new BMessage(messages::SAVE_PALETTE));
+	fSaveButton = new BButton(r,"save_button","Save", new BMessage(messages::SAVE_PALETTE));
 	fSaveButton->ResizeToPreferred();
-	fSaveButton->MakeDefault(true);
+	//fSaveButton->MakeDefault(true);
 	fSaveButton->SetTarget(this);
 	AddChild(fSaveButton);
 	

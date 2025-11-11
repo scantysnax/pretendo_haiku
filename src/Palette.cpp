@@ -1,8 +1,9 @@
 
-#include "Palette.h"
 #include <algorithm>
 #include <cmath>
 #include <iostream>
+
+#include "Palette.h"
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -10,31 +11,22 @@
 
 namespace {
 
-//------------------------------------------------------------------------------
-// Name: bound
-//------------------------------------------------------------------------------
 template <class T>
 constexpr T bound(T lower, T value, T upper) {
 	return std::max(lower, std::min(value, upper));
 }
 
-//------------------------------------------------------------------------------
-// Name: wave
-//------------------------------------------------------------------------------
+
 constexpr int wave(int p, int color) {
 	return (color + p + 8) % 12 < 6;
 }
 
-//------------------------------------------------------------------------------
-// Name: gamma_fix
-//------------------------------------------------------------------------------
+
 constexpr float gamma_fix(float f, float gamma) {
 	return f < 0.f ? 0.f : std::pow(f, 2.2f / gamma);
 }
 
-//------------------------------------------------------------------------------
-// Name: make_rgb_color
-//------------------------------------------------------------------------------
+
 rgb_color_t make_rgb_color(uint16_t pixel, float saturation, float hue, float contrast, float brightness, float gamma) {
 
 	// The input value is a NES color index (with de-emphasis bits).
@@ -103,9 +95,7 @@ rgb_color_t make_rgb_color(uint16_t pixel, float saturation, float hue, float co
 
 }
 
-//------------------------------------------------------------------------------
-// Name: NTSC
-//------------------------------------------------------------------------------
+
 const rgb_color_t *Palette::NTSC(float saturation, float hue, float contrast, float brightness, float gamma) {
 
 	std::cout << "Creating Palette: <" << saturation << "," << hue << "," << contrast << "," << brightness << "," << gamma << ">" << std::endl;

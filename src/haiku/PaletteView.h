@@ -27,7 +27,7 @@ class PaletteView : public BView
 	} messages;
 	
 	public:
-	PaletteView (PretendoWindow *parent, BRect frame, int32 swatchSize);
+			PaletteView (PretendoWindow *parent, BRect frame, int32 swatchSize);
 	virtual ~PaletteView();
 	
 	public:
