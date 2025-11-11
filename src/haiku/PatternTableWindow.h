@@ -1,4 +1,3 @@
-
 #ifndef _PATTERNTABLE_WINDOW_H_
 #define _PATTERNTABLE_WINDOW_H_
 

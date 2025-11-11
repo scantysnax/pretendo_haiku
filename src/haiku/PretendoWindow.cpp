@@ -576,14 +576,14 @@ PretendoWindow::AddMenu()
 	fToolMenu->AddItem(new BMenuItem("Adjust Palette" B_UTF8_ELLIPSIS, new BMessage(messages::ADJ_PALETTE)));
 	fToolMenu->AddSeparatorItem();
 	fPatternTableMenu = new BMenu("View Pattern Tables");
-	fPatternTableMenu->AddItem(new BMenuItem("1 (0x0-0xfff)", new BMessage(messages::SHOW_PTNTBL1)));
-	fPatternTableMenu->AddItem(new BMenuItem("2 (0x1000-0x1fff)", new BMessage(messages::SHOW_PTNTBL2)));
+	fPatternTableMenu->AddItem(new BMenuItem("1 (0x0)", new BMessage(messages::SHOW_PTNTBL1)));
+	fPatternTableMenu->AddItem(new BMenuItem("2 (0x1000)", new BMessage(messages::SHOW_PTNTBL2)));
 	fToolMenu->AddItem(fPatternTableMenu);
 	fNameTableMenu = new BMenu("View Name Tables");
-	fNameTableMenu->AddItem(new BMenuItem("1 (0x2000-0x23ff)", new BMessage(messages::SHOW_NTBL1)));
-	fNameTableMenu->AddItem(new BMenuItem("2 (0x2400-0x27ff)", new BMessage(messages::SHOW_NTBL2)));
-	fNameTableMenu->AddItem(new BMenuItem("3 (0x2800-0x2bff)", new BMessage(messages::SHOW_NTBL3)));
-	fNameTableMenu->AddItem(new BMenuItem("4 (0x2c00-0x2fff)", new BMessage(messages::SHOW_NTBL4)));
+	fNameTableMenu->AddItem(new BMenuItem("1 (0x2000)", new BMessage(messages::SHOW_NTBL1)));
+	fNameTableMenu->AddItem(new BMenuItem("2 (0x2400)", new BMessage(messages::SHOW_NTBL2)));
+	fNameTableMenu->AddItem(new BMenuItem("3 (0x2800)", new BMessage(messages::SHOW_NTBL3)));
+	fNameTableMenu->AddItem(new BMenuItem("4 (0x2c00)", new BMessage(messages::SHOW_NTBL4)));
 	fToolMenu->AddItem(fNameTableMenu);
 
 	fMenuHeight = fMenu->Bounds().IntegerHeight();
@@ -740,8 +740,6 @@ PretendoWindow::OnConfigureInput()
 void
 PretendoWindow::OnAdjustPalette()
 {
-	puts(__PRETTY_FUNCTION__);
-
 	if (fPaletteWindow && fPaletteWindow->Lock()) {
 		fPaletteWindow->Quit();
 		fPaletteWindow = nullptr;
@@ -768,8 +766,6 @@ PretendoWindow::OnAdjustPalette()
 void
 PretendoWindow::OnViewPatternTable1()
 {
-	puts(__PRETTY_FUNCTION__);
-	
 	if (! nes::cart.mapper()) {
 		return;
 	}
@@ -801,8 +797,6 @@ PretendoWindow::OnViewPatternTable1()
 void
 PretendoWindow::OnViewPatternTable2()
 {
-	puts(__PRETTY_FUNCTION__);
-	
 	if (! nes::cart.mapper()) {
 		return;
 	}
@@ -815,6 +809,7 @@ PretendoWindow::OnViewPatternTable2()
 	fPatternTable2Window = new PatternTableWindow(this, 1);
 	fPatternTable2Window->Show();
 }
+
 
 void
 PretendoWindow::OnViewNameTable1()
@@ -838,6 +833,7 @@ PretendoWindow::OnViewNameTable1()
 #endif
 }
 
+
 void
 PretendoWindow::OnViewNameTable2()
 {
@@ -847,6 +843,7 @@ PretendoWindow::OnViewNameTable2()
 		return;
 	}
 }
+
 
 void
 PretendoWindow::OnViewNameTable3()

@@ -1,11 +1,8 @@
-
 #ifndef _PATTERN_TABLE_VIEW_H_
 #define _PATTERN_TABLE_VIEW_H_
 
-#include <View.h>
 #include <Bitmap.h>
-#include <PopUpMenu.h>
-#include <MenuItem.h>
+#include <View.h>
 
 #include "Cart.h"
 #include "Nes.h"
@@ -13,12 +10,6 @@
 
 class PatternTableView : public BView
 {
-	public:
-	typedef enum {
-		SHOW_8x8 = 	'8x8 ',
-		SHOW_8x16 = '8x16'
-	} messages;
-	
 	public:
 	typedef enum {
 		WIDTH = 128,
@@ -32,14 +23,12 @@ class PatternTableView : public BView
 	} view_mode;
 		
 	public:
-	PatternTableView (BRect frame, int32 which);
+			PatternTableView (BRect frame, int32 which);
 	virtual ~PatternTableView();
 	
 	public:
 	virtual void AttachedToWindow();
 	virtual void Draw (BRect updateRect);
-	virtual void MessageReceived (BMessage *message);
-	virtual void MouseDown (BPoint point);
 	virtual void Pulse();
 	
 	private:
@@ -47,10 +36,18 @@ class PatternTableView : public BView
 	void DrawTile (int32 patternTable, int32 tileIndex, int32 tileX, int32 tileY);
 	void DrawPatternTable8x8 (int32 which);
 	void DrawPatternTable8x16 (int32 which);
-		
-	private:
-	BPopUpMenu *fPopUpMenu = nullptr;
 	
+	public:
+	void SetViewMode (view_mode vm) {
+		fViewMode = vm;
+		Invalidate();
+	}
+	
+	public:
+	view_mode ViewMode() {	
+		return fViewMode;
+	}
+
 	private:
 	BBitmap *fBitmap = nullptr;
 	uint8 *fBits = nullptr;
@@ -61,4 +58,3 @@ class PatternTableView : public BView
 
 
 #endif //_PATTERN_TABLE_VIEW_H_
-
