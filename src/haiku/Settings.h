@@ -10,13 +10,9 @@ void load();
 void save();
 
 std::string configDirectory();
-std::string configFile();
 std::string cacheDirectory();
-std::string homeDirectory();
 
-extern std::string romDirectory;
-extern int zoomFactor;
-extern bool showSprites;
+
 
 }
 

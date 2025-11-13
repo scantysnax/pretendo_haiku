@@ -69,7 +69,8 @@ PatternTableWindow::Zoom (BPoint origin, float width, float height)
 void
 PatternTableWindow::LoadSettings()
 {
-	std::cout << __PRETTY_FUNCTION__ << std::endl;
+	BString directory = Settings::configDirectory().c_str();
+	std::cout << __PRETTY_FUNCTION__ << " " << directory.String() << std::endl;
 }
 
 void

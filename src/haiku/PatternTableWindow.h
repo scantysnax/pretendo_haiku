@@ -4,6 +4,7 @@
 #include <Window.h>
 
 #include "PatternTableView.h"
+#include "Settings.h"
 
 
 class PretendoWindow;
@@ -20,7 +21,7 @@ class PatternTableWindow : public BWindow
 	virtual void MessageReceived (BMessage *message);
 	virtual void Zoom (BPoint origin, float width, float height);
 	
-	public:
+	private:
 	void LoadSettings();
 	void SaveSettings();
 		
