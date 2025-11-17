@@ -15,11 +15,17 @@ class PaletteWindow : public BWindow
 	
 	public:
 	virtual bool QuitRequested();
-	virtual void MessageReceived (BMessage *message);
+	
+	private:
+	void LoadSettings();
+	void SaveSettings();
 	
 	private:
 	PaletteView *fPaletteView = nullptr;
 	PretendoWindow *fParent = nullptr;
+	
+	private:
+	BMessage *fSettingsMessage;
 };
 
 

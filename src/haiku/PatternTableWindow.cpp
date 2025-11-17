@@ -24,8 +24,7 @@ PatternTableWindow::PatternTableWindow (PretendoWindow *parent, int32 which)
 	SetPulseRate(1000000ULL); // one second
 	
 	// load settings
-	LoadSettings();
-	
+	LoadSettings();	
 }
 
 
@@ -89,18 +88,11 @@ PatternTableWindow::LoadSettings()
 		
 		// if file is empty, load some defaults
 		if (size == 0) {
-			int32 x;
-			int32 y;
+			CenterOnScreen();
+			int32 x = Frame().left;
+			int32 y = Frame().top;
 			int32 mode = PatternTableView::view_mode::MODE_8x8;
-			
-			if (fWhich == 0) {
-				x = 200;
-				y = 200;
-			} else {
-				x = 300;
-				y = 300;
-			}
-			
+		
 			// stash settings
 			fSettingsMessage->AddInt32("window_x", x);
 			fSettingsMessage->AddInt32("window_y", y);
