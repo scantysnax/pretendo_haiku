@@ -134,7 +134,6 @@ CPP_FILES := \
 	src/haiku/ROMInfoWindow.cpp \
 	src/haiku/ROMInfoView.cpp \
 	src/haiku/Settings.cpp \
-	src/haiku/SettingsFile.cpp \
 	src/haiku/Splitters.cpp \
 	src/haiku/VideoScreen.cpp
 

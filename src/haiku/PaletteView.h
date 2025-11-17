@@ -60,9 +60,9 @@ class PaletteView : public BView
 	BButton *fDefaultButton = nullptr;
 	
 	private:
-	int32 fSwatchSize;
-	rgb_color *fPalette;
-	rgb_color *fWorkPalette;
+	int32 fSwatchSize = 0;
+	rgb_color *fPalette = nullptr;
+	rgb_color *fWorkPalette = nullptr;
 	
 	private:
 	float fPrevHue;
