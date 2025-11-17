@@ -13,22 +13,23 @@ class PretendoWindow;
 class PatternTableWindow : public BWindow
 {
 	public:
-			PatternTableWindow(PretendoWindow *parent, int32 which);
+			PatternTableWindow (PretendoWindow *parent, int32 which);
 	virtual ~PatternTableWindow();
 	
 	public:
 	virtual bool QuitRequested();
-	virtual void MessageReceived (BMessage *message);
 	virtual void Zoom (BPoint origin, float width, float height);
 	
 	private:
 	void LoadSettings();
 	void SaveSettings();
-		
+	
 	private:
+	int32 fWhich = 0;
 	PatternTableView *fView = nullptr;
 	PretendoWindow *fParent = nullptr;
 	
+	private:
 	BMessage *fSettingsMessage = nullptr;
 };
 

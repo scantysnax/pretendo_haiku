@@ -7,6 +7,9 @@
 #include "Cart.h"
 #include "Nes.h"
 
+#include <iostream>
+
+class PatternTableWindow;
 
 class PatternTableView : public BView
 {

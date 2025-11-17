@@ -12,8 +12,6 @@ void save();
 std::string configDirectory();
 std::string cacheDirectory();
 
-
-
 }
 
 #endif
