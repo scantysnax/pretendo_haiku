@@ -13,7 +13,7 @@ PaletteView::PaletteView (PretendoWindow *parent, BRect frame, int32 swatchSize)
 	
 	fPalette = new rgb_color[64];
 	
-	//SetDefaultPalette();
+	SetDefaultPalette();
 }
 
 
@@ -42,7 +42,7 @@ PaletteView::AttachedToWindow()
 	BRect r;
 	                
 	r.Set(left, fHorizSplitter->Frame().top+32, right, 0);
-	fHueSlider = new BSlider (r, "hue_slider", "Hue", new BMessage(messages::CHANGE_HUE),
+	fHueSlider = new BSlider(r, "hue_slider", "Hue", new BMessage(messages::CHANGE_HUE),
 		-10000, +10000);
 	fHueSlider->SetLimitLabels("-1.0 (-30°)", "1.0 (30°)");
 	fHueSlider->SetHashMarks(B_HASH_MARKS_BOTTOM);	
@@ -53,7 +53,7 @@ PaletteView::AttachedToWindow()
 
 		
 	r.Set(left, fHueSlider->Frame().bottom+32, right, 0);
-	fSaturationSlider = new BSlider (r, "sat_slider", "Saturation", 
+	fSaturationSlider = new BSlider(r, "sat_slider", "Saturation", 
 		new BMessage(messages::CHANGE_SATURATION), 0, 50000);
 	fSaturationSlider->SetLimitLabels("0.0 (grayscale)", "5.0");
 	fSaturationSlider->SetHashMarks(B_HASH_MARKS_BOTTOM);
@@ -89,7 +89,7 @@ PaletteView::AttachedToWindow()
 	fGammaSlider->SetHashMarks(B_HASH_MARKS_BOTTOM);
 	fGammaSlider->SetHashMarkCount(25);
 	fGammaSlider->SetTarget(this);
-	fGammaSlider->SetValue(20000);
+	fGammaSlider->SetValue(14000);
 	AddChild(fGammaSlider);		
 
 	x = fHueSlider->Frame().right + 16;
@@ -100,7 +100,9 @@ PaletteView::AttachedToWindow()
 	
 	r.Set(fVertSplitter->Frame().right + 0, 
 			fVertSplitter->Frame().top,
-			fVertSplitter->Frame().right, 0);
+			fVertSplitter->Frame().right,
+			0
+		);
 	fSaveButton = new BButton(r,"save_button","Save", new BMessage(messages::SAVE_PALETTE));
 	fSaveButton->ResizeToPreferred();
 	//fSaveButton->MakeDefault(true);
@@ -124,28 +126,19 @@ PaletteView::AttachedToWindow()
 	AddChild(fCancelButton);
 
 
-	float windowWidth = Window()->Frame().Width() - fVertSplitter->Frame().right;
-	float diff = windowWidth - fDefaultButton->Frame().Width() + fVertSplitter->Frame().Width();
+	float const windowWidth = Window()->Frame().Width() - fVertSplitter->Frame().right;
+	float const diff = windowWidth - fDefaultButton->Frame().Width() + fVertSplitter->Frame().Width();
 	float const x2 = diff / 2;
 	
-	float buttonHeight = fDefaultButton->Frame().Height();
-	float buttonSpace = fCancelButton->Frame().top - fDefaultButton->Frame().bottom; 
-	float totalSpace = (buttonHeight * 3) + (buttonSpace * 2); // three buttons, two spaces
-	float totalHeight = fVertSplitter->Frame().Height();
+	float const buttonHeight = fDefaultButton->Frame().Height();
+	float const buttonSpace = fCancelButton->Frame().top - fDefaultButton->Frame().bottom; 
+	float const totalSpace = (buttonHeight * 3) + (buttonSpace * 2); // three buttons, two spaces
+	float const totalHeight = fVertSplitter->Frame().Height();
 	float const y2 = (totalHeight - totalSpace) / 2;
 	
 	fSaveButton->MoveBy(x2, y2);
 	fDefaultButton->MoveBy(x2, y2);
 	fCancelButton->MoveBy(x2, y2);
-
-	// first try to read the palette from the config file.  if we can't
-	// then we'll use the defaults
-	
-	// if (...) {
-	//		read from config
-	// } else {
-		SetDefaultPalette();
-	//}
 }
 
 
@@ -183,12 +176,12 @@ PaletteView::MessageReceived (BMessage *message)
 			break;
 		
 		case messages::SET_DEFAULT:
-			SetDefaultPalette();
 			fHueSlider->SetValue(0);
 			fSaturationSlider->SetValue(10000);
 			fContrastSlider->SetValue(10000);
 			fBrightnessSlider->SetValue(10000);
-			fGammaSlider->SetValue(20000);
+			fGammaSlider->SetValue(14000);
+			SetDefaultPalette();
 			break;
 		
 		case messages::CANCEL:

@@ -65,6 +65,14 @@ PaletteWindow::LoadSettings()
 			int32 x = Frame().left;
 			int32 y = Frame().top;
 			
+			/*
+			float hue;
+			float saturation;
+			float contrast;
+			float brightness;
+			float gamma;
+			*/
+			
 			// stash settings
 			fSettingsMessage->AddInt32("window_x", x);
 			fSettingsMessage->AddInt32("window_y", y);
@@ -82,10 +90,16 @@ PaletteWindow::LoadSettings()
 				// read settings
 				int32 x;
 				int32 y;
-
+				
+				//float hue;
+				//float saturation;
+				//float contrast;
+				//float brightness;
+				//float gamma;
+				
 				fSettingsMessage->FindInt32("window_x", &x);
 				fSettingsMessage->FindInt32("window_y", &y);
-				
+
 				// apply settings
 				MoveTo(x, y);
 				// fView->SetViewMode(static_cast<PatternTableView::view_mode>(mode));
@@ -129,13 +143,5 @@ PaletteWindow::SaveSettings()
 		// write to file
 		fSettingsMessage->Flatten(&file);
 	}
-	
-	
-	std::cout << "saving settings to " << path.String() << std::endl;
-	
-	 
-	
-	
-
 }
 

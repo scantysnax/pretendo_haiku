@@ -77,12 +77,30 @@ class PaletteView : public BView
 	float fCurrentContrast;
 	float fCurrentBrightness;
 	float fCurrentGamma;
-	
-	private:
-	BMessage *fMsgChangePalette;
-	
+
 	private:
 	PretendoWindow *fParent;
+	
+	public:
+	float Hue() {
+		return fCurrentHue;
+	}
+	
+	float Saturation() {
+		return fCurrentSaturation;
+	}
+	
+	float Contrast() {
+		return fCurrentContrast;
+	}
+	
+	float Brightness() {
+		return fCurrentBrightness;
+	}
+	
+	float Gamma() {
+		return fCurrentGamma;
+	}
 };
 
 #endif // _PALETTE_VIEW_H_
