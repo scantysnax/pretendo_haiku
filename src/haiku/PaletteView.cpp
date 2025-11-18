@@ -174,7 +174,7 @@ PaletteView::MessageReceived (BMessage *message)
 		case messages::SAVE_PALETTE:
 			std::cout << "SAVE" << std::endl;
 			break;
-		
+			
 		case messages::SET_DEFAULT:
 			fHueSlider->SetValue(0);
 			fSaturationSlider->SetValue(10000);
@@ -183,7 +183,7 @@ PaletteView::MessageReceived (BMessage *message)
 			fGammaSlider->SetValue(14000);
 			SetDefaultPalette();
 			break;
-		
+			
 		case messages::CANCEL:
 			std::cout << "CANCEL" << std::endl;
 			break;	
