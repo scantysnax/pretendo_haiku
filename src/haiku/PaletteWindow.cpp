@@ -1,8 +1,8 @@
 
-#include <File.h>
-
 #include "PaletteView.h"
 #include "PaletteWindow.h"
+#include "Palette.h"
+#include <File.h>
 
 
 PaletteWindow::PaletteWindow (PretendoWindow *parent)
@@ -14,10 +14,6 @@ PaletteWindow::PaletteWindow (PretendoWindow *parent)
 	
 	ResizeTo(480, 648);
 	
-	//BView *backView = new BView(Bounds(), "back_view", B_FOLLOW_ALL, 0);
-	//backView->SetViewColor(ui_color(B_PANEL_BACKGROUND_COLOR));
-	//AddChild (backView);
-	 
 	fPaletteView = new PaletteView(fParent, Bounds(), 24);
 	AddChild(fPaletteView);
 	
@@ -64,18 +60,20 @@ PaletteWindow::LoadSettings()
 			CenterOnScreen();
 			int32 x = Frame().left;
 			int32 y = Frame().top;
-			
-			/*
-			float hue;
-			float saturation;
-			float contrast;
-			float brightness;
-			float gamma;
-			*/
+			float hue = Palette::default_hue;
+			float saturation = Palette::default_saturation;
+			float contrast = Palette::default_contrast;
+			float brightness = Palette::default_brightness;
+			float gamma = Palette::default_gamma;
 			
 			// stash settings
 			fSettingsMessage->AddInt32("window_x", x);
 			fSettingsMessage->AddInt32("window_y", y);
+			fSettingsMessage->AddFloat("palette_hue", hue);
+			fSettingsMessage->AddFloat("palette_saturation", saturation);
+			fSettingsMessage->AddFloat("palette_contrast", contrast);
+			fSettingsMessage->AddFloat("palette_brightness", brightness);
+			fSettingsMessage->AddFloat("palette_gamma", gamma);
 			fSettingsMessage->Flatten(&file);
 	
 			// apply settings	
@@ -90,15 +88,19 @@ PaletteWindow::LoadSettings()
 				// read settings
 				int32 x;
 				int32 y;
-				
-				//float hue;
-				//float saturation;
-				//float contrast;
-				//float brightness;
-				//float gamma;
+				float hue;
+				float saturation;
+				float contrast;
+				float brightness;
+				float gamma;
 				
 				fSettingsMessage->FindInt32("window_x", &x);
 				fSettingsMessage->FindInt32("window_y", &y);
+				fSettingsMessage->FindFloat("palette_hue", &hue);
+				fSettingsMessage->FindFloat("palette_saturation", &saturation);
+				fSettingsMessage->FindFloat("palette_contrast", &contrast);
+				fSettingsMessage->FindFloat("palette_brightness", &brightness);
+				fSettingsMessage->FindFloat("palette_gamma", &gamma);
 
 				// apply settings
 				MoveTo(x, y);
