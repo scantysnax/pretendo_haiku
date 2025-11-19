@@ -52,7 +52,6 @@ PaletteWindow::LoadSettings()
 	st = file.SetTo(path, B_READ_WRITE | B_CREATE_FILE);
 	
 	if (st == B_OK) {
-		std::cout << "successfuly opened file." << std::endl;
 		file.GetSize(&size);
 		
 		// if file is empty, load some defaults
@@ -60,8 +59,8 @@ PaletteWindow::LoadSettings()
 			CenterOnScreen();
 			int32 x = Frame().left;
 			int32 y = Frame().top;
-			float hue = Palette::default_hue;
 			float saturation = Palette::default_saturation;
+			float hue = Palette::default_hue;
 			float contrast = Palette::default_contrast;
 			float brightness = Palette::default_brightness;
 			float gamma = Palette::default_gamma;
@@ -69,8 +68,8 @@ PaletteWindow::LoadSettings()
 			// stash settings
 			fSettingsMessage->AddInt32("window_x", x);
 			fSettingsMessage->AddInt32("window_y", y);
-			fSettingsMessage->AddFloat("palette_hue", hue);
 			fSettingsMessage->AddFloat("palette_saturation", saturation);
+			fSettingsMessage->AddFloat("palette_hue", hue);
 			fSettingsMessage->AddFloat("palette_contrast", contrast);
 			fSettingsMessage->AddFloat("palette_brightness", brightness);
 			fSettingsMessage->AddFloat("palette_gamma", gamma);
@@ -78,6 +77,7 @@ PaletteWindow::LoadSettings()
 	
 			// apply settings	
 			MoveTo(x, y);
+<<<<<<< HEAD
 			fPaletteView->SetHue(hue);
 			fPaletteView->SetSaturation(saturation);
 			fPaletteView->SetContrast(contrast);
@@ -87,6 +87,11 @@ PaletteWindow::LoadSettings()
 			fPaletteView->Invalidate();
 			 //fView->SetViewMode(static_cast<PatternTableView::view_mode>(mode));	
 			 // etc..
+=======
+			fParent->set_palette(Palette::intensity, 
+								 Palette::NTSC(saturation, hue, contrast, brightness, gamma));
+			fPaletteView->Invalidate();							
+>>>>>>> cad98cafb55651bfbedc38145ffaa6d86a40edff
 		} else {
 			// load from file
 			st = fSettingsMessage->Unflatten(&file);
@@ -95,28 +100,33 @@ PaletteWindow::LoadSettings()
 				// read settings
 				int32 x;
 				int32 y;
-				float hue;
 				float saturation;
+				float hue;
 				float contrast;
 				float brightness;
 				float gamma;
 				
 				fSettingsMessage->FindInt32("window_x", &x);
 				fSettingsMessage->FindInt32("window_y", &y);
-				fSettingsMessage->FindFloat("palette_hue", &hue);
 				fSettingsMessage->FindFloat("palette_saturation", &saturation);
+				fSettingsMessage->FindFloat("palette_hue", &hue);
 				fSettingsMessage->FindFloat("palette_contrast", &contrast);
 				fSettingsMessage->FindFloat("palette_brightness", &brightness);
 				fSettingsMessage->FindFloat("palette_gamma", &gamma);
 
 				// apply settings
 				MoveTo(x, y);
+<<<<<<< HEAD
 				fPaletteView->SetHue(hue);
 				fPaletteView->SetSaturation(saturation);
 				fPaletteView->SetContrast(contrast);
 				fPaletteView->SetBrightness(brightness);
 				fPaletteView->SetGamma(gamma);
 				fPaletteView->SetPalette();
+=======
+				fParent->set_palette(Palette::intensity, 
+								 Palette::NTSC(saturation, hue, contrast, brightness, gamma));
+>>>>>>> cad98cafb55651bfbedc38145ffaa6d86a40edff
 				fPaletteView->Invalidate();
 			} else {
 				// eli: handle error if unflatten fails?
@@ -148,8 +158,13 @@ PaletteWindow::SaveSettings()
 			// file is empty, stash settings
 			fSettingsMessage->AddInt32("window_x", Frame().left);
 			fSettingsMessage->AddInt32("window_y", Frame().top);
+<<<<<<< HEAD
 			fSettingsMessage->AddFloat("palette_hue", fPaletteView->Hue());
 			fSettingsMessage->AddFloat("palette_saturation", fPaletteView->Saturation());
+=======
+			fSettingsMessage->AddFloat("palette_saturation", fPaletteView->Saturation());
+			fSettingsMessage->AddFloat("palette_hue", fPaletteView->Hue());
+>>>>>>> cad98cafb55651bfbedc38145ffaa6d86a40edff
 			fSettingsMessage->AddFloat("palette_contrast", fPaletteView->Contrast());
 			fSettingsMessage->AddFloat("palette_brightness", fPaletteView->Brightness());
 			fSettingsMessage->AddFloat("palette_gamma", fPaletteView->Gamma());
@@ -157,12 +172,21 @@ PaletteWindow::SaveSettings()
 			// replace old settings
 			fSettingsMessage->ReplaceInt32("window_x", Frame().left);
 			fSettingsMessage->ReplaceInt32("window_y", Frame().top);
+<<<<<<< HEAD
 			fSettingsMessage->ReplaceFloat("palette_hue", fPaletteView->Hue());
 			fSettingsMessage->ReplaceFloat("palette_saturation", fPaletteView->Saturation());
 			fSettingsMessage->ReplaceFloat("palette_contrast", fPaletteView->Contrast());
 			fSettingsMessage->ReplaceFloat("palette_brightness", fPaletteView->Brightness());
 			fSettingsMessage->ReplaceFloat("palette_gamma", fPaletteView->Gamma());
 		}		
+=======
+			fSettingsMessage->ReplaceFloat("palette_saturation", fPaletteView->Saturation());
+			fSettingsMessage->ReplaceFloat("palette_hue", fPaletteView->Hue());
+			fSettingsMessage->ReplaceFloat("palette_contrast", fPaletteView->Contrast());
+			fSettingsMessage->ReplaceFloat("palette_brightness", fPaletteView->Brightness());
+			fSettingsMessage->ReplaceFloat("palette_gamma", fPaletteView->Gamma());
+		}
+>>>>>>> cad98cafb55651bfbedc38145ffaa6d86a40edff
 		
 		// write to file
 		fSettingsMessage->Flatten(&file);

@@ -68,15 +68,15 @@ class PaletteView : public BView
 	rgb_color *fWorkPalette = nullptr;
 	
 	private:
-	float fPrevHue;
 	float fPrevSaturation;
+	float fPrevHue;
 	float fPrevContrast;
 	float fPrevBrightness;
 	float fPrevGamma;
 	
 	private:
-	float fCurrentHue;
 	float fCurrentSaturation;
+	float fCurrentHue;
 	float fCurrentContrast;
 	float fCurrentBrightness;
 	float fCurrentGamma;
@@ -85,12 +85,12 @@ class PaletteView : public BView
 	PretendoWindow *fParent;
 	
 	public:
-	float Hue() {
-		return fCurrentHue;
-	}
-	
 	float Saturation() {
 		return fCurrentSaturation;
+	}
+	
+	float Hue() {
+		return fCurrentHue;
 	}
 	
 	float Contrast() {
