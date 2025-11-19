@@ -88,8 +88,8 @@ PaletteWindow::LoadSettings()
 				// read settings
 				int32 x;
 				int32 y;
-				float hue;
 				float saturation;
+				float hue;
 				float contrast;
 				float brightness;
 				float gamma;
