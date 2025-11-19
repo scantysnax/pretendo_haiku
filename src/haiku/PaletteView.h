@@ -37,7 +37,6 @@ class PaletteView : public BView
 	
 	private:
 	void DrawSwatchRow (BPoint start, int32 size, int32 rowlen);
-	
 	void DrawSwatch (BPoint where, rgb_color fill);
 	void DrawSwatchMatrix (BPoint start, int32 size, int32 ncols, int32 nrows);
 	void DrawIndexes();
