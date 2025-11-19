@@ -37,10 +37,13 @@ class PaletteView : public BView
 	
 	private:
 	void DrawSwatchRow (BPoint start, int32 size, int32 rowlen);
-	void SetDefaultPalette();
+	
 	void DrawSwatch (BPoint where, rgb_color fill);
 	void DrawSwatchMatrix (BPoint start, int32 size, int32 ncols, int32 nrows);
 	void DrawIndexes();
+	
+	public:
+	void SetDefaultPalette();
 	void SetPalette();
 		
 	private:
@@ -100,6 +103,27 @@ class PaletteView : public BView
 	
 	float Gamma() {
 		return fCurrentGamma;
+	}
+	
+	public:
+	void SetHue (float hue) {
+		fCurrentHue = hue;
+	}
+	
+	void SetSaturation (float saturation) {
+		fCurrentSaturation = saturation;
+	}
+	
+	void SetContrast (float contrast) {
+		fCurrentContrast = contrast;
+	}
+	
+	void SetBrightness (float brightness) {
+		fCurrentBrightness = brightness;
+	}
+	
+	void SetGamma (float gamma) {
+		fCurrentGamma = gamma;
 	}
 };
 

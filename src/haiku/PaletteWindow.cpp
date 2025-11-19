@@ -78,6 +78,13 @@ PaletteWindow::LoadSettings()
 	
 			// apply settings	
 			MoveTo(x, y);
+			fPaletteView->SetHue(hue);
+			fPaletteView->SetSaturation(saturation);
+			fPaletteView->SetContrast(contrast);
+			fPaletteView->SetBrightness(brightness);
+			fPaletteView->SetGamma(gamma);
+			fPaletteView->SetPalette();
+			fPaletteView->Invalidate();
 			 //fView->SetViewMode(static_cast<PatternTableView::view_mode>(mode));	
 			 // etc..
 		} else {
@@ -104,8 +111,13 @@ PaletteWindow::LoadSettings()
 
 				// apply settings
 				MoveTo(x, y);
-				// fView->SetViewMode(static_cast<PatternTableView::view_mode>(mode));
-				// etc...
+				fPaletteView->SetHue(hue);
+				fPaletteView->SetSaturation(saturation);
+				fPaletteView->SetContrast(contrast);
+				fPaletteView->SetBrightness(brightness);
+				fPaletteView->SetGamma(gamma);
+				fPaletteView->SetPalette();
+				fPaletteView->Invalidate();
 			} else {
 				// eli: handle error if unflatten fails?
 			}
@@ -136,11 +148,21 @@ PaletteWindow::SaveSettings()
 			// file is empty, stash settings
 			fSettingsMessage->AddInt32("window_x", Frame().left);
 			fSettingsMessage->AddInt32("window_y", Frame().top);
+			fSettingsMessage->AddFloat("palette_hue", fPaletteView->Hue());
+			fSettingsMessage->AddFloat("palette_saturation", fPaletteView->Saturation());
+			fSettingsMessage->AddFloat("palette_contrast", fPaletteView->Contrast());
+			fSettingsMessage->AddFloat("palette_brightness", fPaletteView->Brightness());
+			fSettingsMessage->AddFloat("palette_gamma", fPaletteView->Gamma());
 		} else {
 			// replace old settings
 			fSettingsMessage->ReplaceInt32("window_x", Frame().left);
 			fSettingsMessage->ReplaceInt32("window_y", Frame().top);
-		}
+			fSettingsMessage->ReplaceFloat("palette_hue", fPaletteView->Hue());
+			fSettingsMessage->ReplaceFloat("palette_saturation", fPaletteView->Saturation());
+			fSettingsMessage->ReplaceFloat("palette_contrast", fPaletteView->Contrast());
+			fSettingsMessage->ReplaceFloat("palette_brightness", fPaletteView->Brightness());
+			fSettingsMessage->ReplaceFloat("palette_gamma", fPaletteView->Gamma());
+		}		
 		
 		// write to file
 		fSettingsMessage->Flatten(&file);
