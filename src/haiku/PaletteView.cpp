@@ -13,7 +13,7 @@ PaletteView::PaletteView (PretendoWindow *parent, BRect frame, int32 swatchSize)
 	
 	fPalette = new rgb_color[64];
 	
-	SetDefaultPalette();
+	//SetPalette();
 }
 
 
