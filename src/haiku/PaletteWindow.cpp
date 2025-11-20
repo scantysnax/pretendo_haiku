@@ -2,6 +2,7 @@
 #include "PaletteView.h"
 #include "PaletteWindow.h"
 #include "Palette.h"
+
 #include <File.h>
 
 
@@ -52,7 +53,6 @@ PaletteWindow::LoadSettings()
 	st = file.SetTo(path, B_READ_WRITE | B_CREATE_FILE);
 	
 	if (st == B_OK) {
-		std::cout << "successfuly opened file." << std::endl;
 		file.GetSize(&size);
 		
 		// if file is empty, load some defaults
@@ -60,7 +60,8 @@ PaletteWindow::LoadSettings()
 			CenterOnScreen();
 			int32 x = Frame().left;
 			int32 y = Frame().top;
-			float hue = Palette::default_hue;
+			
+			float hue = Palette::default_hue;			
 			float saturation = Palette::default_saturation;
 			float contrast = Palette::default_contrast;
 			float brightness = Palette::default_brightness;
@@ -84,9 +85,8 @@ PaletteWindow::LoadSettings()
 			fPaletteView->SetBrightness(brightness);
 			fPaletteView->SetGamma(gamma);
 			fPaletteView->SetPalette();
+			fPaletteView->UpdateSliders();
 			fPaletteView->Invalidate();
-			 //fView->SetViewMode(static_cast<PatternTableView::view_mode>(mode));	
-			 // etc..
 		} else {
 			// load from file
 			st = fSettingsMessage->Unflatten(&file);
@@ -108,7 +108,7 @@ PaletteWindow::LoadSettings()
 				fSettingsMessage->FindFloat("palette_contrast", &contrast);
 				fSettingsMessage->FindFloat("palette_brightness", &brightness);
 				fSettingsMessage->FindFloat("palette_gamma", &gamma);
-
+				
 				// apply settings
 				MoveTo(x, y);
 				fPaletteView->SetHue(hue);
@@ -117,6 +117,7 @@ PaletteWindow::LoadSettings()
 				fPaletteView->SetBrightness(brightness);
 				fPaletteView->SetGamma(gamma);
 				fPaletteView->SetPalette();
+				fPaletteView->UpdateSliders();
 				fPaletteView->Invalidate();
 			} else {
 				// eli: handle error if unflatten fails?

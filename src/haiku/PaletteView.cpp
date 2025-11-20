@@ -341,3 +341,17 @@ PaletteView::SetPalette()
 		
 		Invalidate();
 }
+
+void
+PaletteView::UpdateSliders()
+{
+	std::cout << __PRETTY_FUNCTION__ << std::endl;
+	
+	int32 const scale = 10000;
+	fHueSlider->SetValue(fCurrentHue * scale);
+	fSaturationSlider->SetValue(fCurrentSaturation * scale);
+	fContrastSlider->SetValue(fCurrentContrast * scale);
+	fBrightnessSlider->SetValue(fCurrentBrightness *  scale);
+	fGammaSlider->SetValue(fCurrentGamma * scale);
+}
+

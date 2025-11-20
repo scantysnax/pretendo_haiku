@@ -44,6 +44,7 @@ class PaletteView : public BView
 	public:
 	void SetDefaultPalette();
 	void SetPalette();
+	void UpdateSliders();
 		
 	private:
 	BSlider *fHueSlider = nullptr;
@@ -80,9 +81,6 @@ class PaletteView : public BView
 	float fCurrentBrightness;
 	float fCurrentGamma;
 
-	private:
-	PretendoWindow *fParent;
-	
 	public:
 	float Saturation() {
 		return fCurrentSaturation;
@@ -124,6 +122,9 @@ class PaletteView : public BView
 	void SetGamma (float gamma) {
 		fCurrentGamma = gamma;
 	}
+	
+	private:
+	PretendoWindow *fParent;
 };
 
 #endif // _PALETTE_VIEW_H_
