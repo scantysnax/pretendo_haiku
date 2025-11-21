@@ -1,6 +1,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <iomanip>
 #include <iostream>
 
 #include "Palette.h"
@@ -79,7 +80,7 @@ rgb_color_t make_rgb_color(uint16_t pixel, float saturation, float hue, float co
 
 		y += v;
 		i += v * std::cos((M_PI / 6.) * (p + hue));
-		q += v * std::sin((M_PI / 6.) * (p + hue));
+		q += v * std::sin((M_PI / 6.) * (p  + hue));
 	}
 
 	i *= saturation;
@@ -99,6 +100,7 @@ rgb_color_t make_rgb_color(uint16_t pixel, float saturation, float hue, float co
 const rgb_color_t *Palette::NTSC(float saturation, float hue, float contrast, float brightness, float gamma) {
 
 	std::cout << "Creating Palette: <" << saturation << "," << hue << "," << contrast << "," << brightness << "," << gamma << ">" << std::endl;
+	
 	static rgb_color_t color_list[64];
 
 	for (int i = 0; i < 64; ++i) {

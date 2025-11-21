@@ -1,6 +1,6 @@
 
-#ifndef PALETTE_20080314_H_
-#define PALETTE_20080314_H_
+#ifndef PALETTE_H_
+#define PALETTE_H_
 
 #include <cstdint>
 

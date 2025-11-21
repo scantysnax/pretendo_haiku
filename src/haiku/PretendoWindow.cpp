@@ -172,9 +172,19 @@ PretendoWindow::PretendoWindow()
 	fMutex->Lock();
 	resume_thread(fThread);
 	
-	SetDefaultPalette();
+	// eli: we need to grab the palete from PaletteWindow and apply it
+	// 		this is kind of a hack, but i can't think of a better way to do this right now
+	
+	// this will call the constructor to set the palette
+	fPaletteWindow = new PaletteWindow(this); 
+	
+	// dispose of this for now
+	if (fPaletteWindow->Lock()) {
+		fPaletteWindow->Quit();
+		fPaletteWindow = nullptr;
+	}
 }
-#include <iostream>
+
 
 PretendoWindow::~PretendoWindow()
 {	
@@ -740,27 +750,21 @@ PretendoWindow::OnConfigureInput()
 void
 PretendoWindow::OnAdjustPalette()
 {
-	if (fPaletteWindow && fPaletteWindow->Lock()) {
+	std::cout << __PRETTY_FUNCTION__ << std::endl;
+	
+	
+	if (fPaletteWindow != nullptr) {
+		fPaletteWindow->Lock();
 		fPaletteWindow->Quit();
 		fPaletteWindow = nullptr;
 	} 
 	
-	fPaletteWindow = new PaletteWindow(this);
-	fPaletteWindow->Show();
-
-#if 0
-	if (fPaletteWindow != nullptr) {
-		fPaletteWindow->Activate();
-	} else {
-		fPaletteWindow = new PaletteWindow(this);
-		fPaletteWindow->Show();
-	}
+	
 	if (fPaletteWindow == nullptr) {
 		fPaletteWindow = new PaletteWindow(this);
 	}
 	
 	fPaletteWindow->Show();
-#endif
 }
 
 void
@@ -777,21 +781,6 @@ PretendoWindow::OnViewPatternTable1()
 	
 	fPatternTable1Window = new PatternTableWindow(this, 0);
 	fPatternTable1Window->Show();
-
-#if 0
-	if (fPatternTable0Window != nullptr) {
-		fPatternTable0Window->Activate();
-	} else {
-		fPatternTable0Window = new PatternTableWindow(this, 0);
-		fPatternTable0Window->Show();
-	}
-	
-	if (fPatternTable0Window == nullptr) {
-		fPatternTable0Window = new PatternTableWindow(this, 0);
-	}
-	
-	fPatternTable0Window->Show();
-#endif
 }
 
 void
@@ -1261,7 +1250,7 @@ PretendoWindow::DrawBitmap()
 	//Unlock();
 	
 	// oddly, this method seems to work well
-	PostMessage (messages::DRAW_BITMAP);	
+	PostMessage(messages::DRAW_BITMAP);	
 }
 
 

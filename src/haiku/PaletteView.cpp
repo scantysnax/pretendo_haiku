@@ -12,8 +12,6 @@ PaletteView::PaletteView (PretendoWindow *parent, BRect frame, int32 swatchSize)
 	fSwatchSize = swatchSize;
 	
 	fPalette = new rgb_color[64];
-	
-	//SetPalette();
 }
 
 
@@ -310,7 +308,7 @@ PaletteView::DrawIndexes()
 {
 	char const nybbles[] = "0123456789ABCDEF";
 	
-	SetHighColor(0,0,0);
+	SetHighColor(0, 0, 0);
 	SetLowColor(ui_color(B_PANEL_BACKGROUND_COLOR));
 	SetFont(be_fixed_font);
 	
@@ -345,9 +343,8 @@ PaletteView::SetPalette()
 void
 PaletteView::UpdateSliders()
 {
-	std::cout << __PRETTY_FUNCTION__ << std::endl;
-	
 	int32 const scale = 10000;
+	
 	fHueSlider->SetValue(fCurrentHue * scale);
 	fSaturationSlider->SetValue(fCurrentSaturation * scale);
 	fContrastSlider->SetValue(fCurrentContrast * scale);
