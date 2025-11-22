@@ -9,8 +9,6 @@
 #include "PretendoWindow.h"
 #include "Splitters.h"
 
-#include <iostream>
-
 
 class PaletteView : public BView
 {
@@ -21,13 +19,13 @@ class PaletteView : public BView
 		CHANGE_CONTRAST = 	'CONT',
 		CHANGE_BRIGHTNESS = 'BRIT',
 		CHANGE_GAMMA = 		'GAMA',
-		SAVE_PALETTE = 		'SAVE',
+		APPLY_PALETTE =		'APLY',
 		SET_DEFAULT = 		'DFLT',
 		CANCEL = 			'CNCL'
 	} messages;
 	
 	public:
-			PaletteView (PretendoWindow *parent, BRect frame, int32 swatchSize);
+			PaletteView (PretendoWindow *mainWindow, BRect frame, int32 swatchSize);
 	virtual ~PaletteView();
 	
 	public:
@@ -43,8 +41,11 @@ class PaletteView : public BView
 	
 	public:
 	void SetDefaultPalette();
-	void SetPalette();
+	void UpdatePalette();
 	void UpdateSliders();
+	
+	private:
+	PretendoWindow *fMainWindow = nullptr;
 		
 	private:
 	BSlider *fHueSlider = nullptr;
@@ -58,7 +59,7 @@ class PaletteView : public BView
 	VerticalSplitter *fVertSplitter = nullptr;
 	
 	private:
-	BButton *fSaveButton = nullptr;
+	BButton *fApplyButton = nullptr;
 	BButton *fCancelButton = nullptr;
 	BButton *fDefaultButton = nullptr;
 	
@@ -68,18 +69,18 @@ class PaletteView : public BView
 	rgb_color *fWorkPalette = nullptr;
 	
 	private:
-	float fPrevSaturation;
-	float fPrevHue;
-	float fPrevContrast;
-	float fPrevBrightness;
-	float fPrevGamma;
-	
-	private:
 	float fCurrentSaturation;
 	float fCurrentHue;
 	float fCurrentContrast;
 	float fCurrentBrightness;
 	float fCurrentGamma;
+	
+	private:
+	float fPrevSaturation;
+	float fPrevHue;
+	float fPrevContrast;
+	float fPrevBrightness;
+	float fPrevGamma;
 
 	public:
 	float Saturation() {
@@ -123,8 +124,6 @@ class PaletteView : public BView
 		fCurrentGamma = gamma;
 	}
 	
-	private:
-	PretendoWindow *fParent;
 };
 
 #endif // _PALETTE_VIEW_H_

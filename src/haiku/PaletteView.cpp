@@ -2,15 +2,14 @@
 #include "Palette.h"
 #include "PaletteView.h"
 
-#include <cstdio>
+#include <iostream>
 
 
-PaletteView::PaletteView (PretendoWindow *parent, BRect frame, int32 swatchSize)
+PaletteView::PaletteView (PretendoWindow *mainWindow, BRect frame, int32 swatchSize)
 	: BView (frame, "palette_view", B_FOLLOW_ALL_SIDES, B_WILL_DRAW)
 {
-	fParent = parent;
+	fMainWindow = mainWindow;
 	fSwatchSize = swatchSize;
-	
 	fPalette = new rgb_color[64];
 }
 
@@ -101,14 +100,14 @@ PaletteView::AttachedToWindow()
 			fVertSplitter->Frame().right,
 			0
 		);
-	fSaveButton = new BButton(r,"save_button","Save", new BMessage(messages::SAVE_PALETTE));
-	fSaveButton->ResizeToPreferred();
-	//fSaveButton->MakeDefault(true);
-	fSaveButton->SetTarget(this);
-	AddChild(fSaveButton);
+	fApplyButton = new BButton(r,"apply_button", "Apply", new BMessage(messages::APPLY_PALETTE));
+	fApplyButton->ResizeToPreferred();
+	//fApplyButton->MakeDefault(true);
+	fApplyButton->SetTarget(this);
+	AddChild(fApplyButton);
 	
 	r.Set(fVertSplitter->Frame().right,
-			fSaveButton->Frame().bottom + 16,
+			fApplyButton->Frame().bottom + 16,
 			0, 0);
 	fDefaultButton = new BButton(r, "default_button", "Default", new BMessage(messages::SET_DEFAULT));
 	fDefaultButton->ResizeToPreferred();
@@ -134,7 +133,7 @@ PaletteView::AttachedToWindow()
 	float const totalHeight = fVertSplitter->Frame().Height();
 	float const y2 = (totalHeight - totalSpace) / 2;
 	
-	fSaveButton->MoveBy(x2, y2);
+	fApplyButton->MoveBy(x2, y2);
 	fDefaultButton->MoveBy(x2, y2);
 	fCancelButton->MoveBy(x2, y2);
 }
@@ -143,34 +142,36 @@ PaletteView::AttachedToWindow()
 void
 PaletteView::MessageReceived (BMessage *message)
 {
+	float const scale = 10000.0f;
+	
 	switch (message->what) {
 		case messages::CHANGE_HUE:	
-			fCurrentHue = static_cast<float>(fHueSlider->Value() / 10000.0f);
-			SetPalette();
+			fCurrentHue = fHueSlider->Value() / scale;
+			UpdatePalette();
 			break;
 		
 		case messages::CHANGE_SATURATION:
-			fCurrentSaturation = static_cast<float>(fSaturationSlider->Value() / 10000.0f);
-			SetPalette();
+			fCurrentSaturation = fSaturationSlider->Value() / scale;
+			UpdatePalette();
 			break;
 
 		case messages::CHANGE_CONTRAST:
-			fCurrentContrast = static_cast<float>(fContrastSlider->Value() / 10000.0f);
-			SetPalette();	
+			fCurrentContrast = fContrastSlider->Value() / scale;
+			UpdatePalette();	
 			break;
 			
 		case messages::CHANGE_BRIGHTNESS:
-			fCurrentBrightness = static_cast<float>(fBrightnessSlider->Value() / 10000.0f);
-			SetPalette();
+			fCurrentBrightness = fBrightnessSlider->Value() / scale;
+			UpdatePalette();
 			break;
 		
 		case messages::CHANGE_GAMMA:
-			fCurrentGamma = static_cast<float>(fGammaSlider->Value() / 10000.0f);
-			SetPalette();
+			fCurrentGamma = fGammaSlider->Value() / scale;
+			UpdatePalette();
 			break;
 
-		case messages::SAVE_PALETTE:
-			std::cout << "SAVE" << std::endl;
+		case messages::APPLY_PALETTE:
+			std::cout << "APPLY" << std::endl;
 			break;
 			
 		case messages::SET_DEFAULT:
@@ -196,14 +197,12 @@ PaletteView::MessageReceived (BMessage *message)
 void
 PaletteView::Draw (BRect frame)
 {		
-	(void)frame;
-
-	const rgb_color_t *ntscPalette = Palette::NTSC(
-					fCurrentSaturation,
-					fCurrentHue,
-					fCurrentContrast,
-					fCurrentBrightness,
-					fCurrentGamma);
+	const rgb_color_t *ntscPalette = Palette::NTSC(fCurrentSaturation,
+													fCurrentHue,
+													fCurrentContrast,
+													fCurrentBrightness,
+													fCurrentGamma
+													);
 	
 	for (int32 i = 0; i < 64; i++) {
 		fPalette[i].red = ntscPalette[i].r;
@@ -230,7 +229,7 @@ PaletteView::SetDefaultPalette()
 	fCurrentBrightness = Palette::default_brightness;
 	fCurrentGamma = Palette::default_gamma;	
 	
-	fParent->set_palette(Palette::intensity,
+	fMainWindow->set_palette(Palette::intensity,
 		Palette::NTSC(
 			fCurrentSaturation,
 			fCurrentHue,
@@ -328,16 +327,15 @@ PaletteView::DrawIndexes()
 }
 
 void 
-PaletteView::SetPalette()
+PaletteView::UpdatePalette()
 {
-	fParent->set_palette(Palette::intensity, Palette::NTSC(
-		fCurrentSaturation,
-		fCurrentHue,
-		fCurrentContrast,
-		fCurrentBrightness,
-		fCurrentGamma));
-		
-		Invalidate();
+	fMainWindow->set_palette(Palette::intensity, Palette::NTSC(fCurrentSaturation,
+								fCurrentHue,
+								fCurrentContrast,
+								fCurrentBrightness,
+								fCurrentGamma
+							));
+	Invalidate();
 }
 
 void

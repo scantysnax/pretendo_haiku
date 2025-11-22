@@ -10,12 +10,11 @@ PaletteWindow::PaletteWindow (PretendoWindow *parent)
 	: BWindow(BRect(0, 0, 0, 0), "Adjust Palette", B_FLOATING_WINDOW_LOOK, 
 		B_NORMAL_WINDOW_FEEL, B_NOT_RESIZABLE|B_NOT_ZOOMABLE)
 {
-	fParent = parent;
 	fSettingsMessage = new BMessage;
 	
 	ResizeTo(480, 648);
 	
-	fPaletteView = new PaletteView(fParent, Bounds(), 24);
+	fPaletteView = new PaletteView(parent, Bounds(), 24);
 	AddChild(fPaletteView);
 	
 	LoadSettings();
@@ -30,7 +29,7 @@ PaletteWindow::~PaletteWindow()
 
 
 bool
-PaletteWindow::QuitRequested (void)
+PaletteWindow::QuitRequested()
 {
 	return true;
 }
@@ -58,6 +57,7 @@ PaletteWindow::LoadSettings()
 		// if file is empty, load some defaults
 		if (size == 0) {
 			CenterOnScreen();
+			
 			int32 x = Frame().left;
 			int32 y = Frame().top;
 			
@@ -84,7 +84,7 @@ PaletteWindow::LoadSettings()
 			fPaletteView->SetContrast(contrast);
 			fPaletteView->SetBrightness(brightness);
 			fPaletteView->SetGamma(gamma);
-			fPaletteView->SetPalette();
+			fPaletteView->UpdatePalette();
 			fPaletteView->UpdateSliders();
 			fPaletteView->Invalidate();
 		} else {
@@ -116,7 +116,7 @@ PaletteWindow::LoadSettings()
 				fPaletteView->SetContrast(contrast);
 				fPaletteView->SetBrightness(brightness);
 				fPaletteView->SetGamma(gamma);
-				fPaletteView->SetPalette();
+				fPaletteView->UpdatePalette();
 				fPaletteView->UpdateSliders();
 				fPaletteView->Invalidate();
 			} else {
@@ -145,6 +145,7 @@ PaletteWindow::SaveSettings()
 	
 	if (st == B_OK) {
 		file.GetSize(&size);
+		
 		if (size == 0) {
 			// file is empty, stash settings
 			fSettingsMessage->AddInt32("window_x", Frame().left);
