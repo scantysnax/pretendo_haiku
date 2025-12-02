@@ -4,7 +4,7 @@
 #include "Palette.h"
 
 #include <File.h>
-
+ 
 
 PaletteWindow::PaletteWindow (PretendoWindow *parent)
 	: BWindow(BRect(0, 0, 0, 0), "Adjust Palette", B_FLOATING_WINDOW_LOOK, 
@@ -18,6 +18,8 @@ PaletteWindow::PaletteWindow (PretendoWindow *parent)
 	AddChild(fPaletteView);
 	
 	LoadSettings();
+	
+	
 }
 
 
@@ -44,12 +46,12 @@ PaletteWindow::LoadSettings()
 	BString path = Settings::configDirectory().c_str();
 	path += "/palette_window";
 		
-	// open settings file
+	// open settings file.  create a new one if it doesn't exist
 	BFile file;
 	status_t st;
 	off_t size;
 	
-	st = file.SetTo(path, B_READ_WRITE | B_CREATE_FILE);
+	st = file.SetTo(path, B_READ_WRITE|B_CREATE_FILE);
 	
 	if (st == B_OK) {
 		file.GetSize(&size);
@@ -67,7 +69,7 @@ PaletteWindow::LoadSettings()
 			float brightness = Palette::default_brightness;
 			float gamma = Palette::default_gamma;
 			
-			// stash settings
+			// stash default settings
 			fSettingsMessage->AddInt32("window_x", x);
 			fSettingsMessage->AddInt32("window_y", y);
 			fSettingsMessage->AddFloat("palette_hue", hue);
@@ -77,7 +79,7 @@ PaletteWindow::LoadSettings()
 			fSettingsMessage->AddFloat("palette_gamma", gamma);
 			fSettingsMessage->Flatten(&file);
 	
-			// apply settings	
+			// apply settings (update user interface)
 			MoveTo(x, y);
 			fPaletteView->SetHue(hue);
 			fPaletteView->SetSaturation(saturation);
@@ -86,7 +88,12 @@ PaletteWindow::LoadSettings()
 			fPaletteView->SetGamma(gamma);
 			fPaletteView->UpdatePalette();
 			fPaletteView->UpdateSliders();
-			fPaletteView->Invalidate();
+			
+			fPaletteView->SetPrevHue(hue);
+			fPaletteView->SetPrevSaturation(saturation);
+			fPaletteView->SetPrevBrightness(brightness);
+			fPaletteView->SetPrevContrast(contrast);
+			fPaletteView->SetPrevGamma(gamma);
 		} else {
 			// load from file
 			st = fSettingsMessage->Unflatten(&file);
@@ -118,10 +125,16 @@ PaletteWindow::LoadSettings()
 				fPaletteView->SetGamma(gamma);
 				fPaletteView->UpdatePalette();
 				fPaletteView->UpdateSliders();
-				fPaletteView->Invalidate();
+				
+				fPaletteView->SetPrevHue(hue);
+				fPaletteView->SetPrevSaturation(saturation);
+				fPaletteView->SetPrevBrightness(brightness);
+				fPaletteView->SetPrevContrast(contrast);
+				fPaletteView->SetPrevGamma(gamma);
+				
 			} else {
 				// eli: handle error if unflatten fails?
-			}
+			}	
 		}
 	}
 }
@@ -141,7 +154,7 @@ PaletteWindow::SaveSettings()
 	off_t size;
 
 	// load settings file
-	st = file.SetTo(path, B_READ_WRITE | B_CREATE_FILE);
+	st = file.SetTo(path, B_READ_WRITE|B_CREATE_FILE);
 	
 	if (st == B_OK) {
 		file.GetSize(&size);

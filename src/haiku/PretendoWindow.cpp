@@ -176,6 +176,8 @@ PretendoWindow::PretendoWindow()
 	// 		this is kind of a hack, but i can't think of a better way to do this right now
 	
 	// this will call the constructor to set the palette
+
+
 	fPaletteWindow = new PaletteWindow(this); 
 	
 	// dispose of this for now
@@ -183,6 +185,7 @@ PretendoWindow::PretendoWindow()
 		fPaletteWindow->Quit();
 		fPaletteWindow = nullptr;
 	}
+
 }
 
 
@@ -1473,7 +1476,7 @@ PretendoWindow::emulator_thread (void *data)
 		
 		// do frame events
 		window->start_frame();
-		nes::run_frame (window);
+		nes::run_frame(window);
 		window->end_frame();
 		window->ReadKeyStates();	
 		
@@ -1509,17 +1512,4 @@ PretendoWindow::ReadKeyStates()
 	CheckKey(Controller::INDEX_START, 	default_keys::START);
 	CheckKey(Controller::INDEX_B, 		default_keys::B);
 	CheckKey(Controller::INDEX_A, 		default_keys::A);
-}
-
-
-void
-PretendoWindow::SetDefaultPalette()
-{
-	// if we couldn't load a palette from settings, use the defaults
-	set_palette(Palette::intensity, 
-				Palette::NTSC (Palette::default_saturation,
-				Palette::default_hue,
-				Palette::default_contrast,
-				Palette::default_brightness,
-				Palette::default_gamma));
 }

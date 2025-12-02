@@ -4,8 +4,10 @@
 
 #include <Window.h>
 
+
 class PretendoWindow;
 class PaletteView;
+
 
 class PaletteWindow : public BWindow
 {	
@@ -25,7 +27,7 @@ class PaletteWindow : public BWindow
 	PretendoWindow *fParent = nullptr;
 	
 	private:
-	BMessage *fSettingsMessage;
+	BMessage *fSettingsMessage = nullptr;
 };
 
 

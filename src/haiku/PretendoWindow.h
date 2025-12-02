@@ -184,9 +184,6 @@ class PretendoWindow : public BDirectWindow
 	void start_frame();
 	void end_frame();
 	
-	private:
-	void SetDefaultPalette();
-	
 	// menus
 	private:
 	PretendoView *fView = nullptr;

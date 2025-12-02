@@ -6,7 +6,7 @@ static status_t error;
 
 
 VideoScreen::VideoScreen (PretendoWindow *parent)
-	: BWindowScreen ("Pretendo Fullscreen", B_8_BIT_640x480, &error)
+	: BWindowScreen ("Pretendo Fullscreen", B_16_BIT_640x480, &error)
 {
 	if (error != B_OK) {
 		PostMessage (B_QUIT_REQUESTED, this);

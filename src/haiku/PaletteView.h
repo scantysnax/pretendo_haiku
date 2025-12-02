@@ -19,9 +19,9 @@ class PaletteView : public BView
 		CHANGE_CONTRAST = 	'CONT',
 		CHANGE_BRIGHTNESS = 'BRIT',
 		CHANGE_GAMMA = 		'GAMA',
-		APPLY_PALETTE =		'APLY',
+		APPLY		 =		'APLY',
 		SET_DEFAULT = 		'DFLT',
-		CANCEL = 			'CNCL'
+		REVERT = 			'RVRT'
 	} messages;
 	
 	public:
@@ -60,7 +60,7 @@ class PaletteView : public BView
 	
 	private:
 	BButton *fApplyButton = nullptr;
-	BButton *fCancelButton = nullptr;
+	BButton *fRevertButton = nullptr;
 	BButton *fDefaultButton = nullptr;
 	
 	private:
@@ -124,6 +124,32 @@ class PaletteView : public BView
 		fCurrentGamma = gamma;
 	}
 	
+	public:
+	void SetPrevHue (float hue) {
+		fPrevHue = hue;
+	}
+	
+	void SetPrevSaturation (float saturation) {
+		fPrevSaturation = saturation;
+	}
+	
+	void SetPrevContrast (float contrast) {
+		fPrevContrast = contrast;
+	}
+	
+	void SetPrevBrightness (float brightness) {
+		fPrevBrightness = brightness;
+	}
+	
+	void SetPrevGamma (float gamma) {
+		fPrevGamma = gamma;
+	}
+	
+	
+	
+	
 };
 
+
 #endif // _PALETTE_VIEW_H_
+
