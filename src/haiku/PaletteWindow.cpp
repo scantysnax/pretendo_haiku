@@ -12,7 +12,7 @@ PaletteWindow::PaletteWindow (PretendoWindow *parent)
 {
 	fSettingsMessage = new BMessage;
 	
-	ResizeTo(480, 648);
+	ResizeTo(480, 580);
 	
 	fPaletteView = new PaletteView(parent, Bounds(), 24);
 	AddChild(fPaletteView);

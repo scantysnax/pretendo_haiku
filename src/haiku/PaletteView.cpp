@@ -37,10 +37,10 @@ PaletteView::AttachedToWindow()
 	AddChild(fHorizSplitter);
 	
 	float const left = 16.0f;
-	float const right = Frame().Width() * 0.66f;
+	float const right = Frame().Width() * 0.70f;
 	BRect r;
 	                
-	r.Set(left, fHorizSplitter->Frame().top+32, right, 0);
+	r.Set(left, fHorizSplitter->Frame().top+18, right, 0);
 	fHueSlider = new BSlider(r, "hue_slider", "Hue", new BMessage(messages::CHANGE_HUE),
 		-10000, +10000);
 	fHueSlider->SetLimitLabels("-1.0 (-30°)", "1.0 (30°)");
@@ -50,7 +50,7 @@ PaletteView::AttachedToWindow()
 	fHueSlider->SetTarget(this);
 	AddChild(fHueSlider);
 	
-	r.Set(left, fHueSlider->Frame().bottom+32, right, 0);
+	r.Set(left, fHueSlider->Frame().bottom+18, right, 0);
 	fSaturationSlider = new BSlider(r, "sat_slider", "Saturation", 
 		new BMessage(messages::CHANGE_SATURATION), 0, 50000);
 	fSaturationSlider->SetLimitLabels("0.0 (grayscale)", "5.0");
@@ -60,7 +60,7 @@ PaletteView::AttachedToWindow()
 	fSaturationSlider->SetValue(10000);
 	AddChild(fSaturationSlider);
 
-	r.Set(left, fSaturationSlider->Frame().bottom+32, right, 0);
+	r.Set(left, fSaturationSlider->Frame().bottom+18, right, 0);
 	fContrastSlider = new BSlider (r, "contrast_slider", "Contrast", 
 		new BMessage(messages::CHANGE_CONTRAST), 5000, 20000);
 	fContrastSlider->SetLimitLabels("0.5 (reduced)", "2.0");
@@ -70,7 +70,7 @@ PaletteView::AttachedToWindow()
 	fContrastSlider->SetValue(10000);
 	AddChild(fContrastSlider);
 
-	r.Set(left, fContrastSlider->Frame().bottom+32, right, 0);
+	r.Set(left, fContrastSlider->Frame().bottom+18, right, 0);
 	fBrightnessSlider = new BSlider (r, "brightness_slider", "Brightness", 
 		new BMessage(messages::CHANGE_BRIGHTNESS), 5000, 20000);
 	fBrightnessSlider->SetLimitLabels("0.5 (reduced)", "2.0");
@@ -80,7 +80,7 @@ PaletteView::AttachedToWindow()
 	fBrightnessSlider->SetValue(10000);
 	AddChild(fBrightnessSlider);
 
-	r.Set(left, fBrightnessSlider->Frame().bottom+32, right, 0);
+	r.Set(left, fBrightnessSlider->Frame().bottom+18, right, 0);
 	fGammaSlider = new BSlider (r, "gamma_slider", "Gamma", 
 		new BMessage(messages::CHANGE_GAMMA), 10000, 25000);
 	fGammaSlider->SetLimitLabels("1.0", "2.5");
@@ -101,17 +101,9 @@ PaletteView::AttachedToWindow()
 			fVertSplitter->Frame().right,
 			0
 		);
-	fApplyButton = new BButton(r,"apply_button", "Apply", new BMessage(messages::APPLY));
-	fApplyButton->ResizeToPreferred();
-	//fApplyButton->MakeDefault(true);
-	fApplyButton->SetTarget(this);
-	AddChild(fApplyButton);
-	
-	r.Set(fVertSplitter->Frame().right,
-			fApplyButton->Frame().bottom + 16,
-			0, 0);
-	fDefaultButton = new BButton(r, "default_button", "Default", new BMessage(messages::SET_DEFAULT));
+	fDefaultButton = new BButton(r,"default_button", "Defaults", new BMessage(messages::SET_DEFAULT));
 	fDefaultButton->ResizeToPreferred();
+	//fApplyButton->MakeDefault(true);
 	fDefaultButton->SetTarget(this);
 	AddChild(fDefaultButton);
 	
@@ -123,17 +115,17 @@ PaletteView::AttachedToWindow()
 	fRevertButton->SetTarget(this);
 	AddChild(fRevertButton);
 
+
 	float const windowWidth = Window()->Frame().Width() - fVertSplitter->Frame().right;
 	float const diff = windowWidth - fDefaultButton->Frame().Width() + fVertSplitter->Frame().Width();
 	float const x2 = diff / 2;
 	
 	float const buttonHeight = fDefaultButton->Frame().Height();
 	float const buttonSpace = fRevertButton->Frame().top - fDefaultButton->Frame().bottom; 
-	float const totalSpace = (buttonHeight * 3) + (buttonSpace * 2); // three buttons, two spaces
+	float const totalSpace = (buttonHeight * 2) + (buttonSpace); // two buttons, one space
 	float const totalHeight = fVertSplitter->Frame().Height();
 	float const y2 = (totalHeight - totalSpace) / 2;
 	
-	fApplyButton->MoveBy(x2, y2);
 	fDefaultButton->MoveBy(x2, y2);
 	fRevertButton->MoveBy(x2, y2);
 }
@@ -146,31 +138,26 @@ PaletteView::MessageReceived (BMessage *message)
 	
 	switch (message->what) {
 		case messages::CHANGE_HUE:
-			//fPrevHue = fCurrentHue;	
 			fCurrentHue = fHueSlider->Value() / scale;
 			UpdatePalette();
 			break;
 		
 		case messages::CHANGE_SATURATION:
-			//fPrevSaturation  = fCurrentSaturation;
 			fCurrentSaturation = fSaturationSlider->Value() / scale;
 			UpdatePalette();
 			break;
 
 		case messages::CHANGE_CONTRAST:
-			//fPrevContrast = fCurrentContrast;
 			fCurrentContrast = fContrastSlider->Value() / scale;
 			UpdatePalette();	
 			break;
 			
 		case messages::CHANGE_BRIGHTNESS:
-			//fPrevBrightness = fCurrentBrightness;
 			fCurrentBrightness = fBrightnessSlider->Value() / scale;
 			UpdatePalette();
 			break;
 		
 		case messages::CHANGE_GAMMA:
-			//fPrevGamma = fCurrentGamma;
 			fCurrentGamma = fGammaSlider->Value() / scale;
 			UpdatePalette();
 			break;
@@ -179,10 +166,6 @@ PaletteView::MessageReceived (BMessage *message)
 			SetDefaultPalette();
 			UpdateSliders();
 			Invalidate();
-			break;
-			
-		case messages::APPLY:
-			std::cout << "APPLY" << std::endl;
 			break;
 			
 		case messages::REVERT:

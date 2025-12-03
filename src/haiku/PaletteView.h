@@ -19,7 +19,6 @@ class PaletteView : public BView
 		CHANGE_CONTRAST = 	'CONT',
 		CHANGE_BRIGHTNESS = 'BRIT',
 		CHANGE_GAMMA = 		'GAMA',
-		APPLY		 =		'APLY',
 		SET_DEFAULT = 		'DFLT',
 		REVERT = 			'RVRT'
 	} messages;
@@ -59,7 +58,6 @@ class PaletteView : public BView
 	VerticalSplitter *fVertSplitter = nullptr;
 	
 	private:
-	BButton *fApplyButton = nullptr;
 	BButton *fRevertButton = nullptr;
 	BButton *fDefaultButton = nullptr;
 	
