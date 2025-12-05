@@ -1,13 +1,11 @@
 
+#include <File.h>
+
 #include "Palette.h"
 #include "PaletteView.h"
 
-#include <File.h>
 
-#include <iostream>
-
-
-PaletteView::PaletteView (PretendoWindow *mainWindow, BRect frame, int32 swatchSize)
+PaletteView::PaletteView (PretendoWindow *mainWindow, BRect frame, size_t swatchSize)
 	: BView(frame, "palette_view", B_FOLLOW_ALL_SIDES, B_WILL_DRAW)
 {
 	fMainWindow = mainWindow;
@@ -29,7 +27,11 @@ PaletteView::AttachedToWindow()
 {
 	SetViewColor(ui_color(B_PANEL_BACKGROUND_COLOR));
 	
-	int32 x, y, width, height;
+	int32 x;
+	int32 y;
+	int32 width;
+	int32 height;
+	
 	x = fSwatchSize;
 	y = (fSwatchSize*5)+32;
 	width = (fSwatchSize*16)+64;
@@ -37,15 +39,13 @@ PaletteView::AttachedToWindow()
 	AddChild(fHorizSplitter);
 	
 	float const left = 16.0f;
-	float const right = Frame().Width() * 0.70f;
+	float const right = Frame().Width() * 0.67f;
 	BRect r;
 	                
 	r.Set(left, fHorizSplitter->Frame().top+18, right, 0);
 	fHueSlider = new BSlider(r, "hue_slider", "Hue", new BMessage(messages::CHANGE_HUE),
 		-10000, +10000);
 	fHueSlider->SetLimitLabels("-1.0 (-30°)", "1.0 (30°)");
-	fHueSlider->SetHashMarks(B_HASH_MARKS_BOTTOM);	
-	fHueSlider->SetHashMarkCount(25);
 	fHueSlider->SetValue(0);
 	fHueSlider->SetTarget(this);
 	AddChild(fHueSlider);
@@ -54,8 +54,6 @@ PaletteView::AttachedToWindow()
 	fSaturationSlider = new BSlider(r, "sat_slider", "Saturation", 
 		new BMessage(messages::CHANGE_SATURATION), 0, 50000);
 	fSaturationSlider->SetLimitLabels("0.0 (grayscale)", "5.0");
-	fSaturationSlider->SetHashMarks(B_HASH_MARKS_BOTTOM);
-	fSaturationSlider->SetHashMarkCount(25);
 	fSaturationSlider->SetTarget(this);
 	fSaturationSlider->SetValue(10000);
 	AddChild(fSaturationSlider);
@@ -64,8 +62,6 @@ PaletteView::AttachedToWindow()
 	fContrastSlider = new BSlider (r, "contrast_slider", "Contrast", 
 		new BMessage(messages::CHANGE_CONTRAST), 5000, 20000);
 	fContrastSlider->SetLimitLabels("0.5 (reduced)", "2.0");
-	fContrastSlider->SetHashMarks(B_HASH_MARKS_BOTTOM);
-	fContrastSlider->SetHashMarkCount(25);
 	fContrastSlider->SetTarget(this);
 	fContrastSlider->SetValue(10000);
 	AddChild(fContrastSlider);
@@ -74,8 +70,6 @@ PaletteView::AttachedToWindow()
 	fBrightnessSlider = new BSlider (r, "brightness_slider", "Brightness", 
 		new BMessage(messages::CHANGE_BRIGHTNESS), 5000, 20000);
 	fBrightnessSlider->SetLimitLabels("0.5 (reduced)", "2.0");
-	fBrightnessSlider->SetHashMarks(B_HASH_MARKS_BOTTOM);
-	fBrightnessSlider->SetHashMarkCount(25);
 	fBrightnessSlider->SetTarget(this);
 	fBrightnessSlider->SetValue(10000);
 	AddChild(fBrightnessSlider);
@@ -84,8 +78,6 @@ PaletteView::AttachedToWindow()
 	fGammaSlider = new BSlider (r, "gamma_slider", "Gamma", 
 		new BMessage(messages::CHANGE_GAMMA), 10000, 25000);
 	fGammaSlider->SetLimitLabels("1.0", "2.5");
-	fGammaSlider->SetHashMarks(B_HASH_MARKS_BOTTOM);
-	fGammaSlider->SetHashMarkCount(25);
 	fGammaSlider->SetTarget(this);
 	fGammaSlider->SetValue(14000);
 	AddChild(fGammaSlider);		
@@ -101,9 +93,8 @@ PaletteView::AttachedToWindow()
 			fVertSplitter->Frame().right,
 			0
 		);
-	fDefaultButton = new BButton(r,"default_button", "Defaults", new BMessage(messages::SET_DEFAULT));
+	fDefaultButton = new BButton(r,"default_button", "Default", new BMessage(messages::SET_DEFAULT));
 	fDefaultButton->ResizeToPreferred();
-	//fApplyButton->MakeDefault(true);
 	fDefaultButton->SetTarget(this);
 	AddChild(fDefaultButton);
 	
@@ -114,7 +105,24 @@ PaletteView::AttachedToWindow()
 	fRevertButton->ResizeToPreferred();
 	fRevertButton->SetTarget(this);
 	AddChild(fRevertButton);
-
+	
+	r.Set(fVertSplitter->Frame().right,
+			fRevertButton->Frame().bottom + 16,
+			0, 0);
+	fLoadButton = new BButton(r, "load_button", "Load", new BMessage(messages::LOAD_PALETTE));
+	fLoadButton->ResizeToPreferred();
+	fLoadButton->SetTarget(this);
+	fLoadButton->SetEnabled(false);
+	AddChild(fLoadButton);
+	
+	r.Set(fVertSplitter->Frame().right,
+			fLoadButton->Frame().bottom + 16,
+			0, 0);
+	fSaveButton = new BButton(r, "save_button", "Save", new BMessage(messages::SAVE_PALETTE));
+	fSaveButton->ResizeToPreferred();
+	fSaveButton->SetTarget(this);
+	fSaveButton->SetEnabled(false);
+	AddChild(fSaveButton);
 
 	float const windowWidth = Window()->Frame().Width() - fVertSplitter->Frame().right;
 	float const diff = windowWidth - fDefaultButton->Frame().Width() + fVertSplitter->Frame().Width();
@@ -122,12 +130,14 @@ PaletteView::AttachedToWindow()
 	
 	float const buttonHeight = fDefaultButton->Frame().Height();
 	float const buttonSpace = fRevertButton->Frame().top - fDefaultButton->Frame().bottom; 
-	float const totalSpace = (buttonHeight * 2) + (buttonSpace); // two buttons, one space
+	float const totalSpace = (buttonHeight * 4) + (buttonSpace*3); // four buttons, three spaces
 	float const totalHeight = fVertSplitter->Frame().Height();
 	float const y2 = (totalHeight - totalSpace) / 2;
 	
 	fDefaultButton->MoveBy(x2, y2);
 	fRevertButton->MoveBy(x2, y2);
+	fLoadButton->MoveBy(x2, y2);
+	fSaveButton->MoveBy(x2, y2);
 }
 
 
@@ -165,18 +175,23 @@ PaletteView::MessageReceived (BMessage *message)
 		case messages::SET_DEFAULT:
 			SetDefaultPalette();
 			UpdateSliders();
-			Invalidate();
 			break;
 			
 		case messages::REVERT:
-			std::cout << "REVERT" << std::endl;
+			fCurrentHue = fPrevHue;
+			fCurrentSaturation = fPrevSaturation;
+			fCurrentBrightness = fPrevBrightness;
+			fCurrentContrast = fPrevContrast;
+			fCurrentGamma = fPrevGamma;
 			
-			/*
 			UpdatePalette();
 			UpdateSliders();
-			Invalidate();
-			*/
+			break;
 			
+		case messages::LOAD_PALETTE:
+			break;
+			
+		case messages::SAVE_PALETTE:
 			break;	
 				
 		default:
@@ -185,6 +200,7 @@ PaletteView::MessageReceived (BMessage *message)
 	
 	BView::MessageReceived (message);
 }
+
 
 void
 PaletteView::Draw (BRect frame)
@@ -243,7 +259,7 @@ PaletteView::DrawSwatch (BPoint where, rgb_color fill)
 void 
 PaletteView::DrawSwatchRow (BPoint start, int32 size, int32 rowlen)
 {
-	if (fPalette == NULL || fWorkPalette == NULL || size <= 0 || rowlen <= 0) {
+	if (fPalette == nullptr || fWorkPalette == nullptr || size <= 0 || rowlen <= 0) {
 		return;
 	}
 	
@@ -257,7 +273,7 @@ PaletteView::DrawSwatchRow (BPoint start, int32 size, int32 rowlen)
 void
 PaletteView::DrawSwatchMatrix (BPoint start, int32 size, int32 ncols, int32 nrows)
 {
-	if (nrows <= 0 || size <= 0 || fPalette == NULL || fWorkPalette == NULL) {
+	if (nrows <= 0 || size <= 0 || fPalette == nullptr || fWorkPalette == nullptr) {
 		return;
 	}
 	
@@ -304,14 +320,12 @@ PaletteView::SetDefaultPalette()
 	fCurrentGamma = Palette::default_gamma;	
 	
 	fMainWindow->set_palette(Palette::intensity,
-		Palette::NTSC(
-			fCurrentSaturation,
-			fCurrentHue,
-			fCurrentContrast,
-			fCurrentBrightness,
-			fCurrentGamma
-			));
-			
+							 Palette::NTSC(fCurrentSaturation,
+							 				fCurrentHue,
+							 			 	fCurrentContrast,
+							 				fCurrentBrightness,
+							 				fCurrentGamma
+							 				));		
 	fWorkPalette = fPalette;
 	Invalidate();
 }
@@ -321,14 +335,12 @@ void
 PaletteView::UpdatePalette()
 {	
 	fMainWindow->set_palette(Palette::intensity, 
-		Palette::NTSC(	
-			fCurrentSaturation,
-			fCurrentHue,
-			fCurrentContrast,
-			fCurrentBrightness,
-			fCurrentGamma
-			));
-	
+							 Palette::NTSC(fCurrentSaturation,
+							 				fCurrentHue,
+							 				fCurrentContrast,
+							 				fCurrentBrightness,
+							 				fCurrentGamma
+							 				));
 	fWorkPalette = fPalette;
 	Invalidate();
 }
@@ -339,15 +351,11 @@ PaletteView::UpdateSliders()
 {
 	int32 const scale = 10000;
 	
-	fHueSlider->SetValue(fCurrentHue * scale);
-	fSaturationSlider->SetValue(fCurrentSaturation * scale);
-	fContrastSlider->SetValue(fCurrentContrast * scale);
-	fBrightnessSlider->SetValue(fCurrentBrightness *  scale);
-	fGammaSlider->SetValue(fCurrentGamma * scale);
+	fHueSlider->SetValue(fCurrentHue*scale);
+	fSaturationSlider->SetValue(fCurrentSaturation*scale);
+	fContrastSlider->SetValue(fCurrentContrast*scale);
+	fBrightnessSlider->SetValue(fCurrentBrightness*scale);
+	fGammaSlider->SetValue(fCurrentGamma*scale);
 	Invalidate();
 }
-
-
-
-
 

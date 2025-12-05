@@ -48,12 +48,12 @@ PaletteWindow::LoadSettings()
 		
 	// open settings file.  create a new one if it doesn't exist
 	BFile file;
-	status_t st;
+	status_t status;
 	off_t size;
 	
-	st = file.SetTo(path, B_READ_WRITE|B_CREATE_FILE);
+	status = file.SetTo(path, B_READ_WRITE|B_CREATE_FILE);
 	
-	if (st == B_OK) {
+	if (status == B_OK) {
 		file.GetSize(&size);
 		
 		// if file is empty, load some defaults
@@ -77,6 +77,7 @@ PaletteWindow::LoadSettings()
 			fSettingsMessage->AddFloat("palette_contrast", contrast);
 			fSettingsMessage->AddFloat("palette_brightness", brightness);
 			fSettingsMessage->AddFloat("palette_gamma", gamma);
+			
 			fSettingsMessage->Flatten(&file);
 	
 			// apply settings (update user interface)
@@ -96,9 +97,9 @@ PaletteWindow::LoadSettings()
 			fPaletteView->SetPrevGamma(gamma);
 		} else {
 			// load from file
-			st = fSettingsMessage->Unflatten(&file);
+			status = fSettingsMessage->Unflatten(&file);
 			
-			if (st == B_OK) {
+			if (status == B_OK) {
 				// read settings
 				int32 x;
 				int32 y;
@@ -131,7 +132,6 @@ PaletteWindow::LoadSettings()
 				fPaletteView->SetPrevBrightness(brightness);
 				fPaletteView->SetPrevContrast(contrast);
 				fPaletteView->SetPrevGamma(gamma);
-				
 			} else {
 				// eli: handle error if unflatten fails?
 			}	
@@ -150,13 +150,13 @@ PaletteWindow::SaveSettings()
 	path += "/palette_window";
 	
 	BFile file;
-	status_t st;
+	status_t status;
 	off_t size;
 
 	// load settings file
-	st = file.SetTo(path, B_READ_WRITE|B_CREATE_FILE);
+	status = file.SetTo(path, B_READ_WRITE|B_CREATE_FILE);
 	
-	if (st == B_OK) {
+	if (status == B_OK) {
 		file.GetSize(&size);
 		
 		if (size == 0) {

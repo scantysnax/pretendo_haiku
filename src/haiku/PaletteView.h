@@ -14,17 +14,19 @@ class PaletteView : public BView
 {
 	private:
 	typedef enum {
-		CHANGE_HUE = 		'HUE ',
-		CHANGE_SATURATION = 'SAT ',
+		CHANGE_HUE = 		'CHUE',
+		CHANGE_SATURATION = 'CSAT',
 		CHANGE_CONTRAST = 	'CONT',
 		CHANGE_BRIGHTNESS = 'BRIT',
 		CHANGE_GAMMA = 		'GAMA',
 		SET_DEFAULT = 		'DFLT',
-		REVERT = 			'RVRT'
+		REVERT = 			'RVRT',
+		LOAD_PALETTE = 		'LOAD',
+		SAVE_PALETTE = 		'SAVE'
 	} messages;
 	
 	public:
-			PaletteView (PretendoWindow *mainWindow, BRect frame, int32 swatchSize);
+			PaletteView (PretendoWindow *mainWindow, BRect frame, size_t swatchSize);
 	virtual ~PaletteView();
 	
 	public:
@@ -60,6 +62,8 @@ class PaletteView : public BView
 	private:
 	BButton *fRevertButton = nullptr;
 	BButton *fDefaultButton = nullptr;
+	BButton *fLoadButton = nullptr;
+	BButton *fSaveButton = nullptr;
 	
 	private:
 	int32 fSwatchSize = 0;
@@ -80,6 +84,7 @@ class PaletteView : public BView
 	float fPrevBrightness;
 	float fPrevGamma;
 
+	
 	public:
 	float Saturation() {
 		return fCurrentSaturation;
@@ -100,6 +105,7 @@ class PaletteView : public BView
 	float Gamma() {
 		return fCurrentGamma;
 	}
+	
 	
 	public:
 	void SetHue (float hue) {
@@ -122,6 +128,7 @@ class PaletteView : public BView
 		fCurrentGamma = gamma;
 	}
 	
+	
 	public:
 	void SetPrevHue (float hue) {
 		fPrevHue = hue;
@@ -141,13 +148,8 @@ class PaletteView : public BView
 	
 	void SetPrevGamma (float gamma) {
 		fPrevGamma = gamma;
-	}
-	
-	
-	
-	
+	}	
 };
-
 
 #endif // _PALETTE_VIEW_H_
 
