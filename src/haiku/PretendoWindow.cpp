@@ -1,4 +1,8 @@
 
+#include <File.h>
+
+#include <iostream>
+
 // nes stuff
 #include "Apu.h"
 #include "Cart.h"
@@ -185,7 +189,9 @@ PretendoWindow::PretendoWindow()
 		fPaletteWindow->Quit();
 		fPaletteWindow = nullptr;
 	}
-
+	
+	fSettingsMessage = new BMessage;
+	LoadSettings();
 }
 
 
@@ -269,6 +275,8 @@ PretendoWindow::~PretendoWindow()
 	
 	Hide();
 	Sync();	
+	
+	SaveSettings();
 }
 
 
@@ -753,9 +761,6 @@ PretendoWindow::OnConfigureInput()
 void
 PretendoWindow::OnAdjustPalette()
 {
-	std::cout << __PRETTY_FUNCTION__ << std::endl;
-	
-	
 	if (fPaletteWindow != nullptr) {
 		fPaletteWindow->Lock();
 		fPaletteWindow->Quit();
@@ -1513,3 +1518,96 @@ PretendoWindow::ReadKeyStates()
 	CheckKey(Controller::INDEX_B, 		default_keys::B);
 	CheckKey(Controller::INDEX_A, 		default_keys::A);
 }
+
+
+void
+PretendoWindow::LoadSettings()
+{
+	std::cout << __PRETTY_FUNCTION__ << std::endl;
+	
+	BString path = Settings::configDirectory().c_str();
+	path += "/pretendo_window";
+		
+	// open settings file.  create a new one if it doesn't exist
+	BFile file;
+	status_t status;
+	off_t size;
+	
+	status = file.SetTo(path, B_READ_WRITE|B_CREATE_FILE);
+	
+	if (status == B_OK) {
+		file.GetSize(&size);
+		
+		// if file is empty, load some defaults
+		if (size == 0) {
+			CenterOnScreen();
+			
+			int32 x = Frame().left;
+			int32 y = Frame().top;
+			
+			// stash default settings
+			fSettingsMessage->AddInt32("window_x", x);
+			fSettingsMessage->AddInt32("window_y", y);
+
+			fSettingsMessage->Flatten(&file);
+	
+			// apply settings (update user interface)
+			MoveTo(x, y);
+		} else {
+			// load from file
+			status = fSettingsMessage->Unflatten(&file);
+			
+			if (status == B_OK) {
+				// read settings
+				int32 x;
+				int32 y;
+				
+				fSettingsMessage->FindInt32("window_x", &x);
+				fSettingsMessage->FindInt32("window_y", &y);
+				
+				// apply settings
+				MoveTo(x, y);
+			} else {
+				// eli: handle error if unflatten fails?
+			}	
+		}
+	}
+}
+
+
+void
+PretendoWindow::SaveSettings()
+{
+	std::cout << __PRETTY_FUNCTION__ << std::endl;
+	
+	// assemble path
+	BString path = Settings::configDirectory().c_str();
+	path += "/pretendo_window";
+	
+	BFile file;
+	status_t status;
+	off_t size;
+
+	// load settings file
+	status = file.SetTo(path, B_READ_WRITE|B_CREATE_FILE);
+	
+	if (status == B_OK) {
+		file.GetSize(&size);
+		
+		if (size == 0) {
+			// file is empty, stash settings
+			fSettingsMessage->AddInt32("window_x", Frame().left);
+			fSettingsMessage->AddInt32("window_y", Frame().top);
+		} else {
+			// replace old settings
+			fSettingsMessage->ReplaceInt32("window_x", Frame().left);
+			fSettingsMessage->ReplaceInt32("window_y", Frame().top);
+		}		
+		
+		// write to file
+		fSettingsMessage->Flatten(&file);
+	}
+	
+	
+}
+

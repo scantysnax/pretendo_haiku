@@ -40,8 +40,6 @@ PaletteWindow::QuitRequested()
 void
 PaletteWindow::LoadSettings()
 {
-	std::cout << __PRETTY_FUNCTION__ << std::endl;
-	
 	// assemble path
 	BString path = Settings::configDirectory().c_str();
 	path += "/palette_window";
@@ -143,8 +141,6 @@ PaletteWindow::LoadSettings()
 void
 PaletteWindow::SaveSettings()
 {
-	std::cout << __PRETTY_FUNCTION__ << std::endl;
-	
 	// assemble path
 	BString path = Settings::configDirectory().c_str();
 	path += "/palette_window";
