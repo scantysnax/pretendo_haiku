@@ -1559,6 +1559,7 @@ PretendoWindow::LoadSettings()
 			
 			if (status == B_OK) {
 				// read settings
+				
 				int32 x;
 				int32 y;
 				
