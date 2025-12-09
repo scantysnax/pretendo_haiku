@@ -171,9 +171,6 @@ ROMInfoView::DrawROMInfo(rom_match_t *rom)
 		BStringItem *item = (BStringItem *)list->ItemAt(i);
 		AddUnder(item, cartInfoItem);
 	}
-	
-	
-
 
 /*	
 
