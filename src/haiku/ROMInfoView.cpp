@@ -172,9 +172,8 @@ ROMInfoView::DrawROMInfo(rom_match_t *rom)
 		AddUnder(item, cartInfoItem);
 	}
 	
-	
-
-
+	BListItem *peripheralItem = new BStringItem("Peripherals");
+	AddItem(peripheralItem);
 /*	
 
 	// get the peripherals
