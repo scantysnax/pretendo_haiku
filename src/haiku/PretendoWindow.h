@@ -56,6 +56,8 @@ class PretendoWindow : public BDirectWindow
 		LEAVE_FULLSCREEN = 	'LVFS',
 		// input
 		CFG_INPUT = 'CFGI',
+		// rom directory
+		SET_ROMDIR = 'ROMS',
 		// sound channel enable/disable
 		ENABLE_SQ1 = 	'SQR1',
 		ENABLE_SQ2 = 	'SQR2',
@@ -72,7 +74,7 @@ class PretendoWindow : public BDirectWindow
 		SHOW_NTBL4 = 	'NTB4'
 	} messages;	
 	
-	public:
+	private:
 	typedef enum {
 		UP = 0x57,
 		DOWN = 0x62,
@@ -84,13 +86,13 @@ class PretendoWindow : public BDirectWindow
 		A = 0x4d
 	} default_keys;
 	
-	public:
+	private:
 	typedef enum {
 		WIDTH = 256,
 		HEIGHT = 240
 	} screen_size;
 	
-	public:
+	private:
 	typedef enum {
 		NONE = 0,
 		BITMAP = 1,
@@ -108,6 +110,7 @@ class PretendoWindow : public BDirectWindow
 		int32 row_bytes;
 	} video_buffer_t;
 	
+	private:
 	typedef struct {
 		clipping_rect bounds;
 		int32 clip_count;
@@ -147,6 +150,7 @@ class PretendoWindow : public BDirectWindow
 	void OnSoftReset();
 	void OnHardReset();
 	void OnConfigureInput();
+	void OnSetRomDirectory();
 	void OnAdjustPalette();
 	void OnViewPatternTable1();
 	void OnViewPatternTable2();
@@ -197,6 +201,7 @@ class PretendoWindow : public BDirectWindow
 	BMenu *fFileMenu = nullptr;
 	BMenu *fLoadMenu = nullptr;
 	BMenu *fEmuMenu = nullptr;
+	BMenu *fSettingsMenu = nullptr;
 	BMenu *fVideoMenu = nullptr;
 	BMenu *fAudioMenu = nullptr;
 	BMenu *fToolMenu = nullptr;
@@ -266,8 +271,7 @@ class PretendoWindow : public BDirectWindow
 	bool fRunning = false;
 	
 	public:
-	bool Running() const
-	{ 
+	bool Running() const { 
 		return fRunning;
 	}
 
@@ -282,15 +286,15 @@ class PretendoWindow : public BDirectWindow
 	Mutex const *fMutex = nullptr;
 	
 	public:
-	bool LockMutex() const	 
-	{ 
+	bool LockMutex() const { 
 		return fMutex->Lock();
 	}
 	
-	bool UnlockMutex() const
-	{ 
+	bool UnlockMutex() const { 
 		return fMutex->Unlock();
 	}
 };
 				
 #endif // _PRETENDO_WINDOW_H_
+
+

@@ -93,17 +93,18 @@ ROMInfoView::ProcessGame (xmlNodePtr game, const xmlChar *search_key, const xmlC
 			if(xmlChar *const value = xmlGetProp(cartridge, search_key)) {
 				if (xmlStrcmp(value, search_value) == 0) {
 					BString buffer;
-					buffer << "Cart ID: " << " " << reinterpret_cast<char *>(value) << 
+					
+					buffer << "Cart ID: " << reinterpret_cast<char *>(value) << 
 								" " << reinterpret_cast<const char *>(search_value);
-					BListItem *processGame = new BStringItem(buffer);
-					AddItem(processGame);
+					AddItem(new BStringItem(buffer));
+					
 					return cartridge;
 				}
 			}
 		}
 	}
 	
-	return NULL;
+	return nullptr;
 }
 
 //------------------------------------------------------------------------------
@@ -137,25 +138,45 @@ ROMInfoView::ProcessDatabase(xmlNodePtr root, const xmlChar *search_key, const x
 // Desc: prints the info associated with a given game/cart
 //------------------------------------------------------------------------------
 void
-ROMInfoView::DrawROMInfo(rom_match *rom)
-{	
+ROMInfoView::DrawROMInfo(rom_match_t *rom)
+{
+	BList *list = new BList;
 	char buffer[1024];
-	BListItem *gameInfo = new BStringItem("Game Info");
-	AddItem(gameInfo);
-	for(xmlAttr *properties = rom->game->properties; properties; properties = properties->next) {
+	int32 i;
+	
+	BListItem *gameInfoItem = new BStringItem("Game Info");
+	AddItem(gameInfoItem);
+	
+	for (xmlAttr *properties = rom->game->properties; properties; properties = properties->next) {
 		snprintf(buffer, sizeof(buffer), "%-15s: %s", properties->name, xmlGetProp(rom->game, properties->name));
-		BListItem *name = new BStringItem(buffer);
-		AddUnder(name, gameInfo);
-	}
-
-	BListItem *cartInfo = new BStringItem("Cart Info");
-	AddItem(cartInfo);
-	for (xmlAttr *properties = rom->cart->properties; properties; properties = properties->next) {
-		snprintf(buffer, sizeof(buffer), "%-15s : %s", properties->name, xmlGetProp(rom->cart, properties->name));
-		BListItem *info = new BStringItem(buffer);
-		AddUnder(info, cartInfo);
+		list->AddItem(new BStringItem(buffer));
 	}
 	
+	for (i = list->CountItems()-1; i >= 0; i--) {
+		BStringItem *item = (BStringItem *)list->ItemAt(i);
+		AddUnder(item, gameInfoItem);
+	}
+	
+	BListItem *cartInfoItem = new BStringItem("Cart Info");
+	AddItem(cartInfoItem);
+	
+	list->MakeEmpty();
+	
+	for (xmlAttr *properties = rom->cart->properties; properties; properties = properties->next) {
+		snprintf(buffer, sizeof(buffer), "%-15s : %s", properties->name, xmlGetProp(rom->cart, properties->name));
+		list->AddItem(new BStringItem(buffer));
+	}
+	
+	for (i = list->CountItems()-1; i >= 0; i--) {
+		BStringItem *item = (BStringItem *)list->ItemAt(i);
+		AddUnder(item, cartInfoItem);
+	}
+	
+	
+
+
+/*	
+
 	// get the peripherals
 	for (xmlNodePtr node = rom->game->children; node; node = node->next) {		
 		if (xmlStrcmp(node->name, reinterpret_cast<const xmlChar *>("peripherals")) == 0) {
@@ -243,4 +264,5 @@ ROMInfoView::DrawROMInfo(rom_match *rom)
 			}	
 		}
 	}
+*/
 }

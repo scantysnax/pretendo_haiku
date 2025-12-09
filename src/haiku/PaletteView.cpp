@@ -88,36 +88,26 @@ PaletteView::AttachedToWindow()
 	fVertSplitter = new VerticalSplitter(x, y, height);
 	AddChild(fVertSplitter);
 	
-	r.Set(fVertSplitter->Frame().right + 0, 
-			fVertSplitter->Frame().top,
-			fVertSplitter->Frame().right,
-			0
-		);
+	r.Set(fVertSplitter->Frame().right + 0, fVertSplitter->Frame().top, fVertSplitter->Frame().right, 0);
 	fDefaultButton = new BButton(r,"default_button", "Default", new BMessage(messages::SET_DEFAULT));
 	fDefaultButton->ResizeToPreferred();
 	fDefaultButton->SetTarget(this);
 	AddChild(fDefaultButton);
 	
-	r.Set(fVertSplitter->Frame().right,
-			fDefaultButton->Frame().bottom + 16,
-			0, 0);
+	r.Set(fVertSplitter->Frame().right, fDefaultButton->Frame().bottom + 16, 0, 0);
 	fRevertButton = new BButton(r, "revert_button", "Revert", new BMessage(messages::REVERT));
 	fRevertButton->ResizeToPreferred();
 	fRevertButton->SetTarget(this);
 	AddChild(fRevertButton);
 	
-	r.Set(fVertSplitter->Frame().right,
-			fRevertButton->Frame().bottom + 16,
-			0, 0);
+	r.Set(fVertSplitter->Frame().right, fRevertButton->Frame().bottom + 16, 0, 0);
 	fLoadButton = new BButton(r, "load_button", "Load", new BMessage(messages::LOAD_PALETTE));
 	fLoadButton->ResizeToPreferred();
 	fLoadButton->SetTarget(this);
 	fLoadButton->SetEnabled(false);
 	AddChild(fLoadButton);
 	
-	r.Set(fVertSplitter->Frame().right,
-			fLoadButton->Frame().bottom + 16,
-			0, 0);
+	r.Set(fVertSplitter->Frame().right, fLoadButton->Frame().bottom + 16, 0, 0);
 	fSaveButton = new BButton(r, "save_button", "Save", new BMessage(messages::SAVE_PALETTE));
 	fSaveButton->ResizeToPreferred();
 	fSaveButton->SetTarget(this);
@@ -130,7 +120,7 @@ PaletteView::AttachedToWindow()
 	
 	float const buttonHeight = fDefaultButton->Frame().Height();
 	float const buttonSpace = fRevertButton->Frame().top - fDefaultButton->Frame().bottom; 
-	float const totalSpace = (buttonHeight * 4) + (buttonSpace*3); // four buttons, three spaces
+	float const totalSpace = (buttonHeight*4) + (buttonSpace*3); // four buttons, three spaces
 	float const totalHeight = fVertSplitter->Frame().Height();
 	float const y2 = (totalHeight - totalSpace) / 2;
 	
@@ -205,12 +195,12 @@ PaletteView::MessageReceived (BMessage *message)
 void
 PaletteView::Draw (BRect frame)
 {		
-	rgb_color_t const *palette = Palette::NTSC(fCurrentSaturation,
-												fCurrentHue,
-												fCurrentContrast,
-												fCurrentBrightness,
-												fCurrentGamma
-												);
+	rgb_color_t const *palette = Palette::Generate(fCurrentSaturation,
+													fCurrentHue,
+													fCurrentContrast,
+													fCurrentBrightness,
+													fCurrentGamma
+													);
 	for (int32 i = 0; i < 64; i++) {
 		fPalette[i].red = palette[i].r;
 		fPalette[i].green =  palette[i].g;
@@ -320,12 +310,12 @@ PaletteView::SetDefaultPalette()
 	fCurrentGamma = Palette::default_gamma;	
 	
 	fMainWindow->set_palette(Palette::intensity,
-							 Palette::NTSC(fCurrentSaturation,
-							 				fCurrentHue,
-							 			 	fCurrentContrast,
-							 				fCurrentBrightness,
-							 				fCurrentGamma
-							 				));		
+							 Palette::Generate(fCurrentSaturation,
+							 					fCurrentHue,
+							 			 		fCurrentContrast,
+							 					fCurrentBrightness,
+							 					fCurrentGamma
+							 					));		
 	fWorkPalette = fPalette;
 	Invalidate();
 }
@@ -335,12 +325,12 @@ void
 PaletteView::UpdatePalette()
 {	
 	fMainWindow->set_palette(Palette::intensity, 
-							 Palette::NTSC(fCurrentSaturation,
-							 				fCurrentHue,
-							 				fCurrentContrast,
-							 				fCurrentBrightness,
-							 				fCurrentGamma
-							 				));
+							 Palette::Generate(fCurrentSaturation,
+							 					fCurrentHue,
+							 					fCurrentContrast,
+							 					fCurrentBrightness,
+							 					fCurrentGamma
+							 					));
 	fWorkPalette = fPalette;
 	Invalidate();
 }

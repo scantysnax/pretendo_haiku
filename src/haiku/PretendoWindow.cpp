@@ -400,6 +400,10 @@ PretendoWindow::MessageReceived (BMessage *message)
 			OnConfigureInput();
 			break;
 			
+		case messages::SET_ROMDIR:
+			OnSetRomDirectory();
+			break;
+			
 		case messages::ADJ_PALETTE:
 			OnAdjustPalette();
 			break;
@@ -447,7 +451,11 @@ PretendoWindow::MessageReceived (BMessage *message)
 		case messages::ENABLE_DMC:
 			OnAudioDMC();
 			break;
+			
+		default:
+			break;
 		}
+		
 	
 	BDirectWindow::MessageReceived (message);
 }
@@ -551,6 +559,9 @@ PretendoWindow::AddMenu()
 	fEmuMenu = new BMenu("Emulator");
 	fMenu->AddItem(fEmuMenu);
 	
+	fSettingsMenu = new BMenu("Settings");
+	fMenu->AddItem(fSettingsMenu);
+	
 	fToolMenu = new BMenu("Tools");
 	fMenu->AddItem(fToolMenu);
 
@@ -567,10 +578,9 @@ PretendoWindow::AddMenu()
 	fEmuMenu->AddSeparatorItem();
 	fEmuMenu->AddItem(new BMenuItem("Reset (soft)", new BMessage(messages::RST_SOFT)));
 	fEmuMenu->AddItem(new BMenuItem("Reset (hard)", new BMessage(messages::RST_HARD)));
-	fEmuMenu->AddSeparatorItem();
 	
 	fVideoMenu = new BMenu("Video");
-	fEmuMenu->AddItem(fVideoMenu);
+	fSettingsMenu->AddItem(fVideoMenu);
 	fVideoMenu->AddItem(new BMenuItem("None", new BMessage (messages::CHANGE_RENDER)));
 	fVideoMenu->AddItem(new BMenuItem("Bitmap", new BMessage(messages::CHANGE_RENDER)));
 	fVideoMenu->AddItem(new BMenuItem("Overlay", new BMessage(messages::CHANGE_RENDER)));
@@ -579,7 +589,7 @@ PretendoWindow::AddMenu()
 	fVideoMenu->SetRadioMode(true);
 	
 	fAudioMenu = new BMenu("Audio");
-	fEmuMenu->AddItem(fAudioMenu);
+	fSettingsMenu->AddItem(fAudioMenu);
 	fAudioMenu->AddItem(new BMenuItem("Square 1", new BMessage(messages::ENABLE_SQ1)));
 	fAudioMenu->AddItem(new BMenuItem("Square 2", new BMessage(messages::ENABLE_SQ2)));
 	fAudioMenu->AddItem(new BMenuItem("Triangle", new BMessage(messages::ENABLE_TRI)));
@@ -592,7 +602,9 @@ PretendoWindow::AddMenu()
 	(fAudioMenu->ItemAt(nes::apu::sound_channel::NOISE))->SetMarked(true);
 	(fAudioMenu->ItemAt(nes::apu::sound_channel::DPCM))->SetMarked(true);
 	
-	fEmuMenu->AddItem(new BMenuItem("Input" B_UTF8_ELLIPSIS, new BMessage(messages::CFG_INPUT)));
+	fSettingsMenu->AddItem(new BMenuItem("Input" B_UTF8_ELLIPSIS, new BMessage(messages::CFG_INPUT)));
+	fSettingsMenu->AddSeparatorItem();
+	fSettingsMenu->AddItem(new BMenuItem("ROM Directory" B_UTF8_ELLIPSIS, new BMessage(messages::SET_ROMDIR)));
 	
 	fToolMenu->AddItem(new BMenuItem("Adjust Palette" B_UTF8_ELLIPSIS, new BMessage(messages::ADJ_PALETTE)));
 	fToolMenu->AddSeparatorItem();
@@ -713,7 +725,7 @@ PretendoWindow::OnPause()
 {	
 	if (fRunning) {
 		if (fPaused) {
-			// if we are paused, we want to unpause, so lock the mutual exclusion
+			// if we are paused, we want to unpause, so unlock the mutual exclusion
 			// update the recent roms menu and start the sound interface
 			fMutex->Unlock();
 			fEmuMenu->ItemAt(1)->SetMarked(false);
@@ -759,6 +771,13 @@ PretendoWindow::OnConfigureInput()
 
 
 void
+PretendoWindow::OnSetRomDirectory()
+{
+	std::cout << __PRETTY_FUNCTION__ << std::endl;
+}
+
+
+void
 PretendoWindow::OnAdjustPalette()
 {
 	if (fPaletteWindow != nullptr) {
@@ -766,7 +785,6 @@ PretendoWindow::OnAdjustPalette()
 		fPaletteWindow->Quit();
 		fPaletteWindow = nullptr;
 	} 
-	
 	
 	if (fPaletteWindow == nullptr) {
 		fPaletteWindow = new PaletteWindow(this);
@@ -811,7 +829,7 @@ PretendoWindow::OnViewPatternTable2()
 void
 PretendoWindow::OnViewNameTable1()
 {
-	puts(__PRETTY_FUNCTION__);
+	std::cout << __PRETTY_FUNCTION__ << std::endl;
 	
 	if (! nes::cart.mapper()) {
 		return;
@@ -834,7 +852,7 @@ PretendoWindow::OnViewNameTable1()
 void
 PretendoWindow::OnViewNameTable2()
 {
-	puts(__PRETTY_FUNCTION__);
+	std::cout << __PRETTY_FUNCTION__ << std::endl;
 	
 	if (! nes::cart.mapper()) {
 		return;
@@ -845,7 +863,7 @@ PretendoWindow::OnViewNameTable2()
 void
 PretendoWindow::OnViewNameTable3()
 {
-	puts(__PRETTY_FUNCTION__);
+	std::cout << __PRETTY_FUNCTION__ << std::endl;
 	
 	if (! nes::cart.mapper()) {
 		return;
@@ -856,7 +874,7 @@ PretendoWindow::OnViewNameTable3()
 void
 PretendoWindow::OnViewNameTable4()
 {
-	puts(__PRETTY_FUNCTION__);
+	std::cout << __PRETTY_FUNCTION__ << std::endl;
 	
 	if (! nes::cart.mapper()) {
 		return;
@@ -1523,8 +1541,6 @@ PretendoWindow::ReadKeyStates()
 void
 PretendoWindow::LoadSettings()
 {
-	std::cout << __PRETTY_FUNCTION__ << std::endl;
-	
 	BString path = Settings::configDirectory().c_str();
 	path += "/pretendo_window";
 		
@@ -1544,15 +1560,18 @@ PretendoWindow::LoadSettings()
 			
 			int32 x = Frame().left;
 			int32 y = Frame().top;
+			bool doubled = false;
 			
 			// stash default settings
 			fSettingsMessage->AddInt32("window_x", x);
 			fSettingsMessage->AddInt32("window_y", y);
+			fSettingsMessage->AddBool("double_size", doubled);
 
 			fSettingsMessage->Flatten(&file);
 	
 			// apply settings (update user interface)
 			MoveTo(x, y);
+			// we don't need to (re)size the window, as it will be 1:1 by default			
 		} else {
 			// load from file
 			status = fSettingsMessage->Unflatten(&file);
@@ -1561,12 +1580,23 @@ PretendoWindow::LoadSettings()
 				// read settings
 				int32 x;
 				int32 y;
+				bool doubled;
 				
 				fSettingsMessage->FindInt32("window_x", &x);
 				fSettingsMessage->FindInt32("window_y", &y);
+				fSettingsMessage->FindBool("double_size", &doubled);
 				
 				// apply settings
 				MoveTo(x, y);
+				
+				// check if we're doubled, and resize the window accordingly
+				if (doubled) {
+					fDoubled = true;
+					ResizeTo((screen_size::WIDTH*2), (screen_size::HEIGHT*2));
+				} else {
+					fDoubled = false;
+					ResizeTo(screen_size::WIDTH, screen_size::HEIGHT);
+				}			
 			} else {
 				// eli: handle error if unflatten fails?
 			}	
@@ -1578,8 +1608,6 @@ PretendoWindow::LoadSettings()
 void
 PretendoWindow::SaveSettings()
 {
-	std::cout << __PRETTY_FUNCTION__ << std::endl;
-	
 	// assemble path
 	BString path = Settings::configDirectory().c_str();
 	path += "/pretendo_window";
@@ -1595,19 +1623,21 @@ PretendoWindow::SaveSettings()
 		file.GetSize(&size);
 		
 		if (size == 0) {
-			// file is empty, stash settings
+			// file is empty, stash default settings
 			fSettingsMessage->AddInt32("window_x", Frame().left);
 			fSettingsMessage->AddInt32("window_y", Frame().top);
+			fSettingsMessage->AddBool("double_size", false);
 		} else {
 			// replace old settings
 			fSettingsMessage->ReplaceInt32("window_x", Frame().left);
 			fSettingsMessage->ReplaceInt32("window_y", Frame().top);
+			fSettingsMessage->ReplaceBool("double_size", fDoubled);
 		}		
 		
 		// write to file
 		fSettingsMessage->Flatten(&file);
+	} else {
+		// eli: handle error if we can't open the file?
 	}
-	
-	
 }
 

@@ -33,6 +33,7 @@ class ROMInfoView : public BOutlineListView
 	
 	private:
 	void DrawROMInfo (rom_match *rom);
+	
 	rom_match_t *ProcessDatabase (xmlNodePtr root, const xmlChar *search_key, 
 									const xmlChar *search_value);
 	xmlNodePtr ProcessGame (xmlNodePtr game, const xmlChar *search_key, 

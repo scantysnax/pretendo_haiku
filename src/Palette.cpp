@@ -28,7 +28,9 @@ constexpr float gamma_fix(float f, float gamma) {
 }
 
 
-rgb_color_t make_rgb_color(uint16_t pixel, float saturation, float hue, float contrast, float brightness, float gamma) {
+rgb_color_t 
+make_rgb_color (uint16_t pixel, float saturation, float hue, float contrast, float brightness, float gamma) 
+{
 
 	// The input value is a NES color index (with de-emphasis bits).
 	// We need RGB values. Convert the index into RGB.
@@ -97,9 +99,10 @@ rgb_color_t make_rgb_color(uint16_t pixel, float saturation, float hue, float co
 }
 
 
-const rgb_color_t *Palette::NTSC(float saturation, float hue, float contrast, float brightness, float gamma) {
+const rgb_color_t *Palette::Generate (float saturation, float hue, float contrast, float brightness, float gamma)
+{
 
-	//std::cout << "Creating Palette: <" << saturation << "," << hue << "," << contrast << "," << brightness << "," << gamma << ">" << std::endl;
+	std::cout << "Creating Palette: (" << saturation << "," << hue << "," << contrast << "," << brightness << "," << gamma << ")" << std::endl;
 	
 	static rgb_color_t color_list[64];
 

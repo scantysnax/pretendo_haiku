@@ -6,12 +6,11 @@
 #include <TabView.h>
 #include <ListView.h>
 #include <ScrollView.h>
+
 #include <libxml2/libxml/parser.h>
-#include <string>
+
 
 #include "ROMInfoView.h"
-
-using std::string;
 
 class ROMInfoScrollView : public BScrollView
 {
@@ -20,8 +19,11 @@ class ROMInfoScrollView : public BScrollView
 	virtual ~ROMInfoScrollView();
 	
 	public:
-	virtual void Draw(BRect updateRect);
-	virtual void AttachedToWindow (void);
+	virtual void Draw (BRect updateRect);
+	virtual void AttachedToWindow();
+	
+	private:
+	
 };
 
 
@@ -33,10 +35,15 @@ class ROMInfoWindow : public BWindow
 	
 	public:
 	virtual void MessageReceived (BMessage *message);
-	virtual bool QuitRequested (void);
+	virtual bool QuitRequested();
 	
 	private:
-	ROMInfoView *fROMInfoView;
+	void LoadSettings();
+	void SaveSettings();
+	BMessage *fSettingsMessage;
+	
+	private:
+	ROMInfoView *fROMInfoView = nullptr;
 };
 
 

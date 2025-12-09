@@ -24,7 +24,7 @@ constexpr float default_contrast   = 1.0f;
 constexpr float default_brightness = 1.0f;
 constexpr float default_gamma      = 1.4f;
 
-const rgb_color_t *NTSC(float saturation, float hue, float contrast, float brightness, float gamma);
+const rgb_color_t *Generate (float saturation, float hue, float contrast, float brightness, float gamma);
 
 /*
    000 = No Effect

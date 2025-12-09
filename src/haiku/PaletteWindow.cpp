@@ -10,16 +10,14 @@ PaletteWindow::PaletteWindow (PretendoWindow *parent)
 	: BWindow(BRect(0, 0, 0, 0), "Adjust Palette", B_FLOATING_WINDOW_LOOK, 
 		B_NORMAL_WINDOW_FEEL, B_NOT_RESIZABLE|B_NOT_ZOOMABLE)
 {
-	fSettingsMessage = new BMessage;
-	
 	ResizeTo(480, 580);
 	
 	fPaletteView = new PaletteView(parent, Bounds(), 24);
 	AddChild(fPaletteView);
 	
+	fSettingsMessage = new BMessage;
+	
 	LoadSettings();
-	
-	
 }
 
 
@@ -90,8 +88,8 @@ PaletteWindow::LoadSettings()
 			
 			fPaletteView->SetPrevHue(hue);
 			fPaletteView->SetPrevSaturation(saturation);
-			fPaletteView->SetPrevBrightness(brightness);
 			fPaletteView->SetPrevContrast(contrast);
+			fPaletteView->SetPrevBrightness(brightness);
 			fPaletteView->SetPrevGamma(gamma);
 		} else {
 			// load from file
@@ -173,10 +171,12 @@ PaletteWindow::SaveSettings()
 			fSettingsMessage->ReplaceFloat("palette_contrast", fPaletteView->Contrast());
 			fSettingsMessage->ReplaceFloat("palette_brightness", fPaletteView->Brightness());
 			fSettingsMessage->ReplaceFloat("palette_gamma", fPaletteView->Gamma());
-		}		
-		
-		// write to file
-		fSettingsMessage->Flatten(&file);
+		}
+	} else {		
+		// eli: handle error if we couldn't load the file?
 	}
+	
+	// write to file
+	fSettingsMessage->Flatten(&file);
 }
 
