@@ -159,7 +159,6 @@ ROMInfoView::DrawROMInfo(rom_match_t *rom)
 	
 	BListItem *cartInfoItem = new BStringItem("Cart Info");
 	AddItem(cartInfoItem);
-	
 	list->MakeEmpty();
 	
 	for (xmlAttr *properties = rom->cart->properties; properties; properties = properties->next) {
@@ -174,23 +173,27 @@ ROMInfoView::DrawROMInfo(rom_match_t *rom)
 	
 	BListItem *peripheralItem = new BStringItem("Peripherals");
 	AddItem(peripheralItem);
-/*	
-
+	
+	list->MakeEmpty();
+	
 	// get the peripherals
 	for (xmlNodePtr node = rom->game->children; node; node = node->next) {		
 		if (xmlStrcmp(node->name, reinterpret_cast<const xmlChar *>("peripherals")) == 0) {
-			BListItem *periphInfo = new BStringItem("Peripheral Info");
-			AddItem(periphInfo);
-			
 			for (xmlNodePtr device = node->children; device; device = device->next) {
 				for (xmlAttr *properties = device->properties; properties; properties = properties->next) {
 					snprintf(buffer, sizeof(buffer), "%-15s : %s", properties->name, xmlGetProp(device, properties->name));
-					BListItem *info = new BStringItem(buffer);
-					AddUnder(info, periphInfo);
+					list->AddItem(new BStringItem(buffer));
 				}
+			}
+			
+			for (i = list->CountItems()-1; i >= 0; i--) {
+				BStringItem *item = (BStringItem *)list->ItemAt(i);
+				AddUnder(item, peripheralItem);
 			}
 		}
 	}
+	
+	/*
 	
 	// get the board info
 	for (xmlNodePtr board = rom->cart->children; board; board = board->next) {
