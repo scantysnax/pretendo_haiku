@@ -147,18 +147,37 @@ ROMInfoView::DrawROMInfo(rom_match_t *rom)
 	BListItem *gameInfoItem = new BStringItem("Game Info");
 	AddItem(gameInfoItem);
 	
+	BListItem *cartInfoItem = new BStringItem("Cart Info");
+	AddItem(cartInfoItem);
+	
+	BListItem *peripheralItem = new BStringItem("Peripherals");
+	AddItem(peripheralItem);
+	
+	BListItem *prgItem = new BStringItem("PRG ROM Info");
+	AddItem(prgItem);
+	
+	BListItem *chrItem = new BStringItem("CHR ROM Info");
+	AddItem(chrItem); 
+	
+	BListItem *wramItem = new BStringItem("WRAM Info");
+	AddItem(wramItem);	
+	
+	BListItem *mapperItem = new BStringItem("Mapper Info");
+	AddItem(mapperItem);
+	
+	BListItem *cicItem = new BStringItem("CIC (Lockout Chip) Info");
+	AddItem(cicItem);
+	
 	for (xmlAttr *properties = rom->game->properties; properties; properties = properties->next) {
 		snprintf(buffer, sizeof(buffer), "%-15s: %s", properties->name, xmlGetProp(rom->game, properties->name));
 		list->AddItem(new BStringItem(buffer));
 	}
 	
 	for (i = list->CountItems()-1; i >= 0; i--) {
-		BStringItem *item = (BStringItem *)list->ItemAt(i);
+		BStringItem *item = reinterpret_cast<BStringItem *>(list->ItemAt(i));
 		AddUnder(item, gameInfoItem);
 	}
 	
-	BListItem *cartInfoItem = new BStringItem("Cart Info");
-	AddItem(cartInfoItem);
 	list->MakeEmpty();
 	
 	for (xmlAttr *properties = rom->cart->properties; properties; properties = properties->next) {
@@ -167,14 +186,13 @@ ROMInfoView::DrawROMInfo(rom_match_t *rom)
 	}
 	
 	for (i = list->CountItems()-1; i >= 0; i--) {
-		BStringItem *item = (BStringItem *)list->ItemAt(i);
+		BStringItem *item = reinterpret_cast<BStringItem *>(list->ItemAt(i));
 		AddUnder(item, cartInfoItem);
 	}
 	
-	BListItem *peripheralItem = new BStringItem("Peripherals");
-	AddItem(peripheralItem);
-	
 	list->MakeEmpty();
+	
+	
 	
 	// get the peripherals
 	for (xmlNodePtr node = rom->game->children; node; node = node->next) {		
@@ -187,84 +205,92 @@ ROMInfoView::DrawROMInfo(rom_match_t *rom)
 			}
 			
 			for (i = list->CountItems()-1; i >= 0; i--) {
-				BStringItem *item = (BStringItem *)list->ItemAt(i);
+				BStringItem *item = reinterpret_cast<BStringItem *>(list->ItemAt(i));
 				AddUnder(item, peripheralItem);
 			}
 		}
 	}
 	
-	/*
+	list->MakeEmpty();
 	
+	
+	
+
 	// get the board info
 	for (xmlNodePtr board = rom->cart->children; board; board = board->next) {
 		if (xmlStrcmp(board->name, reinterpret_cast<const xmlChar *>("board")) == 0) {
 			for (xmlNodePtr node = board->children; node; node = node->next) {
 				if (xmlStrcmp(node->name, reinterpret_cast<const xmlChar *>("prg")) == 0) {
-					
-					BListItem *prgInfo = new BStringItem("PRG Info");
-					AddItem(prgInfo);
-					
 					for (xmlAttr *properties = node->properties; properties; properties = properties->next) {
 						snprintf(buffer, sizeof(buffer), "%-15s : %s", properties->name, xmlGetProp(node, properties->name));
-						BListItem *info = new BStringItem(buffer);
-						AddUnder(info, prgInfo);
+						list->AddItem(new BStringItem(buffer));
 					}
 					
-					Collapse(prgInfo);
+					for (i = list->CountItems()-1; i >= 0; i--) {
+						BStringItem *item = reinterpret_cast<BStringItem *>(list->ItemAt(i));
+						AddUnder(item, prgItem);
+					}
+					
 				}
-
+				
+				list->MakeEmpty();
+				
 				if (xmlStrcmp(node->name, reinterpret_cast<const xmlChar *>("chr")) == 0) {
-					BListItem *chrInfo = new BStringItem("CHR Info");
-					AddItem(chrInfo);
-					
 					for (xmlAttr *properties = node->properties; properties; properties = properties->next) {
 						snprintf(buffer, sizeof(buffer), "%-15s : %s", properties->name, xmlGetProp(node, properties->name));
-						BListItem *info = new BStringItem(buffer);
-						AddUnder(info, chrInfo);
+						list->AddItem(new BStringItem(buffer));
 					}
 					
-					Collapse(chrInfo);
+					for (i = list->CountItems()-1; i >= 0; i--) {
+						BStringItem *item = reinterpret_cast<BStringItem *>(list->ItemAt(i));
+						AddUnder(item, chrItem);
+					}	
 				}
+				
+				list->MakeEmpty();
 
 				if (xmlStrcmp(node->name, reinterpret_cast<const xmlChar *>("wram")) == 0) {
-					BListItem *wramInfo = new BStringItem("WRAM");
-					AddItem(wramInfo);
 					for (xmlAttr *properties = node->properties; properties; properties = properties->next) {
 						snprintf(buffer, sizeof(buffer), "%-15s : %s", properties->name, xmlGetProp(node, properties->name));
-						BListItem *info = new BStringItem(buffer);
-						AddUnder(info, wramInfo);
+						list->AddItem(new BStringItem(buffer));
 					}
 					
-					Collapse(wramInfo);
+					for (i = list->CountItems()-1; i >= 0; i--) {
+						BStringItem *item = reinterpret_cast<BStringItem *>(list->ItemAt(i));
+						AddUnder(item, wramItem);
+					}
 				}
-
+				
+				list->MakeEmpty();
+			
 				if (xmlStrcmp(node->name, reinterpret_cast<const xmlChar *>("chip")) == 0) {
-					BListItem *chipInfo = new BStringItem("Chip Info");
-					AddItem(chipInfo);
-
 					for (xmlAttr *properties = node->properties; properties; properties = properties->next) {
 						snprintf(buffer, sizeof(buffer), "%-15s : %s", properties->name, xmlGetProp(node, properties->name));
-						BListItem *info =  new BStringItem(buffer);
-						AddUnder(info, chipInfo);
+						list->AddItem(new BStringItem(buffer));
 					}
 					
-					Collapse(chipInfo);
+					for (i = list->CountItems()-1; i >= 0; i--) {
+						BStringItem *item = reinterpret_cast<BStringItem *>(list->ItemAt(i));
+						AddUnder(item, mapperItem);
+					}
 				}
-
+				
+				list->MakeEmpty();
+				
 				if (xmlStrcmp(node->name, reinterpret_cast<const xmlChar *>("cic")) == 0) {
-					BListItem *cicInfo = new BStringItem("CIC Info");
-					AddItem(cicInfo);
-
 					for (xmlAttr *properties = node->properties; properties; properties = properties->next) {
 						snprintf(buffer, sizeof(buffer), "%-15s : %s", properties->name, xmlGetProp(node, properties->name));
-						BListItem *info = new BStringItem(buffer);
-						AddUnder(info, cicInfo);
+						list->AddItem(new BStringItem(buffer));
 					}
 					
-					Collapse(cicInfo);
+					for (i = list->CountItems()-1; i >= 0; i--) {
+						BStringItem *item = reinterpret_cast<BStringItem *>(list->ItemAt(i));
+						AddUnder(item, cicItem);
+					}
 				}
+				
+				list->MakeEmpty();
 			}	
 		}
 	}
-*/
 }
