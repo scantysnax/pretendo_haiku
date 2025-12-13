@@ -153,10 +153,10 @@ ROMInfoView::DrawROMInfo(rom_match_t *rom)
 	BListItem *peripheralItem = new BStringItem("Peripherals");
 	AddItem(peripheralItem);
 	
-	BListItem *prgItem = new BStringItem("PRG ROM Info");
+	BListItem *prgItem = new BStringItem("PRG Info");
 	AddItem(prgItem);
 	
-	BListItem *chrItem = new BStringItem("CHR ROM Info");
+	BListItem *chrItem = new BStringItem("CHR Info");
 	AddItem(chrItem); 
 	
 	BListItem *wramItem = new BStringItem("WRAM Info");
@@ -210,12 +210,9 @@ ROMInfoView::DrawROMInfo(rom_match_t *rom)
 			}
 		}
 	}
-	
+
 	list->MakeEmpty();
 	
-	
-	
-
 	// get the board info
 	for (xmlNodePtr board = rom->cart->children; board; board = board->next) {
 		if (xmlStrcmp(board->name, reinterpret_cast<const xmlChar *>("board")) == 0) {
@@ -254,13 +251,13 @@ ROMInfoView::DrawROMInfo(rom_match_t *rom)
 						snprintf(buffer, sizeof(buffer), "%-15s : %s", properties->name, xmlGetProp(node, properties->name));
 						list->AddItem(new BStringItem(buffer));
 					}
-					
+
 					for (i = list->CountItems()-1; i >= 0; i--) {
 						BStringItem *item = reinterpret_cast<BStringItem *>(list->ItemAt(i));
 						AddUnder(item, wramItem);
 					}
 				}
-				
+								
 				list->MakeEmpty();
 			
 				if (xmlStrcmp(node->name, reinterpret_cast<const xmlChar *>("chip")) == 0) {
