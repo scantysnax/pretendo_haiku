@@ -16,7 +16,6 @@ PaletteWindow::PaletteWindow (PretendoWindow *parent)
 	AddChild(fPaletteView);
 	
 	fSettingsMessage = new BMessage;
-	
 	LoadSettings();
 }
 

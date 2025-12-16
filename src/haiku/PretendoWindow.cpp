@@ -37,12 +37,14 @@ PretendoWindow::PretendoWindow()
 	AddMenu();
 	ResizeTo(screen_size::WIDTH, screen_size::HEIGHT);
 	CenterOnScreen();
-	
 	BRect bounds(Bounds());
 	bounds.OffsetTo(B_ORIGIN);
 	bounds.top = fMenuHeight;
 	fView = new PretendoView(bounds, this);
 	AddChild(fView);
+	
+	fSettingsMessage = new BMessage;
+	LoadSettings();
 	
 	// setup video buffers
 	void *bitsArea;
@@ -136,8 +138,10 @@ PretendoWindow::PretendoWindow()
 	// we can't change to full screen yet
 	fVideoMenu->ItemAt(video_framework::FULLSCREEN)->SetEnabled(false);
 	
-	memset(&fKeyStates, 0, sizeof (key_info));
-	fOpenPanel = new ROMFilePanel;
+	memset(&fKeyStates, 0, sizeof(key_info));
+
+	fOpenPanel = new ROMFilePanel();
+	fOpenPanel->SetPanelDirectory(fROMDirectory);
 	
 	// sound
 	// we don't need to upscale the buffer size if using the MediaKit, so divide it out
@@ -177,10 +181,9 @@ PretendoWindow::PretendoWindow()
 	resume_thread(fThread);
 	
 	// eli: we need to grab the palete from PaletteWindow and apply it
-	// 		this is kind of a hack, but i can't think of a better way to do this right now
+	// 		this is a super hack, but convenient for now
 	
 	// this will call the constructor to set the palette
-
 
 	fPaletteWindow = new PaletteWindow(this); 
 	
@@ -189,9 +192,6 @@ PretendoWindow::PretendoWindow()
 		fPaletteWindow->Quit();
 		fPaletteWindow = nullptr;
 	}
-	
-	fSettingsMessage = new BMessage;
-	LoadSettings();
 }
 
 
@@ -200,6 +200,9 @@ PretendoWindow::~PretendoWindow()
 	// break everything down and clean up
 	fRunning = fDirectConnected = false;
 	fThread = B_BAD_THREAD_ID;
+	
+	fAudioStream->Stop();
+	delete fAudioStream;
 	
 	if (fOpenPanel->Window()) {
 		fOpenPanel->Window()->Lock();
@@ -217,9 +220,6 @@ PretendoWindow::~PretendoWindow()
 	delete_area(fBitsArea);
 	delete_area(fDirtyArea);
 
-	fAudioStream->Stop();
-	delete fAudioStream;
-	
 	
 	if (fROMInfoWindow != nullptr) {
 		if (fROMInfoWindow->Lock()) {
@@ -272,6 +272,7 @@ PretendoWindow::~PretendoWindow()
 	}
 	
 	fMutex->Unlock();
+	
 	
 	Hide();
 	Sync();	
@@ -353,6 +354,7 @@ PretendoWindow::MessageReceived (BMessage *message)
 			break;
 			
 		case messages::SHOW_OPEN:
+			fOpenPanel->SetPanelDirectory(fROMDirectory);
 			fOpenPanel->Show();
 			break;
 			
@@ -452,11 +454,27 @@ PretendoWindow::MessageReceived (BMessage *message)
 			OnAudioDMC();
 			break;
 			
+		case messages::RECV_ROM_DIR: {
+			entry_ref ref;
+		
+			if (message->FindRef("refs", 0, &ref) == B_OK) {
+				BEntry entry;
+				BPath path;
+				
+				entry.SetTo(&ref, true);
+				entry.GetPath(&path);
+				
+				fROMDirectory = path.Path();
+			}	
+			
+			// eli: what if this fails?
+			
+		} break;
+			
 		default:
 			break;
 		}
 		
-	
 	BDirectWindow::MessageReceived (message);
 }
 
@@ -773,7 +791,11 @@ PretendoWindow::OnConfigureInput()
 void
 PretendoWindow::OnSetRomDirectory()
 {
-	std::cout << __PRETTY_FUNCTION__ << std::endl;
+	fROMDirectoryPanel = new BFilePanel(B_OPEN_PANEL, nullptr, nullptr, B_DIRECTORY_NODE, false, 
+										new BMessage(messages::RECV_ROM_DIR), nullptr, true, true);
+	fROMDirectoryPanel->SetTarget(BMessenger(nullptr, this));
+	fROMDirectoryPanel->Window()->SetTitle("Choose a Directory" B_UTF8_ELLIPSIS);
+	fROMDirectoryPanel->Show();
 }
 
 
@@ -793,6 +815,7 @@ PretendoWindow::OnAdjustPalette()
 	fPaletteWindow->Show();
 }
 
+
 void
 PretendoWindow::OnViewPatternTable1()
 {
@@ -808,6 +831,7 @@ PretendoWindow::OnViewPatternTable1()
 	fPatternTable1Window = new PatternTableWindow(this, 0);
 	fPatternTable1Window->Show();
 }
+
 
 void
 PretendoWindow::OnViewPatternTable2()
@@ -1558,19 +1582,22 @@ PretendoWindow::LoadSettings()
 		if (size == 0) {
 			CenterOnScreen();
 			
-			int32 x = Frame().left;
-			int32 y = Frame().top;
-			bool doubled = false;
+			int32 const x = Frame().left;
+			int32 const y = Frame().top;
+			bool const doubled = false;
+			BString const path = "/boot/home";
 			
 			// stash default settings
 			fSettingsMessage->AddInt32("window_x", x);
 			fSettingsMessage->AddInt32("window_y", y);
 			fSettingsMessage->AddBool("double_size", doubled);
+			fSettingsMessage->AddString("rom_dir", path);
 
 			fSettingsMessage->Flatten(&file);
 	
-			// apply settings (update user interface)
+			// apply settings
 			MoveTo(x, y);
+			fROMDirectory = path;
 			// we don't need to (re)size the window, as it will be 1:1 by default			
 		} else {
 			// load from file
@@ -1581,10 +1608,12 @@ PretendoWindow::LoadSettings()
 				int32 x;
 				int32 y;
 				bool doubled;
+				BString path;
 				
 				fSettingsMessage->FindInt32("window_x", &x);
 				fSettingsMessage->FindInt32("window_y", &y);
 				fSettingsMessage->FindBool("double_size", &doubled);
+				fSettingsMessage->FindString("rom_dir", &path);
 				
 				// apply settings
 				MoveTo(x, y);
@@ -1596,7 +1625,10 @@ PretendoWindow::LoadSettings()
 				} else {
 					fDoubled = false;
 					ResizeTo(screen_size::WIDTH, screen_size::HEIGHT);
-				}			
+				}
+				
+				// set rom  directory
+				fROMDirectory = path;			
 			} else {
 				// eli: handle error if unflatten fails?
 			}	
@@ -1627,11 +1659,13 @@ PretendoWindow::SaveSettings()
 			fSettingsMessage->AddInt32("window_x", Frame().left);
 			fSettingsMessage->AddInt32("window_y", Frame().top);
 			fSettingsMessage->AddBool("double_size", false);
+			fSettingsMessage->AddString("rom_dir", "/boot/home");
 		} else {
 			// replace old settings
 			fSettingsMessage->ReplaceInt32("window_x", Frame().left);
 			fSettingsMessage->ReplaceInt32("window_y", Frame().top);
 			fSettingsMessage->ReplaceBool("double_size", fDoubled);
+			fSettingsMessage->ReplaceString("rom_dir", fROMDirectory);
 		}		
 		
 		// write to file

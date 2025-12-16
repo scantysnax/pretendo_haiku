@@ -3,15 +3,12 @@
 
 
 ROMFilePanel::ROMFilePanel()
-	: BFilePanel (B_OPEN_PANEL, NULL, NULL, 0, false, NULL, NULL, true, true)
+	: BFilePanel (B_OPEN_PANEL, nullptr, nullptr, B_FILE_NODE, false, 
+					nullptr, nullptr, true, true)
 {
 	Window()->Lock();
 	
 	SetRefFilter(new ROMFilter);
-	
-	// FIXME: hack.
-	SetPanelDirectory("/boot/home/roms/NES/us");
-
 	Customize();
 	
 	Window()->Unlock();
@@ -20,7 +17,6 @@ ROMFilePanel::ROMFilePanel()
 
 ROMFilePanel::~ROMFilePanel()
 {
-	
 }
 
 
@@ -37,7 +33,7 @@ ROMFilePanel::Customize()
 	BView	*vscr = view->FindView ("VScrollBar");
 	*/
 
-	window->SetTitle("Pretendo: Choose a ROM Image" B_UTF8_ELLIPSIS);
+	window->SetTitle("Choose a ROM Image" B_UTF8_ELLIPSIS);
 	SetButtonLabel(B_DEFAULT_BUTTON, "Load");
 }
 
@@ -72,3 +68,4 @@ ROMFilePanel::SelectionChanged()
 	}
 	#endif
 }
+

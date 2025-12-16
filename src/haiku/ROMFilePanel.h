@@ -1,13 +1,12 @@
 
-#ifndef	_ROM_FILEPANEL_H_
-#define _ROM_FILEPANEL_H_
+#ifndef	_ROM_FILE_PANEL_H_
+#define _ROM_FILE_PANEL_H_
 
-
-#include <Window.h>
-#include <FilePanel.h>
 #include <Entry.h>
+#include <FilePanel.h>
 #include <Path.h>
 #include <String.h>
+#include <Window.h>
 
 
 class ROMFilePanel : public BFilePanel
@@ -32,36 +31,35 @@ class ROMFilter : public BRefFilter
 	public:
 	virtual bool Filter (const entry_ref *ref, BNode *node, struct  stat_beos *st, 
 		const char *filetype)
-	{
+	{ 
 		(void)node;
 		(void)st;
 		
-		BString	tempFileName (ref->name);
-		BString tempFileType (filetype);
+		BString	fileName (ref->name);
+		BString fileType (filetype);
 		int32 pos;
 	
 		// first check the file type.
 		// we don't want to filter out directories, symlinks, or volumes.
-	
-		if (tempFileType.ICompare ("application/x-vnd.Be-directory") == 0 ||
-			tempFileType.ICompare ("application/x-vnd.Be-volume") == 0 ||
-			tempFileType.ICompare ("application/x-vnd.Be.symlink") == 0) {
-				return true;
+		if (fileType.ICompare ("application/x-vnd.Be-directory") 	== 0 ||
+			fileType.ICompare ("application/x-vnd.Be-volume") 		== 0 ||
+			fileType.ICompare ("application/x-vnd.Be.symlink")		== 0) {
+			return true;
 		}
 			
 		// otherwise, we'll go ahead, analyse the file's extension 
 		// and determine what to do from there.
 	
-		pos = tempFileName.FindLast ('.');
+		pos = fileName.FindLast ('.');
 		if (pos == B_ERROR) {
 			return false;
 		}
 	
-		tempFileName.Remove (0, ++pos);
-		if (tempFileName.ICompare ("nes") == 0 ||	// iNES format
-			tempFileName.ICompare ("unf") == 0 ||	// UNIF archive (DOS)
-			tempFileName.ICompare ("unif") == 0 ||	// UNIF archive (UNIX)
-			tempFileName.ICompare ("fds") == 0) {	// FDS format
+		fileName.Remove (0, ++pos);
+		if (fileName.ICompare ("nes") 	== 0 ||	// iNES format
+			fileName.ICompare ("unf") 	== 0 ||	// UNIF archive (DOS)
+			fileName.ICompare ("unif") 	== 0 ||	// UNIF archive (UNIX)
+			fileName.ICompare ("fds") 	== 0) {	// FDS format
 			return true;
 		}
 	
@@ -70,6 +68,6 @@ class ROMFilter : public BRefFilter
 	}
 };
 
-#endif //	_ROM_FILEPANEL_H_
+#endif //	_ROM_FILE_PANEL_H_
 
 

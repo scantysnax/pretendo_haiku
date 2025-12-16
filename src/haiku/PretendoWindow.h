@@ -57,7 +57,8 @@ class PretendoWindow : public BDirectWindow
 		// input
 		CFG_INPUT = 'CFGI',
 		// rom directory
-		SET_ROMDIR = 'ROMS',
+		SET_ROMDIR = 	'ROMS',
+		RECV_ROM_DIR = 	'RECV',
 		// sound channel enable/disable
 		ENABLE_SQ1 = 	'SQR1',
 		ENABLE_SQ2 = 	'SQR2',
@@ -209,9 +210,10 @@ class PretendoWindow : public BDirectWindow
 	BMenu *fNameTableMenu = nullptr;
 	int32 fMenuHeight;
 	
-	// open panel
+	// panels
 	private:
 	ROMFilePanel *fOpenPanel = nullptr;
+	BFilePanel *fROMDirectoryPanel = nullptr;
 	
 	// palettes	
 	private:
@@ -264,6 +266,9 @@ class PretendoWindow : public BDirectWindow
 	private:
 	bool fPaused = false;
 	
+	private:
+	BString fROMDirectory = nullptr;
+		
 	// thread stuff
 	private:
 	thread_id fThread = B_BAD_THREAD_ID;

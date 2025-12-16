@@ -131,8 +131,8 @@ CPP_FILES := \
 	src/haiku/PretendoView.cpp \
 	src/haiku/PretendoWindow.cpp \
 	src/haiku/ROMFilePanel.cpp \
-	src/haiku/ROMInfoWindow.cpp \
 	src/haiku/ROMInfoView.cpp \
+	src/haiku/ROMInfoWindow.cpp \
 	src/haiku/Settings.cpp \
 	src/haiku/Splitters.cpp \
 	src/haiku/VideoScreen.cpp
