@@ -43,9 +43,6 @@ PretendoWindow::PretendoWindow()
 	fView = new PretendoView(bounds, this);
 	AddChild(fView);
 	
-	fSettingsMessage = new BMessage;
-	LoadSettings();
-	
 	// setup video buffers
 	void *bitsArea;
 	void *dirtyArea;
@@ -192,6 +189,9 @@ PretendoWindow::PretendoWindow()
 		fPaletteWindow->Quit();
 		fPaletteWindow = nullptr;
 	}
+	
+	fSettingsMessage = new BMessage;
+	LoadSettings();
 }
 
 
@@ -220,7 +220,6 @@ PretendoWindow::~PretendoWindow()
 	delete_area(fBitsArea);
 	delete_area(fDirtyArea);
 
-	
 	if (fROMInfoWindow != nullptr) {
 		if (fROMInfoWindow->Lock()) {
 			fROMInfoWindow->Quit();
@@ -278,6 +277,10 @@ PretendoWindow::~PretendoWindow()
 	Sync();	
 	
 	SaveSettings();
+	
+	delete fSettingsMessage;
+	delete fOpenPanel;
+	delete fROMDirectoryPanel;
 }
 
 
@@ -527,7 +530,7 @@ PretendoWindow::QuitRequested()
 	
 	fRunning = 
 	fDirectConnected = false;
-		
+	
 	be_app->PostMessage(B_QUIT_REQUESTED);
 
 	return true;
