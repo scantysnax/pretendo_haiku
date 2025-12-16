@@ -1621,7 +1621,7 @@ PretendoWindow::LoadSettings()
 				// check if we're doubled, and resize the window accordingly
 				fDoubled = doubled;
 				int32 scale = static_cast<int32>(fDoubled)+1;
-				ResizeTo((screen_size::WIDTH*scale), (screen_size::HEIGHT*scale));
+				ResizeTo(screen_size::WIDTH*scale, screen_size::HEIGHT*scale);
 
 				// set rom  directory
 				fROMDirectory = path;			
