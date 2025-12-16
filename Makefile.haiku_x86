@@ -14,9 +14,9 @@ INCLUDES := -Ilibines2/lib/include/ -Isrc/ -Isrc/haiku/ \
 		 	-I/boot/system/develop/headers/x86/libxml2
 
 ASMFLAGS := -f elf
-CPPFLAGS := -O3 $(INCLUDES) -W -Wall -Wno-implicit-fallthrough -std=c++17 -flto
+CPPFLAGS := -O3 $(INCLUDES) -W -Wall -Wno-implicit-fallthrough -std=c++17 #-flto
 LDFLAGS  := -L/boot/common/lib \
-			-lbe -lroot -ltranslation -ltracker -lgame -lmedia -lxml2 -lz -flto
+			-lbe -lroot -ltranslation -ltracker -lgame -lmedia -lxml2 -lz #-flto
 
 
 ASM_FILES := \

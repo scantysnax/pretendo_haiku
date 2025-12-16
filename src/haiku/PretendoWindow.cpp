@@ -36,7 +36,7 @@ PretendoWindow::PretendoWindow()
 	// ui things
 	AddMenu();
 	ResizeTo(screen_size::WIDTH, screen_size::HEIGHT);
-	CenterOnScreen();
+	//CenterOnScreen();
 	BRect bounds(Bounds());
 	bounds.OffsetTo(B_ORIGIN);
 	bounds.top = fMenuHeight;
