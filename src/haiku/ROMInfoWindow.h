@@ -2,29 +2,14 @@
 #ifndef _ROM_INFO_WINDOW_H_
 #define _ROM_INFO_WINDOW_H_
 
-#include <Window.h>
-#include <TabView.h>
 #include <ListView.h>
+#include <TabView.h>
 #include <ScrollView.h>
+#include <Window.h>
 
 #include <libxml2/libxml/parser.h>
 
-
 #include "ROMInfoView.h"
-
-class ROMInfoScrollView : public BScrollView
-{
-	public:
-	ROMInfoScrollView();
-	virtual ~ROMInfoScrollView();
-	
-	public:
-	virtual void Draw (BRect updateRect);
-	virtual void AttachedToWindow();
-	
-	private:
-	
-};
 
 
 class ROMInfoWindow : public BWindow

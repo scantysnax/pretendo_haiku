@@ -3,12 +3,9 @@
 #define _INPUT_WINDOW_H_
 
 #include <Window.h>
-#include "Settings.h"
-#include <iostream>
-
-#include <File.h>
 
 #include "InputView.h"
+#include "Settings.h"
 
 
 class PretendoWindow;
@@ -24,17 +21,18 @@ class InputWindow : public BWindow
 	virtual bool QuitRequested();
 	virtual void MessageReceived (BMessage *message);
 	
-	private:
-	void LoadSettings();
-	void SaveSettings();
-	
 	public:
 	void SetDefaultKeys();
 	
 	private:
+	void LoadSettings();
+	void SaveSettings();
+	BMessage *fSettingsMessage = nullptr;
+	
+	private:
 	PretendoWindow *fParent = nullptr;
 	InputView *fInputView = nullptr;
-	BMessage *fSettingsMessage = nullptr;
+	
 };
 
 
