@@ -201,6 +201,7 @@ PretendoWindow::~PretendoWindow()
 	fRunning = 
 	fDirectConnected = false;
 	fThread = B_BAD_THREAD_ID;
+	
 	delete_area(fBitsArea);
 	delete_area(fDirtyArea);
 	
