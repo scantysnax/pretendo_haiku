@@ -198,16 +198,17 @@ PretendoWindow::PretendoWindow()
 PretendoWindow::~PretendoWindow()
 {	
 	// break everything down and clean up
-	fRunning = fDirectConnected = false;
+	fRunning = 
+	fDirectConnected = false;
 	fThread = B_BAD_THREAD_ID;
+	
+	delete_area(fBitsArea);
+	delete_area(fDirtyArea);
 	
 	fAudioStream->Stop();
 	delete fAudioStream;
 	
-	if (fOpenPanel->Window()) {
-		fOpenPanel->Window()->Lock();
-		fOpenPanel->Window()->Quit();
-	}
+	fMutex->Unlock();
 	
 	if (fBitmap->IsValid()) {
 		delete fBitmap;
@@ -217,22 +218,31 @@ PretendoWindow::~PretendoWindow()
 		delete fOverlayBitmap;
 	}
 	
-	delete_area(fBitsArea);
-	delete_area(fDirtyArea);
-
+	if (fOpenPanel->Window()) {
+		fOpenPanel->Window()->Lock();
+		fOpenPanel->Window()->Quit();
+	}
+	
+	delete fOpenPanel;
+	
+	if (fROMDirectoryPanel->Window()) {
+		fROMDirectoryPanel->Window()->Lock();
+		fROMDirectoryPanel->Window()->Quit();
+	}
+	
+	delete fROMDirectoryPanel;
+	
 	if (fROMInfoWindow != nullptr) {
 		if (fROMInfoWindow->Lock()) {
 			fROMInfoWindow->Quit();
 		}
 	}
 	
-	
 	if (fPaletteWindow != nullptr) {
 		if (fPaletteWindow->Lock()) {
 			fPaletteWindow->Quit();
 		}
 	}
-	
 	
 	if (fPatternTable1Window != nullptr) {
 		if (fPatternTable1Window->Lock()) {
@@ -269,18 +279,12 @@ PretendoWindow::~PretendoWindow()
 			fNameTable4Window->Quit();
 		}
 	}
-	
-	fMutex->Unlock();
-	
+
+	SaveSettings();
+	delete fSettingsMessage;
 	
 	Hide();
 	Sync();	
-	
-	SaveSettings();
-	
-	delete fSettingsMessage;
-	delete fOpenPanel;
-	delete fROMDirectoryPanel;
 }
 
 
