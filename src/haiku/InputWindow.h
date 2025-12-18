@@ -3,11 +3,10 @@
 #define _INPUT_WINDOW_H_
 
 #include <Window.h>
+#include <File.h>
 
 #include "InputView.h"
 #include "Settings.h"
-
-#include <iostream>
 
 
 class PretendoWindow;
@@ -34,9 +33,7 @@ class InputWindow : public BWindow
 	private:
 	PretendoWindow *fParent = nullptr;
 	InputView *fInputView = nullptr;
-	
 };
-
 
 #endif // _INPUT_WINDOW_H_
 	

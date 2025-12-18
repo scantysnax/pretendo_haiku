@@ -1,6 +1,4 @@
 
-#include <File.h>
-
 #include "InputWindow.h"
 
 
@@ -50,8 +48,6 @@ InputWindow::QuitRequested()
 void
 InputWindow::LoadSettings()
 {
-	std::cout << __PRETTY_FUNCTION__ << std::endl;
-	
 	BString path = Settings::configDirectory().c_str();
 	path += "/input_window";
 		

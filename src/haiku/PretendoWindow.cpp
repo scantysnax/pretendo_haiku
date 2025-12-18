@@ -279,7 +279,6 @@ PretendoWindow::~PretendoWindow()
 	
 	fMutex->Unlock();
 	
-	
 	Hide();
 	Sync();	
 	
