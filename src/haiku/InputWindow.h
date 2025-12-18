@@ -3,13 +3,9 @@
 #define _INPUT_WINDOW_H_
 
 #include <Window.h>
-#include "Settings.h"
-#include <iostream>
-
-#include <File.h>
 
 #include "InputView.h"
-
+#include "Settings.h"
 
 class PretendoWindow;
 

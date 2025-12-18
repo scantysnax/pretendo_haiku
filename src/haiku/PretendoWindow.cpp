@@ -282,7 +282,7 @@ PretendoWindow::~PretendoWindow()
 
 	SaveSettings();
 	delete fSettingsMessage;
-	
+	(new BAlert(0, "save settings", "okay"))->Go();
 	Hide();
 	Sync();	
 }
