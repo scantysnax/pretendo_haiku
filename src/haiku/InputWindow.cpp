@@ -1,8 +1,10 @@
 
-#include "InputWindow.h"
-
 #include <File.h>
 
+#include "InputWindow.h"
+
+
+#include <File.h>
 
 InputWindow::InputWindow (PretendoWindow *parent)
 	: BWindow(BRect(0, 0, 0, 0), nullptr, B_FLOATING_WINDOW_LOOK,
@@ -19,7 +21,7 @@ InputWindow::InputWindow (PretendoWindow *parent)
 	fInputView = new InputView(Bounds());
 	AddChild(fInputView);
 	
-	SetDefaultKeys();
+	//SetDefaultKeys();
 	
 	fSettingsMessage = new BMessage;
 	LoadSettings();
@@ -49,8 +51,9 @@ InputWindow::QuitRequested()
 
 void
 InputWindow::LoadSettings()
-{	
-	// assemble path
+{
+	std::cout << __PRETTY_FUNCTION__ << std::endl;
+	
 	BString path = Settings::configDirectory().c_str();
 	path += "/input_window";
 		
@@ -68,8 +71,8 @@ InputWindow::LoadSettings()
 		if (size == 0) {
 			CenterOnScreen();
 			
-			int32 x = Frame().left;
-			int32 y = Frame().top;
+			int32 const x = Frame().left;
+			int32 const y = Frame().top;
 			
 			// stash default settings
 			fSettingsMessage->AddInt32("window_x", x);
@@ -132,7 +135,7 @@ InputWindow::SaveSettings()
 		fSettingsMessage->Flatten(&file);
 	} else {
 		// eli: handle error if we can't open the file?
-	}	
+	}
 }	
 
 

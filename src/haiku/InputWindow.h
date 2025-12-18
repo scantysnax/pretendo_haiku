@@ -6,6 +6,10 @@
 
 #include "InputView.h"
 #include "Settings.h"
+<<<<<<< HEAD
+=======
+
+>>>>>>> 17416c7e6a29d65ae4c69582bf8e7d9c6f1c05de
 
 class PretendoWindow;
 
@@ -20,17 +24,18 @@ class InputWindow : public BWindow
 	virtual bool QuitRequested();
 	virtual void MessageReceived (BMessage *message);
 	
-	private:
-	void LoadSettings();
-	void SaveSettings();
-	
 	public:
 	void SetDefaultKeys();
 	
 	private:
+	void LoadSettings();
+	void SaveSettings();
+	BMessage *fSettingsMessage = nullptr;
+	
+	private:
 	PretendoWindow *fParent = nullptr;
 	InputView *fInputView = nullptr;
-	BMessage *fSettingsMessage = nullptr;
+	
 };
 
 
