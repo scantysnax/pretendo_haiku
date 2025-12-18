@@ -4,8 +4,6 @@
 #include "InputWindow.h"
 
 
-#include <File.h>
-
 InputWindow::InputWindow (PretendoWindow *parent)
 	: BWindow(BRect(0, 0, 0, 0), nullptr, B_FLOATING_WINDOW_LOOK,
 			B_NORMAL_WINDOW_FEEL, B_NOT_RESIZABLE|B_NOT_ZOOMABLE)
@@ -30,8 +28,8 @@ InputWindow::InputWindow (PretendoWindow *parent)
 
 InputWindow::~InputWindow()
 {
-	//SaveSettings();
-	//delete fSettingsMessage;
+	SaveSettings();
+	delete fSettingsMessage;
 }
 
 

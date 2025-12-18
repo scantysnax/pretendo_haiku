@@ -270,12 +270,6 @@ PretendoWindow::~PretendoWindow()
 			fNameTable4Window->Quit();
 		}
 	}
-<<<<<<< HEAD
-
-	SaveSettings();
-	delete fSettingsMessage;
-	(new BAlert(0, "save settings", "okay"))->Go();
-=======
 	
 	if (fInputWindow != nullptr) {
 		if (fInputWindow->Lock()) {
@@ -286,7 +280,6 @@ PretendoWindow::~PretendoWindow()
 	fMutex->Unlock();
 	
 	
->>>>>>> 17416c7e6a29d65ae4c69582bf8e7d9c6f1c05de
 	Hide();
 	Sync();	
 	
