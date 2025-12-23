@@ -77,10 +77,16 @@ AboutView::AttachedToWindow()
 			  << "Version: " << __PRETENDO_VERSION__ << "\n"
 			  << "Written by: Evan Teran and Eli Dayan\n"
 			  << "Built on: " << __DATE__ << " " << __TIME__ << "\n"
-			  << "Built with: gcc " << __GNUC__ << "." << __GNUC_MINOR__ << "."
-			  << __GNUC_PATCHLEVEL__ << "\n" 
-			  << "\n\"Nintendo\" and \"Nintendo Entertainment System\" are registered "
-			   		"trademarks of " "Nintendo Co., Ltd\n\n";
+			  
+	#if defined(__clang__)
+		<< "Built with: clang " << __clang_version__ << "\n" 
+	#else
+		<< "Built with: gcc " << __GNUC__ << "." << __GNUC_MINOR__ << "."
+		<< __GNUC_PATCHLEVEL__ << "\n" 
+	#endif
+	
+	<< "\n\"Nintendo\" and \"Nintendo Entertainment System\" are registered "
+	<< "trademarks of " "Nintendo Co., Ltd\n\n";
 
 	textView->SetText(aboutText.String());
 	textView->SetViewColor(ui_color(B_PANEL_BACKGROUND_COLOR));

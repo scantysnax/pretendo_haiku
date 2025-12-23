@@ -10,9 +10,11 @@ class PretendoWindow;
 
 
 PretendoView::PretendoView (BRect frame, PretendoWindow *parent)
-	: BView (frame, "_pretendo_view_", B_FOLLOW_ALL_SIDES, 0)
+	: BView (frame, "pretendo_view", B_FOLLOW_ALL_SIDES, B_NAVIGABLE)
 {
 	fParent = parent;
+	frame.PrintToStream();
+	SetViewColor(0, 0, 0);
 }
 
 
@@ -31,18 +33,16 @@ PretendoView::MessageReceived (BMessage *message)
 		if (message->FindRef("refs", 0, &ref) == B_OK) {
 			BEntry entry;
 			BPath path;
-			BMessage *msg;
+			BMessage msg(PretendoWindow::messages::ROM_LOADED);
 			
 			entry.SetTo(&ref, true);
 			entry.GetPath(&path);
 			
-			msg = new BMessage(PretendoWindow::messages::ROM_LOADED);
-			msg->AddString("rom_path", path.Path());
-			fParent->PostMessage(msg);
-			
-			delete msg;
+			msg.AddString("rom_path", path.Path());
+			fParent->PostMessage(&msg);
 		}
 	}
 	
 	BView::MessageReceived (message);
 }
+

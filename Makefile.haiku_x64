@@ -2,8 +2,8 @@
 APPNAME := Pretendo	
 
 ASM    := nasm
-CPP    := g++
-LD     := g++
+CPP    := clang #g++
+LD     := clang #g++ 
 RM     := rm -f
 RES	   := xres
 STRIP  := strip
@@ -16,7 +16,7 @@ INCLUDES := -Ilibines2/lib/include/ -Isrc/ -Isrc/haiku/ \
 ASMFLAGS := -f elf64
 CPPFLAGS := -O3 $(INCLUDES) -W -Wall -Wno-implicit-fallthrough -std=c++17 #-flto
 LDFLAGS  := -L/boot/common/lib \
-			-lbe -lroot -ltranslation -ltracker -lgame -lmedia -lxml2 -lz #-flto
+			-lbe -lroot -ltranslation -ltracker -lgame -lmedia -lxml2 -lz -lstdc++ #-flto
 
 ASM_FILES := \
 	src/asm/blitters_x64.asm \
@@ -143,7 +143,6 @@ RESOURCES 	:= src/haiku/pretendo.rsrc
 OBJECTS 	:= $(CPP_FILES:.cpp=.o) $(ASM_FILES:.asm=.o)
                
 .SUFFIXES: .cpp .h .asm .o
-
 
 .cpp.o:
 	@echo compiling $<...

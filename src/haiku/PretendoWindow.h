@@ -200,7 +200,6 @@ class PretendoWindow : public BDirectWindow
 	PretendoView *fView = nullptr;
 	BMenuBar *fMenu = nullptr;
 	BMenu *fFileMenu = nullptr;
-	BMenu *fLoadMenu = nullptr;
 	BMenu *fEmuMenu = nullptr;
 	BMenu *fSettingsMenu = nullptr;
 	BMenu *fVideoMenu = nullptr;

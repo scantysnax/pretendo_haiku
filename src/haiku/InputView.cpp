@@ -2,7 +2,6 @@
 #include "InputView.h"
 #include "Settings.h"
 
-#include <cstdio>
 #include <iostream>
 
 
@@ -11,10 +10,10 @@ InputView::InputView (BRect frame)
 {
 	fControllerBitmap = BTranslationUtils::GetBitmap('bits', "Controller");	
 	
-	int32 i;
-	for (i = 0; i < 8; i++) {
-		memset(&fKeys[i], 0, sizeof(fKeys[i]));
-	}
+	//int32 i;
+	//for (i = 0; i < 8; i++) {
+//		memset(&fKeys[i], 0, sizeof(fKeys[i]));
+//	}
 		
 }
 
@@ -23,6 +22,7 @@ InputView::~InputView()
 {
 	delete fControllerBitmap;
 }
+
 
 void
 InputView::AttachedToWindow()
@@ -40,38 +40,38 @@ InputView::AttachedToWindow()
 	BRect r;
 	r.Set(107, 132, 131, 152);
 	fUpView = new KeyTextView(r);
-	fUpView->SetViewColor(82,76,63);
+	fUpView->SetViewColor(82, 76, 63);
 	fUpView->SetFontAndColor(&f, B_FONT_ALL, &c);
 	AddChild(fUpView);
 	
 	r.Set(107, 204, 131, 224);
 	fDownView = new KeyTextView(r);
-	fDownView->SetViewColor(82,76,63);
+	fDownView->SetViewColor(82, 76, 63);
 	fDownView->SetFontAndColor(&f, B_FONT_ALL, &c);
 	AddChild(fDownView);
 	
 	r.Set(74, 164, 98, 186);
 	fLeftView = new KeyTextView(r);
-	fLeftView->SetViewColor(82,76,63);
+	fLeftView->SetViewColor(82, 76, 63);
 	fLeftView->SetFontAndColor(&f, B_FONT_ALL, &c);
 	AddChild(fLeftView);
 	
 	r.Set(140, 166, 164, 186);
 	fRightView = new KeyTextView(r);
-	fRightView->SetViewColor(82,76,63);
+	fRightView->SetViewColor(82, 76, 63);
 	fRightView->SetFontAndColor(&f, B_FONT_ALL, &c);
 	AddChild(fRightView);
 	
 	
 	r.Set(228, 204, 248, 228);
 	fSelectView = new KeyTextView(r);
-	fSelectView->SetViewColor(82,76,63);
+	fSelectView->SetViewColor(82, 76, 63);
 	fSelectView->SetFontAndColor(&f, B_FONT_ALL, &c);
 	AddChild(fSelectView);
 	
 	r.Set(300, 204, 320, 228);
 	fStartView = new KeyTextView(r);
-	fStartView->SetViewColor(82,76,63);
+	fStartView->SetViewColor(82, 76, 63);
 	fStartView->SetFontAndColor(&f, B_FONT_ALL, &c);
 	AddChild(fStartView);
 
@@ -158,15 +158,47 @@ InputView::MessageReceived (BMessage *message)
 void
 InputView::OnCancel()
 {
-	puts(__PRETTY_FUNCTION__);
-}
+	std::cout << __PRETTY_FUNCTION__ << std::endl;
 	
+	/*
+	uint8 keys[] = {
+		13, 2, 4, 2, 13, 5, 4
+	};
+	
+	size_t size = sizeof(keys) / sizeof(*keys);
+	std::pmr::unordered_set<uint8> duplicates = FindDuplicates(keys, size);
+   	
+   	for (int32 i: duplicates) {
+   		std::cout << i << std::endl;
+   	}
+  	*/
+  	
+  	uint8 keys[] = { 
+  		fUpKey,			// 1e
+  		fDownKey,		// 1f
+  		fLeftKey,		// 1c
+  		fRightKey,		// 1d
+  		fSelectKey,		// 41
+  		fStartKey,		// 53
+  		fBKey,			// 5a
+  		fAKey			// 58
+  	};
+  	
+  	size_t size = sizeof(keys) / sizeof(*keys);
+  	
+  	printf("size: %lu\n", size);
+  	
+  	for (int32 i = 0; i < 8; i++) {
+  		printf("%02x\n", keys[i]);
+  	}
+}
+
 	
 void
 InputView::OnDefault()
 {
-	puts(__PRETTY_FUNCTION__);
-	
+	std::cout << __PRETTY_FUNCTION__ << std::endl;
+
 	SetDefaultKeys();
 }
 
@@ -174,7 +206,7 @@ InputView::OnDefault()
 void 
 InputView::OnSave()
 {
-	puts(__PRETTY_FUNCTION__);
+	std::cout << __PRETTY_FUNCTION__ << std::endl;
 	
 	ValidateKeys();
 }
@@ -183,16 +215,16 @@ InputView::OnSave()
 void
 InputView::SetDefaultKeys()
 {
-	puts(__PRETTY_FUNCTION__);
+	std::cout << __PRETTY_FUNCTION__ << std::endl;
 	
-	fKeys[0] = B_UP_ARROW;
-	fKeys[1] = B_DOWN_ARROW;
-	fKeys[2] = B_LEFT_ARROW;
-	fKeys[3] = B_RIGHT_ARROW;
-	fKeys[4] = 'A';
-	fKeys[5] = 'S';
-	fKeys[6] = 'Z';
-	fKeys[7] = 'X';
+	fUpKey = B_UP_ARROW;
+	fDownKey = B_DOWN_ARROW;
+	fLeftKey = B_LEFT_ARROW;
+	fRightKey = B_RIGHT_ARROW;
+	fSelectKey = 'A';
+	fStartKey = 'S';
+	fBKey = 'Z';
+	fAKey = 'X';
 	
 	fUpView->SetText("↑");
 	fDownView->SetText("↓");
@@ -208,7 +240,7 @@ InputView::SetDefaultKeys()
 void
 InputView::ValidateKeys()
 {
-	puts(__PRETTY_FUNCTION__);
+	std::cout << __PRETTY_FUNCTION__ << std::endl;
 	
 	//BString strUp = fUpView->Text();
 	
@@ -341,4 +373,27 @@ KeyTextView::KeyDown (const char *bytes, int32 numBytes)
 	}
 
  	BTextView::KeyDown (bytes, numBytes);
+}
+
+
+std::pmr::unordered_set<uint8>
+InputView::FindDuplicates (uint8 *list, size_t size) 
+{
+	size_t i = 0;
+	std::pmr::unordered_map<int32, int32> count;
+	
+	while (i < size) {
+		count[list[i]]++;
+		i++;
+	}
+	
+	std::pmr::unordered_set<uint8> duplicates;
+	
+	for (auto const &pair: count) {
+		if (pair.second > 1) {
+			duplicates.insert(pair.first);
+		}
+	}
+	
+	return duplicates;
 }

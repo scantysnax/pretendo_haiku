@@ -2,8 +2,8 @@
 #ifndef _INPUT_WINDOW_H_
 #define _INPUT_WINDOW_H_
 
-#include <Window.h>
 #include <File.h>
+#include <Window.h>
 
 #include "InputView.h"
 #include "Settings.h"

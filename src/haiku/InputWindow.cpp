@@ -1,6 +1,7 @@
 
 #include "InputWindow.h"
 
+#include <iostream>
 
 InputWindow::InputWindow (PretendoWindow *parent)
 	: BWindow(BRect(0, 0, 0, 0), nullptr, B_FLOATING_WINDOW_LOOK,
@@ -48,6 +49,8 @@ InputWindow::QuitRequested()
 void
 InputWindow::LoadSettings()
 {
+	std::cout << __PRETTY_FUNCTION__ << std::endl;
+	
 	BString path = Settings::configDirectory().c_str();
 	path += "/input_window";
 		
@@ -71,7 +74,19 @@ InputWindow::LoadSettings()
 			// stash default settings
 			fSettingsMessage->AddInt32("window_x", x);
 			fSettingsMessage->AddInt32("window_y", y);
-
+			
+			// keys
+			/*
+			fSettingsMessage->AddInt8("input_up_key", B_UP_ARROW);
+			fSettingsMessage->AddInt8("input_down_key", B_DOWN_ARROW);
+			fSettingsMessage->AddInt8("input_left_key", B_LEFT_ARROW);
+			fSettingsMessage->AddInt8("input_right_key", B_RIGHT_ARROW);
+			fSettingsMessage->AddInt8("input_select_key", 'A');
+			fSettingsMessage->AddInt8("input_start_key", 'S');
+			fSettingsMessage->AddInt8("input_b_key", 'Z');
+			fSettingsMessage->AddInt8("input_a_key", 'X');
+			*/
+			
 			fSettingsMessage->Flatten(&file);
 	
 			// apply settings (update user interface)
@@ -101,6 +116,8 @@ InputWindow::LoadSettings()
 void
 InputWindow::SaveSettings()
 {
+	std::cout << __PRETTY_FUNCTION__ << std::endl;
+
 	// assemble path
 	BString path = Settings::configDirectory().c_str();
 	path += "/input_window";

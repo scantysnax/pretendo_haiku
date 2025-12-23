@@ -7,7 +7,11 @@
 #include <TextView.h>
 #include <TranslationUtils.h>
 #include <View.h>
+
 #include "Splitters.h"
+
+#include <unordered_map>
+#include <unordered_set>
 
 
 class KeyTextView;
@@ -17,7 +21,7 @@ class InputView : public BView
 {
 	private:
 	typedef enum {
-		CANCEL = 	'CNCL',
+		CANCEL =	'CNCL',
 		DEFAULT = 	'DFLT',
 		SAVE = 		'SAVE'
 	} messages;
@@ -28,6 +32,19 @@ class InputView : public BView
 		HEIGHT = 291,
 		BORDER = 16
 	} controller_size;
+	
+	private:
+	typedef enum {
+		UP = 0x57,
+		DOWN = 0x62,
+		LEFT = 0x61,
+		RIGHT = 0x63,
+		SELECT = 0x3c,
+		START = 0x3d,
+		B = 0x4c,
+		A = 0x4d
+	} default_keys;
+ 
 	
 	public:
 			InputView (BRect frame);
@@ -46,6 +63,9 @@ class InputView : public BView
 	void OnCancel();
 	void OnDefault();
 	void OnSave();
+	
+	private:
+	std::pmr::unordered_set<uint8> FindDuplicates (uint8 *list, size_t size);
 	
 	private:
 	BBitmap *fControllerBitmap = nullptr;
@@ -69,7 +89,48 @@ class InputView : public BView
 	void ValidateKeys();
 	
 	private:
-	uint8 fKeys[8];
+	uint8 fUpKey = 0;
+	uint8 fDownKey = 0;
+	uint8 fLeftKey = 0;
+	uint8 fRightKey = 0;
+	uint8 fSelectKey = 0;
+	uint8 fStartKey = 0;
+	uint8 fBKey = 0;
+	uint8 fAKey = 0;
+	
+	public:
+	uint8 UpKey() {
+		return fUpKey;
+	}
+	
+	uint8 DownKey() {
+		return fDownKey;
+	}
+	
+	uint8 LeftKey() {
+		return fLeftKey;
+	}
+	
+	uint8 RightKey() {
+		return fRightKey;
+	}
+	
+	uint8 SelectKey() {
+		return fSelectKey;
+	}
+	
+	uint8 StartKey() {
+		return fStartKey;
+	}
+	
+	uint8 BKey() {
+		return fBKey;
+	}
+	
+	uint8 AKey() {
+		return fAKey;
+	}
+		
 };
 
 

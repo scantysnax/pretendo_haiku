@@ -42,6 +42,7 @@ PretendoWindow::PretendoWindow()
 	bounds.top = fMenuHeight;
 	fView = new PretendoView(bounds, this);
 	AddChild(fView);
+	fView->MakeFocus();
 	
 	// setup video buffers
 	void *bitsArea;
@@ -1568,6 +1569,8 @@ PretendoWindow::ReadKeyStates()
 	CheckKey(Controller::INDEX_START, 	default_keys::START);
 	CheckKey(Controller::INDEX_B, 		default_keys::B);
 	CheckKey(Controller::INDEX_A, 		default_keys::A);
+	
+	printf("%02x\n", B_UP_ARROW);
 }
 
 
