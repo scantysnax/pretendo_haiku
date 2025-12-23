@@ -1570,7 +1570,7 @@ PretendoWindow::ReadKeyStates()
 	CheckKey(Controller::INDEX_B, 		default_keys::B);
 	CheckKey(Controller::INDEX_A, 		default_keys::A);
 	
-	printf("%02x\n", B_UP_ARROW);
+	//printf("%02x\n", B_UP_ARROW);
 }
 
 

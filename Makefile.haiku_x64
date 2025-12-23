@@ -2,8 +2,8 @@
 APPNAME := Pretendo	
 
 ASM    := nasm
-CPP    := clang #g++
-LD     := clang #g++ 
+CPP    := clang
+LD     := clang
 RM     := rm -f
 RES	   := xres
 STRIP  := strip
