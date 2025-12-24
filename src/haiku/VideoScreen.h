@@ -18,7 +18,7 @@ class VideoScreen : public BWindowScreen
 	virtual void MessageReceived (BMessage *message);
 	virtual	bool QuitRequested();
 	virtual void ScreenConnected (bool connected);
-	
+		
 	public:
 	bool Connected() const {
 		return fConnected;

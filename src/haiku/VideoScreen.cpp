@@ -6,7 +6,7 @@ static status_t error;
 
 
 VideoScreen::VideoScreen (PretendoWindow *parent)
-	: BWindowScreen ("Pretendo Fullscreen", B_16_BIT_640x480, &error)
+	: BWindowScreen ("Pretendo Fullscreen", B_8_BIT_640x480, &error)
 {
 	if (error != B_OK) {
 		PostMessage (B_QUIT_REQUESTED, this);
@@ -27,12 +27,20 @@ VideoScreen::~VideoScreen()
 void
 VideoScreen::MessageReceived (BMessage *message)
 {
-	if (message->what == B_KEY_DOWN) {
-		int8 key;
+	switch (message->what) {
+		case B_KEY_DOWN: {
+			int8 key;
+			
+			if (message->FindInt8("byte", 0, &key) == B_OK) {
+				switch (key) {
+					case B_ESCAPE:
+					fParent->PostMessage(PretendoWindow::messages::LEAVE_FULLSCREEN);
+				}
+			}
+		} break;
 		
-		if ((message->FindInt8("byte", 0, &key) == B_OK) && key == B_ESCAPE) {
-			fParent->PostMessage(PretendoWindow::messages::LEAVE_FULLSCREEN);
-		}
+		
+		
 	}
 		
 	BWindowScreen::MessageReceived (message);
