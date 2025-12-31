@@ -1770,7 +1770,7 @@ static uint8 asciiToKeyCode[] = {
 	/* 0x1c */	0x61,	// LEFT 	(B_LEFT_ARROW)	
 	/* 0x1d */	0x63,	// RIGHT	(B_RIGHT_ARROW)
 	/* 0x1e */	0x57,	// UP		(B_UP_ARRROW)
-	/* 0x1f */	0x62,	// (B_DOWN_ARROW)
+	/* 0x1f */	0x62,	// DOWN		(B_DOWN_ARROW)
 	
 	/* 0x20 */	0x5e,	// SPACE	(B_SPACE)
 	/* 0x21 */	0x12,	// (1 key with shift)
