@@ -18,7 +18,6 @@ CPPFLAGS := -O3 $(INCLUDES) -W -Wall -Wno-implicit-fallthrough -std=c++17 #-flto
 LDFLAGS  := -L/boot/common/lib \
 			-lbe -lroot -ltranslation -ltracker -lgame -lmedia -lxml2 -lz -lstdc++ #-flto
 
-
 ASM_FILES := \
 	src/asm/blitters_x86.asm \
 	src/asm/copies_x86.asm
