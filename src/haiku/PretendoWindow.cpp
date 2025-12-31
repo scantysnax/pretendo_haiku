@@ -1766,7 +1766,7 @@ static uint8 asciiToKeyCode[] = {
 	/* 0x18 */	0x0,	// B_ASCII_CANCEL
 	/* 0x19 */	0x0, 	// B_ASCII_END_MEDIUM
 	/* 0x1a */	0x0,	// B_SUBSTITUTE	
-	/* 0x1b */	0x01, 	// ESC 	(B_ESCAPE) 
+	/* 0x1b */	0x01, 	// ESC 		(B_ESCAPE) 
 	/* 0x1c */	0x61,	// LEFT 	(B_LEFT_ARROW)	
 	/* 0x1d */	0x63,	// RIGHT	(B_RIGHT_ARROW)
 	/* 0x1e */	0x57,	// UP		(B_UP_ARRROW)
