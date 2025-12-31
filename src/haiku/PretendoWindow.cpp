@@ -23,8 +23,7 @@
 #include "ROMFilePanel.h"
 #include "ROMInfoWindow.h"
 #include "VideoScreen.h"
-
-
+ 
 // use mmx blitters and memcpy()
 #include "asm/blitters.h"
 #include "asm/copies.h"
@@ -1546,7 +1545,7 @@ PretendoWindow::emulator_thread (void *data)
 
 
 inline void
-PretendoWindow::CheckKey (int32 index, int32 key) const
+PretendoWindow::CheckKey (int32 index, int32 key)
 {
 	// read keystates as explained in the BeBook
 	// note the window does not need to have focus for this to work
@@ -1561,14 +1560,14 @@ PretendoWindow::ReadKeyStates()
 {
 	get_key_info(&fKeyStates);
 	
-	CheckKey(Controller::INDEX_UP, 		default_keys::UP);
-	CheckKey(Controller::INDEX_DOWN, 	default_keys::DOWN);
-	CheckKey(Controller::INDEX_LEFT, 	default_keys::LEFT);
-	CheckKey(Controller::INDEX_RIGHT, 	default_keys::RIGHT);
-	CheckKey(Controller::INDEX_SELECT,	default_keys::SELECT);
-	CheckKey(Controller::INDEX_START, 	default_keys::START);
-	CheckKey(Controller::INDEX_B, 		default_keys::B);
-	CheckKey(Controller::INDEX_A, 		default_keys::A);
+	CheckKey(Controller::INDEX_UP, 		fUpKey);
+	CheckKey(Controller::INDEX_DOWN, 	fDownKey);
+	CheckKey(Controller::INDEX_LEFT, 	fLeftKey);
+	CheckKey(Controller::INDEX_RIGHT, 	fRightKey);
+	CheckKey(Controller::INDEX_SELECT,	fSelectKey);
+	CheckKey(Controller::INDEX_START, 	fStartKey);
+	CheckKey(Controller::INDEX_B, 		fBKey);
+	CheckKey(Controller::INDEX_A, 		fAKey);
 }
 
 
@@ -1602,12 +1601,31 @@ PretendoWindow::LoadSettings()
 			fSettingsMessage->AddInt32("window_y", y);
 			fSettingsMessage->AddBool("double_size", doubled);
 			fSettingsMessage->AddString("rom_dir", path);
+			
+			// input
+			fSettingsMessage->AddInt8("input_up_key", default_keys::UP);
+			fSettingsMessage->AddInt8("input_down_key", default_keys::DOWN);
+			fSettingsMessage->AddInt8("input_left_key", default_keys::LEFT);
+			fSettingsMessage->AddInt8("input_right_key", default_keys::RIGHT);
+			fSettingsMessage->AddInt8("input_select_key", default_keys::SELECT);
+			fSettingsMessage->AddInt8("input_start_key", default_keys::START);
+			fSettingsMessage->AddInt8("input_b_key", default_keys::B);
+			fSettingsMessage->AddInt8("input_a_key", default_keys::A);
 
 			fSettingsMessage->Flatten(&file);
 	
 			// apply settings
 			MoveTo(x, y);
 			fROMDirectory = path;
+			fUpKey = default_keys::UP;
+			fDownKey = default_keys::DOWN;
+			fLeftKey = default_keys::LEFT;
+			fRightKey = default_keys::RIGHT;
+			fSelectKey = default_keys::SELECT;
+			fStartKey = default_keys::START;
+			fBKey = default_keys::B;
+			fAKey = default_keys::A;
+			
 			// we don't need to (re)size the window, as it will be 1:1 by default			
 		} else {
 			// load from file
@@ -1619,11 +1637,21 @@ PretendoWindow::LoadSettings()
 				int32 y;
 				bool doubled;
 				BString path;
+				int8 up, down, left, right, select, start, b, a;
 				
 				fSettingsMessage->FindInt32("window_x", &x);
 				fSettingsMessage->FindInt32("window_y", &y);
 				fSettingsMessage->FindBool("double_size", &doubled);
 				fSettingsMessage->FindString("rom_dir", &path);
+				
+				fSettingsMessage->FindInt8("input_up_key", &up);
+				fSettingsMessage->FindInt8("input_down_key", &down);
+				fSettingsMessage->FindInt8("input_left_key", &left);
+				fSettingsMessage->FindInt8("input_right_key", &right);
+				fSettingsMessage->FindInt8("input_select_key", &select);
+				fSettingsMessage->FindInt8("input_start_key", &start);
+				fSettingsMessage->FindInt8("input_b_key", &b);
+				fSettingsMessage->FindInt8("input_a_key", &a);
 				
 				// apply settings
 				MoveTo(x, y);
@@ -1634,7 +1662,17 @@ PretendoWindow::LoadSettings()
 				ResizeTo(screen_size::WIDTH*scale, screen_size::HEIGHT*scale);
 
 				// set rom  directory
-				fROMDirectory = path;			
+				fROMDirectory = path;
+				
+				// set inputs
+				fUpKey = up;
+				fDownKey = down;
+				fLeftKey = left;
+				fRightKey = right;
+				fSelectKey = select;
+				fStartKey = start;
+				fBKey = b;
+				fAKey = a;		
 			} else {
 				// eli: handle error if unflatten fails?
 			}	
@@ -1666,12 +1704,30 @@ PretendoWindow::SaveSettings()
 			fSettingsMessage->AddInt32("window_y", Frame().top);
 			fSettingsMessage->AddBool("double_size", false);
 			fSettingsMessage->AddString("rom_dir", "/boot/home");
+			
+			fSettingsMessage->AddInt8("input_up_key", default_keys::UP);
+			fSettingsMessage->AddInt8("input_down_key", default_keys::DOWN);
+			fSettingsMessage->AddInt8("input_left_key", default_keys::LEFT);
+			fSettingsMessage->AddInt8("input_right_key", default_keys::RIGHT);
+			fSettingsMessage->AddInt8("input_select_key", default_keys::SELECT);
+			fSettingsMessage->AddInt8("input_start_key", default_keys::START);
+			fSettingsMessage->AddInt8("input_b_key", default_keys::B);
+			fSettingsMessage->AddInt8("input_a_key", default_keys::A);	
 		} else {
 			// replace old settings
 			fSettingsMessage->ReplaceInt32("window_x", Frame().left);
 			fSettingsMessage->ReplaceInt32("window_y", Frame().top);
 			fSettingsMessage->ReplaceBool("double_size", fDoubled);
 			fSettingsMessage->ReplaceString("rom_dir", fROMDirectory);
+			
+			fSettingsMessage->ReplaceInt8("input_up_key", fUpKey);
+			fSettingsMessage->ReplaceInt8("input_down_key", fDownKey);
+			fSettingsMessage->ReplaceInt8("input_left_key", fLeftKey);
+			fSettingsMessage->ReplaceInt8("input_right_key", fRightKey);
+			fSettingsMessage->ReplaceInt8("input_select_key", fSelectKey);
+			fSettingsMessage->ReplaceInt8("input_start_key", fStartKey);
+			fSettingsMessage->ReplaceInt8("input_b_key", fBKey);
+			fSettingsMessage->ReplaceInt8("input_a_key", fAKey);
 		}		
 		
 		// write to file
@@ -1680,4 +1736,143 @@ PretendoWindow::SaveSettings()
 		// eli: handle error if we can't open the file?
 	}
 }
+
+static uint8 asciiToKeyCode[] = {
+	/* 0x00 */	0x0, 	// B_ASCII_NUL
+	/* 0x01 */	0x20,	// B_HOME	 
+	/* 0x02 */	0x0, 	// B_ASCII_START_TEXT
+	/* 0x03 */	0x0, 	// B_ASCII_END_TEXT
+	/* 0x04 */	0xf, 	// B_END
+	/* 0x05 */	0x7e, 	// B_INSERT
+	/* 0x06 */	0x0, 	// B_ASCII_ACKNOWLEDGE
+	/* 0x07 */	0x0, 	// B_ASCIII_BELL
+	/* 0x08 */	0x0,	// B_BACKSPACE 
+	/* 0x09 */	0x26,	// B_TAB
+	/* 0x0a */	0x47,	// B_RETURN B_ENTER
+	/* 0x0b */	0x7f,	// B_PAGE_UP
+	/* 0x0c */	0x10,	// B_PAGE_DOWN	
+	/* 0x0d */	0x47,	// B_ASCII_CARRIAGE_RETURN
+	/* 0x0e */	0x0,	// B_ASCII_SHIFT_OUT
+	/* 0x0f */	0x0,	// B_ASCII_SHIFT_IN
+	
+	/* 0x10 */	0x0,	// B_FUNCTION_KEY
+	/* 0x11 */	0x0,	// ASCII_XON
+	/* 0x12 */	0x0,	// B_DEVICE_CONTROL_2
+	/* 0x13 */	0x0,	// B_ASCII_XOFF	
+	/* 0x14 */	0x0,	// B_DEVICE_CONTROL_4	
+	/* 0x15 */	0x0,	// B_ASCII_NEGATIVE_ACK
+	/* 0x16 */	0x0,	// B_ASCII_SYNC_IDLE
+	/* 0x17 */	0x0,	// B_ASCII_END_TRANSMISSION_BLOCK
+	/* 0x18 */	0x0,	// B_ASCII_CANCEL
+	/* 0x19 */	0x0, 	// B_ASCII_END_MEDIUM
+	/* 0x1a */	0x0,	// B_SUBSTITUTE	
+	/* 0x1b */	0x01, 	// ESC 	(B_ESCAPE) 
+	/* 0x1c */	0x61,	// LEFT 	(B_LEFT_ARROW)	
+	/* 0x1d */	0x63,	// RIGHT	(B_RIGHT_ARROW)
+	/* 0x1e */	0x57,	// UP		(B_UP_ARRROW)
+	/* 0x1f */	0x62,	// (B_DOWN_ARROW)
+	
+	/* 0x20 */	0x5e,	// SPACE	(B_SPACE)
+	/* 0x21 */	0x12,	// (1 key with shift)
+	/* 0x22 */	0x46,	// (' key with shift)
+	/* 0x23 */	0x14,	// # (3 key with shift)
+	/* 0x24 */	0x15,	// $ (4 key with shift)
+	/* 0x25 */	0x16,	// % (5 key with shift)
+	/* 0x26 */	0x18,	// & (7 key with shift)
+	/* 0x27 */	0x46,	// ' (single quote, same as 0x22, with shift)
+	/* 0x28 */	0x1b,	// ) (0 key with shift)
+	/* 0x29 */	0x1e,	// ( (9 key with shift)
+	/* 0x2a */	0x19,	// * (8 key with shift)
+	/* 0x2b */	0x1d,	// = (key with shift)
+	/* 0x2c */	0x53,	// ,
+	/* 0x2d */	0x1c,	// -
+	/* 0x2e */	0x54,	// .
+	/* 0x2f */	0x55,	// /
+	
+	/* 0x30 */	0x1b,	// 0
+	/* 0x31 */ 	0x12,	// 1
+	/* 0x32 */ 	0x13,	// 2
+	/* 0x33 */ 	0x14,	// 3
+	/* 0x34 */ 	0x15,	// 4
+	/* 0x35 */ 	0x16,	// 5
+	/* 0x36 */ 	0x17,	// 6
+	/* 0x37 */ 	0x18,	// 7
+	/* 0x38 */ 	0x19,	// 8
+	/* 0x39 */ 	0x1a,	// 9
+	/* 0x3a */ 	0x45,	// : (; key with shift)
+	/* 0x3b */ 	0x45,	// ;
+	/* 0x3c */ 	0x53,	// < (, key with shift)
+	/* 0x3d */ 	0x1d,	// =
+	/* 0x3e */ 	0x54,	// (. key with shift)
+	/* 0x3f */ 	0x55,	// (/ key with shift)
+	
+	/* 0x40 */	0x13, // ! (1 key with shift)
+	/* 0x41 */	0x3c, // A
+	/* 0x42 */	0x50, // B
+	/* 0x43 */	0x4e, // C
+	/* 0x44 */	0x3e, // D
+	/* 0x45 */	0x29, // E
+	/* 0x46 */	0x3f, // F
+	/* 0x47 */	0x40, // G
+	/* 0x48 */	0x41, // H
+	/* 0x49 */	0x2e, // I
+	/* 0x4a */	0x42, // J
+	/* 0x4b */	0x43, // K
+	/* 0x4c */	0x44, // L
+	/* 0x4d */	0x52, // M
+	/* 0x4e */	0x51, // N
+	/* 0x4f */	0x2f, // O
+	
+	/* 0x50 */	0x30, // P
+	/* 0x51 */	0x27, // Q
+	/* 0x52 */	0x2a, // R
+	/* 0x53 */	0x3d, // S
+	/* 0x54 */	0x2b, // T
+	/* 0x55 */	0x2d, // U
+	/* 0x56 */	0x4f, // V
+	/* 0x57 */	0x28, // W
+	/* 0x58 */	0x4d, // X
+	/* 0x59 */	0x2c, // Y
+	/* 0x5a */	0x4c, // Z
+	/* 0x5b */	0x31, // [
+	/* 0x5c */	0x33, // '\'
+	/* 0x5d */	0x32, // ]
+	/* 0x5e */	0x17, // ^ (6 key with shift)
+	/* 0x5f */	0x1c, // _ (- key with shift)
+	
+	/* 0x60 */	0x11, // `
+	/* 0x61 */	0x3c, // a
+	/* 0x62 */	0x50, // b
+	/* 0x63 */	0x4e, // c
+	/* 0x64 */	0x3e, // d
+	/* 0x65 */	0x29, // e
+	/* 0x66 */	0x3f, // f
+	/* 0x67 */	0x40, // g
+	/* 0x68 */	0x41, // h
+	/* 0x69 */	0x2e, // i
+	/* 0x6a */	0x42, // j
+	/* 0x6b */	0x43, // k
+	/* 0x6c */	0x44, // l
+	/* 0x6d */	0x52, // m
+	/* 0x6e */	0x51, // n
+	/* 0x6f */	0x2f, // o
+	
+	/* 0x70 */	0x30, // p
+	/* 0x71 */	0x27, // q
+	/* 0x72 */	0x2a, // r
+	/* 0x73 */	0x3d, // s
+	/* 0x74 */	0x2b, // t
+	/* 0x75 */	0x2d, // u
+	/* 0x76 */	0x4f, // v
+	/* 0x77 */	0x28, // w
+	/* 0x78 */	0x4d, // x
+	/* 0x79 */	0x2c, // y
+	/* 0x7a */	0x4c, // z
+	/* 0x7b */	0x31, // { ([ key with shift)
+	/* 0x7c */	0x33, // | (\ key with shift)
+	/* 0x7d */	0x32, // } (] key with shift)
+	/* 0x7e */	0x11, // ~ (` key with shift)
+	/* 0x7f */	0xe	  // DEL (B_DELETE)
+
+};
 

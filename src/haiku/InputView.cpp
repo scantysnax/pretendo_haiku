@@ -3,6 +3,7 @@
 #include "Settings.h"
 
 #include <iostream>
+#include <Alert.h>
 
 
 InputView::InputView (BRect frame)
@@ -173,6 +174,7 @@ InputView::OnCancel()
    	}
   	*/
   	
+  	/*
   	uint8 keys[] = { 
   		fUpKey,			// 1e
   		fDownKey,		// 1f
@@ -184,13 +186,15 @@ InputView::OnCancel()
   		fAKey			// 58
   	};
   	
-  	size_t size = sizeof(keys) / sizeof(*keys);
+  	int32 size = sizeof(keys) / sizeof(*keys);
   	
-  	printf("size: %lu\n", size);
+  	printf("size: %d\n", size);
   	
-  	for (int32 i = 0; i < 8; i++) {
+  	for (int32 i = 0; i < size; i++) {
   		printf("%02x\n", keys[i]);
   	}
+  	
+  	*/
 }
 
 	
@@ -217,7 +221,7 @@ InputView::SetDefaultKeys()
 {
 	std::cout << __PRETTY_FUNCTION__ << std::endl;
 	
-	fUpKey = B_UP_ARROW;
+	fUpKey = B_UP_ARROW;	
 	fDownKey = B_DOWN_ARROW;
 	fLeftKey = B_LEFT_ARROW;
 	fRightKey = B_RIGHT_ARROW;
@@ -335,11 +339,6 @@ KeyTextView::KeyDown (const char *bytes, int32 numBytes)
 		case B_DELETE:
 		case B_ESCAPE:
 		case B_PRINT_KEY:
-		case B_F1_KEY:
-		case B_F2_KEY:
-		case B_F5_KEY:
-		case B_F6_KEY:
-		case B_F12_KEY:
 		case B_SCROLL_KEY:
 		case B_NUM_LOCK_KEY:
 		case B_CAPS_LOCK_KEY:
@@ -347,7 +346,8 @@ KeyTextView::KeyDown (const char *bytes, int32 numBytes)
 		allowed = false;
 		break;
 	
-		case B_UP_ARROW:
+		case B_UP_ARROW:                                                                                                                             
+		(new BAlert(0, "Up", "Okay"))->Go();
 		keys = "↑";
 		break;
 		

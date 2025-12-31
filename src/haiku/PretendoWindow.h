@@ -282,7 +282,7 @@ class PretendoWindow : public BDirectWindow
 	// input
 	private:
 	key_info fKeyStates;
-	inline void CheckKey (int32 index, int32 key) const;
+	inline void CheckKey (int32 index, int32 key);
 	inline void ReadKeyStates();
 	
 	// mutex
@@ -297,7 +297,85 @@ class PretendoWindow : public BDirectWindow
 	bool UnlockMutex() const { 
 		return fMutex->Unlock();
 	}
+	
+	private:
+	uint8 fUpKey;
+	uint8 fDownKey;
+	uint8 fLeftKey;
+	uint8 fRightKey;
+	uint8 fSelectKey;
+	uint8 fStartKey;
+	uint8 fBKey;
+	uint8 fAKey;
+	
+	public:
+	uint8 UpKey() {
+		return fUpKey;
+	}
+	
+	uint8 DownKey() {
+		return fDownKey;
+	}
+	
+	uint8 LeftKey() {
+		return fLeftKey;
+	}
+	
+	uint8 RightKey() {
+		return fRightKey;
+	}
+	
+	uint8 SelectKey() {
+		return fSelectKey;
+	}
+	
+	uint8 StartKey() {
+		return fStartKey;
+	}
+	
+	uint8 BKey() {
+		return fBKey;
+	}
+	
+	uint8 AKey() {
+		return fAKey;
+	}
+	
+	public:
+	void SetUpKey (uint8 key) {
+		fUpKey = key;
+	}
+	
+	void SetDownKey (uint8 key) {
+		fDownKey = key;
+	}
+	
+	void SetLeftKey (uint8 key) {
+		fLeftKey = key;
+	}
+	
+	void SetRightKey (uint8 key) {
+		fRightKey = key;
+	}
+	
+	void SetSelectKey (uint8 key) {
+		fSelectKey = key;
+	}
+	
+	void SetStartKey (uint8 key) {
+		fStartKey = key;
+	}
+	
+	void SetBKey (uint8 key) {
+		fBKey = key;
+	}
+	
+	void SetAKey (uint8 key) {
+		fAKey = key;
+	}	
 };
+
+
 				
 #endif // _PRETENDO_WINDOW_H_
 
