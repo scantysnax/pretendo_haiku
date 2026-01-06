@@ -4,6 +4,7 @@
 
 #include <iostream>
 #include <Alert.h>
+#include <cstdio>
 
 
 InputView::InputView (BRect frame)
@@ -211,8 +212,6 @@ void
 InputView::OnSave()
 {
 	std::cout << __PRETTY_FUNCTION__ << std::endl;
-	
-	ValidateKeys();
 }
 
 
@@ -221,6 +220,7 @@ InputView::SetDefaultKeys()
 {
 	std::cout << __PRETTY_FUNCTION__ << std::endl;
 	
+	/*
 	fUpKey = B_UP_ARROW;	
 	fDownKey = B_DOWN_ARROW;
 	fLeftKey = B_LEFT_ARROW;
@@ -229,6 +229,16 @@ InputView::SetDefaultKeys()
 	fStartKey = 'S';
 	fBKey = 'Z';
 	fAKey = 'X';
+	*/
+	
+	printf("up key: %02x\n", fUpKey);
+	printf("down key: %02x\n", fDownKey);
+	printf("left key: %02x\n", fLeftKey);
+	printf("right key: %02x\n", fRightKey);
+	printf("select key: %02x\n", fSelectKey);
+	printf("start key: %02x\n", fStartKey);
+	printf("b key: %02x\n", fBKey);
+	printf("a key: %02x\n", fAKey);
 	
 	fUpView->SetText("↑");
 	fDownView->SetText("↓");
@@ -237,7 +247,17 @@ InputView::SetDefaultKeys()
 	fSelectView->SetText("A");
 	fStartView->SetText("S");
 	fBView->SetText("Z");
-	fAView->SetText("X");	
+	fAView->SetText("X");
+	
+	//BString s = fAView->Text();
+	//printf("length: %d\n", s.Length());
+	
+	//printf("key: %02x\n", (uint8)s[0]);
+	
+	
+	
+	//putchar(s[0]);putchar(s[1]);putchar(s[2]);
+	//putchar('\n');
 }
 
 
@@ -370,6 +390,7 @@ KeyTextView::KeyDown (const char *bytes, int32 numBytes)
 	
 	if (allowed) {		
 		SetText(keys.String());
+		(new BAlert(0, keys.String(), "Okay"))->Go();
 	}
 
  	BTextView::KeyDown (bytes, numBytes);

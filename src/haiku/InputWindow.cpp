@@ -1,6 +1,8 @@
 
 #include "InputWindow.h"
 
+#include <File.h>
+
 #include <iostream>
 
 InputWindow::InputWindow (PretendoWindow *parent)
@@ -22,6 +24,20 @@ InputWindow::InputWindow (PretendoWindow *parent)
 	
 	fSettingsMessage = new BMessage;
 	LoadSettings();
+	
+	//fParent->SetLeftKey('A');
+	char s[32];
+	sprintf(s, "%02x %02x %02x %02x %02x %02x %02x %02x\n", 
+	fParent->UpKey(),
+	fParent->DownKey(),
+	fParent->LeftKey(),
+	fParent->RightKey(),
+	fParent->SelectKey(),
+	fParent->StartKey(),
+	fParent->BKey(),
+	fParent->AKey());
+	
+	(new BAlert(0, s, "Okay"))->Go();
 }
 
 
@@ -75,21 +91,10 @@ InputWindow::LoadSettings()
 			fSettingsMessage->AddInt32("window_x", x);
 			fSettingsMessage->AddInt32("window_y", y);
 			
-			// keys
-			/*
-			fSettingsMessage->AddInt8("input_up_key", B_UP_ARROW);
-			fSettingsMessage->AddInt8("input_down_key", B_DOWN_ARROW);
-			fSettingsMessage->AddInt8("input_left_key", B_LEFT_ARROW);
-			fSettingsMessage->AddInt8("input_right_key", B_RIGHT_ARROW);
-			fSettingsMessage->AddInt8("input_select_key", 'A');
-			fSettingsMessage->AddInt8("input_start_key", 'S');
-			fSettingsMessage->AddInt8("input_b_key", 'Z');
-			fSettingsMessage->AddInt8("input_a_key", 'X');
-			*/
-			
 			fSettingsMessage->Flatten(&file);
 	
 			// apply settings (update user interface)
+			fInputView->SetDefaultKeys();
 			MoveTo(x, y);		
 		} else {
 			// load from file
@@ -150,8 +155,4 @@ InputWindow::SaveSettings()
 }	
 
 
-void
-InputWindow::SetDefaultKeys()
-{
-	fInputView->SetDefaultKeys();
-}
+

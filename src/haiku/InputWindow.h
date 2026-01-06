@@ -2,12 +2,12 @@
 #ifndef _INPUT_WINDOW_H_
 #define _INPUT_WINDOW_H_
 
-#include <File.h>
+
 #include <Window.h>
 
 #include "InputView.h"
 #include "Settings.h"
-
+#include "PretendoWindow.h"
 
 class PretendoWindow;
 
@@ -21,9 +21,6 @@ class InputWindow : public BWindow
 	public:
 	virtual bool QuitRequested();
 	virtual void MessageReceived (BMessage *message);
-	
-	public:
-	void SetDefaultKeys();
 	
 	private:
 	void LoadSettings();

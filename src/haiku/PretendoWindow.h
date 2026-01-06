@@ -29,6 +29,8 @@
 #include "asm/copies.h"
 
 class PretendoView;
+class InputWindow;
+
 
 class PretendoWindow : public BDirectWindow
 {
