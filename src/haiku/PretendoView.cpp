@@ -13,7 +13,6 @@ PretendoView::PretendoView (BRect frame, PretendoWindow *parent)
 	: BView (frame, "pretendo_view", B_FOLLOW_ALL_SIDES, B_NAVIGABLE)
 {
 	fParent = parent;
-	frame.PrintToStream();
 	SetViewColor(0, 0, 0);
 }
 
