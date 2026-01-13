@@ -649,6 +649,19 @@ PretendoWindow::AddMenu()
 	fMenuHeight = fMenu->Bounds().IntegerHeight();
 		
 	SetKeyMenuBar(fMenu);
+	
+	BRect r(0, 0, 32, 32);
+	BView *view = new BView(r, "icon_view", B_FOLLOW_NONE, 0);
+	BBitmap *icon = BTranslationUtils::GetBitmap('bits', "Icon");
+	
+	if (icon->IsValid() && icon != nullptr) {
+		(new BAlert(0, "bitmap is valid", "Okay"))->Go();
+	} else {
+		(new BAlert(0, "bitmap is NOT valid", "Okay"))->Go();
+	}
+	view->SetViewBitmap(icon);
+	fMenu->AddChild(view);
+	
 }
 
 
