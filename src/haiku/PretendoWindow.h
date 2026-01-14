@@ -34,7 +34,7 @@ class InputWindow;
 class MenuIconView : public BView
 {
 	public:
-			MenuIconView (BRect frame, BMenuBar *parent);
+			MenuIconView (BRect frame, BMenuBar *menuBar);
 	virtual ~MenuIconView();
 	
 	public:
@@ -42,7 +42,7 @@ class MenuIconView : public BView
 	virtual void Draw (BRect updateRect);
 	
 	private:
-	BMenuBar *fParentMenu = nullptr;
+	BMenuBar *fMenuBar = nullptr;
 	BBitmap *fIconBitmap = nullptr;
 	
 };
