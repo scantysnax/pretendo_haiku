@@ -56,10 +56,13 @@ MenuIconView::Draw (BRect updateRect)
 	BRect r(Frame());
 	SetHighColor(ui_color(B_PANEL_BACKGROUND_COLOR));
 	FillRect(r);
-	SetDrawingMode(B_OP_OVER);
-	DrawBitmap(fIconBitmap, r);
 	
-	BView::Draw (updateRect);
+	SetDrawingMode(B_OP_ALPHA);
+	SetBlendingMode(B_PIXEL_ALPHA, B_ALPHA_OVERLAY);
+	
+	DrawBitmap(fIconBitmap, updateRect);
+	
+	//BView::Draw (updateRect);
 }	
 
 
@@ -67,8 +70,9 @@ PretendoWindow::PretendoWindow()
 	: BDirectWindow (BRect (0, 0, 0, 0), "Pretendo", B_TITLED_WINDOW, B_NOT_RESIZABLE, 0)		
 {
 	// ui things
-	AddMenu();
+	//AddMenu();
 	ResizeTo(screen_size::WIDTH, screen_size::HEIGHT);
+	AddMenu();
 	//CenterOnScreen();
 	BRect bounds(Bounds());
 	bounds.OffsetTo(B_ORIGIN);
@@ -680,13 +684,21 @@ PretendoWindow::AddMenu()
 	fNameTableMenu->AddItem(new BMenuItem("4 (0x2c00)", new BMessage(messages::SHOW_NTBL4)));
 	fToolMenu->AddItem(fNameTableMenu);
 	
-	BRect r(80, 0, 96, 17);
-	fMenuIconView = new MenuIconView(r, fMenu);
-	fMenu->AddChild(fMenuIconView);
+	fMenuHeight = fMenu->Bounds().IntegerHeight();
+	fMenuWidth = fMenu->Bounds().IntegerWidth();	
+	SetKeyMenuBar(fMenu);
+	
 	
 
-	fMenuHeight = fMenu->Bounds().IntegerHeight();	
-	SetKeyMenuBar(fMenu);
+	BRect r;
+	r.left = fMenuWidth - 20;
+	r.top = 0;
+	r.right = fMenuWidth;
+	r.bottom = 20;
+	r.PrintToStream();
+	
+	fMenuIconView = new MenuIconView(r, fMenu);
+	fMenu->AddChild(fMenuIconView);	
 }
 
 

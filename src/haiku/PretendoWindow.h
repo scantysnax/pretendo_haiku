@@ -225,7 +225,8 @@ class PretendoWindow : public BDirectWindow
 	BMenu *fToolMenu = nullptr;
 	BMenu *fPatternTableMenu = nullptr;
 	BMenu *fNameTableMenu = nullptr;
-	int32 fMenuHeight;
+	int32 fMenuHeight = 0;
+	int32 fMenuWidth = 0;
 	
 	MenuIconView *fMenuIconView = nullptr;
 	
