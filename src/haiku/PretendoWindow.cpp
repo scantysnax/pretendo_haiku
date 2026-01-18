@@ -62,7 +62,7 @@ MenuIconView::Draw (BRect updateRect)
 	
 	DrawBitmap(fIconBitmap, updateRect);
 	
-	//BView::Draw (updateRect);
+	BView::Draw (updateRect);
 }	
 
 
@@ -687,14 +687,12 @@ PretendoWindow::AddMenu()
 	fMenuHeight = fMenu->Bounds().IntegerHeight();
 	fMenuWidth = fMenu->Bounds().IntegerWidth();	
 	SetKeyMenuBar(fMenu);
-	
-	
 
 	BRect r;
-	r.left = fMenuWidth - 20;
-	r.top = 0;
-	r.right = fMenuWidth;
-	r.bottom = 20;
+	r.left = fMenuWidth - 17;
+	r.top = 3;
+	r.right = fMenuWidth - 1;
+	r.bottom = 19;
 	r.PrintToStream();
 	
 	fMenuIconView = new MenuIconView(r, fMenu);
