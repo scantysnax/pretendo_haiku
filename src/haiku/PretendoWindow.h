@@ -15,6 +15,7 @@
 
 #include "AudioStream.h"
 #include "InputWindow.h"
+#include "MenuBarIcon.h"
 #include "Mutex.h"
 #include "NameTableWindow.h"
 #include "Palette.h"
@@ -30,22 +31,6 @@
 
 class PretendoView;
 class InputWindow;
-
-class MenuIconView : public BView
-{
-	public:
-			MenuIconView (BRect frame, BMenuBar *parent);
-	virtual ~MenuIconView();
-	
-	public:
-	virtual void AttachedToWindow();
-	virtual void Draw (BRect updateRect);
-	
-	private:
-	BMenuBar *fParentMenu = nullptr;
-	BBitmap *fIconBitmap = nullptr;
-	
-};
 
 
 class PretendoWindow : public BDirectWindow
@@ -227,7 +212,7 @@ class PretendoWindow : public BDirectWindow
 	BMenu *fNameTableMenu = nullptr;
 	int32 fMenuHeight;
 	
-	MenuIconView *fMenuIconView = nullptr;
+	MenuBarIcon *fMenuBarIcon = nullptr;
 	
 	// panels
 	private:

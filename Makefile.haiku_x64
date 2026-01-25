@@ -120,6 +120,7 @@ CPP_FILES := \
 	src/haiku/InputView.cpp \
 	src/haiku/InputWindow.cpp \
 	src/haiku/LinkView.cpp \
+	src/haiku/MenuBarIcon.cpp \
 	src/haiku/Mutex.cpp \
 	src/haiku/NameTableView.cpp \
 	src/haiku/NameTableWindow.cpp \

@@ -29,49 +29,6 @@
 #include "asm/copies.h"
 
 
-MenuIconView::MenuIconView (BRect frame, BMenuBar *parent)
-	: BView (frame, "menu_icon", B_FOLLOW_NONE, B_WILL_DRAW)
-{
-	fParentMenu = parent;
-}
-
-
-MenuIconView::~MenuIconView()
-{
-	// delete fIconBitmap
-}
-
-void
-MenuIconView::AttachedToWindow()
-{
-	fIconBitmap = BTranslationUtils::GetBitmap('bits', "Icon");
-	
-	if (fIconBitmap->IsValid() && fIconBitmap != nullptr) {
-		(new BAlert(0, "bitmap is good!", "Okay"))->Go();
-	} else {
-		(new BAlert(0, "bitmap is NO good!", "Okay"))->Go();
-	}
-	
-	SetViewColor(ui_color(B_PANEL_BACKGROUND_COLOR));
-}
-
-
-void
-MenuIconView::Draw (BRect updateRect)
-{	
-	BRect r = Bounds();
-	//r.left = 
-	
-	r.PrintToStream();
-	SetHighColor(ui_color(B_PANEL_BACKGROUND_COLOR));
-	FillRect(r);
-	SetDrawingMode(B_OP_OVER);
-	DrawBitmap(fIconBitmap, r);
-	
-	BView::Draw (updateRect);
-}	
-
-
 PretendoWindow::PretendoWindow()
 	: BDirectWindow (BRect (0, 0, 0, 0), "Pretendo", B_TITLED_WINDOW, B_NOT_RESIZABLE, 0)		
 {
@@ -690,8 +647,8 @@ PretendoWindow::AddMenu()
 	fToolMenu->AddItem(fNameTableMenu);
 	
 	BRect r(0, 0, 17, 17);
-	fMenuIconView = new MenuIconView(r, fMenu);
-	fMenu->AddChild(fMenuIconView);
+	fMenuBarIcon = new MenuBarIcon(r, fMenu);
+	fMenu->AddChild(fMenuBarIcon);
 	
 
 	fMenuHeight = fMenu->Bounds().IntegerHeight();	
