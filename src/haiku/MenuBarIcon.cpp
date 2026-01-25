@@ -34,13 +34,13 @@ void
 MenuBarIcon::Draw (BRect updateRect)
 {	
 	BRect r = Bounds();
-	//r.left = 
 	r.PrintToStream();
+	
 	SetHighColor(ui_color(B_PANEL_BACKGROUND_COLOR));
 	FillRect(r);
 	SetDrawingMode(B_OP_OVER);
-	DrawBitmap(fIconBitmap, r);
+	DrawBitmap(fIconBitmap, updateRect);
 	
-	//BView::Draw (updateRect);
+	BView::Draw (updateRect);
 }	
 

@@ -646,7 +646,7 @@ PretendoWindow::AddMenu()
 	fNameTableMenu->AddItem(new BMenuItem("4 (0x2c00)", new BMessage(messages::SHOW_NTBL4)));
 	fToolMenu->AddItem(fNameTableMenu);
 	
-	BRect r(0, 0, 17, 17);
+	BRect r(16, 0, 32, 16);
 	fMenuBarIcon = new MenuBarIcon(r, fMenu);
 	fMenu->AddChild(fMenuBarIcon);
 	
