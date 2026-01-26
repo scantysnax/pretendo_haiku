@@ -579,7 +579,7 @@ PretendoWindow::AddMenu()
 	fMenu = new BMenuBar(BRect(0, 0, 0, 0), "pretendo_menu");
 	fMenu->ResizeToPreferred();
 	AddChild(fMenu);
-	
+
 	fFileMenu = new BMenu("File");
 	fMenu->AddItem(fFileMenu);
 	
@@ -645,13 +645,13 @@ PretendoWindow::AddMenu()
 	fNameTableMenu->AddItem(new BMenuItem("3 (0x2800)", new BMessage(messages::SHOW_NTBL3)));
 	fNameTableMenu->AddItem(new BMenuItem("4 (0x2c00)", new BMessage(messages::SHOW_NTBL4)));
 	fToolMenu->AddItem(fNameTableMenu);
-	
-	BRect r(16, 0, 32, 16);
+		
+	BRect r(238, 2, 254, 18);
 	fMenuBarIcon = new MenuBarIcon(r, fMenu);
 	fMenu->AddChild(fMenuBarIcon);
 	
-
-	fMenuHeight = fMenu->Bounds().IntegerHeight();	
+	fMenuHeight = fMenu->Bounds().IntegerHeight();
+	
 	SetKeyMenuBar(fMenu);
 }
 

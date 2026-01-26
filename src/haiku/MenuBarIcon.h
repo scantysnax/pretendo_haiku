@@ -7,6 +7,7 @@
 #include <Bitmap.h>
 #include <TranslationUtils.h>
 
+
 class MenuBarIcon : public BView
 {
 	public:
