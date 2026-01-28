@@ -46,14 +46,9 @@ MenuBarIcon::AttachedToWindow()
 void
 MenuBarIcon::Draw (BRect updateRect)
 {
-		
-	BRect r(Bounds());
-	
-	SetHighColor(ui_color(B_PANEL_BACKGROUND_COLOR));
-	FillRect(r);
 	SetDrawingMode(B_OP_OVER);
 	SetBlendingMode(B_PIXEL_ALPHA, B_ALPHA_OVERLAY);
-	DrawBitmap(fIconBitmap, r);
+	DrawBitmap(fIconBitmap, Bounds());
 	
 	BView::Draw (updateRect);
 }	
