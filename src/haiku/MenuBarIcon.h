@@ -2,10 +2,9 @@
 #ifndef _MENU_BAR_ICON_H_
 #define _MENU_BAR_ICON_H_
 
-#include <View.h>
-#include <MenuBar.h>
 #include <Bitmap.h>
-#include <TranslationUtils.h>
+#include <MenuBar.h>
+#include <View.h>
 
 
 class MenuBarIcon : public BView
