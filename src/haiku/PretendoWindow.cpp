@@ -650,6 +650,7 @@ PretendoWindow::AddMenu()
 	fMenuBarIcon = new MenuBarIcon(r, fMenu);
 	fMenu->AddChild(fMenuBarIcon);
 	
+	
 	fMenuHeight = fMenu->Bounds().IntegerHeight();
 	fMenuWidth = fMenu->Bounds().IntegerWidth();
 }
