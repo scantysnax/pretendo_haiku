@@ -2,11 +2,6 @@
 #include "MenuBarIcon.h"
 
 
-#include <Application.h>
-#include <AppFileInfo.h>
-#include <File.h>
-#include <Roster.h>
-
 MenuBarIcon::MenuBarIcon (BRect frame, BMenuBar *menuBar)
 	: BView (frame, "menu_icon", B_FOLLOW_NONE, B_WILL_DRAW)
 {
