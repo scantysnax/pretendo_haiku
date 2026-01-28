@@ -2,8 +2,12 @@
 #ifndef _MENU_BAR_ICON_H_
 #define _MENU_BAR_ICON_H_
 
+#include <AppFileInfo.h>
+#include <Application.h>
 #include <Bitmap.h>
+#include <File.h>
 #include <MenuBar.h>
+#include <Roster.h>
 #include <View.h>
 
 
