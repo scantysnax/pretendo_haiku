@@ -6,20 +6,18 @@ MenuBarIcon::MenuBarIcon (BRect frame, BMenuBar *menuBar)
 	: BView (frame, "menu_icon", B_FOLLOW_NONE, B_WILL_DRAW)
 {
 	fMenuBar = menuBar;
+	fIconBitmap = new BBitmap(frame, B_RGBA32);
 	
-	app_info ai;
-	BFile file;
-	BAppFileInfo afi;
-	
-	if (be_app->GetAppInfo(&ai) == B_OK) {
-		file.SetTo(&ai.ref, B_READ_ONLY);
-		afi.SetTo(&file);
-
-		fIconBitmap = new BBitmap(frame, B_RGBA32);
-
-		if (afi.GetIcon(fIconBitmap, B_MINI_ICON) != B_OK) {
-			delete fIconBitmap;
-			fIconBitmap = nullptr;
+	if (fIconBitmap->IsValid()) {
+		app_info appInfo;
+		
+		if (be_app->GetAppInfo(&appInfo) == B_OK) {
+			BFile file;
+			BAppFileInfo appFileInfo;
+			
+			file.SetTo(&appInfo.ref, B_READ_ONLY);
+			appFileInfo.SetTo(&file);
+			appFileInfo.GetIcon(fIconBitmap, B_MINI_ICON);
 		}
 	}
 }
@@ -43,7 +41,7 @@ MenuBarIcon::Draw (BRect updateRect)
 {
 	SetDrawingMode(B_OP_OVER);
 	SetBlendingMode(B_PIXEL_ALPHA, B_ALPHA_OVERLAY);
-	DrawBitmap(fIconBitmap, Bounds());
+	DrawBitmap(fIconBitmap);
 	
 	BView::Draw (updateRect);
 }	

@@ -643,15 +643,16 @@ PretendoWindow::AddMenu()
 	fNameTableMenu->AddItem(new BMenuItem("3 (0x2800)", new BMessage(messages::SHOW_NTBL3)));
 	fNameTableMenu->AddItem(new BMenuItem("4 (0x2c00)", new BMessage(messages::SHOW_NTBL4)));
 	fToolMenu->AddItem(fNameTableMenu);
+	
+	fMenu->Bounds().PrintToStream();
 		
 	BRect r(238, 2, 254, 18);
+	r.PrintToStream();
 	fMenuBarIcon = new MenuBarIcon(r, fMenu);
 	fMenu->AddChild(fMenuBarIcon);
 	
 	fMenuHeight = fMenu->Bounds().IntegerHeight();
 	fMenuWidth = fMenu->Bounds().IntegerWidth();
-	
-	fMenu->Bounds().PrintToStream();
 }
 
 
@@ -660,7 +661,7 @@ PretendoWindow::OnLoadROM (BMessage *message)
 {
 	BString path;
 	
-	if (message->FindString ("rom_path", &path) == B_OK) {
+	if (message->FindString("rom_path", &path) == B_OK) {
 		OnFreeROM();
 		if (nes::cart.load(path.String()) == false) {
 			(new BAlert("Error", "Error.  Couldnt't load ROM Image.", "Okay", nullptr, nullptr,
