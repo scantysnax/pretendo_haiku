@@ -190,6 +190,10 @@ PretendoWindow::PretendoWindow()
 	
 	fSettingsMessage = new BMessage;
 	LoadSettings();
+	
+	if (fDoubled) {
+		fMenuBarIcon->MoveTo(494, 2);
+	}
 }
 
 
@@ -562,9 +566,11 @@ PretendoWindow::Zoom (BPoint origin, float width, float height)
 	if (w == screen_size::WIDTH) {
 		ResizeTo((screen_size::WIDTH*2), (screen_size::HEIGHT*2));
 		fDoubled = true;
+		fMenuBarIcon->MoveTo(494, 2);
 	} else if (w == screen_size::WIDTH*2) {
 		ResizeTo(screen_size::WIDTH, screen_size::HEIGHT);
 		fDoubled = false;
+		fMenuBarIcon->MoveTo(238, 2);
 	} 
 	
 	// do not call the default //
@@ -647,7 +653,7 @@ PretendoWindow::AddMenu()
 	fMenu->Bounds().PrintToStream();
 		
 	BRect r(238, 2, 254, 18);
-	r.PrintToStream();
+	//r.PrintToStream();
 	fMenuBarIcon = new MenuBarIcon(r, fMenu);
 	fMenu->AddChild(fMenuBarIcon);
 	

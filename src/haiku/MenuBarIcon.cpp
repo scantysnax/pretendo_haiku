@@ -43,6 +43,6 @@ MenuBarIcon::Draw (BRect updateRect)
 	SetBlendingMode(B_PIXEL_ALPHA, B_ALPHA_OVERLAY);
 	DrawBitmap(fIconBitmap);
 	
-	BView::Draw (updateRect);
+	BView::Draw(updateRect);
 }	
 
