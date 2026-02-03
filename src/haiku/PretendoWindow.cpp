@@ -30,7 +30,7 @@
 
 
 PretendoWindow::PretendoWindow()
-	: BDirectWindow (BRect (0, 0, 0, 0), "Pretendo", B_TITLED_WINDOW, B_NOT_RESIZABLE, 0)		
+	: BDirectWindow (BRect (0, 0, 255, 239), "Pretendo", B_TITLED_WINDOW, B_NOT_RESIZABLE, 0)		
 {
 	// ui things
 	AddMenu();
@@ -143,7 +143,7 @@ PretendoWindow::PretendoWindow()
 	fAudioStream = new AudioStream(nes::apu::frequency, 8, 1, nes::apu::buffer_size / 4);
 
 	// this is the emulator processing loop
-	// thread gets a cheeky name, as per the Be Book
+	// thread gets a cheeky name, as per Be Book
 	char const *threadNames[] = {
 		"pocket calculator",
 		"keystroke logger", 
@@ -154,10 +154,11 @@ PretendoWindow::PretendoWindow()
 		"network traffic monitor",
 		"prime finder",
 		"mersenne twister",
-		"fibonacci sequence generator"
+		"fibonacci sequence generator",
+		"numbers station"
 	};
 
-	int32 const index = (rand() % 10);
+	int32 const index = (rand() % 11);
 	fThread = spawn_thread(emulator_thread, threadNames[index], B_DISPLAY_PRIORITY, 
 				reinterpret_cast<void *>(this));
 	if (fThread < B_OK) {
@@ -561,11 +562,15 @@ PretendoWindow::Zoom (BPoint origin, float width, float height)
 			
 	if (w == screen_size::WIDTH) {
 		ResizeTo((screen_size::WIDTH*2), (screen_size::HEIGHT*2));
+		fMenuBarIcon->MoveTo((w*2)-MenuBarIcon::icon_size::WIDTH, 2);
 		fDoubled = true;
 	} else if (w == screen_size::WIDTH*2) {
 		ResizeTo(screen_size::WIDTH, screen_size::HEIGHT);
+		fMenuBarIcon->MoveTo((w/2)-MenuBarIcon::icon_size::WIDTH, 2);
 		fDoubled = false;
 	} 
+	
+	fMenuHeight = fMenu->Bounds().IntegerHeight();
 	
 	// do not call the default //
 }
@@ -574,11 +579,8 @@ PretendoWindow::Zoom (BPoint origin, float width, float height)
 void
 PretendoWindow::AddMenu()
 {
-	fMenu = new BMenuBar(BRect(0, 0, 0, 0), "pretendo_menu");
-	fMenu->ResizeToPreferred();
+	fMenu = new BMenuBar(BRect(0, 0, screen_size::WIDTH, screen_size::MENU_HEIGHT), "pretendo_menu");
 	AddChild(fMenu);
-	fMenu->Bounds().PrintToStream();
-
 	fFileMenu = new BMenu("File");
 	fMenu->AddItem(fFileMenu);
 	
@@ -644,14 +646,11 @@ PretendoWindow::AddMenu()
 	fNameTableMenu->AddItem(new BMenuItem("3 (0x2800)", new BMessage(messages::SHOW_NTBL3)));
 	fNameTableMenu->AddItem(new BMenuItem("4 (0x2c00)", new BMessage(messages::SHOW_NTBL4)));
 	fToolMenu->AddItem(fNameTableMenu);
-		
-	BRect r(238, 2, 254, 18);
-	fMenuBarIcon = new MenuBarIcon(r, fMenu);
-	fMenu->AddChild(fMenuBarIcon);
 	
 	fMenuHeight = fMenu->Bounds().IntegerHeight();
-	fMenuWidth = fMenu->Bounds().IntegerWidth();
 	
+	fMenuBarIcon = new MenuBarIcon(fMenu);
+	fMenu->AddChild(fMenuBarIcon);
 }
 
 
@@ -660,7 +659,7 @@ PretendoWindow::OnLoadROM (BMessage *message)
 {
 	BString path;
 	
-	if (message->FindString ("rom_path", &path) == B_OK) {
+	if (message->FindString("rom_path", &path) == B_OK) {
 		OnFreeROM();
 		if (nes::cart.load(path.String()) == false) {
 			(new BAlert("Error", "Error.  Couldnt't load ROM Image.", "Okay", nullptr, nullptr,

@@ -93,7 +93,8 @@ class PretendoWindow : public BDirectWindow
 	private:
 	typedef enum {
 		WIDTH = 256,
-		HEIGHT = 240
+		HEIGHT = 240,
+		MENU_HEIGHT = 21
 	} screen_size;
 	
 	private:
@@ -198,7 +199,7 @@ class PretendoWindow : public BDirectWindow
 	void SaveSettings();
 	BMessage *fSettingsMessage = nullptr;
 	
-	// menus
+	// menu
 	private:
 	PretendoView *fView = nullptr;
 	BMenuBar *fMenu = nullptr;
@@ -210,9 +211,7 @@ class PretendoWindow : public BDirectWindow
 	BMenu *fToolMenu = nullptr;
 	BMenu *fPatternTableMenu = nullptr;
 	BMenu *fNameTableMenu = nullptr;
-	int32 fMenuHeight;
-	int32 fMenuWidth;
-	
+	int32 fMenuHeight = 21;
 	MenuBarIcon *fMenuBarIcon = nullptr;
 	
 	// panels

@@ -2,26 +2,14 @@
 #include "MenuBarIcon.h"
 
 
-MenuBarIcon::MenuBarIcon (BRect frame, BMenuBar *menuBar)
-	: BView (frame, "menu_icon", B_FOLLOW_NONE, B_WILL_DRAW)
+MenuBarIcon::MenuBarIcon (BMenuBar *menuBar)
+	: BView (BRect(0, 
+			icon_size::PADDING, icon_size::WIDTH-1, 
+			icon_size::HEIGHT-1+icon_size::PADDING), "menu_icon", B_FOLLOW_NONE, B_WILL_DRAW)
+			
 {
+	fIconBitmap = new BBitmap(BRect(0, 0, icon_size::WIDTH-1, icon_size::HEIGHT-1), B_RGBA32);
 	fMenuBar = menuBar;
-	
-	app_info ai;
-	BFile file;
-	BAppFileInfo afi;
-	
-	if (be_app->GetAppInfo(&ai) == B_OK) {
-		file.SetTo(&ai.ref, B_READ_ONLY);
-		afi.SetTo(&file);
-
-		fIconBitmap = new BBitmap(frame, B_RGBA32);
-
-		if (afi.GetIcon(fIconBitmap, B_MINI_ICON) != B_OK) {
-			delete fIconBitmap;
-			fIconBitmap = nullptr;
-		}
-	}
 }
 
 
@@ -35,6 +23,28 @@ void
 MenuBarIcon::AttachedToWindow()
 {
 	SetViewColor(ui_color(B_PANEL_BACKGROUND_COLOR));
+	
+	if (fIconBitmap->IsValid()) {
+		app_info appInfo;
+		
+		if (be_app->GetAppInfo(&appInfo) == B_OK) {
+			BFile file(&appInfo.ref, B_READ_ONLY);
+			
+			if (file.InitCheck() == B_OK) {
+				BAppFileInfo appFileInfo(&file);
+				
+				if (appFileInfo.InitCheck() == B_OK) {
+					appFileInfo.GetIcon(fIconBitmap, B_MINI_ICON);
+				}
+			}
+		}
+	}
+	
+	int32 const x = fMenuBar->Bounds().right - icon_size::WIDTH;
+	int32 const y = icon_size::PADDING;
+	MoveTo(x, y);
+	
+	BView::AttachedToWindow();
 }
 
 
@@ -43,8 +53,8 @@ MenuBarIcon::Draw (BRect updateRect)
 {
 	SetDrawingMode(B_OP_OVER);
 	SetBlendingMode(B_PIXEL_ALPHA, B_ALPHA_OVERLAY);
-	DrawBitmap(fIconBitmap, Bounds());
+	DrawBitmap(fIconBitmap);
 	
-	BView::Draw (updateRect);
+	BView::Draw(updateRect);
 }	
 
