@@ -93,7 +93,8 @@ class PretendoWindow : public BDirectWindow
 	private:
 	typedef enum {
 		WIDTH = 256,
-		HEIGHT = 240
+		HEIGHT = 240,
+		MENU_HEIGHT = 21
 	} screen_size;
 	
 	private:

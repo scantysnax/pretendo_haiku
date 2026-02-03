@@ -14,7 +14,13 @@
 class MenuBarIcon : public BView
 {
 	public:
-			MenuBarIcon (BRect frame, BMenuBar *menuBar);
+	typedef enum {
+		WIDTH = 18,
+		HEIGHT = 18
+	} icon_size;
+	
+	public:
+			MenuBarIcon(BRect frame, BMenuBar *menuBar);
 	virtual ~MenuBarIcon();
 	
 	public:
@@ -22,8 +28,8 @@ class MenuBarIcon : public BView
 	virtual void Draw (BRect updateRect);
 	
 	private:
-	BMenuBar *fMenuBar = nullptr;
 	BBitmap *fIconBitmap = nullptr;	
+	BMenuBar *fMenuBar = nullptr;
 };
 
 
