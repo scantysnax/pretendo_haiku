@@ -571,7 +571,8 @@ PretendoWindow::Zoom (BPoint origin, float width, float height)
 	} 
 	
 	fMenuHeight = fMenu->Bounds().IntegerHeight();
-
+	fMenuWidth = fMenu->Bounds().IntegerWidth();
+	
 	// do not call the default //
 }
 
@@ -648,6 +649,7 @@ PretendoWindow::AddMenu()
 	fToolMenu->AddItem(fNameTableMenu);
 	
 	fMenuHeight = fMenu->Bounds().IntegerHeight();
+	fMenuWidth = fMenu->Bounds().IntegerWidth();
 	
 	fMenuBarIcon = new MenuBarIcon(fMenu);
 	fMenu->AddChild(fMenuBarIcon);

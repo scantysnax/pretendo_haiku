@@ -210,8 +210,11 @@ class PretendoWindow : public BDirectWindow
 	BMenu *fAudioMenu = nullptr;
 	BMenu *fToolMenu = nullptr;
 	BMenu *fPatternTableMenu = nullptr;
+	
 	BMenu *fNameTableMenu = nullptr;
+	int32 fMenuWidth;
 	int32 fMenuHeight = 21;
+	
 	MenuBarIcon *fMenuBarIcon = nullptr;
 	
 	// panels
