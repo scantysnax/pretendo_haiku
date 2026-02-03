@@ -571,7 +571,7 @@ PretendoWindow::Zoom (BPoint origin, float width, float height)
 	} 
 	
 	fMenuHeight = fMenu->Bounds().IntegerHeight();
-	
+
 	// do not call the default //
 }
 
