@@ -577,6 +577,7 @@ PretendoWindow::AddMenu()
 	fMenu = new BMenuBar(BRect(0, 0, 0, 0), "pretendo_menu");
 	fMenu->ResizeToPreferred();
 	AddChild(fMenu);
+	fMenu->Bounds().PrintToStream();
 
 	fFileMenu = new BMenu("File");
 	fMenu->AddItem(fFileMenu);
@@ -651,7 +652,6 @@ PretendoWindow::AddMenu()
 	fMenuHeight = fMenu->Bounds().IntegerHeight();
 	fMenuWidth = fMenu->Bounds().IntegerWidth();
 	
-	fMenu->Bounds().PrintToStream();
 }
 
 
