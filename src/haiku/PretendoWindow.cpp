@@ -30,7 +30,8 @@
 
 
 PretendoWindow::PretendoWindow()
-	: BDirectWindow (BRect (0, 0, 255, 239), "Pretendo", B_TITLED_WINDOW, B_NOT_RESIZABLE, 0)		
+	: BDirectWindow (BRect (0, 0, screen_size::WIDTH-1, screen_size::HEIGHT-1), 
+					"Pretendo", B_TITLED_WINDOW, B_NOT_RESIZABLE, 0)		
 {
 	// ui things
 	AddMenu();
@@ -157,7 +158,7 @@ PretendoWindow::PretendoWindow()
 		"fibonacci sequence generator",
 		"numbers station"
 	};
-
+	
 	int32 const index = (rand() % 11);
 	fThread = spawn_thread(emulator_thread, threadNames[index], B_DISPLAY_PRIORITY, 
 				reinterpret_cast<void *>(this));
@@ -182,8 +183,7 @@ PretendoWindow::PretendoWindow()
 	// do any post-settings setup
 	if (fDoubled) {
 		fMenuBarIcon->MoveTo(screen_size::WIDTH*2 - MenuBarIcon::WIDTH-MenuBarIcon::PADDING, 
-							 MenuBarIcon::PADDING
-							);
+							 MenuBarIcon::PADDING);
 	}
 }
 
