@@ -39,15 +39,11 @@ MenuBarIcon::AttachedToWindow()
 			}
 		}
 	}
-		
-	//if (fDoubled) {
-		int32 const x = fMenuBar->Bounds().right*2 - icon_size::WIDTH;
-		int32 const y = icon_size::PADDING;
-		MoveTo(x, y);
-	//}
 	
-	//MoveTo(x, y);
-		
+	int32 const x = fMenuBar->Bounds().right - icon_size::WIDTH - icon_size::PADDING;
+	int32 const y = icon_size::PADDING;
+	MoveTo(x, y);
+	
 	BView::AttachedToWindow();
 }
 

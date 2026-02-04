@@ -40,7 +40,7 @@ PretendoWindow::PretendoWindow()
 	fView = new PretendoView(bounds, this);
 	AddChild(fView);
 	fView->MakeFocus();
-	
+		
 	// setup video buffers
 	void *bitsArea;
 	void *dirtyArea;
@@ -176,27 +176,20 @@ PretendoWindow::PretendoWindow()
 	fMutex->Lock();
 	resume_thread(fThread);
 	
-	// eli: we need to grab the palete from PaletteWindow and apply it
-	// 		this is a super hack, but convenient for now
-	
-	// this will call the constructor to set the palette
-
-	fPaletteWindow = new PaletteWindow(this); 
-	
-	// dispose of this for now
-	if (fPaletteWindow->Lock()) {
-		fPaletteWindow->Quit();
-		fPaletteWindow = nullptr;
-	}
-	
 	fSettingsMessage = new BMessage;
 	LoadSettings();
+	
+	// do any post-settings setup
+	if (fDoubled) {
+		fMenuBarIcon->MoveTo(screen_size::WIDTH*2 - MenuBarIcon::WIDTH-MenuBarIcon::PADDING, 
+							 MenuBarIcon::PADDING
+							);
+	}
 }
 
 
 PretendoWindow::~PretendoWindow()
 {	
-	
 	// break everything down and clean up
 	fRunning = fDirectConnected = false;
 	fThread = B_BAD_THREAD_ID;
@@ -562,16 +555,15 @@ PretendoWindow::Zoom (BPoint origin, float width, float height)
 			
 	if (w == screen_size::WIDTH) {
 		ResizeTo((screen_size::WIDTH*2), (screen_size::HEIGHT*2));
-		fMenuBarIcon->MoveTo((w*2)-MenuBarIcon::icon_size::WIDTH, 2);
+		fMenuBarIcon->MoveTo((w*2)-2-MenuBarIcon::icon_size::WIDTH, 2);
 		fDoubled = true;
 	} else if (w == screen_size::WIDTH*2) {
 		ResizeTo(screen_size::WIDTH, screen_size::HEIGHT);
-		fMenuBarIcon->MoveTo((w/2)-MenuBarIcon::icon_size::WIDTH, 2);
+		fMenuBarIcon->MoveTo((w/2)-2-MenuBarIcon::icon_size::WIDTH, 2);
 		fDoubled = false;
 	} 
 	
-	fMenuHeight = fMenu->Bounds().IntegerHeight();
-	fMenuWidth = fMenu->Bounds().IntegerWidth();
+	fMenuHeight = fMenuBar->Bounds().Height();
 	
 	// do not call the default //
 }
@@ -580,19 +572,19 @@ PretendoWindow::Zoom (BPoint origin, float width, float height)
 void
 PretendoWindow::AddMenu()
 {
-	fMenu = new BMenuBar(BRect(0, 0, screen_size::WIDTH, screen_size::MENU_HEIGHT), "pretendo_menu");
-	AddChild(fMenu);
+	fMenuBar = new BMenuBar(BRect(0, 0, screen_size::WIDTH, screen_size::MENU_HEIGHT), "pretendo_menu");
+	AddChild(fMenuBar);
 	fFileMenu = new BMenu("File");
-	fMenu->AddItem(fFileMenu);
+	fMenuBar->AddItem(fFileMenu);
 	
 	fEmuMenu = new BMenu("Emulator");
-	fMenu->AddItem(fEmuMenu);
+	fMenuBar->AddItem(fEmuMenu);
 	
 	fSettingsMenu = new BMenu("Settings");
-	fMenu->AddItem(fSettingsMenu);
+	fMenuBar->AddItem(fSettingsMenu);
 	
 	fToolMenu = new BMenu("Tools");
-	fMenu->AddItem(fToolMenu);
+	fMenuBar->AddItem(fToolMenu);
 
 	fFileMenu->AddItem(new BMenuItem("Free ROM", new BMessage(messages::FREE_ROM)));
 	fFileMenu->AddItem(new BMenuItem("ROM Info", new BMessage(messages::ROM_INFO)));
@@ -648,11 +640,9 @@ PretendoWindow::AddMenu()
 	fNameTableMenu->AddItem(new BMenuItem("4 (0x2c00)", new BMessage(messages::SHOW_NTBL4)));
 	fToolMenu->AddItem(fNameTableMenu);
 	
-	fMenuHeight = fMenu->Bounds().IntegerHeight();
-	fMenuWidth = fMenu->Bounds().IntegerWidth();
-	
-	fMenuBarIcon = new MenuBarIcon(fMenu);
-	fMenu->AddChild(fMenuBarIcon);
+	fMenuBarIcon = new MenuBarIcon(fMenuBar);
+	fMenuBar->AddChild(fMenuBarIcon);
+	fMenuHeight = fMenuBar->Bounds().Height();
 }
 
 
