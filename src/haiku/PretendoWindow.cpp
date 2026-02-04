@@ -177,6 +177,19 @@ PretendoWindow::PretendoWindow()
 	fMutex->Lock();
 	resume_thread(fThread);
 	
+	// eli: we need to grab the palete from PaletteWindow and apply it
+	// 		this is a super hack, but convenient for now
+	
+	// this will call the constructor to set the palette
+
+	fPaletteWindow = new PaletteWindow(this); 
+	
+	// dispose of this for now
+	if (fPaletteWindow->Lock()) {
+		fPaletteWindow->Quit();
+		fPaletteWindow = nullptr;
+	}
+	
 	fSettingsMessage = new BMessage;
 	LoadSettings();
 	
