@@ -184,17 +184,17 @@ PretendoWindow::PretendoWindow()
 	
 	// eli: we need to grab the palete from PaletteWindow and apply it
 	// 		this is a super hack, but convenient for now
-	
-	// this will call the constructor to set the palette
+	// 		this will call the constructor to set the palette
 
 	fPaletteWindow = new PaletteWindow(this); 
 	
-	// dispose of this for now
+	// dispose of this since we don't need it anymore
 	if (fPaletteWindow->Lock()) {
 		fPaletteWindow->Quit();
 		fPaletteWindow = nullptr;
 	}
 	
+	// move MenuBarIcon accordingly if doubled
 	if (fDoubled) {
 		fMenuBarIcon->MoveTo(screen_size::WIDTH*2 - MenuBarIcon::WIDTH-MenuBarIcon::PADDING, 
 							 MenuBarIcon::PADDING);
