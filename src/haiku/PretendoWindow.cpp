@@ -161,7 +161,7 @@ PretendoWindow::PretendoWindow()
 	
 	int32 const index = (rand() % 11);
 	fThread = spawn_thread(emulator_thread, threadNames[index], B_DISPLAY_PRIORITY, 
-				reinterpret_cast<void *>(this));
+							reinterpret_cast<void *>(this));
 	if (fThread < B_OK) {
 		// we couldn't spawn the main thread, party over.  everyone go home
 		(new BAlert("Error", "Couldn't spawn main thread.  Quitting.", "Sorry",
@@ -177,6 +177,11 @@ PretendoWindow::PretendoWindow()
 	fMutex->Lock();
 	resume_thread(fThread);
 	
+	fSettingsMessage = new BMessage;
+	LoadSettings();
+	
+	// do any post-settings setup
+	
 	// eli: we need to grab the palete from PaletteWindow and apply it
 	// 		this is a super hack, but convenient for now
 	
@@ -190,10 +195,6 @@ PretendoWindow::PretendoWindow()
 		fPaletteWindow = nullptr;
 	}
 	
-	fSettingsMessage = new BMessage;
-	LoadSettings();
-	
-	// do any post-settings setup
 	if (fDoubled) {
 		fMenuBarIcon->MoveTo(screen_size::WIDTH*2 - MenuBarIcon::WIDTH-MenuBarIcon::PADDING, 
 							 MenuBarIcon::PADDING);
