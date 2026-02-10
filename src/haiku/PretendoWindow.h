@@ -4,7 +4,7 @@
 #include <Alert.h>
 #include <Application.h>
 #include <Bitmap.h>
-#include <DirectWindow.h>
+#include <Window.h>
 #include <Menu.h>
 #include <MenuBar.h>
 #include <MenuItem.h>
@@ -33,7 +33,7 @@ class PretendoView;
 class InputWindow;
 
 
-class PretendoWindow : public BDirectWindow
+class PretendoWindow : public BWindow
 {
 	public:
 	typedef enum {
@@ -102,8 +102,7 @@ class PretendoWindow : public BDirectWindow
 		NONE = 0,
 		BITMAP = 1,
 		OVERLAY = 2,
-		DIRECT = 3,
-		FULLSCREEN = 4
+		FULLSCREEN = 3
 	} video_framework;
 	
 	
@@ -115,13 +114,6 @@ class PretendoWindow : public BDirectWindow
 		int32 row_bytes;
 	} video_buffer_t;
 	
-	private:
-	typedef struct {
-		clipping_rect bounds;
-		int32 clip_count;
-		clipping_rect *clip_list;
-	} clipping_info_t;
-
 	
 	public:
 			PretendoWindow();
@@ -130,7 +122,6 @@ class PretendoWindow : public BDirectWindow
 	
 	// inherited from B(Direct)Window
 	public:
-	virtual void DirectConnected (direct_buffer_info *info);
 	virtual void MessageReceived (BMessage *message);
 	virtual bool QuitRequested();
 	virtual void ResizeTo (float width, float height);
@@ -181,7 +172,6 @@ class PretendoWindow : public BDirectWindow
 	void ChangeFramework (video_framework fw);
 	void BlitScreen();
 	void ClearDirty();
-	void DrawDirect();
 	void DrawBitmap();
 	void DrawOverlay();
 	void DrawFullScreen();
@@ -243,10 +233,9 @@ class PretendoWindow : public BDirectWindow
 	video_buffer_t fBackBuffer;
 	video_buffer_t fFrontBuffer;
 	video_buffer_t fDirtyBuffer;
-	clipping_info_t fClipInfo;
+
 	VideoScreen *fVideoScreen = nullptr;
 	bool fFullScreen = false;
-	volatile bool fDirectConnected = false;
 	bool fFrameworkChanging = false;
 	bool fDoubled = false;
 	int32 fClear = 0;

@@ -1,8 +1,4 @@
 
-#include <File.h>
-
-#include <iostream>
-
 // nes stuff
 #include "Apu.h"
 #include "Cart.h"
@@ -30,8 +26,8 @@
 
 
 PretendoWindow::PretendoWindow()
-	: BDirectWindow (BRect (0, 0, screen_size::WIDTH-1, screen_size::HEIGHT-1), 
-					"Pretendo", B_TITLED_WINDOW, B_NOT_RESIZABLE, 0)		
+	: BWindow (BRect (0, 0, screen_size::WIDTH-1, screen_size::HEIGHT-1), 
+				"Pretendo", B_TITLED_WINDOW, B_NOT_RESIZABLE, 0)		
 {
 	// ui things
 	AddMenu();
@@ -104,7 +100,6 @@ PretendoWindow::PretendoWindow()
 	}
 	
 	// start video
-	fDirectConnected = 
 	fFullScreen = 
 	fFrameworkChanging = false;	
 	fFramework = 
@@ -115,19 +110,7 @@ PretendoWindow::PretendoWindow()
 	if (overlayOK) {
 		ChangeFramework(video_framework::OVERLAY);
 	} else {
-		// make sure we can use windowed mode.  if not default to bitmap framework
-		if (BDirectWindow::SupportsWindowMode() == false) {
-			fVideoMenu->ItemAt(video_framework::DIRECT)->SetEnabled(false);
-			ChangeFramework(video_framework::BITMAP);
-		} else {
-			// there will be mouse "trails" on the BDirectWindow
-			// until we get a hardware cursor. 
-			// this is not ideal, so default to bitmap framework
-			// but making it available for testing
-			
-			//ChangeFramework(video_framework::DIRECT);
-			ChangeFramework(video_framework::BITMAP);
-		}
+		ChangeFramework(video_framework::BITMAP);
 	}
 	
 	// we can't change to full screen yet
@@ -206,7 +189,7 @@ PretendoWindow::PretendoWindow()
 PretendoWindow::~PretendoWindow()
 {	
 	// break everything down and clean up
-	fRunning = fDirectConnected = false;
+	fRunning = false;
 	fThread = B_BAD_THREAD_ID;
 	
 	fAudioStream->Stop();
@@ -293,57 +276,6 @@ PretendoWindow::~PretendoWindow()
 	Hide();
 	Sync();	
 }
-
-
-void
-PretendoWindow::DirectConnected (direct_buffer_info *info)
-{	
-	switch (info->buffer_state & B_DIRECT_MODE_MASK) {
-		case B_DIRECT_START:
-			fClear = 5;
-			fClipInfo.bounds = info->window_bounds;
-			fClipInfo.bounds.top += fMenuHeight + 1;
-			
-			if (fFramework == video_framework::DIRECT) {
-				SetFrontBuffer(reinterpret_cast<uint8 *>(info->bits)
-					+ (fClipInfo.bounds.top * info->bytes_per_row), info->pixel_format,
-					info->bits_per_pixel / 8, info->bytes_per_row);
-			}
-		
-			fClipInfo.clip_list = nullptr;
-			fDirectConnected = true;	// ready to go
-		
-		// intentional fall through //	
-		
-		case B_DIRECT_MODIFY:
-			// (re)calculate clipping rects
-			fClear = 5;
-			fClipInfo.clip_count = info->clip_list_count;
-			fClipInfo.clip_list = 
-				reinterpret_cast<clipping_rect *>(realloc(fClipInfo.clip_list, 
-				fClipInfo.clip_count * sizeof(clipping_rect)));
-	
-			memcpy(fClipInfo.clip_list, info->clip_list,
-				fClipInfo.clip_count * sizeof(clipping_rect));
-					
-			for (int32 i = 0; i < fClipInfo.clip_count; i++) {
-				if (fClipInfo.clip_list[i].top <= 
-					(info->window_bounds.top + fMenuHeight)) {
-					fClipInfo.clip_list[i].top = info->window_bounds.top + fMenuHeight;
-				}
-			}
-			break;
-			
-		case B_DIRECT_STOP:
-			// we're done.  disconnect and free clip list
-			fDirectConnected = false;
-			free(fClipInfo.clip_list);
-			break;
-	}
-	
-	BDirectWindow::DirectConnected(info);
-}
-
 
 void
 PretendoWindow::MessageReceived (BMessage *message)
@@ -489,14 +421,14 @@ PretendoWindow::MessageReceived (BMessage *message)
 			break;
 		}
 		
-	BDirectWindow::MessageReceived (message);
+	BWindow::MessageReceived (message);
 }
 
 
 void
 PretendoWindow::WindowActivated (bool flag)
 {
-	BDirectWindow::WindowActivated (flag);	
+	BWindow::WindowActivated (flag);	
 }
 
 
@@ -512,7 +444,7 @@ PretendoWindow::MenusBeginning()
 	
 	fFileMenu->AddItem(new BMenuItem(menu, new BMessage(messages::SHOW_OPEN)), 0);
 	
-	BDirectWindow::MenusBeginning();
+	BWindow::MenusBeginning();
 }
 
 
@@ -522,7 +454,7 @@ PretendoWindow::MenusEnded()
 	// remove the recent files list
 	fFileMenu->RemoveItem(static_cast<int32>(0)); // keep this 32-bit friendly
 	
-	BDirectWindow::MenusEnded();
+	BWindow::MenusEnded();
 }
 
 
@@ -539,9 +471,7 @@ PretendoWindow::QuitRequested()
 	delete fMutex;
 	wait_for_thread(fThread, &ret);
 	
-	fRunning = 
-	fDirectConnected = false;
-	
+	fRunning = false;
 	be_app->PostMessage(B_QUIT_REQUESTED);
 
 	return true;
@@ -553,7 +483,7 @@ PretendoWindow::ResizeTo (float width, float height)
 {
 	height += fMenuHeight;//+1;	// account for menubar height
 	
-	BDirectWindow::ResizeTo (width, height);
+	BWindow::ResizeTo (width, height);
 }
 
 
@@ -618,7 +548,6 @@ PretendoWindow::AddMenu()
 	fVideoMenu->AddItem(new BMenuItem("None", new BMessage (messages::CHANGE_RENDER)));
 	fVideoMenu->AddItem(new BMenuItem("Bitmap", new BMessage(messages::CHANGE_RENDER)));
 	fVideoMenu->AddItem(new BMenuItem("Overlay", new BMessage(messages::CHANGE_RENDER)));
-	fVideoMenu->AddItem(new BMenuItem("DirectWindow", new BMessage(messages::CHANGE_RENDER)));
 	fVideoMenu->AddItem(new BMenuItem("WindowScreen", new BMessage(messages::CHANGE_RENDER), 'F'));
 	fVideoMenu->SetRadioMode(true);
 	
@@ -1165,7 +1094,6 @@ PretendoWindow::ChangeFramework (video_framework fw)
 	// break down previous framework
 	switch (fPrevFramework) {
 		case video_framework::NONE:
-		case video_framework::DIRECT:
 			// nothing to do here
 			break;
 			
@@ -1212,14 +1140,7 @@ PretendoWindow::ChangeFramework (video_framework fw)
 			fView->Invalidate();
 			break;
 			
-		case video_framework::DIRECT:
-			// front buffer *must* be set in DirectConnected(), not here.
-			Hide();
-			Show();
-			SetRenderer(BScreen().ColorSpace());
-			break;
-			
-		case video_framework::FULLSCREEN:
+			case video_framework::FULLSCREEN:
 			fVideoScreen = new VideoScreen (this);
 			fVideoScreen->Show();
 			snooze (1000000); 	// wait a little while for the screen to connect
@@ -1230,62 +1151,6 @@ PretendoWindow::ChangeFramework (video_framework fw)
 	}
 	
 	fFrameworkChanging = false;
-}
-
-
-void
-PretendoWindow::DrawDirect()
-{
-	// drawing code for the DirectWindow
-	
-	clipping_rect *clip = fClipInfo.clip_list;
-	uint8 *dest;
-	uint8 *source;
-	uint8 *dirty;
-	size_t size;
-	
-	if (! fDoubled) {
-		// 1:1
-		for (int32 i = 0; i < fClipInfo.clip_count; i++, clip++) {
-			int32 const x = (clip->left - fClipInfo.bounds.left) * fPixelWidth;
-			int32 const y = (clip->top - fClipInfo.bounds.top) + 1;
-			int32 const w = clip->right - clip->left + 1;
-			int32 h = clip->bottom - clip->top + 1;
-			
-			dest = fFrontBuffer.bits + y * fFrontBuffer.row_bytes + clip->left * fPixelWidth;
-			source = fBackBuffer.bits + y * fBackBuffer.row_bytes + x;
-			dirty = fDirtyBuffer.bits + y * fBackBuffer.row_bytes + x;
-			size = w * fPixelWidth;
-			
-			while (h--) {
-				blit_windowed_dirty_mmx(source, dirty, dest, size, fPixelWidth);
-				
-				dest += fFrontBuffer.row_bytes;
-				source += fBackBuffer.row_bytes;
-				dirty += fBackBuffer.row_bytes;
-			}
-		}
-	} else {
-		// 2:1
-		int32 const h = fClipInfo.bounds.bottom - fClipInfo.bounds.top + 1;
-		
-		for (int32 i = 0; i < fClipInfo.clip_count; i++, clip++) {
-			int32 const x = ((clip->left - fClipInfo.bounds.left) / 2) * fPixelWidth;
-			int32 const w = clip->right - clip->left + 1;
-		
-			for (int32 y = 0; y < h; y += 2) {
-				if (clip->top - fClipInfo.bounds.top <= y && clip->bottom - fClipInfo.bounds.top >= y) {
-					dest = fFrontBuffer.bits + y * fFrontBuffer.row_bytes + clip->left * fPixelWidth;
-					source = fBackBuffer.bits + (y / 2) * fBackBuffer.row_bytes + x;
-					dirty = fDirtyBuffer.bits + (y / 2) * fBackBuffer.row_bytes + x;
-					size = w * fPixelWidth;						
-
-					blit_2x_windowed_dirty_mmx(source, dirty, dest, size, 
-						fPixelWidth, fFrontBuffer.row_bytes);									
-				}
-			}
-		}
-	}
 }
 
 
@@ -1428,13 +1293,6 @@ PretendoWindow::BlitScreen()
 			DrawOverlay();
 			break;
 			
-		case video_framework::DIRECT:
-			if (fDirectConnected) {				
-				ClearDirty();
-				DrawDirect();
-			}
-			break;
-			
 		case video_framework::FULLSCREEN:
 			DrawFullScreen();
 			break;
@@ -1447,6 +1305,7 @@ PretendoWindow::submit_scanline(int scanline, const uint32_t *source)
 {
 	(this->*LineRenderer)(fLineOffsets[scanline], source);
 }
+
 
 void 
 PretendoWindow::set_palette(const color_emphasis_t *intensity, const rgb_color_t *pal)
@@ -1506,15 +1365,12 @@ PretendoWindow::set_palette(const color_emphasis_t *intensity, const rgb_color_t
 void  
 PretendoWindow::start_frame()
 {	
-	// setup DirectWindow if we need
-	//if (fDirectConnected) {
-		fPixelWidth = fFrontBuffer.pixel_width;
-		fBackBuffer.row_bytes = screen_size::WIDTH * fPixelWidth;
-	//}
+	fPixelWidth = fFrontBuffer.pixel_width;
+	fBackBuffer.row_bytes = screen_size::WIDTH * fPixelWidth;
 }
 
 
-void
+void	
 PretendoWindow::end_frame()
 {
 	size_t const bufferSize = nes::apu::frequency / nes::apu::frame_rate;
