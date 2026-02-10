@@ -40,8 +40,7 @@ PretendoWindow::PretendoWindow()
 	bounds.top = fMenuHeight;
 	fView = new PretendoView(bounds, this);
 	AddChild(fView);
-	fView->MakeFocus();
-		
+	
 	// setup video buffers
 	void *bitsArea;
 	void *dirtyArea;
@@ -69,12 +68,12 @@ PretendoWindow::PretendoWindow()
 	}
 	
 	// setup BBitmap.  keep it contiguous in memory
-	fBitmap = new BBitmap(BRect(0, 0, screen_size::WIDTH-1, 
-		screen_size::HEIGHT-1), B_CMAP8, false, true);
+	fBitmap = new BBitmap(BRect(0, 0, screen_size::WIDTH-1, screen_size::HEIGHT-1), 
+							B_CMAP8, false, true);
 	
 	if (! fBitmap || ! fBitmap->IsValid()) {
 		(new BAlert("Error", "Can't create video bitmap.  Quitting.","Sorry", 
-					nullptr, nullptr, B_WIDTH_AS_USUAL, B_STOP_ALERT))->Go();
+				    nullptr, nullptr, B_WIDTH_AS_USUAL, B_STOP_ALERT))->Go();
 		be_app->PostMessage(B_QUIT_REQUESTED);
 	} else {
 		fBitmapBits = reinterpret_cast<uint8 *>(fBitmap->Bits());
@@ -199,6 +198,8 @@ PretendoWindow::PretendoWindow()
 		fMenuBarIcon->MoveTo(screen_size::WIDTH*2 - MenuBarIcon::WIDTH-MenuBarIcon::PADDING, 
 							 MenuBarIcon::PADDING);
 	}
+	
+	fView->MakeFocus();
 }
 
 
@@ -210,12 +211,7 @@ PretendoWindow::~PretendoWindow()
 	
 	fAudioStream->Stop();
 	delete fAudioStream;
-	
-	if (fOpenPanel->Window()) {
-		fOpenPanel->Window()->Lock();
-		fOpenPanel->Window()->Quit();
-	}
-	
+
 	if (fBitmap->IsValid()) {
 		delete fBitmap;
 	}
@@ -226,6 +222,9 @@ PretendoWindow::~PretendoWindow()
 	
 	delete_area(fBitsArea);
 	delete_area(fDirtyArea);
+	
+	// we don't delete BWindows, we call Quit()
+	// note: calling  Quit() requires the window to be locked 
 
 	if (fROMInfoWindow != nullptr) {
 		if (fROMInfoWindow->Lock()) {
@@ -233,13 +232,11 @@ PretendoWindow::~PretendoWindow()
 		}
 	}
 	
-	
 	if (fPaletteWindow != nullptr) {
 		if (fPaletteWindow->Lock()) {
 			fPaletteWindow->Quit();
 		}
 	}
-	
 	
 	if (fPatternTable1Window != nullptr) {
 		if (fPatternTable1Window->Lock()) {
@@ -283,16 +280,18 @@ PretendoWindow::~PretendoWindow()
 		}
 	}
 	
-	fMutex->Unlock();
+	// long day.
 	
-	Hide();
-	Sync();	
+	fMutex->Unlock();
 	
 	SaveSettings();
 	
 	delete fSettingsMessage;
 	delete fOpenPanel;
 	delete fROMDirectoryPanel;
+	
+	Hide();
+	Sync();	
 }
 
 
@@ -304,7 +303,7 @@ PretendoWindow::DirectConnected (direct_buffer_info *info)
 			fClear = 5;
 			fClipInfo.bounds = info->window_bounds;
 			fClipInfo.bounds.top += fMenuHeight + 1;
-	
+			
 			if (fFramework == video_framework::DIRECT) {
 				SetFrontBuffer(reinterpret_cast<uint8 *>(info->bits)
 					+ (fClipInfo.bounds.top * info->bytes_per_row), info->pixel_format,
