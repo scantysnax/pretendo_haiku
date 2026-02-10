@@ -1088,6 +1088,7 @@ PretendoWindow::ClearBitmap (bool overlay)
 }
 
 
+
 void 
 PretendoWindow::SetRenderer (color_space cs)
 {	
