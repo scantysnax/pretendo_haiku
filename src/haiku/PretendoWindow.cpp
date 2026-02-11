@@ -36,6 +36,7 @@ PretendoWindow::PretendoWindow()
 	bounds.top = fMenuHeight;
 	fView = new PretendoView(bounds, this);
 	AddChild(fView);
+	fView->MakeFocus();
 	
 	// setup video buffers
 	void *bitsArea;
@@ -175,13 +176,12 @@ PretendoWindow::PretendoWindow()
 		fPaletteWindow = nullptr;
 	}
 	
-	// move MenuBarIcon accordingly if doubled
-	if (fDoubled) {
-		fMenuBarIcon->MoveTo(screen_size::WIDTH*2 - MenuBarIcon::WIDTH-MenuBarIcon::PADDING, 
-							 MenuBarIcon::PADDING);
-	}
+	// move MenuBarIcon accordingly
+	int32 const scale = static_cast<int32>(fDoubled) + 1;
+	int32 const x = screen_size::WIDTH * scale - MenuBarIcon::WIDTH - MenuBarIcon::PADDING;
+	int32 const y = MenuBarIcon::PADDING;
+	fMenuBarIcon->MoveTo(x, y);
 	
-	fView->MakeFocus();
 }
 
 
@@ -480,7 +480,7 @@ PretendoWindow::QuitRequested()
 void
 PretendoWindow::ResizeTo (float width, float height)
 {
-	height += fMenuHeight;//+1;	// account for menubar height
+	height += fMenuHeight; // account for menubar height
 	
 	BWindow::ResizeTo (width, height);
 }
@@ -497,11 +497,13 @@ PretendoWindow::Zoom (BPoint origin, float width, float height)
 			
 	if (w == screen_size::WIDTH) {
 		ResizeTo((screen_size::WIDTH*2), (screen_size::HEIGHT*2));
-		fMenuBarIcon->MoveTo((w*2)-2-MenuBarIcon::icon_size::WIDTH, 2);
+		fMenuBarIcon->MoveTo((w * 2) - 2 - MenuBarIcon::icon_size::WIDTH, 
+								MenuBarIcon::icon_size::PADDING);
 		fDoubled = true;
 	} else if (w == screen_size::WIDTH*2) {
 		ResizeTo(screen_size::WIDTH, screen_size::HEIGHT);
-		fMenuBarIcon->MoveTo((w/2)-2-MenuBarIcon::icon_size::WIDTH, 2);
+		fMenuBarIcon->MoveTo((w / 2) - 2 - MenuBarIcon::icon_size::WIDTH, 
+								MenuBarIcon::icon_size::PADDING);
 		fDoubled = false;
 	} 
 	
