@@ -167,7 +167,6 @@ PretendoWindow::PretendoWindow()
 	// eli: we need to grab the palete from PaletteWindow and apply it
 	// 		this is a super hack, but convenient for now
 	// 		this will call the constructor to set the palette
-
 	fPaletteWindow = new PaletteWindow(this); 
 	
 	// dispose of this since we don't need it anymore
