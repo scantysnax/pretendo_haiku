@@ -180,6 +180,7 @@ PretendoWindow::PretendoWindow()
 	int32 const scale = static_cast<int32>(fDoubled) + 1;
 	int32 const x = screen_size::WIDTH * scale - MenuBarIcon::WIDTH - MenuBarIcon::PADDING;
 	int32 const y = MenuBarIcon::PADDING;
+	
 	fMenuBarIcon->MoveTo(x, y);
 	
 }
@@ -1523,7 +1524,7 @@ PretendoWindow::LoadSettings()
 				
 				// check if we're doubled, and resize the window accordingly
 				fDoubled = doubled;
-				int32 scale = static_cast<int32>(fDoubled)+1;
+				int32 const scale = static_cast<int32>(fDoubled)+1;
 				ResizeTo(screen_size::WIDTH*scale, screen_size::HEIGHT*scale);
 
 				// set rom  directory
