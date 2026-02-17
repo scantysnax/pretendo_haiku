@@ -93,18 +93,19 @@ NameTableView::GetAttributePalette(uint32 nameTableBase, int32 tileX, int32 tile
 {
     Mapper *mapper = nes::cart.mapper();
 
-    uint32 attrBase = nameTableBase + 0x3c0;
+    uint32 attrBase = nameTableBase + 0x3C0;
 
     int32 attrX = tileX >> 2;
     int32 attrY = tileY >> 2;
 
     uint8 attrByte = mapper->read_vram(attrBase + attrY * 8 + attrX);
 
-    int32 shift = ((tileY & 0x2) ? 4 : 0) |
-                  ((tileX & 0x2) ? 2 : 0);
+    int32 shift = ((tileY & 0x02) ? 4 : 0) |
+                  ((tileX & 0x02) ? 2 : 0);
 
-    return (attrByte >> shift) & 0x3;
+    return (attrByte >> shift) & 0x03;
 }
+
 
 
 void
