@@ -220,7 +220,20 @@ class PretendoWindow : public BWindow
 	uint32 fPaletteY[65536];
 	uint32 fPaletteYCbCr[65536];
 	uint8 *fMappedPalette[8];
-		
+	
+	public:
+	uint8 *Get8BitPalette() {
+		return fPalette8[0];
+	}
+	
+	uint16 *Get16BitPalette() {
+		return fPalette16[0];
+	} 
+	
+	uint32 *Get32BitPalette() {
+		return fPalette32[0];
+	}
+	
 	// video	
 	private:
 	video_framework fFramework = video_framework::NONE;

@@ -1,7 +1,6 @@
 
 #include "NameTableView.h"
 
-
 uint8 const kPalette[64] = {
     0x75, 0x27, 0x2a, 0x52, 0x7f, 0xab, 0x8b, 0x43, 0x2f, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0xbc, 0x73, 0x6f, 0x9f, 0xd4, 0xff, 0xf7, 0x8f, 0x7b, 0x3c, 0x1e, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -9,6 +8,7 @@ uint8 const kPalette[64] = {
     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xd8, 0xbc, 0xab, 0xab, 0x00, 0x00, 0x00
 };
 
+	
 NameTableView::NameTableView (BRect frame, int32 which)
 	: BView (frame, "name_table", B_FOLLOW_ALL_SIDES, B_WILL_DRAW|B_PULSE_NEEDED)
 {
@@ -93,7 +93,7 @@ NameTableView::GetAttributePalette(uint32 nameTableBase, int32 tileX, int32 tile
 {
     Mapper *mapper = nes::cart.mapper();
 
-    uint32 attrBase = nameTableBase + 0x3C0;
+    uint32 attrBase = nameTableBase + 0x3c0;
 
     int32 attrX = tileX >> 2;
     int32 attrY = tileY >> 2;
@@ -126,9 +126,7 @@ NameTableView::DrawTile (uint32 patternTableBase, uint8 tileIndex, int32 tileX, 
             
             uint8 color = GetBackgroundColor(palette, pixel);
             
-            DrawPixel(x + tileX * 8,
-                      y + tileY * 8,
-                      color);
+            DrawPixel(x + tileX * 8, y + tileY * 8, color);
         }
     }
 }
