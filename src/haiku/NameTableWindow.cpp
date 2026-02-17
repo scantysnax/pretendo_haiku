@@ -1,12 +1,15 @@
 
 #include "NameTableWindow.h"
 
+#include <iostream>
 
 NameTableWindow::NameTableWindow (PretendoWindow *parent, int32 which)
 	: BWindow(BRect(200, 200, 0, 0), nullptr, B_FLOATING_WINDOW_LOOK, 
 		B_NORMAL_WINDOW_FEEL, B_NOT_RESIZABLE|B_NOT_ZOOMABLE)
 {
 	fParent = parent;
+	fWhich = which;
+	fSettingsMessage = new BMessage;
 	
 	ResizeTo(kNameTableWidth, kNameTableHeight);
 	
@@ -30,12 +33,17 @@ NameTableWindow::NameTableWindow (PretendoWindow *parent, int32 which)
 		
 	
 	fView = new NameTableView(Bounds(), which);
-	AddChild(fView);	
+	AddChild(fView);
+	//SetPulseRate(1000000ULL); // one second
+	
+	LoadSettings();
 }
 
 
 NameTableWindow::~NameTableWindow()
 {
+	SaveSettings();
+	delete fSettingsMessage;
 } 
 
 
@@ -51,4 +59,19 @@ NameTableWindow::QuitRequested()
 {
 	return true;
 }
- 
+
+
+void
+NameTableWindow::LoadSettings()
+{
+	std::cout << __PRETTY_FUNCTION__ << std::endl;
+}
+
+
+void
+NameTableWindow::SaveSettings()
+{
+	std::cout << __PRETTY_FUNCTION__ << std::endl;
+}
+
+

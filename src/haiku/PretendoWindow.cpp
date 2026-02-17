@@ -8,7 +8,6 @@
 #include "Palette.h"
 #include "Reset.h"
 
-
 // ui and other things
 #include "AudioStream.h"
 #include "Controller.h"
@@ -20,7 +19,7 @@
 #include "ROMInfoWindow.h"
 #include "VideoScreen.h"
  
-// use mmx blitters and memcpy()
+// mmx blitters and memcpy()
 #include "asm/blitters.h"
 #include "asm/copies.h"
 
@@ -176,13 +175,12 @@ PretendoWindow::PretendoWindow()
 		fPaletteWindow = nullptr;
 	}
 	
-	// move MenuBarIcon accordingly
+	// move MenuBarIcon according to window size
 	int32 const scale = static_cast<int32>(fDoubled) + 1;
 	int32 const x = screen_size::WIDTH * scale - MenuBarIcon::WIDTH - MenuBarIcon::PADDING;
 	int32 const y = MenuBarIcon::PADDING;
 	
 	fMenuBarIcon->MoveTo(x, y);
-	
 }
 
 
@@ -400,26 +398,13 @@ PretendoWindow::MessageReceived (BMessage *message)
 			OnAudioDMC();
 			break;
 			
-		case messages::RECV_ROM_DIR: {
-			entry_ref ref;
-		
-			if (message->FindRef("refs", 0, &ref) == B_OK) {
-				BEntry entry;
-				BPath path;
-				
-				entry.SetTo(&ref, true);
-				entry.GetPath(&path);
-				
-				fROMDirectory = path.Path();
-			}	
-			
-			// eli: what if this fails?
-			
-		} break;
+		case messages::RECV_ROM_DIR:
+			OnReceiveRomDirectory(message);
+			break;
 			
 		default:
 			break;
-		}
+	}
 		
 	BWindow::MessageReceived (message);
 }
@@ -436,7 +421,7 @@ void
 PretendoWindow::MenusBeginning()
 {	
 	// set up recently opened ROM menu, we keep 5 most recent
-	// item list seems to be off by 1
+	// item list count seems to be off by 1
 	int32 const recentItems = 5+1;
 	BMenu *menu = BRecentFilesList::NewFileListMenu("Load ROM" B_UTF8_ELLIPSIS,
 				  nullptr, nullptr, this->PreferredHandler(), recentItems, false, nullptr, 0, 
@@ -494,21 +479,21 @@ PretendoWindow::Zoom (BPoint origin, float width, float height)
 	(void)width;
 	(void)height;
 	
-	float const w = Bounds().Width();
+	int32 const w = Bounds().IntegerWidth();
 			
 	if (w == screen_size::WIDTH) {
 		ResizeTo((screen_size::WIDTH*2), (screen_size::HEIGHT*2));
-		fMenuBarIcon->MoveTo((w * 2) - 2 - MenuBarIcon::icon_size::WIDTH, 
-								MenuBarIcon::icon_size::PADDING);
+		fMenuBarIcon->MoveTo((w * 2) - MenuBarIcon::icon_size::PADDING - MenuBarIcon::icon_size::WIDTH, 
+							MenuBarIcon::icon_size::PADDING);
 		fDoubled = true;
 	} else if (w == screen_size::WIDTH*2) {
 		ResizeTo(screen_size::WIDTH, screen_size::HEIGHT);
-		fMenuBarIcon->MoveTo((w / 2) - 2 - MenuBarIcon::icon_size::WIDTH, 
-								MenuBarIcon::icon_size::PADDING);
+		fMenuBarIcon->MoveTo((w / 2) - MenuBarIcon::icon_size::PADDING - MenuBarIcon::icon_size::WIDTH, 
+							MenuBarIcon::icon_size::PADDING);
 		fDoubled = false;
 	} 
 	
-	fMenuHeight = fMenuBar->Bounds().Height();
+	fMenuHeight = fMenuBar->Bounds().IntegerHeight();
 	
 	// do not call the default //
 }
@@ -530,9 +515,10 @@ PretendoWindow::AddMenu()
 	
 	fToolMenu = new BMenu("Tools");
 	fMenuBar->AddItem(fToolMenu);
-
+	
+	// for "Load ROM..." see MenusBeginning and MenusEnded
 	fFileMenu->AddItem(new BMenuItem("Free ROM", new BMessage(messages::FREE_ROM)));
-	fFileMenu->AddItem(new BMenuItem("ROM Info", new BMessage(messages::ROM_INFO)));
+	fFileMenu->AddItem(new BMenuItem("ROM Info" B_UTF8_ELLIPSIS, new BMessage(messages::ROM_INFO)));
 	fFileMenu->AddSeparatorItem();
 	fFileMenu->AddItem (new BMenuItem("About" B_UTF8_ELLIPSIS, new BMessage(messages::SHOW_ABOUT)));
 	fFileMenu->AddSeparatorItem();
@@ -561,6 +547,7 @@ PretendoWindow::AddMenu()
 	fAudioMenu->AddItem(new BMenuItem("Noise", new BMessage(messages::ENABLE_NOISE)));
 	fAudioMenu->AddItem(new BMenuItem("DMC/DPCM", new BMessage(messages::ENABLE_DMC)));
 	
+	// eli: move these to settings
 	(fAudioMenu->ItemAt(nes::apu::sound_channel::SQUARE1))->SetMarked(true);
 	(fAudioMenu->ItemAt(nes::apu::sound_channel::SQUARE2))->SetMarked(true);
 	(fAudioMenu->ItemAt(nes::apu::sound_channel::TRIANGLE))->SetMarked(true);
@@ -584,6 +571,7 @@ PretendoWindow::AddMenu()
 	fNameTableMenu->AddItem(new BMenuItem("4 (0x2c00)", new BMessage(messages::SHOW_NTBL4)));
 	fToolMenu->AddItem(fNameTableMenu);
 	
+	// menu icon
 	fMenuBarIcon = new MenuBarIcon(fMenuBar);
 	fMenuBar->AddChild(fMenuBarIcon);
 	fMenuHeight = fMenuBar->Bounds().Height();
@@ -806,17 +794,15 @@ PretendoWindow::OnViewNameTable1()
 		return;
 	}
 	
-#if 0
-		//if (fNameTable0Window && fNameTable0Window->Lock()) {
-		//fNameTable0Window->Quit();
-		//fNameTable0Window = nullptr;
-	//}
+	if (fNameTable1Window && fNameTable1Window->Lock()) {
+		fNameTable1Window->Quit();
+		fNameTable1Window = nullptr;
+	}
 	
-	//if (nes::cart.mapper() != nullptr) { // && ! fROMInfoWindow) {
-	//	fNameTable0Window = new NameTableWindow(this, 0);
-	//	fNameTable0Window->Show();
-	//}
-#endif
+	if (nes::cart.mapper() != nullptr) { // && ! fROMInfoWindow) {
+		fNameTable1Window = new NameTableWindow(this, 0);
+		fNameTable1Window->Show();
+	}
 }
 
 
@@ -924,6 +910,24 @@ PretendoWindow::OnAudioDMC()
 		nes::apu::unmute_channel(nes::apu::DPCM);
 	} else {
 		nes::apu::mute_channel(nes::apu::DPCM);
+	}
+}
+
+
+void
+PretendoWindow::OnReceiveRomDirectory (BMessage *message)
+{
+	entry_ref ref;
+		
+	if (message->FindRef("refs", 0, &ref) == B_OK) {
+		BEntry entry;
+		BPath path;
+		
+		entry.SetTo(&ref, true);
+		entry.GetPath(&path);
+		fROMDirectory = path.Path();
+	} else {
+		fROMDirectory = "/boot/home";
 	}
 }
 

@@ -2,6 +2,13 @@
 #include "NameTableView.h"
 
 
+uint8 const kPalette[64] = {
+    0x75, 0x27, 0x2a, 0x52, 0x7f, 0xab, 0x8b, 0x43, 0x2f, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0xbc, 0x73, 0x6f, 0x9f, 0xd4, 0xff, 0xf7, 0x8f, 0x7b, 0x3c, 0x1e, 0x00, 0x00, 0x00, 0x00, 0x00,
+    0xff, 0xbc, 0xb8, 0xd8, 0xff, 0xff, 0xff, 0xd8, 0xc3, 0x8f, 0x73, 0x52, 0x52, 0x00, 0x00, 0x00,
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xd8, 0xbc, 0xab, 0xab, 0x00, 0x00, 0x00
+};
+
 NameTableView::NameTableView (BRect frame, int32 which)
 	: BView (frame, "name_table", B_FOLLOW_ALL_SIDES, B_WILL_DRAW|B_PULSE_NEEDED)
 {
@@ -47,9 +54,9 @@ NameTableView::MessageReceived (BMessage *message)
 void
 NameTableView::Pulse()
 {
-	if (nes::cart.mapper()) {
-		puts(__PRETTY_FUNCTION__);
-	}
+//	if (nes::cart.mapper()) {
+//		puts(__PRETTY_FUNCTION__);
+//	}
 }
 
 
@@ -63,80 +70,91 @@ NameTableView::DrawPixel (int32 x, int32 y, uint8 color)
 }
 
 
-void
-NameTableView::DrawTile (int32 patternTable, int32 tileIndex, int32 tileX, int32 tileY)
+uint8
+NameTableView::GetBackgroundColor(uint8 palette, uint8 pixel)
 {
-	int32 shift;
-	uint8 pixel;
-	int32 xofs = (patternTable << 12)+(tileIndex*16);
-	
-	// greyscale palette reverse-engineered from haiku system palette
-	uint8 const colors[] = {
-		0x0,	// black 
-		0xaf, 	// dark grey
-		0x88,	// light grey
-		0xff	// white
-	};
-
 	Mapper *mapper = nes::cart.mapper();
-	if (! mapper) {
-		return;
+    
+    // pixel = 0 universal background color
+	if (pixel == 0) {
+		uint8 color = mapper->read_vram(0x3f00) & 0x3f;
+		return kPalette[color];
 	}
+
+	uint32 addr = 0x3f01 + (palette * 4) + (pixel - 1);
+	uint8 color = mapper->read_vram(addr) & 0x3f;
 	
-	for (int32 y = 0; y < 8; y++) {
-		uint8 firstPlane = mapper->read_vram(xofs+0);
-		uint8 secondPlane = mapper->read_vram(xofs+8);
-		shift = 7;
-				
-		for (int32 x = 0; x < 8; x++) {
-			pixel = (firstPlane >> shift) & 0x1;
-			pixel |= ((secondPlane >> shift) & 0x1) << 1;		
-			shift--;
- 	
-			DrawPixel(x+(tileX*8), y+(tileY*8), colors[pixel]);	
-		}
-		
-		xofs++;
-	}
+    return kPalette[color];
 }
 
-void
-NameTableView::DrawNameTable (int32 which)
+
+uint8
+NameTableView::GetAttributePalette(uint32 nameTableBase, int32 tileX, int32 tileY)
 {
-	puts(__PRETTY_FUNCTION__);
-	
-	switch (which) {
-	}
-}
+    Mapper *mapper = nes::cart.mapper();
 
+    uint32 attrBase = nameTableBase + 0x3c0;
 
-#if 0
-void
-PatternTableView::DrawPatternTable8x8 (int32 which)
-{	
-	for (int32 y = 0; y < 16; y++) {
-		for (int32 x = 0; x < 16; x++){
-			DrawTile(which, x+(y*16), x, y);
-		}                 
-	}
+    int32 attrX = tileX >> 2;
+    int32 attrY = tileY >> 2;
+
+    uint8 attrByte = mapper->read_vram(attrBase + attrY * 8 + attrX);
+
+    int32 shift = ((tileY & 0x2) ? 4 : 0) |
+                  ((tileX & 0x2) ? 2 : 0);
+
+    return (attrByte >> shift) & 0x3;
 }
 
 
 void
-PatternTableView::DrawPatternTable8x16 (int32 which)
+NameTableView::DrawTile (uint32 patternTableBase, uint8 tileIndex, int32 tileX, int32 tileY, uint8 palette)
 {
-	int32 x = 0;
-	int32 y = 0;
+    Mapper *mapper = nes::cart.mapper();
 
-	for (int32 i = 0; i < 8; i++) {
-		for (int32 t = (i*32); t < ((i*32)+32); t += 2) {
-			DrawTile(which, t, x, y);
-			DrawTile(which, (t+1), x, (y+1));
-			x++;
-		}
-		
-		y += 2;
-		x = 0;
-	}
+    uint32 tileAddr = patternTableBase + (tileIndex * 16);
+    
+    for (int32 y = 0; y < 8; y++) { 
+        uint8 firstPlane  = mapper->read_vram(tileAddr + y);
+        uint8 secondPlane = mapper->read_vram(tileAddr + y + 8);
+
+        for (int32 x = 0; x < 8; x++) {
+        	int32 shift = 7 - x;
+        	uint8 pixel  = (firstPlane  >> shift) & 1;
+        	pixel |= ((secondPlane >> shift) & 1) << 1;
+            
+            uint8 color = GetBackgroundColor(palette, pixel);
+            
+            DrawPixel(x + tileX * 8,
+                      y + tileY * 8,
+                      color);
+        }
+    }
 }
-#endif 
+
+
+
+void
+NameTableView::DrawNameTable (int32 nameTableIndex)
+{
+    Mapper *mapper = nes::cart.mapper();
+    uint32 baseAddr = 0x2000 + (nameTableIndex * 0x400);
+    uint32 patternBase = 0x1000; // PPUCTRL & 0x10) ? 0x1000 : 0x0000;
+
+    for (int32 tileY = 0; tileY < 30; tileY++) {
+        for (int32 tileX = 0; tileX < 32; tileX++) {
+
+            uint32 ntAddr = baseAddr + tileY * 32 + tileX;
+            uint8 tileIndex = mapper->read_vram(ntAddr);
+
+            uint8 palette = GetAttributePalette(baseAddr, tileX, tileY);
+
+            DrawTile(patternBase, tileIndex, tileX, tileY, palette);
+        }
+    }
+}
+
+
+
+
+

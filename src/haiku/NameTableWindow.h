@@ -20,10 +20,18 @@ class NameTableWindow : public BWindow
 	public:
 	virtual bool QuitRequested();
 	virtual void MessageReceived (BMessage *message);
+	
+	private:
+	void LoadSettings();
+	void SaveSettings();
 		
 	private:
+	int32 fWhich = 0;
 	NameTableView *fView = nullptr;
 	PretendoWindow *fParent = nullptr;
+	
+	private:
+	BMessage *fSettingsMessage;
 };
 
 #endif // _NAMETABLE_WINDOW_H_

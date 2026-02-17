@@ -159,6 +159,7 @@ class PretendoWindow : public BWindow
 	void OnAudioTriangle();
 	void OnAudioNoise();
 	void OnAudioDMC();
+	void OnReceiveRomDirectory (BMessage *message);
 
 	// video stuff
 	private:
@@ -267,11 +268,6 @@ class PretendoWindow : public BWindow
 	thread_id fThread = B_BAD_THREAD_ID;
 	static status_t emulator_thread (void *data);
 	bool fRunning = false;
-	
-	public:
-	bool Running() const { 
-		return fRunning;
-	}
 
 	// input
 	private:
