@@ -132,12 +132,12 @@ void
 NameTableView::DrawNameTable (int32 nameTableIndex)
 {
 	Mapper *mapper = nes::cart.mapper();
-    uint32 baseAddr = 0x2000 + (nameTableIndex * 0x400);
+	uint32 baseAddr = 0x2000 + (nameTableIndex * 0x400);
 	
 	// select active pattern table
-	uint32 patternBase = (nes::ppu::PpuCtrl() & 0x10) ? 0x1000 : 0x0;
-
-    for (int32 tileY = 0; tileY < 30; tileY++) {
+	uint32 patternBase = (nes::ppu::ppuctrl() & 0x10) << 8;
+	
+	for (int32 tileY = 0; tileY < 30; tileY++) {
     	for (int32 tileX = 0; tileX < 32; tileX++) {
 			uint32 ntAddr = baseAddr + tileY * 32 + tileX;
 			uint8 tileIndex = mapper->read_vram(ntAddr);

@@ -1613,11 +1613,11 @@ uint_least16_t vpos() {
 }
 
 
-uint8_t PpuCtrl() {
+uint8_t ppuctrl() {
 	return ppu_control_.raw;
 }
 
-uint8_t PaletteRam (uint32_t address) {
+uint8_t palette_ram (uint32_t address) {
 	return palette_[address];
 }
 

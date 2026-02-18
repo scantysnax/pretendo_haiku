@@ -44,8 +44,8 @@ uint64_t cycle_count();
 uint_least16_t hpos();
 uint_least16_t vpos();
 
-uint8_t PpuCtrl();
-uint8_t PaletteRam (uint32_t address);
+uint8_t ppuctrl();
+uint8_t palette_ram (uint32_t address);
 
 extern bool show_sprites;
 extern bool system_paused;

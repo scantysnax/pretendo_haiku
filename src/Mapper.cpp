@@ -323,7 +323,7 @@ uint8_t Mapper::read_vram(uint_least16_t address) {
 				break;
 		}
 		
-		return nes::ppu::PaletteRam(address);
+		return nes::ppu::palette_ram(address);
 	}
 	
 	// "normal" vram
