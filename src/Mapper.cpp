@@ -299,9 +299,38 @@ void Mapper::write_vram(uint_least16_t address, uint8_t value) {
 // Name:
 //------------------------------------------------------------------------------
 uint8_t Mapper::read_vram(uint_least16_t address) {
-	const VRAMBank &bank = vram_banks_[(address >> 10) & 0x0f];
+	address &= 0x3fff;	// 16K
+	
+	// prioritise palette reads
+	if (address >= 0x3f00) {
+		address &= 0x1f;
+	
+		switch (address) {
+			case 0x10:
+				address = 0x0;
+				break;
+				
+			case 0x14:
+				address = 0x4;
+				break;
+			
+			case 0x18:
+				address = 0x8;
+				break;
+			
+			case 0x1c:
+				address = 0xc;
+				break;
+		}
+		
+		return nes::ppu::PaletteRam(address);
+	}
+	
+	// "normal" vram
+	const VRAMBank &bank = vram_banks_[(address >> 10) & 0xf];
+	
 	if (LIKELY(bank)) {
-		return bank[address & 0x03ff];
+		return bank[address & 0x3ff];
 	}
 
 	// simulate open bus

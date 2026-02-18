@@ -18,6 +18,7 @@ namespace nes::ppu {
 bool show_sprites  = true;
 bool system_paused = false;
 
+
 namespace {
 
 union Status {
@@ -1610,6 +1611,16 @@ uint_least16_t hpos() {
 uint_least16_t vpos() {
 	return vpos_;
 }
+
+
+uint8_t PpuCtrl() {
+	return ppu_control_.raw;
+}
+
+uint8_t PaletteRam (uint32_t address) {
+	return palette_[address];
+}
+
 
 // explicitly instantiate the types we use for this function,
 // we don't want to have to put this code in the header
