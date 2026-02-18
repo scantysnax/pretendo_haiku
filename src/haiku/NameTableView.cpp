@@ -25,7 +25,7 @@ NameTableView::~NameTableView()
 void
 NameTableView::AttachedToWindow()
 {
-	fBitmap = new BBitmap(BRect(0, 0,kNameTableWidth-1, kNameTableHeight-1), B_CMAP8);
+	fBitmap = new BBitmap(BRect(0, 0, kNameTableWidth-1, kNameTableHeight-1), B_CMAP8);
 	fBits = reinterpret_cast<uint8 *>(fBitmap->Bits());
 	fRowBytes = fBitmap->BytesPerRow();
 	memset(fBits, 0x0, fBitmap->BitsLength());	
@@ -77,8 +77,8 @@ NameTableView::GetBackgroundColor(uint8 palette, uint8 pixel)
     
     // color 0 is background color
 	if (pixel == 0) {
-		uint8 color = mapper->read_vram(0x3f00) & 0x3f;
-		return kPalette[color];
+		uint8 bgColor = mapper->read_vram(0x3f00) & 0x3f;
+		return kPalette[bgColor];
 	}
 
 	uint32 addr = 0x3f01 + (palette * 4) + (pixel - 1);
@@ -92,14 +92,14 @@ uint8
 NameTableView::GetAttributePalette(uint32 nameTableBase, int32 tileX, int32 tileY)
 {
 	Mapper *mapper = nes::cart.mapper();
-	uint32 attrBase = nameTableBase + 0x3c0;
+	uint32 attrBase = nameTableBase+0x3c0;
 
 	int32 attrX = tileX >> 2;
 	int32 attrY = tileY >> 2;
 
 	uint8 attrByte = mapper->read_vram(attrBase + attrY * 8 + attrX);
-	int32 shift = ((tileY & 0x02) ? 4 : 0) |
-				  ((tileX & 0x02) ? 2 : 0);
+	int32 shift = ((tileY & 0x02) << 1) | (tileX & 0x02);
+	
 	return (attrByte >> shift) & 0x03;
 }
 
@@ -109,7 +109,6 @@ void
 NameTableView::DrawTile (uint32 patternTableBase, uint8 tileIndex, int32 tileX, int32 tileY, uint8 palette)
 {
 	Mapper *mapper = nes::cart.mapper();
-
 	uint32 tileAddr = patternTableBase + (tileIndex * 16);
     
 	for (int32 y = 0; y < 8; y++) { 
@@ -118,11 +117,11 @@ NameTableView::DrawTile (uint32 patternTableBase, uint8 tileIndex, int32 tileX, 
 
 		for (int32 x = 0; x < 8; x++) {
 			int32 shift = 7 - x;
-			uint8 pixel = (firstPlane  >> shift) & 0x1;
+			uint8 pixel = (firstPlane >> shift) & 0x1;
 			pixel |= ((secondPlane >> shift) & 0x1) << 1;
 			
 			uint8 color = GetBackgroundColor(palette, pixel);
-			DrawPixel(x + tileX * 8, y + tileY * 8, color);
+			DrawPixel(x+tileX*8, y+tileY*8, color);
 		}
 	}
 }
