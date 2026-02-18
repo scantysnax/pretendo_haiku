@@ -15,26 +15,26 @@ NameTableWindow::NameTableWindow (PretendoWindow *parent, int32 which)
 	
 	switch (which) {
 		case 0:
-		SetTitle("Name Table 1 (0x2000-0x23ff");
+		SetTitle("Name Table 1 (0x2000-0x23ff)");
 		break;
 		
 		case 1:
-		SetTitle("Name Table 2 (0x2400-0x27ff");
+		SetTitle("Name Table 2 (0x2400-0x27ff)");
 		break;
 		
 		case 2:
-		SetTitle("Name Table 3 (0x2800-0x2bff");
+		SetTitle("Name Table 3 (0x2800-0x2bff)");
 		break;
 		
 		case 3:
-		SetTitle("Name Table 4 (0x2c00-0x2fff");
+		SetTitle("Name Table 4 (0x2c00-0x2fff)");
 		break;
 	}
 		
 	
 	fView = new NameTableView(Bounds(), which);
 	AddChild(fView);
-	//SetPulseRate(1000000ULL); // one second
+	SetPulseRate(1000000ULL); // one second
 	
 	LoadSettings();
 }

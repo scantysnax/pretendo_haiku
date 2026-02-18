@@ -1,7 +1,7 @@
 
 #include "NameTableView.h"
 
-uint8 const kPalette[64] = {
+uint8 const kWrongPalette[64] = {
     0x75, 0x27, 0x2a, 0x52, 0x7f, 0xab, 0x8b, 0x43, 0x2f, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0xbc, 0x73, 0x6f, 0x9f, 0xd4, 0xff, 0xf7, 0x8f, 0x7b, 0x3c, 0x1e, 0x00, 0x00, 0x00, 0x00, 0x00,
     0xff, 0xbc, 0xb8, 0xd8, 0xff, 0xff, 0xff, 0xd8, 0xc3, 0x8f, 0x73, 0x52, 0x52, 0x00, 0x00, 0x00,
@@ -54,9 +54,7 @@ NameTableView::MessageReceived (BMessage *message)
 void
 NameTableView::Pulse()
 {
-//	if (nes::cart.mapper()) {
-//		puts(__PRETTY_FUNCTION__);
-//	}
+	
 }
 
 
@@ -64,9 +62,9 @@ void
 NameTableView::DrawPixel (int32 x, int32 y, uint8 color)
 {
 	uint8 *dest = fBits;
-	int32 rowbytes = fRowBytes;
+	int32 rowBytes = fRowBytes;
 	
-	*(uint8 *)(dest+x+(y*rowbytes)) = color;
+	*(uint8 *)(dest+x+(y*rowBytes)) = color;
 }
 
 
@@ -78,13 +76,13 @@ NameTableView::GetBackgroundColor(uint8 palette, uint8 pixel)
     // color 0 is background color
 	if (pixel == 0) {
 		uint8 bgColor = mapper->read_vram(0x3f00) & 0x3f;
-		return kPalette[bgColor];
+		return kWrongPalette[bgColor];
 	}
 
 	uint32 addr = 0x3f01 + (palette * 4) + (pixel - 1);
 	uint8 color = mapper->read_vram(addr) & 0x3f;
 	
-    return kPalette[color];
+    return kWrongPalette[color];
 }
 
 
@@ -92,17 +90,16 @@ uint8
 NameTableView::GetAttributePalette(uint32 nameTableBase, int32 tileX, int32 tileY)
 {
 	Mapper *mapper = nes::cart.mapper();
-	uint32 attrBase = nameTableBase+0x3c0;
+	uint32 attrBase = (nameTableBase + 0x3c0);
 
 	int32 attrX = tileX >> 2;
 	int32 attrY = tileY >> 2;
 
-	uint8 attrByte = mapper->read_vram(attrBase + attrY * 8 + attrX);
+	uint8 attrByte = mapper->read_vram(attrBase + (attrY * 8) + attrX);
 	int32 shift = ((tileY & 0x02) << 1) | (tileX & 0x02);
 	
-	return (attrByte >> shift) & 0x03;
+	return (attrByte >> shift) & 0x3;
 }
-
 
 
 void
@@ -121,7 +118,7 @@ NameTableView::DrawTile (uint32 patternTableBase, uint8 tileIndex, int32 tileX, 
 			pixel |= ((secondPlane >> shift) & 0x1) << 1;
 			
 			uint8 color = GetBackgroundColor(palette, pixel);
-			DrawPixel(x+tileX*8, y+tileY*8, color);
+			DrawPixel(x + tileX * 8, y + tileY * 8, color);
 		}
 	}
 }
