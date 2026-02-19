@@ -12,6 +12,7 @@
 #include <filesystem>
 #include <iostream>
 #include <string>
+#include <cstdio>
 
 //------------------------------------------------------------------------------
 // Name: Mapper
@@ -289,6 +290,38 @@ uint8_t Mapper::read_f(uint_least16_t address) {
 // Name:
 //------------------------------------------------------------------------------
 void Mapper::write_vram(uint_least16_t address, uint8_t value) {
+	address &= 0x3fff;
+	
+	// mirror $2000-$2fff
+	if (address >= 0x3000 && address < 0x3f00) {
+		address -= 0x1000; 
+	}
+	
+	if (address >= 0x3f00) {
+		address = 0x3f00 | (address & 0x1f);
+		
+		switch (address) {
+			case 0x3f10:
+				address = 0x3f00;
+				break;
+				
+			case 0x3f14:
+			address = 0x3f04;
+				break;
+				
+			case 0x3f18:
+				address = 0x3f08;
+				break;
+				
+			case 0x3f1c:
+				address = 0x3f0c;
+				break;
+		}
+		
+		nes::ppu::set_palette_ram(address & 0x1f, value);
+		return;
+	}
+	
 	VRAMBank &bank = vram_banks_[(address >> 10) & 0x0f];
 	if (LIKELY(bank && bank.writeable())) {
 		bank[address & 0x03ff] = value;
@@ -299,41 +332,43 @@ void Mapper::write_vram(uint_least16_t address, uint8_t value) {
 // Name:
 //------------------------------------------------------------------------------
 uint8_t Mapper::read_vram(uint_least16_t address) {
-	address &= 0x3fff;	// 16K
+	address &= 0x3fff;
+	if (address >= 0x3000 && address < 0x3f00) { 
+		address -= 0x1000;
+	}
 	
 	// prioritise palette reads
 	if (address >= 0x3f00) {
-		address &= 0x1f;
-	
-		switch (address) {
-			case 0x10:
-				address = 0x0;
-				break;
-				
-			case 0x14:
-				address = 0x4;
-				break;
-			
-			case 0x18:
-				address = 0x8;
-				break;
-			
-			case 0x1c:
-				address = 0xc;
-				break;
-		}
+		address = 0x3f00 | (address & 0x1f); 
 		
-		return nes::ppu::palette_ram(address);
+		switch (address) { 
+			case 0x3f10:
+			address = 0x3f00; 
+			break;
+			
+			case 0x3f14:
+			address = 0x3f04;
+			break;
+			
+			case 0x3f18:
+			address = 0x3f08;
+			break;
+			
+			case 0x3f1c:
+			address = 0x3f0c;
+			break;
+		} 
+		
+		return nes::ppu::palette_ram(address & 0x1f);
 	}
 	
-	// "normal" vram
+	// "normal" vram 
 	const VRAMBank &bank = vram_banks_[(address >> 10) & 0xf];
-	
 	if (LIKELY(bank)) {
 		return bank[address & 0x3ff];
 	}
-
-	// simulate open bus
+	
+	// simulate open bus 
 	return (address >> 8) & 0xff;
 }
 

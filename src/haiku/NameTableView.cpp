@@ -54,7 +54,7 @@ NameTableView::MessageReceived (BMessage *message)
 void
 NameTableView::Pulse()
 {
-	
+	BView::Pulse();	
 }
 
 
@@ -69,7 +69,7 @@ NameTableView::DrawPixel (int32 x, int32 y, uint8 color)
 
 
 uint8
-NameTableView::GetBackgroundColor(uint8 palette, uint8 pixel)
+NameTableView::GetBackgroundColor (uint8 palette, uint8 pixel)
 {
 	Mapper *mapper = nes::cart.mapper();
     
@@ -79,15 +79,15 @@ NameTableView::GetBackgroundColor(uint8 palette, uint8 pixel)
 		return kWrongPalette[bgColor];
 	}
 
-	uint32 addr = 0x3f01 + (palette * 4) + (pixel - 1);
-	uint8 color = mapper->read_vram(addr) & 0x3f;
+	uint32 address = 0x3f01 + (palette * 4) + (pixel - 1);
+	uint8 color = mapper->read_vram(address) & 0x3f;
 	
     return kWrongPalette[color];
 }
 
 
 uint8
-NameTableView::GetAttributePalette(uint32 nameTableBase, int32 tileX, int32 tileY)
+NameTableView::GetAttributePalette (uint32 nameTableBase, int32 tileX, int32 tileY)
 {
 	Mapper *mapper = nes::cart.mapper();
 	uint32 attrBase = (nameTableBase + 0x3c0);

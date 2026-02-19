@@ -1621,6 +1621,10 @@ uint8_t palette_ram (uint32_t address) {
 	return palette_[address];
 }
 
+void set_palette_ram (uint32_t address, uint8_t data) {
+	palette_[address] = data;
+}
+
 
 // explicitly instantiate the types we use for this function,
 // we don't want to have to put this code in the header
