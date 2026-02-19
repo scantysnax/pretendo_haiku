@@ -135,11 +135,13 @@ NameTableView::DrawNameTable (int32 nameTableIndex)
 	
 	for (int32 tileY = 0; tileY < 30; tileY++) {
     	for (int32 tileX = 0; tileX < 32; tileX++) {
-			uint32 ntAddr = baseAddr + tileY * 32 + tileX;
-			uint8 tileIndex = mapper->read_vram(ntAddr);
+			uint32 ntblAddr = baseAddr + tileY * 32 + tileX;
+			uint8 tileIndex = mapper->read_vram(ntblAddr);
 			uint8 palette = GetAttributePalette(baseAddr, tileX, tileY);
 			
 			DrawTile(patternBase, tileIndex, tileX, tileY, palette);
 		}
 	}
 }
+
+

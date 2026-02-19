@@ -292,11 +292,12 @@ uint8_t Mapper::read_f(uint_least16_t address) {
 void Mapper::write_vram(uint_least16_t address, uint8_t value) {
 	address &= 0x3fff;
 	
-	// mirror $2000-$2fff
+	// mirror $2000-$2eff
 	if (address >= 0x3000 && address < 0x3f00) {
 		address -= 0x1000; 
 	}
 	
+	// palette mirroring
 	if (address >= 0x3f00) {
 		address = 0x3f00 | (address & 0x1f);
 		
@@ -306,7 +307,7 @@ void Mapper::write_vram(uint_least16_t address, uint8_t value) {
 				break;
 				
 			case 0x3f14:
-			address = 0x3f04;
+				address = 0x3f04;
 				break;
 				
 			case 0x3f18:
@@ -318,7 +319,8 @@ void Mapper::write_vram(uint_least16_t address, uint8_t value) {
 				break;
 		}
 		
-		nes::ppu::set_palette_ram(address & 0x1f, value);
+		address &= 0x1f;
+		nes::ppu::set_palette_ram(address, value);
 		return;
 	}
 	
@@ -333,6 +335,7 @@ void Mapper::write_vram(uint_least16_t address, uint8_t value) {
 //------------------------------------------------------------------------------
 uint8_t Mapper::read_vram(uint_least16_t address) {
 	address &= 0x3fff;
+	
 	if (address >= 0x3000 && address < 0x3f00) { 
 		address -= 0x1000;
 	}
