@@ -133,6 +133,7 @@ NameTableView::DrawNameTable (int32 which)
 	// select active pattern table
 	uint32 patternBase = (nes::ppu::ppuctrl() & 0x10) << 8;
 	
+	// draw the nametable
 	for (int32 tileY = 0; tileY < 30; tileY++) {
     	for (int32 tileX = 0; tileX < 32; tileX++) {
 			uint32 ntblAddr = baseAddr + tileY * 32 + tileX;
