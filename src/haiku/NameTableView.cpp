@@ -125,10 +125,10 @@ NameTableView::DrawTile (uint32 patternTableBase, uint8 tileIndex, int32 tileX, 
 
 
 void
-NameTableView::DrawNameTable (int32 nameTableIndex)
+NameTableView::DrawNameTable (int32 which)
 {
 	Mapper *mapper = nes::cart.mapper();
-	uint32 baseAddr = 0x2000 + (nameTableIndex * 0x400);
+	uint32 baseAddr = 0x2000 + (which * 0x400);
 	
 	// select active pattern table
 	uint32 patternBase = (nes::ppu::ppuctrl() & 0x10) << 8;

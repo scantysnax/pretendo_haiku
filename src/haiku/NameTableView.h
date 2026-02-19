@@ -33,7 +33,7 @@ class NameTableView : public BView
 	private:
 	void DrawPixel (int32 x, int32 y, uint8 color);
 	void DrawTile (uint32 patternTableBase, uint8 tileIndex, int32 tileX, int32 tileY, uint8 palette);
-    void DrawNameTable (int32 nameTableIndex);
+    void DrawNameTable (int32 which);
 	
     private:
 	BBitmap *fBitmap = nullptr;
