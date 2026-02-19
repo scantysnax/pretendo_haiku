@@ -3,14 +3,12 @@
 #define _INPUT_WINDOW_H_
 
 
-#include <Window.h>
-
-#include "InputView.h"
 #include "Settings.h"
+
 #include "PretendoWindow.h"
+#include "InputView.h"
 
 class PretendoWindow;
-
 
 class InputWindow : public BWindow
 {

@@ -1,5 +1,6 @@
 
 #include "NameTableWindow.h"
+#include "NameTableView.h"
 
 #include <iostream>
 
@@ -11,7 +12,7 @@ NameTableWindow::NameTableWindow (PretendoWindow *parent, int32 which)
 	fWhich = which;
 	fSettingsMessage = new BMessage;
 	
-	ResizeTo(kNameTableWidth, kNameTableHeight);
+	ResizeTo(32*8, 30*8);
 	
 	switch (which) {
 		case 0:
@@ -32,7 +33,7 @@ NameTableWindow::NameTableWindow (PretendoWindow *parent, int32 which)
 	}
 		
 	
-	fView = new NameTableView(Bounds(), which);
+	fView = new NameTableView(Bounds(), this, which);
 	AddChild(fView);
 	SetPulseRate(1000000ULL); // one second
 	

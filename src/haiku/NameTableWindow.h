@@ -5,11 +5,8 @@
 #include <Window.h>
 #include <Bitmap.h>
 
-#include "NameTableView.h"
-
-
+class NameTableView;
 class PretendoWindow;
-
 
 class NameTableWindow : public BWindow
 {
@@ -21,14 +18,20 @@ class NameTableWindow : public BWindow
 	virtual bool QuitRequested();
 	virtual void MessageReceived (BMessage *message);
 	
+	public:
+	void blah() { };
+	
+
+	
 	private:
 	void LoadSettings();
 	void SaveSettings();
-		
+	
 	private:
 	int32 fWhich = 0;
 	NameTableView *fView = nullptr;
 	PretendoWindow *fParent = nullptr;
+	
 	
 	private:
 	BMessage *fSettingsMessage;

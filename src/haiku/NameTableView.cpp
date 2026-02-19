@@ -9,10 +9,11 @@ uint8 const kWrongPalette[64] = {
 };
 
 	
-NameTableView::NameTableView (BRect frame, int32 which)
+NameTableView::NameTableView (BRect frame, NameTableWindow *parent, int32 which)
 	: BView (frame, "name_table", B_FOLLOW_ALL_SIDES, B_WILL_DRAW|B_PULSE_NEEDED)
 {
 	fWhichNameTable = which;
+	fParent = parent;
 }
 
 
@@ -29,6 +30,8 @@ NameTableView::AttachedToWindow()
 	fBits = reinterpret_cast<uint8 *>(fBitmap->Bits());
 	fRowBytes = fBitmap->BytesPerRow();
 	memset(fBits, 0x0, fBitmap->BitsLength());	
+	
+	fParent->blah();
 	
 	BView::AttachedToWindow();
 }
