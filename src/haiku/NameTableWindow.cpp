@@ -33,7 +33,7 @@ NameTableWindow::NameTableWindow (PretendoWindow *parent, int32 which)
 	}
 		
 	
-	fView = new NameTableView(Bounds(), this, which);
+	fView = new NameTableView(Bounds(), which);
 	AddChild(fView);
 	SetPulseRate(1000000ULL); // one second
 	

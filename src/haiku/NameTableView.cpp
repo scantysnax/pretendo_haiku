@@ -1,6 +1,7 @@
 
 #include "NameTableView.h"
 
+
 uint8 const kWrongPalette[64] = {
     0x75, 0x27, 0x2a, 0x52, 0x7f, 0xab, 0x8b, 0x43, 0x2f, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
     0xbc, 0x73, 0x6f, 0x9f, 0xd4, 0xff, 0xf7, 0x8f, 0x7b, 0x3c, 0x1e, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -9,11 +10,10 @@ uint8 const kWrongPalette[64] = {
 };
 
 	
-NameTableView::NameTableView (BRect frame, NameTableWindow *parent, int32 which)
+NameTableView::NameTableView (BRect frame, int32 which)
 	: BView (frame, "name_table", B_FOLLOW_ALL_SIDES, B_WILL_DRAW|B_PULSE_NEEDED)
 {
 	fWhichNameTable = which;
-	fParent = parent;
 }
 
 
@@ -30,8 +30,6 @@ NameTableView::AttachedToWindow()
 	fBits = reinterpret_cast<uint8 *>(fBitmap->Bits());
 	fRowBytes = fBitmap->BytesPerRow();
 	memset(fBits, 0x0, fBitmap->BitsLength());	
-	
-	fParent->blah();
 	
 	BView::AttachedToWindow();
 }

@@ -5,24 +5,22 @@
 #include <Window.h>
 #include <Bitmap.h>
 
-class NameTableView;
+#include "PretendoWindow.h"
+#include "NameTableView.h"
+
 class PretendoWindow;
+
 
 class NameTableWindow : public BWindow
 {
 	public:
-			NameTableWindow(PretendoWindow *parent, int32 which);
+			NameTableWindow (PretendoWindow *parent, int32 which);
 	virtual ~NameTableWindow();
 	
 	public:
 	virtual bool QuitRequested();
 	virtual void MessageReceived (BMessage *message);
-	
-	public:
-	void blah() { };
-	
 
-	
 	private:
 	void LoadSettings();
 	void SaveSettings();

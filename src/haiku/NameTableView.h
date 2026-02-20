@@ -9,7 +9,6 @@
 #include "Nes.h"
 #include "Ppu.h"
 
-#include "NameTableWindow.h"
 
 constexpr int32 kNameTableWidth = 32*8;
 constexpr int32 kNameTableHeight = 30*8;
@@ -18,7 +17,7 @@ constexpr int32 kNameTableHeight = 30*8;
 class NameTableView : public BView
 {
 	public:
-			NameTableView (BRect frame, NameTableWindow *parent, int32 which);
+			NameTableView (BRect frame, int32 which);
 	virtual ~NameTableView();
 	
 	public:
@@ -37,7 +36,6 @@ class NameTableView : public BView
     void DrawNameTable (int32 which);
 	
     private:
-    NameTableWindow *fParent;
 	BBitmap *fBitmap = nullptr;
 	uint8 *fBits = nullptr;
 	int32 fRowBytes = 0;

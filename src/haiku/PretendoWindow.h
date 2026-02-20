@@ -31,6 +31,7 @@
 
 class PretendoView;
 class InputWindow;
+class NameTableWindow;
 
 
 class PretendoWindow : public BWindow
