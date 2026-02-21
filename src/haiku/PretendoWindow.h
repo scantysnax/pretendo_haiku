@@ -121,7 +121,7 @@ class PretendoWindow : public BWindow
 	virtual ~PretendoWindow();
 	
 	
-	// inherited from B(Direct)Window
+	// inherited from BWindow
 	public:
 	virtual void MessageReceived (BMessage *message);
 	virtual bool QuitRequested();
@@ -223,16 +223,8 @@ class PretendoWindow : public BWindow
 	uint8 *fMappedPalette[8];
 	
 	public:
-	uint8 *Get8BitPalette() {
-		return fPalette8[0];
-	}
-	
-	uint16 *Get16BitPalette() {
-		return fPalette16[0];
-	} 
-	
-	uint32 *Get32BitPalette() {
-		return fPalette32[0];
+	uint8 *Palette() {
+		return fMappedPalette[0];
 	}
 	
 	// video	

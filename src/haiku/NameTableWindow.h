@@ -5,14 +5,19 @@
 #include <Window.h>
 #include <Bitmap.h>
 
-#include "PretendoWindow.h"
-#include "NameTableView.h"
-
 class PretendoWindow;
+class NameTableView;
 
 
 class NameTableWindow : public BWindow
 {
+	public:
+	typedef enum {
+		HEIGHT = 30*8,
+		WIDTH = 32*8
+	} nametable_size;
+		
+	
 	public:
 			NameTableWindow (PretendoWindow *parent, int32 which);
 	virtual ~NameTableWindow();

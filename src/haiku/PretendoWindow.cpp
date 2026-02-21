@@ -788,18 +788,12 @@ PretendoWindow::OnViewPatternTable2()
 void
 PretendoWindow::OnViewNameTable1()
 {
-	std::cout << __PRETTY_FUNCTION__ << std::endl;
-	
-	if (! nes::cart.mapper()) {
-		return;
-	}
-	
 	if (fNameTable1Window && fNameTable1Window->Lock()) {
 		fNameTable1Window->Quit();
 		fNameTable1Window = nullptr;
 	}
 	
-	if (nes::cart.mapper() != nullptr) { // && ! fROMInfoWindow) {
+	if (nes::cart.mapper() != nullptr) {
 		fNameTable1Window = new NameTableWindow(this, 0);
 		fNameTable1Window->Show();
 	}

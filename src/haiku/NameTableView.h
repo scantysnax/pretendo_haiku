@@ -9,15 +9,20 @@
 #include "Nes.h"
 #include "Ppu.h"
 
-
-constexpr int32 kNameTableWidth = 32*8;
-constexpr int32 kNameTableHeight = 30*8;
+#include "PretendoWindow.h"
 
 
 class NameTableView : public BView
 {
 	public:
-			NameTableView (BRect frame, int32 which);
+	typedef enum {
+		HEIGHT = 30*8,
+		WIDTH = 32*8
+	} nametable_size;
+		
+	
+	public:
+			NameTableView (BRect frame, PretendoWindow *mainWindow, int32 which);
 	virtual ~NameTableView();
 	
 	public:
@@ -27,8 +32,8 @@ class NameTableView : public BView
 	virtual void Pulse();
 	
 	private:
-	uint8 GetBackgroundColor (uint8 palette, uint8 pixel);
-	uint8 GetAttributePalette (uint32 nameTableBase, int32 tileX, int32 tileY);	
+	uint8 BackgroundColor (uint8 palette, uint8 pixel);
+	uint8 AttributePalette (uint32 nameTableBase, int32 tileX, int32 tileY);	
 	
 	private:
 	void DrawPixel (int32 x, int32 y, uint8 color);
@@ -36,10 +41,12 @@ class NameTableView : public BView
     void DrawNameTable (int32 which);
 	
     private:
+    PretendoWindow *fMainWindow = nullptr;
 	BBitmap *fBitmap = nullptr;
 	uint8 *fBits = nullptr;
 	int32 fRowBytes = 0;
 	int32 fWhichNameTable = 0;
+	uint8 *fPalette;
 };
 
 #endif
