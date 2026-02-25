@@ -171,26 +171,24 @@ NameTableView::PaletteForAttribute(uint32 nameTableBase, int32 tileX, int32 tile
     
     /*
     find out which 2x2-tile quadrant we are in where:
-    	tile >> 1 isolates which 2-tile block we're in
-    // 	& 0x1 extracts the local position (0 or 1).
-    //
-    // Resulting quadrant index:
-    //   0 = top-left
-    //   1 = top-right
-    //   2 = bottom-left
-    //   3 = bottom-right
+    	tile >> 1 isolates which 2-tile block we're in and
+     	& with 0x1 to extract the the local position (0 or 1).
+     	
+     	quadrant indexes: 	0: top left
+    						1: top right
+    						2: bottom left
+    						3: bottom right
    */
-    uint8 quadrant =
-        ((tileY >> 1) & 1) << 1 |   // vertical half (0 or 2)
-        ((tileX >> 1) & 1);         // horizontal half (0 or 1)
-
-    // --------------------------------------------------------------------
-    // Each quadrant uses 2 bits inside attrByte.
-    //
-    // quadrant * 2 = bit offset (0,2,4,6)
-    // Mask with &3 to extract the palette index (0-3).
-    // --------------------------------------------------------------------
-    return (attrByte >> (quadrant * 2)) & 3;
+   uint8 verticalHalf = ((tileY >> 1) & 0x1) << 1;	// vertical half
+   uint8 horizontalHalf = ((tileX >> 1) & 0x1);		// horizontal half
+   uint8 quadrant = verticalHalf | horizontalHalf;	// combine both halves for quadrant
+    
+    /*
+    quadrants use two bits of the attribute byte where:
+    	quadrant * 2 yields a two bit offset (0, 2, 4, 6)
+    	modulo by 4 to get the palette index (0, 1, 2, 3)
+    */	
+    return (attrByte >> (quadrant * 2)) % 4;
 }
 
 
