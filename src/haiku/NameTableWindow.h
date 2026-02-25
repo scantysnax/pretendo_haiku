@@ -3,7 +3,9 @@
 #define _NAMETABLE_WINDOW_H_
 
 #include <Window.h>
-#include <Bitmap.h>
+
+#include "NameTableView.h"
+#include "Settings.h"
 
 class PretendoWindow;
 class NameTableView;

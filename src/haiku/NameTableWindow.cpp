@@ -35,8 +35,8 @@ NameTableWindow::NameTableWindow (PretendoWindow *parent, int32 which)
 	
 	fView = new NameTableView(Bounds(), fParent, which);
 	AddChild(fView);
-	SetPulseRate(166667ULL);
-	
+	SetPulseRate(166667); // try to get around 60fps.
+						  // we don't neeed super accuraccy, it's just a viewer
 	LoadSettings();
 }
 

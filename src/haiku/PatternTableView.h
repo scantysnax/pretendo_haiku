@@ -6,10 +6,10 @@
 
 #include "Cart.h"
 #include "Nes.h"
+#include "Ppu.h"
 
-#include <iostream>
+#include "PretendoWindow.h"
 
-class PatternTableWindow;
 
 class PatternTableView : public BView
 {
@@ -26,7 +26,7 @@ class PatternTableView : public BView
 	} view_mode;
 		
 	public:
-			PatternTableView (BRect frame, int32 which);
+			PatternTableView (BRect frame, PretendoWindow *mainWindow, int32 which);
 	virtual ~PatternTableView();
 	
 	public:
@@ -36,7 +36,7 @@ class PatternTableView : public BView
 	
 	private:
 	void DrawPixel (int32 x, int32 y, uint8 color);
-	void DrawTile (int32 patternTable, int32 tileIndex, int32 tileX, int32 tileY);
+	void DrawTile (uint32 patternTable, int32 tileIndex, int32 tileX, int32 tileY);
 	void DrawPatternTable8x8 (int32 which);
 	void DrawPatternTable8x16 (int32 which);
 	
@@ -52,11 +52,13 @@ class PatternTableView : public BView
 	}
 
 	private:
+	PretendoWindow *fMainWindow = nullptr;
 	BBitmap *fBitmap = nullptr;
 	uint8 *fBits = nullptr;
 	int32 fRowBytes = 0;
 	int32 fWhichPatternTable = 0;
 	view_mode fViewMode = view_mode::MODE_8x8;
+	uint8 *fPalette = nullptr;
 };
 
 

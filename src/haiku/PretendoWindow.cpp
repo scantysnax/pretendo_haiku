@@ -803,10 +803,14 @@ PretendoWindow::OnViewNameTable1()
 void
 PretendoWindow::OnViewNameTable2()
 {
-	std::cout << __PRETTY_FUNCTION__ << std::endl;
+	if (fNameTable2Window && fNameTable2Window->Lock()) {
+		fNameTable2Window->Quit();
+		fNameTable2Window = nullptr;
+	}
 	
-	if (! nes::cart.mapper()) {
-		return;
+	if (nes::cart.mapper() != nullptr) {
+		fNameTable2Window = new NameTableWindow(this, 1);
+		fNameTable2Window->Show();
 	}
 }
 
@@ -814,10 +818,14 @@ PretendoWindow::OnViewNameTable2()
 void
 PretendoWindow::OnViewNameTable3()
 {
-	std::cout << __PRETTY_FUNCTION__ << std::endl;
+	if (fNameTable3Window && fNameTable3Window->Lock()) {
+		fNameTable3Window->Quit();
+		fNameTable3Window = nullptr;
+	}
 	
-	if (! nes::cart.mapper()) {
-		return;
+	if (nes::cart.mapper() != nullptr) {
+		fNameTable3Window = new NameTableWindow(this, 2);
+		fNameTable3Window->Show();
 	}
 }
 
@@ -825,10 +833,14 @@ PretendoWindow::OnViewNameTable3()
 void
 PretendoWindow::OnViewNameTable4()
 {
-	std::cout << __PRETTY_FUNCTION__ << std::endl;
+	if (fNameTable4Window && fNameTable4Window->Lock()) {
+		fNameTable4Window->Quit();
+		fNameTable4Window = nullptr;
+	}
 	
-	if (! nes::cart.mapper()) {
-		return;
+	if (nes::cart.mapper() != nullptr) {
+		fNameTable4Window = new NameTableWindow(this, 3);
+		fNameTable4Window->Show();
 	}
 }
 

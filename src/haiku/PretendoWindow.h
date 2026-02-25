@@ -4,12 +4,12 @@
 #include <Alert.h>
 #include <Application.h>
 #include <Bitmap.h>
-#include <Window.h>
 #include <Menu.h>
 #include <MenuBar.h>
 #include <MenuItem.h>
 #include <RecentItems.h>
 #include <Screen.h>
+#include <Window.h>
 
 #include <malloc.h>
 
@@ -32,6 +32,7 @@
 class PretendoView;
 class InputWindow;
 class NameTableWindow;
+class PatternTableWindow;
 
 
 class PretendoWindow : public BWindow

@@ -8,7 +8,7 @@
 
 
 class PretendoWindow;
-
+class PatternTableView;
 
 class PatternTableWindow : public BWindow
 {

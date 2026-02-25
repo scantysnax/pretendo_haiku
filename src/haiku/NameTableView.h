@@ -2,14 +2,17 @@
 #ifndef _NAMETABLE_VIEW_H_
 #define _NAMETABLE_VIEW_H_
 
-#include <View.h>
 #include <Bitmap.h>
+#include <View.h>
 
 #include "Cart.h"
 #include "Nes.h"
 #include "Ppu.h"
 
 #include "PretendoWindow.h"
+
+
+class PretendoWindow;
 
 
 class NameTableView : public BView
@@ -28,12 +31,11 @@ class NameTableView : public BView
 	public:
 	virtual void AttachedToWindow();
 	virtual void Draw (BRect updateRect);
-	virtual void MessageReceived (BMessage *message);
 	virtual void Pulse();
 	
 	private:
-	uint8 BackgroundColor (uint8 palette, uint8 pixel);
-	uint8 AttributePalette (uint32 nameTableBase, int32 tileX, int32 tileY);	
+	uint8 ColorForPixel (uint8 palette, uint8 pixel);
+	uint8 PaletteForAttribute (uint32 nameTableBase, int32 tileX, int32 tileY);	
 	
 	private:
 	void DrawPixel (int32 x, int32 y, uint8 color);
@@ -46,7 +48,7 @@ class NameTableView : public BView
 	uint8 *fBits = nullptr;
 	int32 fRowBytes = 0;
 	int32 fWhichNameTable = 0;
-	uint8 *fPalette;
+	uint8 *fPalette = nullptr;
 };
 
 #endif

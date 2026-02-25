@@ -19,9 +19,10 @@ PatternTableWindow::PatternTableWindow (PretendoWindow *parent, int32 which)
 	);
 	
 	// setup some things we need
-	fView = new PatternTableView(Bounds(), fWhich);
+	fView = new PatternTableView(Bounds(), fParent, fWhich);
 	AddChild(fView);	
-	SetPulseRate(1000000ULL); // one second
+	SetPulseRate(166667); // try to get around 60fps.
+						  // we don't neeed super accuraccy, it's just a viewer
 	
 	// load settings
 	LoadSettings();	

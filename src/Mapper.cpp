@@ -286,10 +286,10 @@ uint8_t Mapper::read_f(uint_least16_t address) {
 	return read_memory(address);
 }
 
-//------------------------------------------------------------------------------
-// Name:
-//------------------------------------------------------------------------------
-void Mapper::write_vram(uint_least16_t address, uint8_t value) {
+
+void 
+Mapper::write_vram(uint_least16_t address, uint8_t value)
+{
 	address &= 0x3fff;
 	
 	// mirror $2000-$2eff
@@ -323,19 +323,22 @@ void Mapper::write_vram(uint_least16_t address, uint8_t value) {
 		nes::ppu::set_palette_ram(address, value);
 		return;
 	}
-	
+
+	// "normal" VRAM
 	VRAMBank &bank = vram_banks_[(address >> 10) & 0x0f];
+	
 	if (LIKELY(bank && bank.writeable())) {
 		bank[address & 0x03ff] = value;
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name:
-//------------------------------------------------------------------------------
-uint8_t Mapper::read_vram(uint_least16_t address) {
+
+uint8_t
+Mapper::read_vram (uint_least16_t address)
+{
 	address &= 0x3fff;
 	
+	// mirror $2000-$2eff
 	if (address >= 0x3000 && address < 0x3f00) { 
 		address -= 0x1000;
 	}
@@ -367,6 +370,7 @@ uint8_t Mapper::read_vram(uint_least16_t address) {
 	
 	// "normal" vram 
 	const VRAMBank &bank = vram_banks_[(address >> 10) & 0xf];
+	
 	if (LIKELY(bank)) {
 		return bank[address & 0x3ff];
 	}
