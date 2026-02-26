@@ -11,6 +11,7 @@ NameTableView::NameTableView (BRect frame, PretendoWindow *mainWindow, int32 whi
 	
 	SetViewColor(B_TRANSPARENT_COLOR);
 	MakeFocus(true);
+	fShowInspector = true;
 }
 
 
@@ -46,9 +47,11 @@ NameTableView::Draw (BRect updateRect)
 void
 NameTableView::Pulse()
 {	
+	/*
 	if (! fViewActive) {
 		return;
 	}
+	*/
 	
 	if (nes::cart.mapper()) {
 		fPalette = fMainWindow->Palette();
@@ -87,6 +90,7 @@ NameTableView::KeyDown(const char* bytes, int32 numBytes)
 			
 		case 'i':
 			fShowInspector = !fShowInspector;
+			puts("pressed i");
 			break;
 	}
 
@@ -99,10 +103,11 @@ NameTableView::MouseMoved(BPoint where, uint32 transit, const BMessage* msg)
 {
 	(void)transit;
 	(void)msg;
-	
+	/*
 	if (! fViewActive) {
 		return;
 	}
+	*/
 	
 	fLastMouse = where;
 	fMouseValid = true;
@@ -421,8 +426,13 @@ void NameTableView::DrawNameTable(int32 which)
     // --------------------------------------------------------------------
     // Draw attribute overlays if enabled
     // --------------------------------------------------------------------
-    if (fShowAttributeMap) DrawAttributeMap(baseAddr);
-    if (fShowAttributeGrid) DrawAttributeGrid();
+    if (fShowAttributeMap) {
+    	 DrawAttributeMap(baseAddr);
+    }
+    
+    if (fShowAttributeGrid) {  
+    	DrawAttributeGrid();
+    }
 
     // --------------------------------------------------------------------
     // Safe hover/locked tile computation
@@ -516,9 +526,11 @@ void NameTableView::DrawAttributeMap(uint32 nameTableBase)
 // --- Safely updates hover tile info for inspector/debug ---
 void NameTableView::UpdateInspector()
 {
+	/*
 	if (! fViewActive) {
 		return;
 	}
+	*/
     
     Mapper* mapper = nes::cart.mapper();
     if (!mapper) return;
@@ -584,8 +596,13 @@ void
 NameTableView::DrawInspectorText()
 {
 	if (!fShowInspector || fHoverTileX < 0) {
+		
 		return;
 	}
+	
+	MakeFocus();
+	
+	
 
 	SetHighColor(255, 255, 255, 255);   // ensure visible
 	SetLowColor(0, 0, 0, 255);
@@ -598,9 +615,9 @@ NameTableView::DrawInspectorText()
 		(unsigned)fHoverAttrAddr,
 		fHoverAttrByte,
 		fHoverPalette);
-		puts(buffer);
+		//puts(buffer);
 
-	DrawString(buffer, BPoint(8, 232));  // avoid Bounds() during bitmap mode
+	//DrawString(buffer, BPoint(8, 232));  // avoid Bounds() during bitmap mode
 }
 
 
