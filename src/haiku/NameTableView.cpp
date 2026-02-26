@@ -384,9 +384,9 @@ NameTableView::DrawTile (uint32 patternTable, uint8 tileIndex, int32 tileX, int3
 // Each nametable is 32x30 tiles (960 bytes) followed by a 64-byte attribute table.
 void NameTableView::DrawNameTable(int32 which)
 {
-	if (! fViewActive) {
-		return;
-	}
+	//if (! fViewActive) {
+	//	return;
+	//}
     
     Mapper* mapper = nes::cart.mapper();
     if (!mapper) return;
