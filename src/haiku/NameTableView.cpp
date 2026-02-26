@@ -550,7 +550,7 @@ void NameTableView::DrawHoverBox()
 {
     const int kTileSize = 8;
 
-    auto drawBox = [&](int tileX, int tileY, uint8 color) {
+    auto DrawBox = [&](int tileX, int tileY, uint8 color) {
         if (tileX < 0 || tileY < 0) return;
         int px = tileX * kTileSize;
         int py = tileY * kTileSize;
@@ -569,7 +569,7 @@ void NameTableView::DrawHoverBox()
     };
 
     // Hover tile
-    drawBox(fHoverTileX, fHoverTileY, 0x3F);
+    DrawBox(fHoverTileX, fHoverTileY, 0x3F);
 
     // Locked tile
     if (fTileLocked &&
@@ -577,7 +577,7 @@ void NameTableView::DrawHoverBox()
         fLockedTileY >= 0 && fLockedTileY < 30 &&
         (fLockedTileX != fHoverTileX || fLockedTileY != fHoverTileY))
     {
-        drawBox(fLockedTileX, fLockedTileY, 0x0F);
+        DrawBox(fLockedTileX, fLockedTileY, 0x0F);
     }
 }
 void
