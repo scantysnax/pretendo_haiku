@@ -1,626 +1,1384 @@
 
 #include "NameTableView.h"
+#include "PretendoWindow.h"
+#include "CHRExplorerView.h"
+
+#include "Mapper.h"
+#include "Ppu.h"
+
+#include "DebugHelpers.h"
+
+#include <string.h>
+#include <stdio.h>
 
 
-NameTableView::NameTableView (BRect frame, PretendoWindow *mainWindow, int32 which)
-	: BView (frame, "name_table", B_FOLLOW_ALL_SIDES, B_WILL_DRAW|B_PULSE_NEEDED|B_FRAME_EVENTS)
+static inline uint32
+NameTableBaseFromIndex (int32 which)
 {
-	fMainWindow = mainWindow;
-	fWhichNameTable = which;
-	fPalette = fMainWindow->Palette();
-	
+	return 0x2000 + (which & 3) * 0x400;
+}
+
+
+NameTableView::NameTableView(BRect frame, PretendoWindow *mainWindow, int32 which, CHRExplorerView *explorer)
+   : BView(frame, "name_table_view", B_FOLLOW_ALL_SIDES, B_WILL_DRAW | B_PULSE_NEEDED | B_FRAME_EVENTS | B_NAVIGABLE),
+			fMainWindow(mainWindow),
+			fCHRExplorer(explorer),
+			fWhichNameTable(which),
+			fFollowViewport(true)
+{
+	fPalette = fMainWindow ? fMainWindow->Palette() : nullptr;
+
 	SetViewColor(B_TRANSPARENT_COLOR);
-	MakeFocus(true);
-	fShowInspector = true;
+	SetLowColor(B_TRANSPARENT_COLOR);
+
+    //MakeFocus(true);
 }
 
 
 NameTableView::~NameTableView()
 {
 	delete fBitmap;
+	
+	fBitmap = nullptr;
+	fBits = nullptr;
+	fRowBytes = 0;
 }
 
 
 void
 NameTableView::AttachedToWindow()
 {
-	fBitmap = new BBitmap(BRect(0, 0, NameTableWindow::nametable_size::WIDTH-1, 
-								NameTableWindow::nametable_size::HEIGHT-1), B_CMAP8);
-	fBits = reinterpret_cast<uint8 *>(fBitmap->Bits());
-	fRowBytes = fBitmap->BytesPerRow();
-	memset(fBits, 0x0, fBitmap->BitsLength());	
-	
 	BView::AttachedToWindow();
-}
 
+	// don't steal focus here; take focus on click in MouseDown().
+	// MakeFocus(true);
 
-void 
-NameTableView::Draw (BRect updateRect)
-{	
-	DrawNameTable(fWhichNameTable);
-	DrawBitmap(fBitmap, Bounds());	
+	// allocate bitmap once
+	if (!fBitmap) {
+		fBitmap = new BBitmap(BRect(0, 0, WIDTH - 1, HEIGHT - 1), B_CMAP8);
+		fBits = reinterpret_cast<uint8*>(fBitmap->Bits());
+		fRowBytes = fBitmap->BytesPerRow();
+	}
+
+	if (fBits) {
+		memset(fBits, 0x0, fBitmap->BitsLength());
+	}
 	
-	BView::Draw (updateRect);
+	// set default hover so explorer isn't blank
+	if (fHoverTileX < 0 || fHoverTileY < 0) {
+		fHoverTileX = 0;
+		fHoverTileY = 0;
+	}
+
+	// update explorer state
+	UpdateExplorer();
+	MaybeUpdateCHRExplorer();
+
+	// reliable hover events
+	SetMouseEventMask(B_POINTER_EVENTS, B_NO_POINTER_HISTORY);
+
+	// set host palette for the explorer
+	if (fCHRExplorer && fPalette) {
+		fCHRExplorer->SetHostPalette(fPalette);
+	}
 }
 
 
 void
 NameTableView::Pulse()
-{	
-	/*
-	if (! fViewActive) {
+{
+	if (fFreezeUpdates) {
 		return;
 	}
-	*/
 	
-	if (nes::cart.mapper()) {
-		fPalette = fMainWindow->Palette();
-		Invalidate();
+	if (!fMainWindow) {
+		return;
 	}
-	
-	BView::Pulse();	
-}
 
+	uint32 x = 0;
+	uint32 y = 0;
+	uint32 frameId = 0;
 
-void
-NameTableView::KeyDown(const char* bytes, int32 numBytes)
-{
-	(void)numBytes;
-	
-	printf("KeyDown: %c\n", bytes[0]);
-	
-	switch (bytes[0]) {
-		case 'g':   // grid only
-			fShowAttributeGrid = !fShowAttributeGrid;
-			break;
-
-		case 'h':   // heatmap only
-			fShowAttributeMap = !fShowAttributeMap;
-			break;
-
-		case 'b':   // both (best debug mode)
-			fShowAttributeGrid = true;
-			fShowAttributeMap = true;
-			break;
-
-		case 'n':   // none (normal view)
-			fShowAttributeGrid = false;
-			fShowAttributeMap = false;
-			break;
-			
-		case 'i':
-			fShowInspector = !fShowInspector;
-			puts("pressed i");
-			break;
+	if (!fMainWindow->GetLatchedScroll(x, y, frameId)) {
+		return;
 	}
+
+	if (frameId == fLastPPUFrame)
+		return;
+
+	fLastPPUFrame = frameId;
+	fScrollX = x % 512;
+	fScrollY = y % 480;
 
 	Invalidate();
 }
 
 
 void
-NameTableView::MouseMoved(BPoint where, uint32 transit, const BMessage* msg)
+NameTableView::Draw (BRect updateRect)
 {
-	(void)transit;
+	// draw things in the right order
+	
+	(void)updateRect;
+
+	uint32 x = 0;
+	uint32 y = 0;
+	uint32 frameId = 0;
+
+	if (fMainWindow) {
+		fMainWindow->GetLatchedScroll(x, y, frameId);
+	}
+
+	fScrollX = x % 512;
+	fScrollY = y % 480;
+
+	if (fFollowViewport) {
+		DrawScrolledViewport(fScrollX, fScrollY);
+	} else {
+		DrawNameTable(fWhichNameTable);
+	}
+
+	DrawBitmap(fBitmap, BPoint(0, 0));
+
+	PushState();
+	ConstrainClippingRegion(nullptr);
+
+	if (fShowAttributeMap) {
+		DrawAttributeQuadrantOverlay();
+	}
+
+	if (fShowAttributeGrid) {
+		DrawAttributeGrid();
+	}
+		
+	DrawMatchingTileOverlay();
+	DrawMatchingTileLegend();
+	DrawHelpHUD();
+	DrawTileInfoHUD();
+	DrawFreezeBadge();
+	
+	if (fFollowViewport) {
+		DrawPPUViewportOverlay();
+	}
+
+	DrawOverlays();
+
+	PopState();
+}
+
+
+void
+NameTableView::MouseMoved (BPoint where, uint32 transit, const BMessage *msg)
+{
 	(void)msg;
-	/*
-	if (! fViewActive) {
+	
+	// lets get focus.
+	if (transit == B_ENTERED_VIEW) {
+		MakeFocus(true);
+	}
+
+	if (transit == B_EXITED_VIEW) {
+		if (!fTileLocked) {
+			if (fHoverTileX != -1 || fHoverTileY != -1) {
+				fHoverTileX = -1;
+				fHoverTileY = -1;
+
+				if (fCHRExplorer) {
+					fCHRExplorer->Clear();
+				}
+
+				Invalidate();
+			}
+		}
 		return;
 	}
-	*/
+
+	if (fTileLocked) {
+		return;
+	}
+
+	int32 x, y;
 	
-	fLastMouse = where;
-	fMouseValid = true;
+	if (!ComputeTileFromViewPoint(where, x, y)) {
+		if (fHoverTileX != -1 || fHoverTileY != -1) {
+			fHoverTileX = -1;
+			fHoverTileY = -1;
+
+			if (fCHRExplorer)
+				fCHRExplorer->Clear();
+
+			Invalidate();
+		}
+		return;
+	}
+
+	if (x == fHoverTileX && y == fHoverTileY) {
+		return;
+	}
+
+	fHoverTileX = x;
+	fHoverTileY = y;
+
+	UpdateExplorer();
 	
-	Invalidate();  // force redraw so inspector updates
+	Invalidate();
 }
 
 
 void
 NameTableView::MouseDown(BPoint where)
 {
-    const int kTileSize = 8;
+	MakeFocus(true);
 
-    // Convert mouse coordinates to tile coordinates
-    int32 tileX = (int32)(where.x) / kTileSize;
-    int32 tileY = (int32)(where.y) / kTileSize;
+	int32 x, y;
+	
+	if (!ComputeTileFromViewPoint(where, x, y)) {
+		return;
+	}
 
-    // Check if the click is inside the valid tile grid
-    if (tileX >= 0 && tileX < 32 && tileY >= 0 && tileY < 30) {
-        // Lock the clicked tile
-        fLockedTileX = tileX;
-        fLockedTileY = tileY;
+	uint32 mods = modifiers();
 
-        // Update hover coordinates immediately
-        fHoverTileX = tileX;
-        fHoverTileY = tileY;
+#if 0
+	uint32 buttons;
+	GetMouse(&where, &buttons, false);
+#endif
 
-        fMouseValid = true; // ensure inspector updates
-        UpdateInspector();
-        Invalidate(); // trigger redraw
-    } else {
-        // Clicked outside the tile area: optionally unlock
-        fLockedTileX = -1;
-        fLockedTileY = -1;
+	bool screenLock = (mods & B_SHIFT_KEY) != 0;
 
-        // Optionally clear hover
-        fHoverTileX = -1;
-        fHoverTileY = -1;
+	if (fTileLocked) {
+		if (fLockToScreen == screenLock) {
+			if (screenLock) {
+				// shift-click again: unlock screen lock
+				fTileLocked = false;
+				fLockToScreen = false;
+				fLockedTileX = -1;
+				fLockedTileY = -1;
+			} else if (fLockedTileX == x && fLockedTileY == y) {
+				// click same world tile again: unlock
+				fTileLocked = false;
+				fLockToScreen = false;
+				fLockedTileX = -1;
+				fLockedTileY = -1;
+			} else {
+				// change locked world tile
+				fLockedTileX = x;
+				fLockedTileY = y;
+			}
+		} else {
+			// switch lock mode
+			fLockToScreen = screenLock;
+			if (screenLock) {
+				fLockedViewPoint = where;
+			} else {
+				fLockedTileX = x;
+				fLockedTileY = y;
+			}
+		}
+	} else {
+		fTileLocked = true;
+		fLockToScreen = screenLock;
 
-        fMouseValid = false;
-        Invalidate();
-    }
+		if (screenLock) {
+			fLockedViewPoint = where;
+		} else {
+			fLockedTileX = x;
+			fLockedTileY = y;
+		}
+	}
+
+	fHoverTileX = x;
+	fHoverTileY = y;
+
+	UpdateExplorer();
+	
+	Invalidate();
 }
 
 
 void
-NameTableView::WindowActivated(bool active)
+NameTableView::KeyDown (const char* bytes, int32 numBytes)
 {
-    fViewActive = active;
+	(void)numBytes;
+	
+	// until we get a proper ui
+	
+	switch (bytes[0]) {
+	case 'g':
+	case 'G':
+		fShowAttributeGrid = !fShowAttributeGrid;
+		break;
 
-    if (! active) {
-        // Invalidate hover state so we don't keep using old coordinates
-        fHoverTileX = -1;
-        fHoverTileY = -1;
-        fMouseValid = false;
-    }
+	case 'h':
+	case 'H':
+		fShowAttributeMap = !fShowAttributeMap;
+		break;
 
-    Invalidate(); // redraw if needed
+	case 'b':
+	case 'B':
+		fShowAttributeGrid = true;
+		fShowAttributeMap = true;
+		break;
+
+	case 'n':
+	case 'N':
+		fShowAttributeGrid = false;
+		fShowAttributeMap = false;
+		break;
+
+	case 'm':
+	case 'M':
+		fShowMatchingTiles = !fShowMatchingTiles;
+		break;
+
+	case 'i':
+	case 'I':
+		fShowTileInfoHUD = !fShowTileInfoHUD;
+		break;
+		
+	case 'v':
+	case 'V':
+		fShowViewportBox = !fShowViewportBox;
+		break;
+		
+	case 'p':
+	case 'P':
+		fFollowViewport = !fFollowViewport;
+		break;
+		
+	case '?':
+		fShowHelpHUD = !fShowHelpHUD;
+		break;
+		
+	case ' ':
+		fFreezeUpdates = !fFreezeUpdates;
+		break;
+
+	default:
+		BView::KeyDown(bytes, numBytes);
+		return;
+	}
+
+ 	Invalidate();
 }
 
 
-void 
+void
 NameTableView::DrawPixel (int32 x, int32 y, uint8 color)
 {
-	uint8 *dest = fBits;
-	int32 rowBytes = fRowBytes;
-	
-	if (dest == nullptr) {
+	// make sure we can draw
+	if (!fBits || !fBitmap) {
 		return;
 	}
 	
-	if (x < 0 || y < 0 || x >= fRowBytes || y >= Frame().Height()) {
+	// make sure we should draw
+	if (x < 0 || y < 0 || x >= WIDTH || y >= HEIGHT) {
 		return;
 	}
-	
-	*(uint8 *)(dest+x+(y*rowBytes)) = color;
+
+	*(uint8 *)(fBits+x+y*fRowBytes) = color;
 }
 
 
+BPoint
+NameTableView::ViewToBitmap (BPoint where) const
+{
+	float x = where.x + static_cast<float>(fScrollX);
+	float y = where.y + static_cast<float>(fScrollY);
 
-// Returns the final 8-bit display color for a single background pixel.
+	while (x < 0.0f) {
+		x += 512.0f;
+	}
+	
+	while (y < 0.0f) {
+		y += 480.0f;
+	}
 
-// 'palette' = which of the 4 background palettes this tile uses (0-3)
-// 'pixel'   = the 2-bit pixel value decoded from the pattern table (0-3)
+	while (x >= 512.0f) {
+		x -= 512.0f;
+	}
+	
+	while (y >= 480.0f) {
+		y -= 480.0f;
+	}
+
+	return BPoint(x, y);
+}
+
+
+bool
+NameTableView::ComputeTileFromViewPoint (BPoint where, int32 &outTX, int32 &outTY) const
+{
+	if (!fBitmap) {
+		return false;
+	}
+
+	// local viewport size
+	
+	if (where.x < 0.0f || where.y < 0.0f || where.x >= 256.0f || where.y >= 240.0f) {
+		return false;
+	}
+
+	BPoint point = ViewToBitmap(where);
+
+	outTX = static_cast<int32>(point.x) >> 3;   // 0-63
+	outTY = static_cast<int32>(point.y) >> 3;   // 0-59
+
+	if (outTX < 0 || outTX >= 64 || outTY < 0 || outTY >= 60) {
+		return false;
+	}
+
+	return true;
+}
+
+
+uint32
+NameTableView::GetBgPatternBase() const
+{
+    // background pattern table select is PPUCTRL bit 4:
+    // 	0: $0000
+    //	1: $1000
+
+	uint8 const ppuctrl = nes::ppu::ppuctrl();
+
+	return (ppuctrl & 0x10) << 8; // ? 0x1000 : 0x0000;
+}
+
+
+void
+NameTableView::DrawNameTable(int32 which)
+{
+	Mapper* mapper = nes::cart.mapper();
+	if (!mapper)
+		return;
+
+	// Keep selection in sync for explorer reads.
+	fWhichNameTable = which;
+
+	// Base address of nametable being viewed ($2000/$2400/$2800/$2C00)
+	uint32 const baseAddr = 0x2000 + (which * 0x400);
+	fCurrentNameTableBase = baseAddr;
+
+	// Background pattern table base ($0000 or $1000), from PPUCTRL bit 4
+	uint32 const patternBase = GetBgPatternBase();
+	
+
+	// ---- Draw tiles ----
+	for (int32 tileY = 0; tileY < 30; tileY++) {
+		for (int32 tileX = 0; tileX < 32; tileX++) {
+			uint32 ntAddr = baseAddr + tileX + (tileY * 32);
+			uint8  tileIndex = mapper->read_vram(ntAddr);
+			uint8 palette = PaletteForAttribute(baseAddr, tileX, tileY);
+
+			DrawTile(patternBase, tileIndex, tileX, tileY, palette);
+		}
+	}
+
+	// overlays once
+	if (fShowAttributeMap)
+		DrawAttributeMap(baseAddr);
+
+	if (fShowAttributeGrid)
+		DrawAttributeGrid();
+
+    // update explorer fields for the currently selected tile
+    // NOTE: Do not overwrite fHoverTileX/Y here every frame.
+    // MouseMoved/MouseDown should own hover/lock selection.
+
+	int32 x = fTileLocked ? fLockedTileX : fHoverTileX;
+	int32 y = fTileLocked ? fLockedTileY : fHoverTileY;
+
+	// if nothing valid yet, pick a stable default, but don't keep forcing it.
+	if (x < 0 || y < 0) {
+		x = 0;
+		y = 0;
+	}
+
+    // temporarily point UpdateExplorer at selected tile without changing "hover"
+	int32 savedHX = fHoverTileX;
+	int32 savedHY = fHoverTileY;
+
+	fHoverTileX = x;
+	fHoverTileY = y;
+	UpdateExplorer();
+
+	fHoverTileX = savedHX;
+	fHoverTileY = savedHY;
+
+	if (fShowExplorer) {
+		MaybeUpdateCHRExplorer();
+	}
+}
+
+
 uint8
 NameTableView::ColorForPixel (uint8 palette, uint8 pixel)
 {
+    Mapper *mapper = nes::cart.mapper();
+    
+	if (!mapper || !fPalette) {
+		return 0;
+	}
+
+	// pixel 0 always uses universal background color ($3f00)
+	if (pixel == 0) {
+		uint8 bg = mapper->read_vram(0x3f00) & 0x3f;
+		return fPalette[bg];
+	}
+
+	// bg palettes: $3f01..$3f0f (mirrors handled by mapper)
+	uint32 addr = 0x3f00 + 1 + (palette * 4) + (pixel - 1);
+	uint8 index = mapper->read_vram(addr) & 0x3f;
+	
+	return fPalette[index];
+}
+
+
+uint8
+NameTableView::PaletteForAttribute (uint32 nameTableBase, int32 tileX, int32 tileY)
+{
 	Mapper *mapper = nes::cart.mapper();
 	
-	/*
-	a note about pixel value 0:
-		it is magical.  it is always the background color. in whichever palette is selected.
-		each palette has four colors, color 0 of the palette always uses whatever is in 0x3f00.
-		this makes it the universal background color.
-	*/
-	if (pixel == 0) {
-		uint8 const bgColor = mapper->read_vram(0x3f00) & 0x3f; // 6-bit palette entries
-		return fPalette[bgColor];
-	}
-	 
-	/*
-	for other pixel values, we use the tile's palette.
-	background tiles are laid out this way:
-		0x3f00: background color
-		0x3f01: palette 0 color 1
-		0x3f02: palette 0 color 2
-		0x3f03: palette 0 color 3
-		
-		0x3f04: background color
-		0x3f05: palette 1 color 1
-		0x3f06: palette 1 color 2
-		0x3f07: palette 1 color 3
-		
-		0x3f08: background color
-		0x3f09: palette 2 color 1
-		0x3f0a: palette 2 color 2
-		0x3f0b: palette 2 color 3
-		
-		0x3f0c: background color
-		0x3f0d: palette 3 color 1
-		0x3f0e:	palette 3 color 2
-		0x3f0f: palette 3 color 3
-	
-	figure the address of the palette entry we need where:
-			base addresss:	0x3f00
-			+1:				to skip the background color
-			palette*4:		select which of four background palettes
-			(pixel-1):		select color inside that palette
-	*/
-	uint32 const baseAddress = 0x3f00+1 + (palette*4) + (pixel-1);
-	
-	
-	// read from that address to get the color, limit to 6-bits
-	uint8 const color = mapper->read_vram(baseAddress) & 0x3f;
-	
-	// transform palette index to actual color by the renderer
-	return fPalette[color];
-}
+	if (!mapper)
+		return 0;
 
-
-// Returns which of the 4 background palettes (0-3) a specific tile uses.
-//
-// nameTableBase = Base address of the nametable being rendered ($2000/$2400/$2800/$2C00)
-// tileX, tileY  = Tile coordinates within that nametable (0-31, 0-29)
-uint8
-NameTableView::PaletteForAttribute(uint32 nameTableBase, int32 tileX, int32 tileY)
-{
-/*
-	nametables also have a 64-byte attribute table at 0x3c0-0x3ff where:
-		nametable: 			0x2000-0x23bf (32x30 tiles)
-		attribute table:	0x23c0-0x23ff (8x8 bytes)
-		
-		nametable: 			0x2400-0x27bf (32x30 tiles)
-		attribute table:	0x27c0-0x27ff (8x8 bytes)
-		
-		nametable: 			0x2800-0x2bbf (32x30 tiles)
-		attribute table:	0x2bc0-0x2bff (8x8 bytes)
-		
-		nametable: 			0x2c00-0x2fbf (32x30 tiles)
-		attribute table:	0x2fc0-0x2fff (8x8 bytes)
-		
-		each attribute byte controls a 4x4 tile grid (32x32 pixels)
-	*/
-	
-	/*
-	find out which attribute byte corresponds to this tile
-		divide tile X/Y by for which 4-tile row/column
-		there are 8 attribute columns in each row
-	*/
+	// attribute byte address: base + 0x3C0 + (tileY/4)*8 + (tileX/4)
 	uint32 attrAddr = nameTableBase + 0x3c0 + ((tileY / 4) * 8) + (tileX / 4);
+	uint8 attrByte = mapper->read_vram(attrAddr);
 
-    // fetch attribute byte
-    uint8 attrByte = nes::cart.mapper()->read_vram(attrAddr);
-    
-    /*
-    find out which quadrant inside that 4x4-tile area we are in where:
-    	each attribute is set up like this:
-    		bits 1-0: top-left 		2x2 tiles
-    		bits 3-2: top-right 	2x2 tiles
-    		bits 5-4: bottom-left	2x2 tiles
-    		bits 7-6: bottom-right	2x2 tiles
-    		
-    		each byte selects 4 different palettes
-	*/
-    
-    /*
-    find out which 2x2-tile quadrant we are in where:
-    	the tile shift yields which 2-tile block we're in and
-     	the mask gives us a position of 0 or 1
-     	
-     	quadrant indexes: 	0: top left
-    						1: top right
-    						2: bottom left
-    						3: bottom right
-   */
-   uint8 verticalHalf = ((tileY >> 1) & 0x1) << 1;	
-   uint8 horizontalHalf = ((tileX >> 1) & 0x1);		
-   uint8 quadrant = verticalHalf | horizontalHalf;	// combine halves for quadrant
-    
-    /*
-    quadrants use two bits of the attribute byte where:
-    	quadrant * 2 yields a two bit offset (0, 2, 4, 6)
-    	modulo by 4 to get the palette index (0, 1, 2, 3)
-    */	
-    return (attrByte >> (quadrant * 2)) & 0x3;
+    // quadrant inside 4x4 tile region
+	uint8 qx = ((tileX % 4) / 2); // 0 or 1
+	uint8 qy = ((tileY % 4) / 2); // 0 or 1
+	uint8 quadrant = ((qy << 1) | qx); // 0-3
+	int32 shift = quadrant * 2;
+
+	return (attrByte >> shift) & 0x3;
 }
 
 
-// Draws a single 8x8 background tile into the output bitmap.
-//
-// patternTable = Base address of the selected pattern table ($0000 or $1000)
-// tileIndex    = Index of the tile from the nametable (0-255)
-// tileX/Y      = Tile position inside the nametable (in tiles, not pixels)
-// palette      = Attribute-selected background palette (0-3)
 void
-NameTableView::DrawTile (uint32 patternTable, uint8 tileIndex, int32 tileX, int32 tileY, uint8 palette)
+NameTableView::DrawTile(uint32 patternBase, uint8 tileIndex, int32 tileX, int32 tileY, uint8 palette)
 {
-    Mapper *mapper = nes::cart.mapper();
-    if (! mapper) {
-    	return;
-    }
-    
-    /* 
-	tiles are 16-bytes each, and made of two bitplanes where:
-		bytes 0-7 are the first bitplane of the tile (low bits for row)
-		bytes 8-15 are the second bitplane (high bits for row))
-	multiply tileIndex by 16 (see above) to get the correct adddress for this tile
-	*/	
-    
-    // figure out tile address based on the tileIndex, 
-    uint32 const tileAddress = patternTable + (tileIndex * 16);
-
-    for (int32 y = 0; y < 8; y++) {
-		// fetch bitplanes for each row of 8 pixels
-        uint8 const firstPlane  = mapper->read_vram(tileAddress+y+0);
-        uint8 const secondPlane = mapper->read_vram(tileAddress+y+8);
-
-       // merge the bitplanes
-        for (int32 x = 0; x < 8; x++) {
-            int32 const shift = 7 - x;  // leftmost pixels first
-            uint8 pixel;
-            uint8 color;
-            
-            /*
-            there are two bits per pixel, where:
-            	the first bit is from plane 0
-            	the second bit is from plane 1
-            
-            the result is a two bit value that selects which color to use, where:
-            	color 00 = background
-            	color 01 = color 1
-            	color 10 = color 2
-            	color 11 = color 3
-            */
-            pixel  = (firstPlane  >> shift) & 0x1; // color low bit
-            pixel |= ((secondPlane >> shift) & 0x1) << 1; // high bit
-            
-            // transform pixel into output color using the specified palette
-            color = ColorForPixel(palette, pixel);
-            
-            /*
-			draw the final pixel where:
-            	we must convert from tile space to screen space        
-			*/
-			DrawPixel(x + (tileX * 8), y + (tileY * 8), color);
-        }
-    }
-}
-
-
-// Renders one of the NES's four nametables into the debug view.
-//
-// which = 0-3 selecting:
-//   0 → $2000
-//   1 → $2400
-//   2 → $2800
-//   3 → $2C00
-//
-// Each nametable is 32x30 tiles (960 bytes) followed by a 64-byte attribute table.
-void NameTableView::DrawNameTable(int32 which)
-{
-	//if (! fViewActive) {
-	//	return;
-	//}
-    
-    Mapper* mapper = nes::cart.mapper();
-    if (!mapper) return;
-
-    // --------------------------------------------------------------------
-    // Compute base address of the selected nametable (0x2000, 0x2400, 0x2800, 0x2C00)
-    // Each nametable occupies 0x400 bytes
-    // --------------------------------------------------------------------
-    uint32 const baseAddr = 0x2000 + (which * 0x400);
-
-    // --------------------------------------------------------------------
-    // Determine which pattern table the PPU is using for BACKGROUND tiles
-    // PPUCTRL bit 4 selects the background pattern table:
-    //   0 → $0000
-    //   1 → $1000
-    // --------------------------------------------------------------------
-    uint32 const patternBase = (nes::ppu::ppuctrl() & 0x10) << 8;
-
-    // --------------------------------------------------------------------
-    // Walk the 32x30 tile grid and draw each tile safely
-    // --------------------------------------------------------------------
-    for (int32 tileY = 0; tileY < 30; tileY++) {
-        for (int32 tileX = 0; tileX < 32; tileX++) {
-            uint32 const ntblAddr = baseAddr + tileX + (tileY * 32);
-            uint8 const tileIndex = mapper->read_vram(ntblAddr);
-            uint8 const palette   = PaletteForAttribute(baseAddr, tileX, tileY);
-
-            DrawTile(patternBase, tileIndex, tileX, tileY, palette);
-        }
-    }
-
-    // --------------------------------------------------------------------
-    // Draw attribute overlays if enabled
-    // --------------------------------------------------------------------
-    if (fShowAttributeMap) {
-    	 DrawAttributeMap(baseAddr);
-    }
-    
-    if (fShowAttributeGrid) {  
-    	DrawAttributeGrid();
-    }
-
-    // --------------------------------------------------------------------
-    // Safe hover/locked tile computation
-    // --------------------------------------------------------------------
-    const int kTileSize = 8;
-    const int maxTileX  = 32;
-    const int maxTileY  = 30;
-
-    if (fLockedTileX >= 0 && fLockedTileY >= 0) {
-        fHoverTileX = fLockedTileX;
-        fHoverTileY = fLockedTileY;
-    } else if (fMouseValid) {
-        int32 tileX = (int32)(fLastMouse.x) / kTileSize;
-        int32 tileY = (int32)(fLastMouse.y) / kTileSize;
-
-        fHoverTileX = (tileX >= 0 && tileX < maxTileX) ? tileX : -1;
-        fHoverTileY = (tileY >= 0 && tileY < maxTileY) ? tileY : -1;
-    } else {
-        fHoverTileX = -1;
-        fHoverTileY = -1;
-    }
-
-    // --------------------------------------------------------------------
-    // Update inspector info safely
-    // --------------------------------------------------------------------
-    UpdateInspector();
-
-    // --------------------------------------------------------------------
-    // Draw hover box and inspector text safely
-    // --------------------------------------------------------------------
-    DrawHoverBox();
-    DrawInspectorText();
-}
-
-
-
-void NameTableView::DrawAttributeGrid()
-{
-    const int kTileSize       = 8;
-    const int kQuadrantSize   = kTileSize * 2;  // 16 px
-    const int kAttributeSize  = kTileSize * 4;  // 32 px
-
-    const int width  = 32 * kTileSize;
-    const int height = 30 * kTileSize;
-
-    for (int y = 0; y < height && y < Frame().Height() /*fHeight*/; y++) {
-        for (int x = 0; x < width && x < fRowBytes; x++) {
-            bool drawPixel = false;
-            uint8 color    = 0;
-
-            if ((x % kAttributeSize) == 0 || (y % kAttributeSize) == 0) {
-                drawPixel = true;
-                color = 0x30;
-            }
-            else if ((x % kQuadrantSize) == 0 || (y % kQuadrantSize) == 0) {
-                drawPixel = true;
-                color = 0x20;
-            }
-
-            if (drawPixel) DrawPixel(x, y, color);
-        }
-    }
-}
-
-void NameTableView::DrawAttributeMap(uint32 nameTableBase)
-{
-    const int kTileSize = 8;
-    static const uint8 debugColors[4] = { 0xff, 0x14, 0x65, 0x96 };
-
-    for (int tileY = 0; tileY < 30; tileY++) {
-        int py = tileY * kTileSize;
-        if (py >= Frame().Height()) break;
-
-        for (int tileX = 0; tileX < 32; tileX++) {
-            int px = tileX * kTileSize;
-            if (px >= fRowBytes) break;
-
-            uint8 palette = PaletteForAttribute(nameTableBase, tileX, tileY) & 0x03;
-            uint8 color = debugColors[palette];
-
-            for (int y = 0; y < kTileSize && py + y < Frame().Height(); y++) {
-                for (int x = 0; x < kTileSize && px + x < fRowBytes; x++) {
-                    DrawPixel(px + x, py + y, color);
-                }
-            }
-        }
-    }
-}
-
-
-// --- Safely updates hover tile info for inspector/debug ---
-void NameTableView::UpdateInspector()
-{
-	/*
-	if (! fViewActive) {
+	Mapper *mapper = nes::cart.mapper();
+	
+	if (!mapper) {
 		return;
 	}
-	*/
-    
-    Mapper* mapper = nes::cart.mapper();
-    if (!mapper) return;
 
-    if (fHoverTileX < 0 || fHoverTileY < 0) return;
-
-    uint32 base;
-    switch (fWhichNameTable) {
-        case 0: base = 0x2000; break;
-        case 1: base = 0x2400; break;
-        case 2: base = 0x2800; break;
-        case 3: base = 0x2C00; break;
-        default: return;
-    }
-
-    fHoverAttrAddr = base + 0x3C0 + ((fHoverTileY / 4) * 8) + (fHoverTileX / 4);
-    fHoverAttrByte = mapper->read_vram(fHoverAttrAddr);
-
-    uint8 quadrantX = (fHoverTileX % 4) / 2;
-    uint8 quadrantY = (fHoverTileY % 4) / 2;
-    uint8 quadrant = (quadrantY << 1) | quadrantX;
-    fHoverPalette = (fHoverAttrByte >> (quadrant * 2)) & 0x03;
-
-    uint32 tileAddr = base + fHoverTileX + fHoverTileY * 32;
-    fHoverTileIndex = mapper->read_vram(tileAddr);
-}
-
-void NameTableView::DrawHoverBox()
-{
-    const int kTileSize = 8;
-
-    auto DrawBox = [&](int tileX, int tileY, uint8 color) {
-        if (tileX < 0 || tileY < 0) return;
-        int px = tileX * kTileSize;
-        int py = tileY * kTileSize;
-
-        if (px >= fRowBytes || py >= Frame().Height()) return;
-
-        for (int i = 0; i < kTileSize; i++) {
-            if (px + i >= fRowBytes) continue;
-            if (py >= Frame().Height() || py + kTileSize - 1 >= Frame().Height()) continue;
-
-            DrawPixel(px + i, py, color);
-            DrawPixel(px + i, py + kTileSize - 1, color);
-            DrawPixel(px, py + i, color);
-            DrawPixel(px + kTileSize - 1, py + i, color);
-        }
-    };
-
-    // Hover tile
-    DrawBox(fHoverTileX, fHoverTileY, 0x3F);
-
-    // Locked tile
-    if (fTileLocked &&
-        fLockedTileX >= 0 && fLockedTileX < 32 &&
-        fLockedTileY >= 0 && fLockedTileY < 30 &&
-        (fLockedTileX != fHoverTileX || fLockedTileY != fHoverTileY))
-    {
-        DrawBox(fLockedTileX, fLockedTileY, 0x0F);
-    }
-}
-void
-NameTableView::DrawInspectorText()
-{
-	if (!fShowInspector || fHoverTileX < 0) {
-		
+    // safety: bitmap must exist
+	if (!fBits || !fBitmap) {
 		return;
 	}
+
+	uint32 tileAddr = patternBase + tileIndex * 16;
+
+	for (int32 y = 0; y < 8; y++) {
+		uint8 firstPlane = mapper->read_vram(tileAddr + y);
+		uint8 secondPlane = mapper->read_vram(tileAddr + y + 8);
+
+		for (int32 x = 0; x < 8; x++) {
+			int32 shift = 7 - x;
+			uint8 pixel = (firstPlane >> shift) & 0x1;
+			pixel |= ((secondPlane >> shift) & 0x1) << 1;
+			uint8 color = ColorForPixel(palette, pixel);
+			
+			DrawPixel(x + tileX * 8, y + tileY * 8, color);
+		}
+	}
+}
+
+
+void
+NameTableView::DrawAttributeMap (uint32 nameTableBase)
+{
+	if (!fBits || !fBitmap)
+		return;
+
+	// loud debug colors
+	static const uint8 debugColors[4] = { 0xff, 0x14, 0x65, 0x96 };
+
+	for (int32 tileY = 0; tileY < 30; tileY++) {
+		for (int tileX = 0; tileX < 32; tileX++) {
+			uint8 pal = PaletteForAttribute(nameTableBase, tileX, tileY);
+			uint8 c = debugColors[pal & 3];
+
+			int32 px = tileX * 8;
+			int32 py = tileY * 8;
+
+			for (int32 y = 0; y < 8; y++) {
+				for (int32 x = 0; x < 8; x++) {
+					DrawPixel(px + x, py + y, c);
+				}
+			}
+        }
+    }
+}
+
+
+void
+NameTableView::DrawAttributeGrid()
+{
+	PushState();
+
+	SetDrawingMode(B_OP_ALPHA);
+	SetBlendingMode(B_PIXEL_ALPHA, B_ALPHA_OVERLAY);
+
+	const float width  = 256.0f;
+	const float height = 240.0f;
+
+	const float quadStep = 16.0f;
+	const float attrStep = 32.0f;
+
+	rgb_color quadColor = {  0, 255, 255, 80 };
+	rgb_color attrColor = { 255, 255,   0, 180 };
+
+	// 16x16 quadrant lines
+	SetHighColor(quadColor);
+
+	for (float x = quadStep; x < width; x += quadStep)
+		StrokeLine(BPoint(x, 0), BPoint(x, height - 1));
+
+	for (float y = quadStep; y < height; y += quadStep)
+		StrokeLine(BPoint(0, y), BPoint(width - 1, y));
+
+	// 32x32 attribute-byte lines
+	SetHighColor(attrColor);
+
+	for (float x = attrStep; x < width; x += attrStep) {
+		StrokeLine(BPoint(x, 0), BPoint(x, height - 1));
+		StrokeLine(BPoint(x + 1, 0), BPoint(x + 1, height - 1));
+	}
+
+	for (float y = attrStep; y < height; y += attrStep) {
+		StrokeLine(BPoint(0, y), BPoint(width - 1, y));
+		StrokeLine(BPoint(0, y + 1), BPoint(width - 1, y + 1));
+	}
+
+	PopState();
+}
+
+
+void
+NameTableView::UpdateExplorer()
+{
+	Mapper *mapper = nes::cart.mapper();
 	
-	MakeFocus();
+	if (!mapper || !fCHRExplorer)
+		return;
+
+	int32 worldTX, worldTY;
 	
+	if (!ActiveTile(worldTX, worldTY)) {
+		fCHRExplorer->Clear();
+		return;
+	}
+
+	// figure out which nametable the world tile belongs to.
+	int32 ntX = worldTX / 32;   // 0-1
+	int32 ntY = worldTY / 30;   // 0-1
+
+	int32 tileX = worldTX % 32; // 0-31
+	int32 tileY = worldTY % 30; // 0-29
+
+	uint32 nameBase = 0x2000 + (ntY * 2 + ntX) * 0x400;
+	fCurrentNameTableBase = nameBase;
+	fHoverWhichNameTable = ntY * 2 + ntX;
+
+	// nametable byte
+	uint32 tileAddr = nameBase + (tileY * 32) + tileX;
+	fHoverTileIndex = mapper->read_vram(tileAddr);
+
+	// attribute byte
+	uint32 attrAddr = nameBase + 0x3c0 + ((tileY / 4) * 8) + (tileX / 4);
+	fHoverAttrAddr = attrAddr;
+	fHoverAttrByte = mapper->read_vram(attrAddr);
+
+	uint8 qx = (tileX % 4) / 2;
+	uint8 qy = (tileY % 4) / 2;
+	uint8 quadrant = (qy << 1) | qx;
+	int32 shift = quadrant * 2;
+
+	fHoverPalette = (fHoverAttrByte >> shift) & 0x3;
 	
 
-	SetHighColor(255, 255, 255, 255);   // ensure visible
-	SetLowColor(0, 0, 0, 255);
+	// CHR tile bytes
+	uint32 bgPatternBase = GetBgPatternBase();
+	
+	fCHRTileAddress = bgPatternBase + fHoverTileIndex * 16;
 
-	char buffer[256];
-	sprintf(buffer,
-		"Tile:(%d,%d) Attr:$%04X Byte:%02X Pal:%d",
-		fHoverTileX,
-		fHoverTileY,
-		(unsigned)fHoverAttrAddr,
+	for (int i = 0; i < 16; i++)
+		fCHRBytes[i] = mapper->read_vram(fCHRTileAddress + i);
+
+	NotifyCHRExplorer();
+}
+
+
+void
+NameTableView::MaybeUpdateCHRExplorer()
+{
+	if (!fCHRExplorer) {
+		return;
+	}
+
+	UpdateExplorer();
+}
+
+
+void
+NameTableView::DrawScrolledViewport (int32 scrollX, int32 scrollY)
+{
+	Mapper *mapper = nes::cart.mapper();
+	
+	if (!mapper || !fBits) {
+		return;
+	}
+
+	uint32 patternBase = GetBgPatternBase();
+
+	auto wrap480 = [](int y) -> int {
+		y %= 480;
+		if (y < 0)
+			y += 480;
+		return y;
+	};
+
+	for (int32 screenY = 0; screenY < 240; ++screenY) {
+		for (int32 screenX = 0; screenX < 256; ++screenX) {
+
+			int32 bgX = (screenX + scrollX) & 0x1ff;   // 0-511
+			int32 bgY = wrap480(screenY + scrollY);    // 0-479
+
+			int32 ntX = bgX / 256;                     // 0-1
+			int32 ntY = bgY / 240;                     // 0-1
+			int32 whichNT = ntX + ntY * 2;             // 0-3
+
+			int32 xInNT = bgX & 0xFF;                  // 0-255
+			int32 yInNT = bgY % 240;                   // 0-239
+
+			int32 tileX = xInNT / 8;                   // 0-31
+			int32 tileY = yInNT / 8;                   // 0-29
+
+			int32 fineX = xInNT & 7;                   // 0-7
+			int32 fineY = yInNT & 7;                   // 0-7
+
+			uint32 ntBase = NameTableBaseFromIndex(whichNT);
+			uint32 nameAddr = ntBase + tileY * 32 + tileX;
+			uint8 tileIndex = mapper->read_vram(nameAddr);
+
+			uint32 attrAddr = ntBase + 0x3c0 + (tileY / 4) * 8 + (tileX / 4);
+			uint8 attrByte = mapper->read_vram(attrAddr);
+
+			int32 shift = ((tileY & 2) << 1) | (tileX & 2);
+			uint8 palette = (attrByte >> shift) & 0x3;
+
+			uint32 chrAddr = patternBase + (tileIndex * 16);
+			uint8 firstPlane = mapper->read_vram(chrAddr + fineY);
+			uint8 secondPlane = mapper->read_vram(chrAddr + fineY + 8);
+
+			shift = 7 - fineX;
+			uint8 pixel = (firstPlane >> shift) & 0x1; 
+			pixel |= ((secondPlane >> shift) & 0x1) << 1;
+			uint8 color = ColorForPixel(palette, pixel);
+			
+			DrawPixel(screenX, screenY, color);
+		}
+	}
+}
+
+
+void
+NameTableView::DrawPPUViewportOverlay()
+{
+	if (!fShowViewportBox) {
+		return;
+	}
+
+	
+	// 1: ghosted "full viewport" box, always drawn in local space
+	PushState();
+
+	SetDrawingMode(B_OP_ALPHA);
+	SetBlendingMode(B_PIXEL_ALPHA, B_ALPHA_OVERLAY);
+	SetHighColor(255, 255, 0, 60);
+
+	BRect ghost(0.0f, 0.0f, 255.0f, 239.0f);
+	StrokeRect(ghost);
+
+	PopState();
+
+	
+	// 2: real wrapped viewport pieces for this nametable window
+	int32 const worldL = fScrollX;
+	int32 const worldT = fScrollY;
+	int32 const worldR = fScrollX + 256;
+	int32 const worldB = fScrollY + 240;
+
+	for (int32 wrapY = 0; wrapY <= 1; wrapY++) {
+		for (int32 wrapX = 0; wrapX <= 1; wrapX++) {
+
+			int32 pieceL = worldL - wrapX * 512;
+			int32 pieceT = worldT - wrapY * 480;
+			int32 pieceR = worldR - wrapX * 512;
+			int32 pieceB = worldB - wrapY * 480;
+
+			int32 visL = std::max(pieceL, 0);
+			int32 visT = std::max(pieceT, 0);
+			int32 visR = std::min(pieceR, 256);
+			int32 visB = std::min(pieceB, 240);
+
+			if (visL >= visR || visT >= visB)
+				continue;
+
+			BRect r(visL, visT,(visR - 1), (visB - 1));
+
+			StrokeRectTriple(this, r, (rgb_color){255, 255, 0, 255});
+		}
+	}
+
+	// 3: mark viewport origin inside the local wrapped view
+	float ox = (fScrollX % 512);
+	float oy = (fScrollY % 480);
+
+	while (ox >= 256.0f) {
+		ox -= 512.0f;
+	}
+	
+	while (oy >= 240.0f) {
+		oy -= 480.0f;
+	}
+
+	SetHighColor(255, 255, 0, 255);
+	StrokeLine(BPoint(ox - 4, oy), BPoint(ox + 4, oy));
+	StrokeLine(BPoint(ox, oy - 4), BPoint(ox, oy + 4));
+}
+
+
+bool
+NameTableView::ActiveTile (int32 &outTX, int32 &outTY) const
+{
+	if (fTileLocked) {
+		if (fLockToScreen)
+			return ComputeTileFromViewPoint(fLockedViewPoint, outTX, outTY);
+
+		if (fLockedTileX < 0 || fLockedTileY < 0) {
+			return false;
+		}
+
+		outTX = fLockedTileX;
+		outTY = fLockedTileY;
+		return true;
+	}
+
+	if (fHoverTileX < 0 || fHoverTileY < 0) {
+		return false;
+	}
+
+	outTX = fHoverTileX;
+	outTY = fHoverTileY;
+	
+	return true;
+}
+
+
+void
+NameTableView::DrawOverlays()
+{
+	static const rgb_color kHoverStroke      = {  0,255,255,255 };
+	static const rgb_color kHoverFill        = {  0,255,255, 48 };
+
+	static const rgb_color kWorldLockStroke  = {255,  0,255,255 };
+	static const rgb_color kWorldLockFill    = {255,  0,255, 48 };
+
+	static const rgb_color kScreenLockStroke = {255,255,  0,255 };
+	static const rgb_color kScreenLockFill   = {255,255,  0, 48 };
+
+	if (fTileLocked) {
+		if (fLockToScreen) {
+			BRect r = CellRectForViewPoint(fLockedViewPoint);
+			::FillAndStrokeRectTriple(this, r, kScreenLockFill, kScreenLockStroke);
+			return;
+		}
+
+		if (fLockedTileX >= 0 && fLockedTileY >= 0) {
+			BRect r = CellRectForTile(fLockedTileX, fLockedTileY);
+			::FillAndStrokeRectTriple(this, r, kWorldLockFill, kWorldLockStroke);
+			return;
+		}
+	}
+
+	if (fHoverTileX >= 0 && fHoverTileY >= 0) {
+		BRect r = CellRectForTile(fHoverTileX, fHoverTileY);
+		::FillAndStrokeRectTriple(this, r, kHoverFill, kHoverStroke);
+	}
+}
+
+
+BRect
+NameTableView::CellRectForTile (int32 tileX, int32 tileY) const
+{
+	float x = (tileX * 8 - fScrollX);
+	float y = (tileY * 8 - fScrollY);
+
+	while (x < 0.0f) {
+		x += 512.0f;
+	}
+	
+	while (y < 0.0f) {
+		y += 480.0f;
+	}
+
+	while (x >= 256.0f) {
+		x -= 512.0f;
+	}
+	
+	while (y >= 240.0f) {
+		y -= 480.0f;
+	}
+
+	return BRect(x, y, x + 7.0f, y + 7.0f);
+}
+
+
+BRect
+NameTableView::CellRectForViewPoint (BPoint where) const
+{
+	float x = floorf(where.x / 8.0f) * 8.0f;
+	float y = floorf(where.y / 8.0f) * 8.0f;
+	
+	return BRect(x, y, x + 7.0f, y + 7.0f);
+}
+
+
+void
+NameTableView::DrawAttributeQuadrantOverlay()
+{
+	Mapper *mapper = nes::cart.mapper();
+	
+	if (!mapper)
+		return;
+
+	static const rgb_color kPaletteTint[4] = {
+		{255, 128, 128, 72},
+		{128, 255, 128, 72},
+		{128, 128, 255, 72},
+		{255, 255, 128, 72}
+	};
+
+	PushState();
+
+	SetDrawingMode(B_OP_ALPHA);
+	SetBlendingMode(B_PIXEL_ALPHA, B_ALPHA_OVERLAY);
+
+	for (int32 screenY = 0; screenY < 240; screenY += 16) {
+		for (int32 screenX = 0; screenX < 256; screenX += 16) {
+
+			int32 bgX = (screenX + fScrollX) % 512;
+			int32 bgY = (screenY + fScrollY) % 480;
+			
+			if (bgY < 0) {
+				bgY += 480;
+			}
+
+			int32 ntX = bgX / 256;
+			int32 ntY = bgY / 240;
+			int32 whichNT = ntX + ntY * 2;
+
+			int32 xInNT = bgX & 0xFF;
+			int32 yInNT = bgY % 240;
+
+			int32 tileX = xInNT / 8;
+			int32 tileY = yInNT / 8;
+
+			uint32 ntBase = NameTableBaseFromIndex(whichNT);
+			uint32 attrAddr = ntBase + 0x3c0 + ((tileY / 4) * 8) + (tileX / 4);
+			uint8 attrByte = mapper->read_vram(attrAddr);
+
+			uint8 qx = (tileX % 4) / 2;
+			uint8 qy = (tileY % 4) / 2;
+			uint8 quadrant = (qy << 1) | qx;
+			int32 shift = quadrant * 2;
+
+			uint8 palette = (attrByte >> shift) & 0x3;
+
+			BRect r(screenX, screenY, screenX + 15.0f, screenY + 15.0f);
+
+			SetHighColor(kPaletteTint[palette]);
+			FillRect(r);
+		}
+	}
+
+	PopState();
+}
+
+
+void
+NameTableView::DrawMatchingTileOverlay()
+{
+	if (!fShowMatchingTiles) {
+		return;
+	}
+
+	Mapper *mapper = nes::cart.mapper();
+	
+	if (!mapper) {
+		return;
+	}
+
+	int32 worldTX, worldTY;
+	
+	if (!ActiveTile(worldTX, worldTY)) {
+		return;
+	}
+
+	int32 selTileX = worldTX % 32;
+	int32 selTileY = worldTY % 30;
+	int32 selNTX = worldTX / 32;
+	int32 selNTY = worldTY / 30;
+
+	uint32 selNameBase = 0x2000 + (selNTY * 2 + selNTX) * 0x400;
+	uint32 selAddr = selNameBase + (selTileY * 32) + selTileX;
+	uint8 selectedTileIndex = mapper->read_vram(selAddr);
+
+	uint32 selAttrAddr = selNameBase + 0x3c0 + ((selTileY / 4) * 8) + (selTileX / 4);
+	uint8 selAttrByte = mapper->read_vram(selAttrAddr);
+	uint8 selQX = (selTileX % 4) / 2;
+	uint8 selQY = (selTileY % 4) / 2;
+	uint8 selQuadrant = (selQY << 1) | selQX;
+	int32 shift = (selQuadrant * 2);
+	uint8 selectedPalette = (selAttrByte >> shift) & 0x3;
+
+	static const rgb_color kSameTileSamePal = {255, 255, 255, 90};
+	static const rgb_color kSameTileDiffPal = {255, 180, 100, 90};
+
+	PushState();
+	SetDrawingMode(B_OP_ALPHA);
+	SetBlendingMode(B_PIXEL_ALPHA, B_ALPHA_OVERLAY);
+
+	for (int32 screenTileY = 0; screenTileY < 30; ++screenTileY) {
+		for (int32 screenTileX = 0; screenTileX < 32; ++screenTileX) {
+
+			int32 screenX = screenTileX * 8;
+			int32 screenY = screenTileY * 8;
+
+			int32 bgX = (screenX + fScrollX) & 0x1FF;
+			int32 bgY = (screenY + fScrollY) % 480;
+			if (bgY < 0)
+				bgY += 480;
+
+			int32 ntX = bgX / 256;
+			int32 ntY = bgY / 240;
+
+			int32 xInNT = bgX & 0xFF;
+			int32 yInNT = bgY % 240;
+
+			int32 tileX = xInNT / 8;
+			int32 tileY = yInNT / 8;
+
+			uint32 ntBase = NameTableBaseFromIndex(ntX + ntY * 2);
+			uint32 nameAddr = ntBase + tileY * 32 + tileX;
+			uint8 tileIndex = mapper->read_vram(nameAddr);
+
+			if (tileIndex != selectedTileIndex)
+				continue;
+
+			// Skip the actively selected tile itself
+			if ((worldTX == (bgX >> 3)) && (worldTY == (bgY >> 3)))
+				continue;
+
+			uint32 attrAddr = ntBase + 0x3c0 + ((tileY / 4) * 8) + (tileX / 4);
+
+			uint8 attrByte = mapper->read_vram(attrAddr);
+			uint8 qx = (tileX % 4) / 2;
+			uint8 qy = (tileY % 4) / 2;
+			uint8 quadrant = (qy << 1) | qx;
+			int32 shift = (quadrant * 2);
+			uint8 palette = (attrByte >> shift) & 0x3;
+
+			BRect r(screenX, screenY, screenX + 7.0f, screenY + 7.0f);
+
+			if (palette == selectedPalette) {
+				SetHighColor(kSameTileSamePal);
+			} else {
+				SetHighColor(kSameTileDiffPal);
+			}
+
+			StrokeRect(r);
+		}
+	}
+
+	PopState();
+}
+
+
+void
+NameTableView::DrawMatchingTileLegend()
+{
+	if (!fShowMatchingTiles) {
+		return;
+	}
+
+	float const x = 6.0f;
+	float const y = 190.0f;
+
+	static rgb_color const kSameTileSamePalStroke = {255,255,255,200};
+	static rgb_color const kSameTileSamePalFill   = {255,255,255,48};
+
+	static rgb_color const kSameTileDiffPalStroke = {255,128,0,200};
+	static rgb_color const kSameTileDiffPalFill   = {255,128,0,48};
+
+	PushState();
+
+	SetDrawingMode(B_OP_ALPHA);
+	SetBlendingMode(B_PIXEL_ALPHA, B_ALPHA_OVERLAY);
+
+	BRect r1(x, y, x + 8, y + 8);
+	::FillAndStrokeRectTriple(this, r1,
+		kSameTileSamePalFill,
+		kSameTileSamePalStroke);
+
+	SetHighColor(255,255,255,255);
+	DrawString("same tile / same palette", BPoint(x + 14, y + 8));
+
+	BRect r2(x, y + 14, x + 8, y + 22);
+	::FillAndStrokeRectTriple(this, r2,
+		kSameTileDiffPalFill,
+		kSameTileDiffPalStroke);
+
+	SetHighColor(255,255,255,255);
+	DrawString("same tile / different palette", BPoint(x + 14, y + 22));
+
+	PopState();
+}
+
+
+void
+NameTableView::DrawTileInfoHUD()
+{
+	if (!fShowTileInfoHUD) {
+		return;
+	}
+
+	int32 worldTX, worldTY;
+	
+	if (!ActiveTile(worldTX, worldTY)) {
+		return;
+	}
+
+	Mapper *mapper = nes::cart.mapper();
+	
+	if (!mapper) {
+		return;
+	}
+
+	int32 ntX = worldTX / 32;
+	int32 ntY = worldTY / 30;
+	int32 whichNT = ntX + ntY * 2;
+
+	int32 tileX = worldTX % 32;
+	int32 tileY = worldTY % 30;
+
+	uint32 nameBase = 0x2000 + (uint32)(whichNT * 0x400);
+	uint32 tileAddr = nameBase + (uint32)(tileY * 32) + (uint32)tileX;
+	uint8 tileIndex = mapper->read_vram(tileAddr);
+
+	uint32 attrAddr = nameBase + 0x3c0 + ((tileY / 4) * 8) + (tileX / 4);
+	uint8 attrByte = mapper->read_vram(attrAddr);
+
+	uint8 qx = (tileX % 4) / 2;
+	uint8 qy = (tileY % 4) / 2;
+	uint8 quadrant = (qy << 1) | qx;
+	int32 shift = (quadrant * 2);
+	uint8 palette = (attrByte >> shift) & 0x03;
+
+	uint32 chrAddr = GetBgPatternBase() + tileIndex * 16;
+
+	const char* lockText = "HOVER";
+	
+	if (fTileLocked) {
+		lockText = fLockToScreen ? "SCREEN LOCK" : "LOCK";
+	}
+
+	const char *modeText;
+	
+	if (fFreezeUpdates) {
+		modeText = fFollowViewport ? "VIEW FREEZE" : "RAW FREEZE";
+	} else {
+		modeText = fFollowViewport ? "VIEW" : "RAW";
+	}
+
+	static const char *kQuadrantNames[4] = {
+		"TL", "TR", "BL", "BR"
+	};
+
+	char line1[256];
+	char line2[256];
+	char line3[256];
+
+	snprintf(line1, sizeof(line1),
+		"%s  %s  W:(%ld,%ld)  NT:%ld  Tile:(%ld,%ld)",
+		lockText,
+		modeText,
+		(long)worldTX, (long)worldTY,
+		(long)whichNT,
+		(long)tileX, (long)tileY);
+
+	snprintf(line2, sizeof(line2),
+		"Index:$%02X  Attr:$%04lX=%02X  Q:%s  Pal:%u",
+		(unsigned)tileIndex,
+		(unsigned long)attrAddr,
+		(unsigned)attrByte,
+		kQuadrantNames[quadrant & 3],
+		(unsigned)palette);
+
+	snprintf(line3, sizeof(line3),
+		"CHR:$%04lX  Scroll:(%ld,%ld)",
+		(unsigned long)chrAddr,
+		(long)fScrollX, (long)fScrollY);
+
+	const float x = 6.0f;
+	const float y = 160.0f;
+	const float pad = 4.0f;
+	const float lineH = 13.0f;
+
+	float w1 = StringWidth(line1);
+	float w2 = StringWidth(line2);
+	float w3 = StringWidth(line3);
+	float boxW = std::max(w1, std::max(w2, w3)) + pad * 2.0f;
+	float boxH = lineH * 3.0f + pad * 2.0f;
+
+	BRect box(x, y, x + boxW, y + boxH);
+
+	PushState();
+
+	SetDrawingMode(B_OP_ALPHA);
+	SetBlendingMode(B_PIXEL_ALPHA, B_ALPHA_OVERLAY);
+	SetHighColor(0, 0, 0, 160);
+	FillRect(box);
+
+	SetDrawingMode(B_OP_COPY);
+	SetHighColor(255, 255, 255, 255);
+	StrokeRect(box);
+
+	DrawString(line1, BPoint(x + pad, y + pad + 10.0f));
+	DrawString(line2, BPoint(x + pad, y + pad + 10.0f + lineH));
+	DrawString(line3, BPoint(x + pad, y + pad + 10.0f + lineH * 2.0f));
+
+	PopState();
+}
+
+
+void
+NameTableView::NotifyCHRExplorer()
+{
+	if (!fCHRExplorer) {
+		return;
+	}
+
+	int32 worldTX, worldTY;
+	
+	if (!ActiveTile(worldTX, worldTY)) {
+		fCHRExplorer->Clear();
+		return;
+	}
+
+	int32 tileX = worldTX % 32;
+	int32 tileY = worldTY % 30;
+
+	uint8 qx = (tileX % 4) / 2;
+	uint8 qy = (tileY % 4) / 2;
+	uint8 quadrant = (qy << 1) | qx;
+
+	int32 whichPT = (GetBgPatternBase() != 0) ? 1 : 0;
+
+	fCHRExplorer->SetTile(
+		whichPT,
+		fHoverTileIndex,
+		fTileLocked,
+		fCHRTileAddress,
+		fCHRBytes,
+		fHoverPalette,
+		fHoverWhichNameTable,
+		fHoverAttrAddr,
 		fHoverAttrByte,
-		fHoverPalette);
-		//puts(buffer);
-
-	//DrawString(buffer, BPoint(8, 232));  // avoid Bounds() during bitmap mode
+		quadrant
+	);
 }
 
 
+void
+NameTableView::DrawHelpHUD()
+{
+	if (!fShowHelpHUD) {
+		return;
+	}
 
+	char const *line1 = "g grid   h tint   b both   n none";
+	char const *line2 = "m matches   i info   v viewport   p raw/view";
+	char const *line3 = "space freeze click lock   shift-click screen lock   / help";
+
+	float x = 6.0f;
+	float y = 6.0f;
+	float pad = 4.0f;
+	float lineH = 13.0f;
+
+	float w1 = StringWidth(line1);
+	float w2 = StringWidth(line2);
+	float w3 = StringWidth(line3);
+	float boxW = std::max(w1, std::max(w2, w3)) + pad * 2.0f;
+	float boxH = lineH * 3.0f + pad * 2.0f;
+
+	BRect box(x, y, x + boxW, y + boxH);
+
+	PushState();
+
+	SetDrawingMode(B_OP_ALPHA);
+	SetBlendingMode(B_PIXEL_ALPHA, B_ALPHA_OVERLAY);
+	SetHighColor(0, 0, 0, 140);
+	FillRect(box);
+
+	SetDrawingMode(B_OP_COPY);
+	SetHighColor(255, 255, 255, 255);
+	StrokeRect(box);
+
+	DrawString(line1, BPoint(x + pad, y + pad + 10.0f));
+	DrawString(line2, BPoint(x + pad, y + pad + 10.0f + lineH));
+	DrawString(line3, BPoint(x + pad, y + pad + 10.0f + lineH * 2.0f));
+
+	PopState();
+}
+
+
+void
+NameTableView::DrawFreezeBadge()
+{
+	if (!fFreezeUpdates) {
+		return;
+	}
+
+	char const *text = "FROZEN";
+
+	float x = 6.0f;
+	float y = 34.0f;
+	float pad = 4.0f;
+
+	float textW = StringWidth(text);
+	float boxW = textW + pad * 2.0f;
+	float boxH = 16.0f;
+
+	BRect box(x, y, x + boxW, y + boxH);
+
+	PushState();
+
+	SetDrawingMode(B_OP_ALPHA);
+	SetBlendingMode(B_PIXEL_ALPHA, B_ALPHA_OVERLAY);
+	SetHighColor(180, 0, 0, 180);
+	FillRect(box);
+
+	SetDrawingMode(B_OP_COPY);
+	SetHighColor(255, 255, 255, 255);
+	StrokeRect(box);
+	DrawString(text, BPoint(x + pad, y + 12.0f));
+
+	PopState();
+}
 
 

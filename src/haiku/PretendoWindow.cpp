@@ -36,6 +36,7 @@ PretendoWindow::PretendoWindow()
 	fView = new PretendoView(bounds, this);
 	AddChild(fView);
 	fView->MakeFocus();
+	SetFeel(B_NORMAL_WINDOW_FEEL);
 	
 	// setup video buffers
 	void *bitsArea;
@@ -561,14 +562,14 @@ PretendoWindow::AddMenu()
 	fToolMenu->AddItem(new BMenuItem("Adjust Palette" B_UTF8_ELLIPSIS, new BMessage(messages::ADJ_PALETTE)));
 	fToolMenu->AddSeparatorItem();
 	fPatternTableMenu = new BMenu("View Pattern Tables");
-	fPatternTableMenu->AddItem(new BMenuItem("1 (0x0)", new BMessage(messages::SHOW_PTNTBL1)));
-	fPatternTableMenu->AddItem(new BMenuItem("2 (0x1000)", new BMessage(messages::SHOW_PTNTBL2)));
+	fPatternTableMenu->AddItem(new BMenuItem("1 ($0000)", new BMessage(messages::SHOW_PTNTBL1)));
+	fPatternTableMenu->AddItem(new BMenuItem("2 ($1000)", new BMessage(messages::SHOW_PTNTBL2)));
 	fToolMenu->AddItem(fPatternTableMenu);
 	fNameTableMenu = new BMenu("View Name Tables");
-	fNameTableMenu->AddItem(new BMenuItem("1 (0x2000)", new BMessage(messages::SHOW_NTBL1)));
-	fNameTableMenu->AddItem(new BMenuItem("2 (0x2400)", new BMessage(messages::SHOW_NTBL2)));
-	fNameTableMenu->AddItem(new BMenuItem("3 (0x2800)", new BMessage(messages::SHOW_NTBL3)));
-	fNameTableMenu->AddItem(new BMenuItem("4 (0x2c00)", new BMessage(messages::SHOW_NTBL4)));
+	fNameTableMenu->AddItem(new BMenuItem("1 ($2000)", new BMessage(messages::SHOW_NTBL1)));
+	fNameTableMenu->AddItem(new BMenuItem("2 ($2400)", new BMessage(messages::SHOW_NTBL2)));
+	fNameTableMenu->AddItem(new BMenuItem("3 ($2800)", new BMessage(messages::SHOW_NTBL3)));
+	fNameTableMenu->AddItem(new BMenuItem("4 ($2C00)", new BMessage(messages::SHOW_NTBL4)));
 	fToolMenu->AddItem(fNameTableMenu);
 	
 	// menu icon

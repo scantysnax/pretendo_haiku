@@ -1,56 +1,70 @@
-﻿
 #ifndef PPU_20080314_H_
 #define PPU_20080314_H_
 
 #include "Reset.h"
 #include <cstdint>
 
-class Mapper;
+namespace nes::ppu {
 
 struct scanline_vblank {};
 struct scanline_prerender {};
 struct scanline_postrender {};
-
 struct scanline_render {
-	explicit scanline_render(uint32_t *p)
-		: buffer(p) {
-	}
-	uint32_t *const buffer;
+    explicit scanline_render(uint32_t* p) : buffer(p) {}
+    uint32_t* const buffer;
 };
 
-namespace nes::ppu {
+struct scroll_state_t {
+    uint32_t v;
+    uint32_t t;
+    uint8_t x;
+    uint8_t ctrl;
+};
 
-void reset(Reset reset_type);
+void reset(nes::Reset reset_type);
 
-void write2000(uint8_t value);
-void write2001(uint8_t value);
-void write2002(uint8_t value);
-void write2003(uint8_t value);
-void write2004(uint8_t value);
-void write2005(uint8_t value);
-void write2006(uint8_t value);
-void write2007(uint8_t value);
-void write4014(uint8_t value);
+void write2000(uint8_t);
+void write2001(uint8_t);
+void write2002(uint8_t);
+void write2003(uint8_t);
+void write2004(uint8_t);
+void write2005(uint8_t);
+void write2006(uint8_t);
+void write2007(uint8_t);
+void write4014(uint8_t);
 
 uint8_t read2002();
 uint8_t read2004();
 uint8_t read2007();
 uint8_t read200x();
 
-template <class T>
-void execute_scanline(const T &target);
+/*
+ * IMPORTANT:
+ * execute_scanline is NOT a template in the public API anymore.
+ * (template implementation stays in Ppu.cpp)
+ */
+void execute_scanline(const scanline_vblank& target);
+void execute_scanline(const scanline_prerender& target);
+void execute_scanline(const scanline_postrender& target);
+void execute_scanline(const scanline_render& target);
 
-uint64_t cycle_count();
+// debug/introspection helpers
+scroll_state_t scroll_state();
+uint16_t vram_address();
+uint16_t temp_address();
+uint8_t  fine_x();
+uint8_t  ppuctrl();
+
+uint64_t      cycle_count();
 uint_least16_t hpos();
 uint_least16_t vpos();
 
-uint8_t ppuctrl();
-uint8_t palette_ram (uint32_t address);
-void set_palette_ram (uint32_t address, uint8_t data);
+uint8_t palette_ram(uint32_t address);
+void    set_palette_ram(uint32_t address, uint8_t data);
 
 extern bool show_sprites;
 extern bool system_paused;
 
-}
+} // namespace nes::ppu
 
 #endif

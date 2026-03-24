@@ -2,35 +2,37 @@
 #define _PATTERNTABLE_WINDOW_H_
 
 #include <Window.h>
-
-#include "PatternTableView.h"
 #include "Settings.h"
 
-
 class PretendoWindow;
-class PatternTableView;
+class PatternTableView;    
+class CHRExplorerView;
+
 
 class PatternTableWindow : public BWindow
 {
 	public:
-			PatternTableWindow (PretendoWindow *parent, int32 which);
-	virtual ~PatternTableWindow();
-	
+    		PatternTableWindow(PretendoWindow* parent, int32 which);
+    virtual ~PatternTableWindow();
+
 	public:
-	virtual bool QuitRequested();
-	virtual void Zoom (BPoint origin, float width, float height);
-	
+    virtual bool QuitRequested();
+    virtual void Zoom (BPoint origin, float width, float height);
+
 	private:
-	void LoadSettings();
-	void SaveSettings();
-	
+    void LoadSettings();
+    void SaveSettings();
+
 	private:
-	int32 fWhich = 0;
-	PatternTableView *fView = nullptr;
-	PretendoWindow *fParent = nullptr;
-	
+    int32 fWhich = 0;
+    PatternTableView *fView = nullptr;
+    CHRExplorerView *fExplorer = nullptr;
+    PretendoWindow *fParent = nullptr;
+
 	private:
-	BMessage *fSettingsMessage = nullptr;
+    BMessage *fSettingsMessage = nullptr;
 };
 
+
 #endif // _PATTERNTABLE_WINDOW_H_
+

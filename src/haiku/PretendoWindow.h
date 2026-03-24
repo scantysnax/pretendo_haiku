@@ -11,7 +11,7 @@
 #include <Screen.h>
 #include <Window.h>
 
-#include <malloc.h>
+#include <atomic>
 
 #include "AudioStream.h"
 #include "InputWindow.h"
@@ -33,6 +33,13 @@ class PretendoView;
 class InputWindow;
 class NameTableWindow;
 class PatternTableWindow;
+
+
+struct latched_scroll_t {
+    std::atomic<uint32> scroll_x{0};
+    std::atomic<uint32> scroll_y{0};
+    std::atomic<uint32> frame_id{0};
+};
 
 
 class PretendoWindow : public BWindow
@@ -295,6 +302,24 @@ class PretendoWindow : public BWindow
 		return fMutex->Unlock();
 	}
 	
+	// called by emulator thread
+	void SetLatchedScroll(uint32 x, uint32 y) {
+        fLatchedScroll.scroll_x.store(x, std::memory_order_relaxed);
+        fLatchedScroll.scroll_y.store(y, std::memory_order_relaxed);
+        fLatchedScroll.frame_id.fetch_add(1, std::memory_order_release);
+    }
+    
+     // called by ui thread:
+    bool GetLatchedScroll(uint32 &x, uint32 &y, uint32 &frameId) const {
+        frameId = fLatchedScroll.frame_id.load(std::memory_order_acquire);
+        x = fLatchedScroll.scroll_x.load(std::memory_order_relaxed);
+        y = fLatchedScroll.scroll_y.load(std::memory_order_relaxed);
+        return true;
+    }
+    
+    private:
+    latched_scroll_t fLatchedScroll;
+
 	private:
 	uint8 fUpKey;
 	uint8 fDownKey;

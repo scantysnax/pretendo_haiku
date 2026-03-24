@@ -7,7 +7,8 @@
 #include "Mapper.h"
 #include "Nes.h"
 #include "Ppu.h"
-#include <algorithm>
+
+//#include <algorithm>
 #include <cstdlib>
 
 namespace nes::bus {
@@ -502,7 +503,7 @@ uint8_t read_memory(uint_least16_t address) {
 void trash_ram() {
 	// NOTE(eteran): this could be "random" bytes, but all zeros
 	// is just an good as any other patterns
-	std::fill_n(ram_, sizeof(ram_), 0);
+	std::fill_n(ram_, 0x800, 0);
 }
 
 }

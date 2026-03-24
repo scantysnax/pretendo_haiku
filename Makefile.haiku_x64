@@ -116,6 +116,7 @@ CPP_FILES := \
 	\
 	src/haiku/AboutWindow.cpp \
 	src/haiku/AudioStream.cpp \
+	src/haiku/CHRExplorerView.cpp \
 	src/haiku/HaikuMain.cpp \
 	src/haiku/InputView.cpp \
 	src/haiku/InputWindow.cpp \

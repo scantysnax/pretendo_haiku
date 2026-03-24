@@ -1,78 +1,94 @@
+// NameTableWindow.cpp
 
-#include "NameTableWindow.h"
+#include <File.h>
+#include <String.h>
+
+#include "CHRExplorerView.h"
 #include "NameTableView.h"
+#include "NameTableWindow.h"
+#include "PretendoWindow.h"
 
-#include <iostream>
 
-NameTableWindow::NameTableWindow (PretendoWindow *parent, int32 which)
-	: BWindow(BRect(200, 200, 0, 0), nullptr, B_FLOATING_WINDOW_LOOK, 
-		B_NORMAL_WINDOW_FEEL, B_NOT_RESIZABLE|B_NOT_ZOOMABLE)
+NameTableWindow::NameTableWindow(PretendoWindow *parent, int32 which)
+	: BWindow(BRect(200, 200, 200, 200),
+	          nullptr,
+	          B_FLOATING_WINDOW_LOOK,
+	          B_NORMAL_WINDOW_FEEL,
+	          B_NOT_RESIZABLE | B_NOT_ZOOMABLE)
 {
 	fParent = parent;
 	fWhich = which;
 	fSettingsMessage = new BMessage;
-	
-	ResizeTo(nametable_size::WIDTH, nametable_size::HEIGHT);
-	
+
+	float const kExplorerH = 180.0f;
+
+	// Window size: 256x240 + explorer
+	ResizeTo(nametable_size::WIDTH,
+	         nametable_size::HEIGHT + kExplorerH);
+
 	switch (which) {
-		case 0:
-		SetTitle("Name Table 1 (0x2000-0x23ff)");
-		break;
-		
-		case 1:
-		SetTitle("Name Table 2 (0x2400-0x27ff)");
-		break;
-		
-		case 2:
-		SetTitle("Name Table 3 (0x2800-0x2bff)");
-		break;
-		
-		case 3:
-		SetTitle("Name Table 4 (0x2c00-0x2fff)");
-		break;
+		case 0: SetTitle("Name Table 1 ($2000)"); break;
+		case 1: SetTitle("Name Table 2 ($2400)"); break;
+		case 2: SetTitle("Name Table 3 ($2800)"); break;
+		case 3: SetTitle("Name Table 4 ($2C00)"); break;
+		default: SetTitle("Name Table"); break;
 	}
-		
-	
-	fView = new NameTableView(Bounds(), fParent, which);
+
+	BRect nameFrame(0, 0,
+	                nametable_size::WIDTH - 1,
+	                nametable_size::HEIGHT - 1);
+
+	BRect explorerFrame(0,
+	                     nametable_size::HEIGHT,
+	                     nametable_size::WIDTH - 1,
+	                     nametable_size::HEIGHT + kExplorerH - 1);
+
+	// explorer first (so it sits below)
+	fExplorer = new CHRExplorerView(explorerFrame);
+	fExplorer->SetHostPalette(fParent->Palette());
+	AddChild(fExplorer);
+
+	// Main view
+	fView = new NameTableView(nameFrame, fParent, which, fExplorer);
 	AddChild(fView);
-	SetPulseRate(166667); // try to get around 60fps.
-						  // we don't neeed super accuraccy, it's just a viewer
+
+	SetPulseRate(16667); // approximately 60Hz
+
 	LoadSettings();
 }
 
 
 NameTableWindow::~NameTableWindow()
 {
-	SaveSettings();
-	delete fSettingsMessage;
-} 
-
-
-void
-NameTableWindow::MessageReceived (BMessage *message)
-{	
-	BWindow::MessageReceived (message);
+    SaveSettings();
+    delete fSettingsMessage;
 }
 
 
 bool
 NameTableWindow::QuitRequested()
 {
-	return true;
+    return true;
+}
+
+
+void
+NameTableWindow::MessageReceived(BMessage *msg)
+{
+    BWindow::MessageReceived(msg);
 }
 
 
 void
 NameTableWindow::LoadSettings()
 {
-	std::cout << __PRETTY_FUNCTION__ << std::endl;
+    // eli: load window position/flags etc from settings
 }
 
 
 void
 NameTableWindow::SaveSettings()
 {
-	std::cout << __PRETTY_FUNCTION__ << std::endl;
+    // eli: save window position/flags etc to settings
 }
-
 

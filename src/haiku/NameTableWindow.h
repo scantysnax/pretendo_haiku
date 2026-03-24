@@ -7,8 +7,10 @@
 #include "NameTableView.h"
 #include "Settings.h"
 
+
 class PretendoWindow;
 class NameTableView;
+class CHRExplorerView;
 
 
 class NameTableWindow : public BWindow
@@ -34,9 +36,11 @@ class NameTableWindow : public BWindow
 	
 	private:
 	int32 fWhich = 0;
-	NameTableView *fView = nullptr;
 	PretendoWindow *fParent = nullptr;
 	
+	private:
+	NameTableView *fView = nullptr;
+	CHRExplorerView *fExplorer = nullptr;
 	
 	private:
 	BMessage *fSettingsMessage;

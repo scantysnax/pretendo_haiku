@@ -1,31 +1,56 @@
 
-#include "PatternTableWindow.h"
-
 #include <File.h>
 #include <String.h>
 
+#include "PatternTableWindow.h"
+#include "PatternTableView.h"
+#include "CHRExplorerView.h"
+#include "PretendoWindow.h"
 
-PatternTableWindow::PatternTableWindow (PretendoWindow *parent, int32 which)
-	: BWindow(BRect(0, 0, 0, 0), nullptr, B_FLOATING_WINDOW_LOOK, B_NORMAL_WINDOW_FEEL, B_NOT_RESIZABLE)
+
+PatternTableWindow::PatternTableWindow(PretendoWindow* parent, int32 which)
+    : BWindow(BRect(100, 100, 100, 100),   // temporary, we'll ResizeTo
+              nullptr,
+              B_FLOATING_WINDOW_LOOK,
+              B_NORMAL_WINDOW_FEEL,
+              B_NOT_RESIZABLE)
 {
-	fParent = parent;
-	fWhich = which;
-	fSettingsMessage = new BMessage;
-	
-	// set size and default title
-	ResizeTo(PatternTableView::screen_size::WIDTH*2, PatternTableView::screen_size::HEIGHT*2);
-	SetTitle((fWhich == 0) 	?	"Pattern Table 1 (8x8)" 
-							: 	"Pattern Table 2 (8x8)"
-	);
-	
-	// setup some things we need
-	fView = new PatternTableView(Bounds(), fParent, fWhich);
-	AddChild(fView);	
-	SetPulseRate(166667); // try to get around 60fps.
-						  // we don't neeed super accuraccy, it's just a viewer
-	
-	// load settings
-	LoadSettings();	
+    fParent = parent;
+    fWhich = which;
+    fSettingsMessage = new BMessage;
+
+    // layout
+    const float kPatternSize = 256.0f;   // pattern tables are 256x256
+    const float kExplorerH  = 300.0f;   // explorer height
+
+    // resize window to exactly fit pattern + explorer
+    ResizeTo(kPatternSize, kPatternSize + kExplorerH);
+
+    SetTitle((fWhich == 0)
+        ? "Pattern Table 1 (8x8)"
+        : "Pattern Table 2 (8x8)");
+
+    // pattern table view (top)
+    BRect patternFrame(0, 0,
+                       kPatternSize - 1,
+                       kPatternSize - 1);
+
+    // explorer view (bottom)
+    BRect explorerFrame(0,
+                         kPatternSize,
+                         kPatternSize - 1,
+                         kPatternSize + kExplorerH - 1);
+
+    fExplorer = new CHRExplorerView(explorerFrame);
+	fExplorer->SetHostPalette(fParent->Palette());
+	AddChild(fExplorer);
+    
+    fView = new PatternTableView(patternFrame, fParent, fWhich, fExplorer);
+    AddChild(fView);
+
+    SetPulseRate(16667);    // ~60Hz refresh
+    
+    LoadSettings();
 }
 
 
@@ -45,28 +70,45 @@ PatternTableWindow::QuitRequested()
 }
 
 
+
 void
-PatternTableWindow::Zoom (BPoint origin, float width, float height)
+PatternTableWindow::Zoom(BPoint origin, float width, float height)
 {
-	(void)origin;
-	(void)width;
-	(void)height;
-	
-	BString title = Title();
-	
-	// flip tile arrangement on zoom between 8x8 and 8x16
-	if (fView->ViewMode() == PatternTableView::view_mode::MODE_8x8) {
-		fView->SetViewMode(PatternTableView::view_mode::MODE_8x16);
-		title.ReplaceFirst("(8x8)", "(8x16)");
-	} else {
-		fView->SetViewMode(PatternTableView::view_mode::MODE_8x8);
-		title.ReplaceFirst("(8x16)", "(8x8)");
-	}
-	
-	SetTitle(title.String());
-	
-	// don't call the default
+    (void)origin;
+    (void)width;
+    (void)height;
+
+    if (!fView) {
+    	return;
+    }
+    
+    PatternTableView::view_mode mode;
+    mode = fView->Show8x16() ? PatternTableView::view_mode::MODE_8x8
+    						 : PatternTableView::view_mode::MODE_8x16;
+
+    
+    // change view mode
+	fView->SetViewMode(mode);
+    
+    // update window title
+    BString title;
+    if (mode == PatternTableView::view_mode::MODE_8x16)
+        title = (fWhich == 0)
+            ? "Pattern Table 1 (8x16)"
+            : "Pattern Table 2 (8x16)";
+    else
+        title = (fWhich == 0)
+            ? "Pattern Table 1 (8x8)"
+            : "Pattern Table 2 (8x8)";
+
+    SetTitle(title.String());
+
+    // force redraw + explorer refresh (essential)
+    fView->Invalidate();
+    fView->Flush();
 }
+
+
 
 
 void

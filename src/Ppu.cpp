@@ -1,4 +1,12 @@
-﻿
+// Ppu.cpp (fixed)
+// Key fixes:
+//  - NO namespace blocks inside functions
+//  - internal state stays in the anonymous namespace
+//  - execute_scanline_impl<T>() stays in the anonymous namespace (cpp-only)
+//  - public non-template overloads execute_scanline(...) live in namespace nes::ppu
+//  - debug helpers (scroll_state/vram_address/temp_address/fine_x) live in namespace nes::ppu
+//  - removed all template explicit-instantiation junk / accidental calls
+
 #include "Ppu.h"
 #include "Apu.h"
 #include "Cart.h"
@@ -15,9 +23,11 @@
 
 namespace nes::ppu {
 
+// These are meant to be externally visible toggles.
 bool show_sprites  = true;
 bool system_paused = false;
 
+} // namespace nes::ppu
 
 namespace {
 
@@ -55,15 +65,15 @@ union Mask {
 constexpr auto CyclesPerScanline = 341u;
 constexpr auto CpuAlignment      = 0u;
 
-constexpr uint8_t StatusOverflow = 0b00100000;
-constexpr uint8_t StatusSprite0  = 0b01000000;
-constexpr uint8_t StatusVBlank   = 0b10000000;
+constexpr uint8_t StatusOverflow = 0b0010'0000;
+constexpr uint8_t StatusSprite0  = 0b0100'0000;
+constexpr uint8_t StatusVBlank   = 0b1000'0000;
 
-constexpr uint8_t OamColor    = 0b00000011;
-constexpr uint8_t OamZero     = 0b00010000; // internal flag
-constexpr uint8_t OamPriority = 0b00100000;
-constexpr uint8_t OamHFlip    = 0b01000000;
-constexpr uint8_t OamVFlip    = 0b10000000;
+constexpr uint8_t OamColor    = 0b0000'0011;
+constexpr uint8_t OamZero     = 0b0001'0000; // internal flag
+constexpr uint8_t OamPriority = 0b0010'0000;
+constexpr uint8_t OamHFlip    = 0b0100'0000;
+constexpr uint8_t OamVFlip    = 0b1000'0000;
 
 struct pattern_0 {
 	static constexpr int index      = 0;
@@ -76,11 +86,11 @@ struct pattern_1 {
 };
 
 struct size_8px {
-	static constexpr int flip_mask = 0b00000111;
+	static constexpr int flip_mask = 0b0000'0111;
 };
 
 struct size_16px {
-	static constexpr int flip_mask = 0b00001111;
+	static constexpr int flip_mask = 0b0000'1111;
 };
 
 const uint8_t reverse_bits[256] = {
@@ -134,19 +144,22 @@ struct SpritePattern {
 	uint8_t patterns[2];
 };
 
-// internal variables
+//------------------------------------------------------------------------------
+// Internal state (single definitions only)
+//------------------------------------------------------------------------------
 SpritePattern sprite_patterns_[8];
 uint8_t current_sprite_index_ = 0;
-uint8_t sprite_ram_[0x100]    = {};
-uint8_t sprite_address_       = 0; // OAMADDR
 
-uint8_t sprite_data_[32]            = {};
-uint8_t sprite_data_index_          = 0;
-uint8_t left_most_sprite_x_         = 0xff;
-uint8_t sprite_read_buffer_         = 0;
-uint8_t sprite_read_index_          = 0;
-bool current_is_sprite_0            = false;
-uint8_t visible_sprite_count_       = 0;
+uint8_t sprite_ram_[0x100] = {};
+uint8_t sprite_address_    = 0; // OAMADDR
+
+uint8_t  sprite_data_[32]       = {};
+uint8_t  sprite_data_index_     = 0;
+uint8_t  left_most_sprite_x_    = 0xff;
+uint8_t  sprite_read_buffer_    = 0;
+uint8_t  sprite_read_index_     = 0;
+bool     current_is_sprite_0    = false;
+uint8_t  visible_sprite_count_  = 0;
 
 enum SpriteEvalState {
 	STATE_1_Y,
@@ -157,26 +170,26 @@ enum SpriteEvalState {
 	STATE_4
 } sprite_eval_state_ = STATE_1_Y;
 
-uint8_t palette_[0x20];
-uint64_t ppu_cycle_                    = 0;
-uint64_t ppu_read_2002_cycle_          = 0;
-uint_least16_t next_ppu_fetch_address_ = 0;
-uint_least16_t pattern_queue_[2]       = {};
-uint_least16_t attribute_queue_[2]     = {};
-uint_least16_t nametable_              = 0; // loopy's "t"
-uint_least16_t vram_address_           = 0; // loopy's "v"
-uint_least16_t hpos_                   = 0; // pixel counter
-uint_least16_t vpos_                   = 0; // scanline counter
-uint8_t next_pattern_[2]               = {};
-uint_least16_t latch_                  = 0;
-uint8_t next_attribute_                = 0;
-uint8_t next_tile_index_               = 0;
-Control ppu_control_                   = {0};
-Mask ppu_mask_                         = {0};
-uint8_t register_2007_buffer_          = 0;
-Status status_                         = {0};
-uint8_t tile_offset_                   = 0; // loopy's "x"
-uint8_t monochrome_mask_               = 0xff;
+uint8_t        palette_[0x20]               = {};
+uint64_t       ppu_cycle_                   = 0;
+uint64_t       ppu_read_2002_cycle_         = 0;
+uint_least16_t next_ppu_fetch_address_      = 0;
+uint_least16_t pattern_queue_[2]            = {};
+uint_least16_t attribute_queue_[2]          = {};
+uint_least16_t nametable_                   = 0; // loopy t
+uint_least16_t vram_address_                = 0; // loopy v
+uint_least16_t hpos_                        = 0; // pixel counter
+uint_least16_t vpos_                        = 0; // scanline counter
+uint8_t        next_pattern_[2]             = {};
+uint_least16_t latch_                       = 0;
+uint8_t        next_attribute_              = 0;
+uint8_t        next_tile_index_             = 0;
+Control        ppu_control_                 = {0};
+Mask           ppu_mask_                    = {0};
+uint8_t        register_2007_buffer_        = 0;
+Status         status_                      = {0};
+uint8_t        tile_offset_                 = 0; // loopy x
+uint8_t        monochrome_mask_             = 0xff;
 
 bool odd_frame_   = false;
 bool write_latch_ = false;
@@ -184,7 +197,6 @@ bool write_block_ = false;
 
 //------------------------------------------------------------------------------
 // Name: sprite_pattern_table
-// Desc: returns 0x0000 or 0x1000 depending on bit 3 of ppu_control_
 //------------------------------------------------------------------------------
 uint_least16_t sprite_pattern_table() {
 	return ppu_control_.sprite_pattern_table ? 0x1000 : 0x0000;
@@ -192,36 +204,26 @@ uint_least16_t sprite_pattern_table() {
 
 //------------------------------------------------------------------------------
 // Name: background_pattern_table
-// Desc: returns 0x0000 or 0x1000 depending on bit 4 of ppu_control_
 //------------------------------------------------------------------------------
 uint_least16_t background_pattern_table() {
 	return ppu_control_.background_pattern_table ? 0x1000 : 0x0000;
 }
 
 //------------------------------------------------------------------------------
-// Name:
-// Desc:
+// Sprite pattern address helpers
 //------------------------------------------------------------------------------
 template <class Pattern>
 constexpr uint_least16_t sprite_pattern_address(uint8_t index, uint8_t sprite_line, const size_8px &) {
-	// 8x8
 	return (sprite_pattern_table() | (index << 4) | Pattern::offset | sprite_line) & 0xffff;
 }
 
-//------------------------------------------------------------------------------
-// Name:
-// Desc:
-//------------------------------------------------------------------------------
 template <class Pattern>
 constexpr uint_least16_t sprite_pattern_address(uint8_t index, uint8_t sprite_line, const size_16px &) {
-	// 8x16. even sprites use $0000, odd $1000
-	return (((index & 1) << 12) | ((index & 0xfe) << 4) | Pattern::offset | (sprite_line & 7) | ((sprite_line & 0x08) << 1)) & 0xffff;
+	return (((index & 1) << 12) | ((index & 0xfe) << 4) | Pattern::offset | (sprite_line & 7) |
+	        ((sprite_line & 0x08) << 1)) &
+	       0xffff;
 }
 
-//------------------------------------------------------------------------------
-// Name:
-// Desc:
-//------------------------------------------------------------------------------
 template <class Size, class Pattern>
 constexpr uint_least16_t sprite_pattern_address(uint8_t index, uint8_t sprite_line) {
 	return sprite_pattern_address<Pattern>(index, sprite_line, Size());
@@ -229,32 +231,27 @@ constexpr uint_least16_t sprite_pattern_address(uint8_t index, uint8_t sprite_li
 
 //------------------------------------------------------------------------------
 // Name: render_blank_pixel
-// Note: the screen is *always* disabled when this is called
 //------------------------------------------------------------------------------
 uint8_t render_blank_pixel() {
-
 	if (UNLIKELY((vram_address_ & 0x3f00) == 0x3f00)) {
 		return palette_[vram_address_ & 0x1f] & monochrome_mask_;
-	} else {
-		return palette_[0x00] & monochrome_mask_;
 	}
+	return palette_[0x00] & monochrome_mask_;
 }
 
 //------------------------------------------------------------------------------
 // Name: select_bg_pixel
-// Note: the screen is *always* enabled when this is called
 //------------------------------------------------------------------------------
 uint8_t select_bg_pixel(uint_least16_t index) {
 
-	// first identify what the BG pixel would be
 	if (LIKELY(index >= 8 || ppu_mask_.background_clipping) && ppu_mask_.background_visible) {
 		const uint_least16_t mask = (0x8000 >> tile_offset_);
 
 		return (((pattern_queue_[0] & mask) >> (15 - tile_offset_)) |
-				((pattern_queue_[1] & mask) >> (14 - tile_offset_)) |
-				((attribute_queue_[0] & mask) >> (13 - tile_offset_)) |
-				((attribute_queue_[1] & mask) >> (12 - tile_offset_))) &
-			   0xff;
+		        ((pattern_queue_[1] & mask) >> (14 - tile_offset_)) |
+		        ((attribute_queue_[0] & mask) >> (13 - tile_offset_)) |
+		        ((attribute_queue_[1] & mask) >> (12 - tile_offset_))) &
+		       0xff;
 	}
 
 	return 0x00;
@@ -262,24 +259,18 @@ uint8_t select_bg_pixel(uint_least16_t index) {
 
 //------------------------------------------------------------------------------
 // Name: select_pixel
-// Note: the screen is *always* enabled when this is called
 //------------------------------------------------------------------------------
 uint8_t select_pixel(uint_least16_t index) {
 
-	// default to displaying the BG pixel
-    const uint8_t pixel = select_bg_pixel(index);
+	const uint8_t pixel = select_bg_pixel(index);
 
-	// then see if any of the sprites belong..
 	if (LIKELY(index >= 8 || ppu_mask_.sprite_clipping) && ppu_mask_.sprites_visible) {
 
-		// this will loop at most 8 times
 		for (uint8_t spr = 0; spr != visible_sprite_count_; ++spr) {
 
 			const SpritePattern &sprite = sprite_patterns_[spr];
+			const uint16_t x_offset     = index - sprite.x;
 
-			const uint16_t x_offset = index - sprite.x;
-
-			// is this sprite visible on this pixel?
 			if (x_offset >= 8) {
 				continue;
 			}
@@ -288,17 +279,12 @@ uint8_t select_pixel(uint_least16_t index) {
 			const uint8_t p1     = sprite.patterns[1];
 			const uint16_t shift = 7 - x_offset;
 
-			const uint8_t sprite_pixel =
-				((p0 >> shift) & 0x01) | (((p1 >> shift) << 0x01) & 0x02);
+			const uint8_t sprite_pixel = ((p0 >> shift) & 0x01) | (((p1 >> shift) << 1) & 0x02);
 
-			// is this pixel visible?
 			if ((sprite_pixel & 0x03) == 0) {
 				continue;
 			}
 
-			// we rendered a sprite0 pixel which collided with a BG pixel
-			// NOTE: according to blargg's tests, a collision doesn't seem
-            //       possible to occur on the rightmost pixel
 #ifndef SPRITE_ZERO_HACK
 			if ((sprite.attr & OamZero) && (index < 255) && (pixel & 0x03)) {
 #else
@@ -307,13 +293,11 @@ uint8_t select_pixel(uint_least16_t index) {
 				status_.sprite0 = true;
 			}
 
-            // NOTE(eteran): this needs to be here (or later)
-            // because we still need to preserve sprite zero hit detection
-            if (UNLIKELY(!show_sprites)) {
-                return pixel;
-            }
+			if (UNLIKELY(!nes::ppu::show_sprites)) {
+				return pixel;
+			}
 
-            if ((((sprite.attr & OamPriority) == 0) || ((pixel & 0x03) == 0))) {
+			if ((((sprite.attr & OamPriority) == 0) || ((pixel & 0x03) == 0))) {
 				return (0x10 | sprite_pixel | ((sprite.attr & OamColor) << 2)) & 0xff;
 			}
 
@@ -328,7 +312,6 @@ uint8_t select_pixel(uint_least16_t index) {
 // Name: clock_x
 //------------------------------------------------------------------------------
 void clock_x() {
-	// wrap X at 31 and flip bit 10, or just increment
 	if (UNLIKELY((vram_address_ & 0x1f) == 0x1f)) {
 		vram_address_ ^= 0x41f;
 	} else {
@@ -340,37 +323,19 @@ void clock_x() {
 // Name: clock_y
 //------------------------------------------------------------------------------
 void clock_y() {
-	// NOTES:
-	//    Pertinent VRAM addresses are really 15 bits, as the last one
-	//    isn't used.  Bits 14-12 are the tileY offset.  Bits 11-0 hold
-	//    the nametable address.
-	//
-	//    Bits 9-5 represent the y scroll(*8).  It wraps to 0 and bit 11 is
-	//    switched when it's incremented from _29_.
-	//
-	//    Y scroll still wraps from 31, but without flipping bit 11
 	if (UNLIKELY((vram_address_ & 0x7000) == 0x7000)) {
 
-		// tile Y wraps from 7 -> 0
 		vram_address_ &= 0x0fff;
 
-		// Now Check the Y Scroll
 		switch (vram_address_ & 0x03e0) {
 		case 0x03a0:
-			// Y scroll is 29
 			vram_address_ &= ~0x03e0;
 			vram_address_ ^= 0x0800;
 			break;
 		case 0x03e0:
-			// Y scroll is 31
 			vram_address_ &= ~0x03e0;
 			break;
 		default:
-			// increment the bitfield 9-5
-			// NOTE: while it may seem like we need to concern ourselves with
-			//       this 5-bit field overflowing into bit 10. There is nothing
-			//       to worry about :-). That is handled by the case for $03e0
-			//       above.
 			vram_address_ += 0x20;
 			break;
 		}
@@ -379,150 +344,78 @@ void clock_y() {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name:
-//------------------------------------------------------------------------------
 template <class Pattern>
 void open_background_pattern() {
-
 	const uint8_t tile_line = (vram_address_ & 0x7000) >> 12;
-	next_ppu_fetch_address_ = (background_pattern_table() | (next_tile_index_ << 4) | Pattern::offset | tile_line) & 0xffff;
-	cart.mapper()->vram_change_hook(next_ppu_fetch_address_);
+	next_ppu_fetch_address_ =
+		(background_pattern_table() | (next_tile_index_ << 4) | Pattern::offset | tile_line) & 0xffff;
+	nes::cart.mapper()->vram_change_hook(next_ppu_fetch_address_);
 }
 
-//------------------------------------------------------------------------------
-// Name:
-//------------------------------------------------------------------------------
 template <class Pattern>
 void read_background_pattern() {
-
-	next_pattern_[Pattern::index] = cart.mapper()->read_vram(next_ppu_fetch_address_);
+	next_pattern_[Pattern::index] = nes::cart.mapper()->read_vram(next_ppu_fetch_address_);
 }
 
-//------------------------------------------------------------------------------
-// Name:
-//------------------------------------------------------------------------------
 void open_background_attribute() {
 	next_ppu_fetch_address_ = attribute_address(vram_address_);
-	cart.mapper()->vram_change_hook(next_ppu_fetch_address_);
+	nes::cart.mapper()->vram_change_hook(next_ppu_fetch_address_);
 }
 
-//------------------------------------------------------------------------------
-// Name:
-//------------------------------------------------------------------------------
 void read_background_attribute() {
-
-	// fetch the attribute byte
-	const uint8_t attr_byte = cart.mapper()->read_vram(next_ppu_fetch_address_);
-
-	// get the attribute bits relevant for this tile
-	next_attribute_ = attribute_bits(vram_address_, attr_byte);
+	const uint8_t attr_byte = nes::cart.mapper()->read_vram(next_ppu_fetch_address_);
+	next_attribute_         = attribute_bits(vram_address_, attr_byte);
 }
 
-//------------------------------------------------------------------------------
-// Name:
-//------------------------------------------------------------------------------
 void open_tile_index() {
 	next_ppu_fetch_address_ = tile_address(vram_address_);
-	cart.mapper()->vram_change_hook(next_ppu_fetch_address_);
+	nes::cart.mapper()->vram_change_hook(next_ppu_fetch_address_);
 }
 
-//------------------------------------------------------------------------------
-// Name:
-//------------------------------------------------------------------------------
 void read_tile_index() {
-	next_tile_index_ = cart.mapper()->read_vram(next_ppu_fetch_address_);
+	next_tile_index_ = nes::cart.mapper()->read_vram(next_ppu_fetch_address_);
 }
 
-//------------------------------------------------------------------------------
-// Name:
-//------------------------------------------------------------------------------
 bool sprite_in_range(uint8_t y) {
 	const uint_least16_t sprite_line = (vpos_ - 1) - y;
-
-	if (ppu_control_.large_sprites) {
-		return sprite_line < 16;
-	} else {
-		return sprite_line < 8;
-	}
+	return ppu_control_.large_sprites ? (sprite_line < 16) : (sprite_line < 8);
 }
 
-//------------------------------------------------------------------------------
-// Name:
-//------------------------------------------------------------------------------
-uint8_t &sprite_y(uint8_t index) {
-	return sprite_data_[index * 4 + 0];
-}
+uint8_t &sprite_y(uint8_t index) { return sprite_data_[index * 4 + 0]; }
+uint8_t &sprite_index(uint8_t index) { return sprite_data_[index * 4 + 1]; }
+uint8_t &sprite_attr(uint8_t index) { return sprite_data_[index * 4 + 2]; }
+uint8_t &sprite_x(uint8_t index) { return sprite_data_[index * 4 + 3]; }
 
-//------------------------------------------------------------------------------
-// Name:
-//------------------------------------------------------------------------------
-uint8_t &sprite_index(uint8_t index) {
-	return sprite_data_[index * 4 + 1];
-}
-
-//------------------------------------------------------------------------------
-// Name:
-//------------------------------------------------------------------------------
-uint8_t &sprite_attr(uint8_t index) {
-	return sprite_data_[index * 4 + 2];
-}
-
-//------------------------------------------------------------------------------
-// Name:
-//------------------------------------------------------------------------------
-uint8_t &sprite_x(uint8_t index) {
-	return sprite_data_[index * 4 + 3];
-}
-
-//------------------------------------------------------------------------------
-// Name: evaluate_sprites_even
-//------------------------------------------------------------------------------
 void evaluate_sprites_even() {
-	// write cycle
 	if (hpos_ <= 64) {
 		sprite_data_[(hpos_ >> 1) - 1] = sprite_read_buffer_;
 
 		if (UNLIKELY(hpos_ == 0)) {
-			// reset some things
 			left_most_sprite_x_ = 0xff;
 		}
 	} else if (hpos_ <= 256) {
 		switch (sprite_eval_state_) {
 		case STATE_1_Y:
-			// 1. Starting at n = 0, read a sprite's Y-coordinate (OAM[n][0], copying it to
-			//    the next open slot in secondary OAM (unless 8 sprites have been found, in
-			//    which case the write is ignored).
 			if (sprite_data_index_ < 8) {
-
-				// 1a. If Y-coordinate is in range, copy remaining bytes of sprite data
-				//     (OAM[n][1] thru OAM[n][3]) into secondary OAM.
 				if (sprite_in_range(sprite_read_buffer_)) {
-
-					// NOTE(eteran): we store the sprite line so make things simpler later
-					sprite_y(sprite_data_index_) = static_cast<uint8_t>((vpos_ - 1) - sprite_read_buffer_); // y
+					sprite_y(sprite_data_index_) = static_cast<uint8_t>((vpos_ - 1) - sprite_read_buffer_);
 					sprite_eval_state_           = STATE_1_I;
 					++sprite_read_index_;
 					break;
 				} else {
-					// 2. Increment n
 					sprite_read_index_ += 4;
 					current_is_sprite_0 = false;
 
-					// 2a. If n has overflowed back to zero (all 64 sprites evaluated), go to 4
 					if ((sprite_read_index_ & 0xfc) == 0x00) {
 						sprite_eval_state_ = STATE_4;
 						break;
 					}
 
-					// 2b. If less than 8 sprites have been found, go to 1
 					if (sprite_data_index_ < 8) {
 						sprite_eval_state_ = STATE_1_Y;
 						break;
 					}
 
-					// 2c. If exactly 8 sprites have been found, disable writes to secondary OAM.
-					//     This causes sprites in back to drop out.
 					sprite_eval_state_ = STATE_3;
 					break;
 				}
@@ -530,60 +423,45 @@ void evaluate_sprites_even() {
 			break;
 
 		case STATE_1_I:
-			sprite_index(sprite_data_index_) = sprite_read_buffer_; // index
+			sprite_index(sprite_data_index_) = sprite_read_buffer_;
 			sprite_eval_state_               = STATE_1_A;
 			++sprite_read_index_;
 			break;
+
 		case STATE_1_A:
-			sprite_attr(sprite_data_index_) = sprite_read_buffer_ & 0xe3; // attributes
-			// note that we found sprite 0
+			sprite_attr(sprite_data_index_) = sprite_read_buffer_ & 0xe3;
 			if (current_is_sprite_0) {
 				sprite_attr(sprite_data_index_) |= OamZero;
 			}
 			sprite_eval_state_ = STATE_1_X;
 			++sprite_read_index_;
 			break;
+
 		case STATE_1_X:
-			sprite_x(sprite_data_index_) = sprite_read_buffer_; // x
+			sprite_x(sprite_data_index_) = sprite_read_buffer_;
 			left_most_sprite_x_          = std::min(left_most_sprite_x_, sprite_x(sprite_data_index_));
 			++sprite_data_index_;
 			++sprite_read_index_;
-
-			// 2. Increment n
-			// NOTE(eteran): no need to explicitly do this since we use a single variable for both
-			// m and n, so it'll naturally carry
-#if 0
-            // sprite_read_index_ += 4;
-#endif
 			current_is_sprite_0 = false;
 
-			// 2a. If n has overflowed back to zero (all 64 sprites evaluated), go to 4
 			if ((sprite_read_index_ & 0xfc) == 0x00) {
 				sprite_eval_state_ = STATE_4;
 				break;
 			}
 
-			// 2b. If less than 8 sprites have been found, go to 1
 			if (sprite_data_index_ < 8) {
 				sprite_eval_state_ = STATE_1_Y;
 				break;
 			}
 
-			// 2c. If exactly 8 sprites have been found, disable writes to secondary OAM.
-			//     This causes sprites in back to drop out.
 			sprite_eval_state_ = STATE_3;
 			break;
+
 		case STATE_3: {
-			// 3. Starting at m = 0, evaluate OAM[n][m] as a Y-coordinate.
-			// 3a. If the value is in range, set the sprite overflow flag in $2002 and read
-			//     the next 3 entries of OAM (incrementing 'm' after each byte and incrementing
-			//     'n' when 'm' overflows); if m = 3, increment n
 			if (sprite_in_range(sprite_read_buffer_)) {
 				status_.overflow = true;
 				++sprite_read_index_;
 			} else {
-				// 3b. If the value is not in range, increment n AND m (without carry). If n overflows
-				//     to 0, go to 4; otherwise go to 3
 				sprite_read_index_ = (sprite_read_index_ & 0x03) | (((sprite_read_index_ & 0xfc) + 4) & 0xfc);
 				sprite_read_index_ = (sprite_read_index_ & 0xfc) | (((sprite_read_index_ & 0x03) + 1) & 0x03);
 			}
@@ -592,21 +470,17 @@ void evaluate_sprites_even() {
 				sprite_eval_state_ = STATE_4;
 			}
 		} break;
+
 		case STATE_4:
 			break;
 		}
 
-		// one way or another, we're done evaluating the sprites, so copy over the
-		// count
 		if (hpos_ == 256) {
-			visible_sprite_count_       = sprite_data_index_;
+			visible_sprite_count_ = sprite_data_index_;
 		}
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: evaluate_sprites_odd
-//------------------------------------------------------------------------------
 void evaluate_sprites_odd() {
 	if (hpos_ < 64) {
 		sprite_read_buffer_ = 0xff;
@@ -621,26 +495,17 @@ void evaluate_sprites_odd() {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: enter_vblank
-//------------------------------------------------------------------------------
 void enter_vblank() {
-
-	// Reading one PPU clock before reads it as clear and never sets the flag
-	// or generates NMI for that frame.
 	if (UNLIKELY(ppu_cycle_ != (ppu_read_2002_cycle_ + 1))) {
 		status_.vblank = true;
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: open_sprite_pattern
-//------------------------------------------------------------------------------
 template <class Size, class Pattern>
 void open_sprite_pattern() {
 
-	current_sprite_index_     = ((hpos_ - 1) >> 3) & 0x07;
-	SpritePattern &sprite     = sprite_patterns_[current_sprite_index_];
+	current_sprite_index_ = ((hpos_ - 1) >> 3) & 0x07;
+	SpritePattern &sprite = sprite_patterns_[current_sprite_index_];
 
 	sprite.y = sprite_y(current_sprite_index_);
 
@@ -650,32 +515,25 @@ void open_sprite_pattern() {
 		sprite.attr  = sprite_attr(current_sprite_index_);
 		sprite.index = sprite_index(current_sprite_index_);
 
-		// vertical flip
 		if (sprite.attr & OamVFlip) {
 			sprite.y ^= Size::flip_mask;
 		}
 
-		// fetch the actual sprite data
 		next_ppu_fetch_address_ = sprite_pattern_address<Size, Pattern>(sprite.index, sprite.y);
 	} else {
-		// fetch the actual sprite data (dummy)
 		next_ppu_fetch_address_ = sprite_pattern_address<Size, Pattern>(0xff, 0xff);
 	}
 
-	cart.mapper()->vram_change_hook(next_ppu_fetch_address_);
+	nes::cart.mapper()->vram_change_hook(next_ppu_fetch_address_);
 }
 
-//------------------------------------------------------------------------------
-// Name: read_sprite_pattern
-//------------------------------------------------------------------------------
 template <class Size, class Pattern>
 void read_sprite_pattern() {
 
-	uint8_t pattern = cart.mapper()->read_vram(next_ppu_fetch_address_);
+	uint8_t pattern = nes::cart.mapper()->read_vram(next_ppu_fetch_address_);
 
 	SpritePattern &sprite = sprite_patterns_[current_sprite_index_];
 
-	// horizontal flip
 	if (sprite.attr & OamHFlip) {
 		pattern = reverse_bits[pattern];
 	}
@@ -683,86 +541,50 @@ void read_sprite_pattern() {
 	sprite_patterns_[current_sprite_index_].patterns[Pattern::index] = pattern;
 }
 
-//------------------------------------------------------------------------------
-// Name: render_pixel
-//------------------------------------------------------------------------------
 uint8_t render_pixel() {
 
-    const uint8_t pixel = select_pixel(hpos_ - 1);
+	const uint8_t pixel = select_pixel(hpos_ - 1);
 
 	pattern_queue_[0] <<= 1;
 	pattern_queue_[1] <<= 1;
 	attribute_queue_[0] <<= 1;
 	attribute_queue_[1] <<= 1;
 
-	// mask = (pixel & 0x03) ? 0xff : 0x00
-	// but without branches
 	const uint8_t mask = ((pixel & 0x01) | ((pixel & 0x02) >> 1)) * 0xff;
-
 	return palette_[pixel & mask] & monochrome_mask_;
 }
 
-//------------------------------------------------------------------------------
-// Name: update_shift_registers_render
-//------------------------------------------------------------------------------
 void update_shift_registers_render() {
-
 	pattern_queue_[0] |= next_pattern_[0];
 	pattern_queue_[1] |= next_pattern_[1];
-	attribute_queue_[0] |= ((next_attribute_ >> 0) & 0x01) * 0xff; // we multiply here to "replicate" this bit 8 times (it is used for a whole tile)
-	attribute_queue_[1] |= ((next_attribute_ >> 1) & 0x01) * 0xff; // we multiply here to "replicate" this bit 8 times (it is used for a whole tile)
+	attribute_queue_[0] |= ((next_attribute_ >> 0) & 0x01) * 0xff;
+	attribute_queue_[1] |= ((next_attribute_ >> 1) & 0x01) * 0xff;
 }
 
-//------------------------------------------------------------------------------
-// Name: update_shift_registers_idle
-//------------------------------------------------------------------------------
 void update_shift_registers_idle() {
-
 	pattern_queue_[0] <<= 8;
 	pattern_queue_[1] <<= 8;
 	attribute_queue_[0] <<= 8;
 	attribute_queue_[1] <<= 8;
-
 	update_shift_registers_render();
 }
 
-//------------------------------------------------------------------------------
-// Name: update_x_scroll
-// Note: occurs at cycle 257 of all rendering scanlines
-//------------------------------------------------------------------------------
 void update_x_scroll() {
-	// v:0000010000011111=t:0000010000011111
 	vram_address_ = (vram_address_ & ~0b00000100'00011111) | (nametable_ & 0b00000100'00011111);
 }
 
-//------------------------------------------------------------------------------
-// Name: update_sprite_registers
-// Note: occurs at cycles 257 - 320 of all rendering scanlines
-//------------------------------------------------------------------------------
 void update_sprite_registers() {
-	// this gets set to $00 for each tick between 257 and 320
 	sprite_address_ = 0;
 }
 
-//------------------------------------------------------------------------------
-// Name: update_vram_address
-// Note: occurs at cycles 279 - 304 of prerender if screen is enabled
-//------------------------------------------------------------------------------
 void update_vram_address() {
-	// v=t
 	vram_address_ = (vram_address_ & ~0b01111011'11100000) | (nametable_ & 0b01111011'11100000);
 }
 
-//------------------------------------------------------------------------------
-// Name: rendering
-//------------------------------------------------------------------------------
 bool rendering() {
 	return vpos_ <= 240;
 }
 
-//------------------------------------------------------------------------------
-// Name: increment_vram_address
-//------------------------------------------------------------------------------
 void increment_vram_address() {
 	if (rendering() && ppu_mask_.screen_enabled) {
 		if (ppu_control_.address_increment) {
@@ -771,24 +593,19 @@ void increment_vram_address() {
 			clock_x();
 		}
 	} else {
-		if (ppu_control_.address_increment) {
-			vram_address_ += 32;
-		} else {
-			vram_address_ += 1;
-		}
+		vram_address_ += ppu_control_.address_increment ? 32 : 1;
 	}
 }
 
 //------------------------------------------------------------------------------
-// Name: clock_ppu
+// clock_ppu overloads
 //------------------------------------------------------------------------------
-void clock_ppu(const scanline_prerender &) {
+void clock_ppu(const nes::ppu::scanline_prerender &) {
 
 	if (UNLIKELY(hpos_ == 0)) {
 		status_.sprite0  = 0;
 		status_.overflow = 0;
 	} else if (UNLIKELY(hpos_ == 1)) {
-		// clear all the relevant status bits
 		status_.vblank = 0;
 		write_block_   = false;
 	}
@@ -798,34 +615,13 @@ void clock_ppu(const scanline_prerender &) {
 			// idle
 		} else if (hpos_ < 257) {
 			switch (hpos_ & 0x07) {
-			case 1:
-				evaluate_sprites_odd();
-				open_tile_index();
-				break;
-			case 2:
-				evaluate_sprites_even();
-				read_tile_index();
-				break;
-			case 3:
-				evaluate_sprites_odd();
-				open_background_attribute();
-				break;
-			case 4:
-				evaluate_sprites_even();
-				read_background_attribute();
-				break;
-			case 5:
-				evaluate_sprites_odd();
-				open_background_pattern<pattern_0>();
-				break;
-			case 6:
-				evaluate_sprites_even();
-				read_background_pattern<pattern_0>();
-				break;
-			case 7:
-				evaluate_sprites_odd();
-				open_background_pattern<pattern_1>();
-				break;
+			case 1: evaluate_sprites_odd();  open_tile_index(); break;
+			case 2: evaluate_sprites_even(); read_tile_index(); break;
+			case 3: evaluate_sprites_odd();  open_background_attribute(); break;
+			case 4: evaluate_sprites_even(); read_background_attribute(); break;
+			case 5: evaluate_sprites_odd();  open_background_pattern<pattern_0>(); break;
+			case 6: evaluate_sprites_even(); read_background_pattern<pattern_0>(); break;
+			case 7: evaluate_sprites_odd();  open_background_pattern<pattern_1>(); break;
 			case 0:
 				evaluate_sprites_even();
 				read_background_pattern<pattern_1>();
@@ -846,45 +642,25 @@ void clock_ppu(const scanline_prerender &) {
 			update_sprite_registers();
 
 			switch (hpos_ & 0x07) {
-			case 1:
-				open_tile_index();
-				break; // open the bus for nametable fetch (garbage)
-			case 2:
-				read_tile_index();
-				break; // fetch the name table byte (garbage)
-			case 3:
-				open_background_attribute();
-				break; // open the bus for the attribute fetch (garbage)
-			case 4:
-				read_background_attribute();
-				break; // fetch the attributes (garbage)
+			case 1: open_tile_index(); break;
+			case 2: read_tile_index(); break;
+			case 3: open_background_attribute(); break;
+			case 4: read_background_attribute(); break;
 			case 5:
-				if (ppu_control_.large_sprites) {
-					open_sprite_pattern<size_16px, pattern_0>();
-				} else {
-					open_sprite_pattern<size_8px, pattern_0>();
-				}
+				if (ppu_control_.large_sprites) open_sprite_pattern<size_16px, pattern_0>();
+				else                           open_sprite_pattern<size_8px,  pattern_0>();
 				break;
 			case 6:
-				if (ppu_control_.large_sprites) {
-					read_sprite_pattern<size_16px, pattern_0>();
-				} else {
-					read_sprite_pattern<size_8px, pattern_0>();
-				}
+				if (ppu_control_.large_sprites) read_sprite_pattern<size_16px, pattern_0>();
+				else                           read_sprite_pattern<size_8px,  pattern_0>();
 				break;
 			case 7:
-				if (ppu_control_.large_sprites) {
-					open_sprite_pattern<size_16px, pattern_1>();
-				} else {
-					open_sprite_pattern<size_8px, pattern_1>();
-				}
+				if (ppu_control_.large_sprites) open_sprite_pattern<size_16px, pattern_1>();
+				else                           open_sprite_pattern<size_8px,  pattern_1>();
 				break;
-			case 8:
-				if (ppu_control_.large_sprites) {
-					read_sprite_pattern<size_16px, pattern_1>();
-				} else {
-					read_sprite_pattern<size_8px, pattern_1>();
-				}
+			case 0:
+				if (ppu_control_.large_sprites) read_sprite_pattern<size_16px, pattern_1>();
+				else                           read_sprite_pattern<size_8px,  pattern_1>();
 				break;
 			}
 		} else if (hpos_ < 305) {
@@ -893,45 +669,25 @@ void clock_ppu(const scanline_prerender &) {
 			update_sprite_registers();
 
 			switch (hpos_ & 0x07) {
-			case 1:
-				open_tile_index();
-				break; // open the bus for nametable fetch (garbage)
-			case 2:
-				read_tile_index();
-				break; // fetch the name table byte (garbage)
-			case 3:
-				open_background_attribute();
-				break; // open the bus for the attribute fetch (garbage)
-			case 4:
-				read_background_attribute();
-				break; // fetch the attributes (garbage)
+			case 1: open_tile_index(); break;
+			case 2: read_tile_index(); break;
+			case 3: open_background_attribute(); break;
+			case 4: read_background_attribute(); break;
 			case 5:
-				if (ppu_control_.large_sprites) {
-					open_sprite_pattern<size_16px, pattern_0>();
-				} else {
-					open_sprite_pattern<size_8px, pattern_0>();
-				}
+				if (ppu_control_.large_sprites) open_sprite_pattern<size_16px, pattern_0>();
+				else                           open_sprite_pattern<size_8px,  pattern_0>();
 				break;
 			case 6:
-				if (ppu_control_.large_sprites) {
-					read_sprite_pattern<size_16px, pattern_0>();
-				} else {
-					read_sprite_pattern<size_8px, pattern_0>();
-				}
+				if (ppu_control_.large_sprites) read_sprite_pattern<size_16px, pattern_0>();
+				else                           read_sprite_pattern<size_8px,  pattern_0>();
 				break;
 			case 7:
-				if (ppu_control_.large_sprites) {
-					open_sprite_pattern<size_16px, pattern_1>();
-				} else {
-					open_sprite_pattern<size_8px, pattern_1>();
-				}
+				if (ppu_control_.large_sprites) open_sprite_pattern<size_16px, pattern_1>();
+				else                           open_sprite_pattern<size_8px,  pattern_1>();
 				break;
 			case 0:
-				if (ppu_control_.large_sprites) {
-					read_sprite_pattern<size_16px, pattern_1>();
-				} else {
-					read_sprite_pattern<size_8px, pattern_1>();
-				}
+				if (ppu_control_.large_sprites) read_sprite_pattern<size_16px, pattern_1>();
+				else                           read_sprite_pattern<size_8px,  pattern_1>();
 				break;
 			}
 		} else if (hpos_ < 321) {
@@ -939,113 +695,66 @@ void clock_ppu(const scanline_prerender &) {
 			update_sprite_registers();
 
 			switch (hpos_ & 0x07) {
-			case 1:
-				open_tile_index();
-				break; // open the bus for nametable fetch (garbage)
-			case 2:
-				read_tile_index();
-				break; // fetch the name table byte (garbage)
-			case 3:
-				open_background_attribute();
-				break; // open the bus for the attribute fetch (garbage)
-			case 4:
-				read_background_attribute();
-				break; // fetch the attributes (garbage)
+			case 1: open_tile_index(); break;
+			case 2: read_tile_index(); break;
+			case 3: open_background_attribute(); break;
+			case 4: read_background_attribute(); break;
 			case 5:
-				if (ppu_control_.large_sprites) {
-					open_sprite_pattern<size_16px, pattern_0>();
-				} else {
-					open_sprite_pattern<size_8px, pattern_0>();
-				}
+				if (ppu_control_.large_sprites) open_sprite_pattern<size_16px, pattern_0>();
+				else                           open_sprite_pattern<size_8px,  pattern_0>();
 				break;
 			case 6:
-				if (ppu_control_.large_sprites) {
-					read_sprite_pattern<size_16px, pattern_0>();
-				} else {
-					read_sprite_pattern<size_8px, pattern_0>();
-				}
+				if (ppu_control_.large_sprites) read_sprite_pattern<size_16px, pattern_0>();
+				else                           read_sprite_pattern<size_8px,  pattern_0>();
 				break;
 			case 7:
-				if (ppu_control_.large_sprites) {
-					open_sprite_pattern<size_16px, pattern_1>();
-				} else {
-					open_sprite_pattern<size_8px, pattern_1>();
-				}
+				if (ppu_control_.large_sprites) open_sprite_pattern<size_16px, pattern_1>();
+				else                           open_sprite_pattern<size_8px,  pattern_1>();
 				break;
 			case 0:
-				if (ppu_control_.large_sprites) {
-					read_sprite_pattern<size_16px, pattern_1>();
-				} else {
-					read_sprite_pattern<size_8px, pattern_1>();
-				}
+				if (ppu_control_.large_sprites) read_sprite_pattern<size_16px, pattern_1>();
+				else                           read_sprite_pattern<size_8px,  pattern_1>();
 				break;
 			}
 		} else if (hpos_ < 337) {
-			// fetch first 2 tiles of NEXT scanline
 			switch (hpos_ & 0x07) {
-			case 1:
-				open_tile_index();
-				break; // open the bus for nametable fetch
-			case 2:
-				read_tile_index();
-				break; // fetch the name table byte
-			case 3:
-				open_background_attribute();
-				break; // open the bus for the attribute fetch
-			case 4:
-				read_background_attribute();
-				break; // fetch the attributes
-			case 5:
-				open_background_pattern<pattern_0>();
-				break; // open the bus for pattern A fetch
-			case 6:
-				read_background_pattern<pattern_0>();
-				break; // read 1st pattern byte from 000PTTTTTTTT0YYY
-			case 7:
-				open_background_pattern<pattern_1>();
-				break; // open the bus for pattern B fetch
+			case 1: open_tile_index(); break;
+			case 2: read_tile_index(); break;
+			case 3: open_background_attribute(); break;
+			case 4: read_background_attribute(); break;
+			case 5: open_background_pattern<pattern_0>(); break;
+			case 6: read_background_pattern<pattern_0>(); break;
+			case 7: open_background_pattern<pattern_1>(); break;
 			case 0:
 				read_background_pattern<pattern_1>();
 				update_shift_registers_idle();
 				clock_x();
-				break; // read 2nd pattern byte from 000PTTTTTTTT1YYY
+				break;
 			}
 		} else {
 			switch (hpos_) {
-			// dummy fetches
-			case 337:
-				open_tile_index();
-				break;
-			case 338:
-				read_tile_index();
-				break;
+			case 337: open_tile_index(); break;
+			case 338: read_tile_index(); break;
 			case 339:
 				open_tile_index();
 				if (odd_frame_) {
 					++hpos_;
 				}
-				break; // skip one clock if the first visible line on odd frames
-			case 340:
-				read_tile_index();
 				break;
-			default:
-				abort();
+			case 340: read_tile_index(); break;
+			default: abort();
 			}
 		}
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: clock_ppu
-//------------------------------------------------------------------------------
-void clock_ppu(const scanline_render &target) {
+void clock_ppu(const nes::ppu::scanline_render &target) {
 
 	if (UNLIKELY(!ppu_mask_.screen_enabled)) {
 
 		if (hpos_ < 1) {
 			// idle
 		} else if (hpos_ < 257) {
-
 			target.buffer[hpos_ - 1] = render_blank_pixel();
 			target.buffer[hpos_ - 1] |= (ppu_mask_.intensity << 6);
 		} else {
@@ -1054,47 +763,22 @@ void clock_ppu(const scanline_render &target) {
 	} else {
 
 		if (hpos_ < 1) {
-			// the first clock is acts like the last clock of the pre-render if we skipped a cycle
 			if (UNLIKELY(vpos_ == 1 && odd_frame_)) {
 				read_tile_index();
-			} else {
-				// idle
 			}
 		} else if (hpos_ < 257) {
 
-			// NOTE(eteran): on my machine, this code "costs" about 200 FPS
-            target.buffer[hpos_ - 1] = render_pixel();
+			target.buffer[hpos_ - 1] = render_pixel();
 			target.buffer[hpos_ - 1] |= (ppu_mask_.intensity << 6);
 
 			switch (hpos_ & 0x07) {
-			case 1:
-				evaluate_sprites_odd();
-				open_tile_index();
-				break;
-			case 2:
-				evaluate_sprites_even();
-				read_tile_index();
-				break;
-			case 3:
-				evaluate_sprites_odd();
-				open_background_attribute();
-				break;
-			case 4:
-				evaluate_sprites_even();
-				read_background_attribute();
-				break;
-			case 5:
-				evaluate_sprites_odd();
-				open_background_pattern<pattern_0>();
-				break;
-			case 6:
-				evaluate_sprites_even();
-				read_background_pattern<pattern_0>();
-				break;
-			case 7:
-				evaluate_sprites_odd();
-				open_background_pattern<pattern_1>();
-				break;
+			case 1: evaluate_sprites_odd();  open_tile_index(); break;
+			case 2: evaluate_sprites_even(); read_tile_index(); break;
+			case 3: evaluate_sprites_odd();  open_background_attribute(); break;
+			case 4: evaluate_sprites_even(); read_background_attribute(); break;
+			case 5: evaluate_sprites_odd();  open_background_pattern<pattern_0>(); break;
+			case 6: evaluate_sprites_even(); read_background_pattern<pattern_0>(); break;
+			case 7: evaluate_sprites_odd();  open_background_pattern<pattern_1>(); break;
 			case 0:
 				evaluate_sprites_even();
 				read_background_pattern<pattern_1>();
@@ -1114,118 +798,64 @@ void clock_ppu(const scanline_render &target) {
 
 			update_sprite_registers();
 
-			// NOTE(eteran): on my machine, this code "costs" about 100 FPS
 			switch (hpos_ & 0x07) {
-			case 1:
-				open_tile_index();
-				break; // open the bus for nametable fetch (garbage)
-			case 2:
-				read_tile_index();
-				break; // fetch the name table byte (garbage)
-			case 3:
-				open_background_attribute();
-				break; // open the bus for the attribute fetch (garbage)
-			case 4:
-				read_background_attribute();
-				break; // fetch the attributes (garbage)
+			case 1: open_tile_index(); break;
+			case 2: read_tile_index(); break;
+			case 3: open_background_attribute(); break;
+			case 4: read_background_attribute(); break;
 			case 5:
-				if (ppu_control_.large_sprites) {
-					open_sprite_pattern<size_16px, pattern_0>();
-				} else {
-					open_sprite_pattern<size_8px, pattern_0>();
-				}
+				if (ppu_control_.large_sprites) open_sprite_pattern<size_16px, pattern_0>();
+				else                           open_sprite_pattern<size_8px,  pattern_0>();
 				break;
 			case 6:
-				if (ppu_control_.large_sprites) {
-					read_sprite_pattern<size_16px, pattern_0>();
-				} else {
-					read_sprite_pattern<size_8px, pattern_0>();
-				}
+				if (ppu_control_.large_sprites) read_sprite_pattern<size_16px, pattern_0>();
+				else                           read_sprite_pattern<size_8px,  pattern_0>();
 				break;
 			case 7:
-				if (ppu_control_.large_sprites) {
-					open_sprite_pattern<size_16px, pattern_1>();
-				} else {
-					open_sprite_pattern<size_8px, pattern_1>();
-				}
+				if (ppu_control_.large_sprites) open_sprite_pattern<size_16px, pattern_1>();
+				else                           open_sprite_pattern<size_8px,  pattern_1>();
 				break;
 			case 0:
-				if (ppu_control_.large_sprites) {
-					read_sprite_pattern<size_16px, pattern_1>();
-				} else {
-					read_sprite_pattern<size_8px, pattern_1>();
-				}
+				if (ppu_control_.large_sprites) read_sprite_pattern<size_16px, pattern_1>();
+				else                           read_sprite_pattern<size_8px,  pattern_1>();
 				break;
 			}
 		} else if (hpos_ < 337) {
-			// NOTE(eteran): on my machine, this code "costs" about 50 FPS
-			// fetch first 2 tiles of NEXT scanline
+
 			switch (hpos_ & 0x07) {
-			case 1:
-				open_tile_index();
-				break; // open the bus for nametable fetch
-			case 2:
-				read_tile_index();
-				break; // fetch the name table byte
-			case 3:
-				open_background_attribute();
-				break; // open the bus for the attribute fetch
-			case 4:
-				read_background_attribute();
-				break; // fetch the attributes
-			case 5:
-				open_background_pattern<pattern_0>();
-				break; // open the bus for pattern A fetch
-			case 6:
-				read_background_pattern<pattern_0>();
-				break; // read 1st pattern byte from 000PTTTTTTTT0YYY
-			case 7:
-				open_background_pattern<pattern_1>();
-				break; // open the bus for pattern B fetch
+			case 1: open_tile_index(); break;
+			case 2: read_tile_index(); break;
+			case 3: open_background_attribute(); break;
+			case 4: read_background_attribute(); break;
+			case 5: open_background_pattern<pattern_0>(); break;
+			case 6: read_background_pattern<pattern_0>(); break;
+			case 7: open_background_pattern<pattern_1>(); break;
 			case 0:
 				read_background_pattern<pattern_1>();
 				update_shift_registers_idle();
 				clock_x();
-				break; // read 2nd pattern byte from 000PTTTTTTTT1YYY
+				break;
 			}
 		} else {
 			switch (hpos_) {
-			// dummy fetches
-			case 337:
-				open_tile_index();
-				break;
-			case 338:
-				read_tile_index();
-				break;
-			case 339:
-				open_tile_index();
-				break;
-			case 340:
-				read_tile_index();
-				break;
-			default:
-				abort();
+			case 337: open_tile_index(); break;
+			case 338: read_tile_index(); break;
+			case 339: open_tile_index(); break;
+			case 340: read_tile_index(); break;
+			default: abort();
 			}
 		}
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: clock_ppu
-//------------------------------------------------------------------------------
-void clock_ppu(const scanline_postrender &target) {
-	(void)target;
+void clock_ppu(const nes::ppu::scanline_postrender &) {
+	// no-op
 }
 
-//------------------------------------------------------------------------------
-// Name: clock_ppu
-//------------------------------------------------------------------------------
-void clock_ppu(const scanline_vblank &target) {
+void clock_ppu(const nes::ppu::scanline_vblank &) {
 
-	(void)target;
-
-	// I know this should be 241 in theory, but we consider the pre-rendering
-	// scanline to be #0 for now
+	// You kept this offset in your original code:
+	// vpos_ == 242 is treated as "line 241 in theory"
 	if (UNLIKELY(vpos_ == 242)) {
 		switch (hpos_) {
 		case 1:
@@ -1233,44 +863,62 @@ void clock_ppu(const scanline_vblank &target) {
 			break;
 		case 3:
 			if (ppu_control_.nmi_on_vblank && status_.vblank) {
-				cpu::nmi();
+				nes::cpu::nmi();
 			}
 			break;
 		}
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: start_frame
-//------------------------------------------------------------------------------
 void start_frame() {
 	vpos_ = 0;
 	nes::apu::start_frame();
 }
 
-//------------------------------------------------------------------------------
-// Name: end_frame
-//------------------------------------------------------------------------------
 void end_frame() {
 
 	odd_frame_ = !odd_frame_;
 
-	// we use the upper bits to count frames, so the upper byte should be about 0x3c
-	// within one second
 	latch_ += 0x100;
 	if (latch_ > 0x3c00) {
 		latch_ = 0;
 	}
 
-	cart.mapper()->ppu_end_frame();
-}
-
+	nes::cart.mapper()->ppu_end_frame();
 }
 
 //------------------------------------------------------------------------------
-// Name: reset
+// execute_scanline_impl (cpp-only)
 //------------------------------------------------------------------------------
-void reset(Reset reset_type) {
+template <class T>
+void execute_scanline_impl(const T &target) {
+
+	if (UNLIKELY(vpos_ == 262)) {
+		start_frame();
+	} else if (UNLIKELY(vpos_ == 241)) {
+		end_frame();
+	}
+
+	if (LIKELY(!nes::ppu::system_paused)) {
+		for (hpos_ = 0; hpos_ < CyclesPerScanline; ++hpos_, ++ppu_cycle_) {
+			clock_ppu(target);
+			if ((ppu_cycle_ % 3) == CpuAlignment) {
+				nes::cpu::exec<1>();
+				nes::apu::exec<1>();
+			}
+		}
+		++vpos_;
+	}
+}
+
+} // end anonymous namespace
+
+//------------------------------------------------------------------------------
+// Public API
+//------------------------------------------------------------------------------
+namespace nes::ppu {
+
+void reset(nes::Reset reset_type) {
 
 	if (reset_type == Reset::Hard) {
 		std::fill_n(sprite_ram_, 0x0100, 0);
@@ -1317,9 +965,6 @@ void reset(Reset reset_type) {
 	std::cout << "PPU reset complete" << std::endl;
 }
 
-//------------------------------------------------------------------------------
-// Name: write2000
-//------------------------------------------------------------------------------
 void write2000(uint8_t value) {
 
 	latch_ = value;
@@ -1331,8 +976,6 @@ void write2000(uint8_t value) {
 	const Control prev_control = ppu_control_;
 	ppu_control_.raw           = value;
 
-	// name table address
-	// t:0000110000000000=d:00000011
 	nametable_ &= 0b1111001111111111;
 	nametable_ |= ((value & 0b00000011) << 10);
 
@@ -1343,9 +986,6 @@ void write2000(uint8_t value) {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: write2001
-//------------------------------------------------------------------------------
 void write2001(uint8_t value) {
 	latch_ = value;
 
@@ -1353,39 +993,22 @@ void write2001(uint8_t value) {
 		return;
 	}
 
-	ppu_mask_.raw = value;
-
-	monochrome_mask_ = (ppu_mask_.monochrome) ? 0x30 : 0xff;
+	ppu_mask_.raw     = value;
+	monochrome_mask_  = (ppu_mask_.monochrome) ? 0x30 : 0xff;
 }
 
-//------------------------------------------------------------------------------
-// Name:
-//------------------------------------------------------------------------------
-void write2002(uint8_t value) {
-	latch_ = value;
-}
+void write2002(uint8_t value) { latch_ = value; }
 
-//------------------------------------------------------------------------------
-// Name:
-//------------------------------------------------------------------------------
 void write2003(uint8_t value) {
 	latch_          = value;
 	sprite_address_ = value;
 }
 
-//------------------------------------------------------------------------------
-// Name:
-//------------------------------------------------------------------------------
 void write2004(uint8_t value) {
 	latch_ = value;
-
-	// sprite_address_ is an 8-bit type, so wrapping is implicit
 	sprite_ram_[sprite_address_++] = value;
 }
 
-//------------------------------------------------------------------------------
-// Name:
-//------------------------------------------------------------------------------
 void write2005(uint8_t value) {
 	latch_ = value;
 
@@ -1396,25 +1019,16 @@ void write2005(uint8_t value) {
 	write_latch_ = !write_latch_;
 
 	if (write_latch_) {
-		// 2005 first write:
-		// t:0000000000011111=d:11111000
-		// x=d:00000111
 		nametable_ &= 0b1111111'11100000;
 		nametable_ |= (value & 0b11111000) >> 3;
 		tile_offset_ = value & 0x07;
 	} else {
-		// 2005 second write:
-		// t:0000001111100000=d:11111000
-		// t:0111000000000000=d:00000111
 		nametable_ &= ~0b01110011'11100000;
 		nametable_ |= (value & 0b11111000) << 2;
 		nametable_ |= (value & 0b00000111) << 12;
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name:
-//------------------------------------------------------------------------------
 void write2006(uint8_t value) {
 	latch_ = value;
 
@@ -1425,84 +1039,54 @@ void write2006(uint8_t value) {
 	write_latch_ = !write_latch_;
 
 	if (write_latch_) {
-		// 2006 first write:
-		// t:0011111100000000=d:00111111
-		// t:1100000000000000=0
 		nametable_ &= 0b00000000'11111111;
 		nametable_ |= (value & 0b00111111) << 8;
 	} else {
-		// 2006 second write:
-		// t:0000000011111111=d:11111111
-		// v=t
 		nametable_ &= 0b01111111'00000000;
-		nametable_ |= (value & 0b11111111);
+		nametable_ |= value;
 		vram_address_ = nametable_;
-
-		cart.mapper()->vram_change_hook(vram_address_);
+		nes::cart.mapper()->vram_change_hook(vram_address_);
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name:
-//------------------------------------------------------------------------------
 void write2007(uint8_t value) {
 	latch_ = value;
 
 	const uint_least16_t temp_address = vram_address_ & 0b00111111'11111111;
 
 	increment_vram_address();
+	nes::cart.mapper()->vram_change_hook(vram_address_);
 
-	cart.mapper()->vram_change_hook(vram_address_);
-
-	// palette write
 	if ((temp_address & 0b00111111'00000000) == 0b00111111'00000000) {
 
 		const uint_least8_t palette_address = temp_address & 0x1f;
 		palette_[palette_address]           = value & 0x3f;
 
 		if ((palette_address & 0x03) == 0x00) {
-			// $3F10/$3F14/$3F18/$3F1C are mirrors of $3F00/$3F04/$3F08/$3F0C.
 			palette_[palette_address ^ 0x10] = value & 0x3f;
 		}
 
 	} else {
-		cart.mapper()->write_vram(temp_address, value);
+		nes::cart.mapper()->write_vram(temp_address, value);
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: read200x
-//------------------------------------------------------------------------------
-uint8_t read200x() {
-	return static_cast<uint8_t>(latch_);
-}
+uint8_t read200x() { return static_cast<uint8_t>(latch_); }
 
-//------------------------------------------------------------------------------
-// Name: read2002
-//------------------------------------------------------------------------------
 uint8_t read2002() {
 
-	// upper 3 bits of status
-	// lower 5 bits of garbage (latch)
 	const uint8_t ret =
 		((status_.raw & (StatusOverflow | StatusSprite0 | StatusVBlank)) |
 		 (latch_ & ~(StatusOverflow | StatusSprite0 | StatusVBlank))) &
 		0xff;
 
-	// reset scroll/write latch
 	write_latch_ = false;
-
-	// clear vblank flag
 	status_.vblank = false;
 
 	ppu_read_2002_cycle_ = ppu_cycle_;
-
 	return ret;
 }
 
-//------------------------------------------------------------------------------
-// Name: read2004
-//------------------------------------------------------------------------------
 uint8_t read2004() {
 
 	if (!rendering() || !ppu_mask_.screen_enabled) {
@@ -1512,21 +1096,16 @@ uint8_t read2004() {
 		case 0x03:
 			latch_ = sprite_ram_[sprite_address_] & 0xff;
 			break;
-
 		case 0x02:
 			latch_ = sprite_ram_[sprite_address_] & 0xe3;
 			break;
 		}
-
 		return latch_ & 0xff;
 	}
 
 	return 0x00;
 }
 
-//------------------------------------------------------------------------------
-// Name: read2007
-//------------------------------------------------------------------------------
 uint8_t read2007() {
 
 	if (write_block_) {
@@ -1536,16 +1115,14 @@ uint8_t read2007() {
 	const uint_least16_t temp_address = vram_address_ & 0b00111111'11111111;
 
 	increment_vram_address();
-
-	cart.mapper()->vram_change_hook(vram_address_);
+	nes::cart.mapper()->vram_change_hook(vram_address_);
 
 	const auto decay_value = static_cast<uint8_t>(latch_);
 
 	latch_                = register_2007_buffer_;
-	register_2007_buffer_ = cart.mapper()->read_vram(temp_address);
+	register_2007_buffer_ = nes::cart.mapper()->read_vram(temp_address);
 
 	if ((temp_address & 0b00111111'00000000) == 0b00111111'00000000) {
-
 		latch_ = palette_[temp_address & 0x1f] | (decay_value & 0xc0);
 		if (UNLIKELY(ppu_mask_.monochrome)) {
 			latch_ &= 0xf0;
@@ -1555,82 +1132,50 @@ uint8_t read2007() {
 	return latch_ & 0xff;
 }
 
-//------------------------------------------------------------------------------
-// Name: write4014
-//------------------------------------------------------------------------------
 void write4014(uint8_t value) {
-	// drain current cycles, then go ahead and do the DMA
-	// the procedure takes 513 CPU cycles (+1 on odd CPU cycles):
-	// first one (or two) idle cycles, and then 256 pairs of alternating
-	// read/write cycles.
 	const auto sprite_addr = static_cast<uint_least16_t>(value << 8);
 	cpu::schedule_spr_dma(write2004, sprite_addr, 256);
 }
 
 //------------------------------------------------------------------------------
-// Name: execute_scanline
+// Public scanline entry points (non-template, so other TUs can call them)
 //------------------------------------------------------------------------------
-template <class T>
-void execute_scanline(const T &target) {
-
-	if (UNLIKELY(vpos_ == 262)) {
-		start_frame();
-	} else if (UNLIKELY(vpos_ == 241)) {
-		end_frame();
-	}
-
-	if (LIKELY(!system_paused)) {
-		for (hpos_ = 0; hpos_ < CyclesPerScanline; ++hpos_, ++ppu_cycle_) {
-			clock_ppu(target);
-			if ((ppu_cycle_ % 3) == CpuAlignment) {
-				cpu::exec<1>();
-				apu::exec<1>();
-			}
-		}
-		++vpos_;
-	}
-}
+void execute_scanline(const scanline_vblank &t)      { execute_scanline_impl(t); }
+void execute_scanline(const scanline_prerender &t)   { execute_scanline_impl(t); }
+void execute_scanline(const scanline_postrender &t)  { execute_scanline_impl(t); }
+void execute_scanline(const scanline_render &t)      { execute_scanline_impl(t); }
 
 //------------------------------------------------------------------------------
-// Name:
+// Debug helpers
 //------------------------------------------------------------------------------
-uint64_t cycle_count() {
-	return ppu_cycle_;
+scroll_state_t scroll_state() {
+	scroll_state_t s{};
+	s.v = static_cast<uint16_t>(vram_address_);
+	s.t = static_cast<uint16_t>(nametable_);
+	s.x = tile_offset_;
+	s.ctrl = ppu_control_.raw;
+	return s;
 }
+
+uint16_t vram_address() { return static_cast<uint16_t>(vram_address_); }
+uint16_t temp_address() { return static_cast<uint16_t>(nametable_); }
+uint8_t  fine_x()       { return tile_offset_; }
 
 //------------------------------------------------------------------------------
-// Name:
+// Misc getters
 //------------------------------------------------------------------------------
-uint_least16_t hpos() {
-	return hpos_;
+uint64_t cycle_count() { return ppu_cycle_; }
+uint_least16_t hpos()  { return hpos_; }
+uint_least16_t vpos()  { return vpos_; }
+
+uint8_t ppuctrl() { return ppu_control_.raw; }
+
+uint8_t palette_ram(uint32_t address) {
+	return palette_[address & 0x1f];
 }
 
-//------------------------------------------------------------------------------
-// Name:
-//------------------------------------------------------------------------------
-uint_least16_t vpos() {
-	return vpos_;
+void set_palette_ram(uint32_t address, uint8_t data) {
+	palette_[address & 0x1f] = data & 0x3f;
 }
 
-
-uint8_t ppuctrl() {
-	return ppu_control_.raw;
-}
-
-uint8_t palette_ram (uint32_t address) {
-	return palette_[address];
-}
-
-void set_palette_ram (uint32_t address, uint8_t data) {
-	palette_[address] = data;
-}
-
-
-// explicitly instantiate the types we use for this function,
-// we don't want to have to put this code in the header
-template void execute_scanline<scanline_vblank>(const scanline_vblank &target);
-template void execute_scanline<scanline_prerender>(const scanline_prerender &target);
-template void execute_scanline<scanline_postrender>(const scanline_postrender &target);
-template void execute_scanline<scanline_render>(const scanline_render &target);
-
-}
+} // namespace nes::ppu
