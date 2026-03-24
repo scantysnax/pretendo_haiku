@@ -93,7 +93,6 @@ CHRExplorerView::SetHostPalette (uint8 *palette)
 }
 
 
-
 void
 CHRExplorerView::SetTile (int32 whichPT, int32 tileIndex, bool locked,
 	uint32 chrAddr, const uint8 *chrBytes, uint8 bgPalette,
