@@ -11,13 +11,14 @@
 #include <string.h>
 #include <stdio.h>
 
+#include <algorithm>
+
 
 static inline uint32
 NameTableBaseFromIndex (int32 which)
 {
 	return 0x2000 + (which & 3) * 0x400;
 }
-
 
 NameTableView::NameTableView(BRect frame, PretendoWindow *mainWindow, int32 which, CHRExplorerView *explorer)
    : BView(frame, "name_table_view", B_FOLLOW_ALL_SIDES, B_WILL_DRAW | B_PULSE_NEEDED | B_FRAME_EVENTS | B_NAVIGABLE),
@@ -819,12 +820,12 @@ NameTableView::DrawPPUViewportOverlay()
 			int32 pieceT = worldT - wrapY * 480;
 			int32 pieceR = worldR - wrapX * 512;
 			int32 pieceB = worldB - wrapY * 480;
-
-			int32 visL = std::max(pieceL, 0);
-			int32 visT = std::max(pieceT, 0);
-			int32 visR = std::min(pieceR, 256);
-			int32 visB = std::min(pieceB, 240);
-
+			
+			// keep things 32-bit friendly
+			int32 visL = std::max(pieceL, static_cast<int32>(0));
+			int32 visT = std::max(pieceT, static_cast<int32>(0));
+			int32 visR = std::min(pieceR, static_cast<int32>(256));
+			int32 visB = std::min(pieceB, static_cast<int32>(240));
 			if (visL >= visR || visT >= visB)
 				continue;
 

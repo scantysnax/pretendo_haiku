@@ -5,6 +5,8 @@
 #include <Bitmap.h>
 #include <Message.h>
 
+#include <algorithm>
+
 class PretendoWindow;
 class CHRExplorerView;
 
