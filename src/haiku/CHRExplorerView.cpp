@@ -25,57 +25,6 @@ CHRExplorerView::~CHRExplorerView()
 
 
 void
-CHRExplorerView::Clear()
-{
-	fValid = false;
-	fTileIndex = 0;
-	fCHRTileAddress = 0;
-	fCHRTileAddressBottom = 0;
-	fBgPalette = 0;
-	fLocked = false;
-	fIsTile16 = false;
-
-	fAttrAddress = 0;
-	fAttrByte = 0;
-	fAttrQuadrant = 0;
-	fWhichNameTable = -1;
-
-	memset(fCHRBytes, 0, sizeof(fCHRBytes));
-	memset(fCHRBytesBottom, 0, sizeof(fCHRBytesBottom));
-	memset(fDecodedPixels, 0, sizeof(fDecodedPixels));
-	memset(fDecodedPixelsBottom, 0, sizeof(fDecodedPixelsBottom));
-
-	Invalidate();
-}
-
-
-void
-CHRExplorerView::SetTile (int32 whichPT, int32 tileIndex, bool locked,
-	uint32 chrAddr, const uint8 *chrBytes, uint8 bgPalette,
-	int32 whichNT, uint32 attrAddr, uint8 attrByte, uint8 attrQuadrant)
-{
-	fWhichPatternTable = whichPT;
-	fTileIndex = tileIndex;
-	fLocked = locked;
-	fCHRTileAddress = chrAddr;
-	fBgPalette = bgPalette % 4;
-	fIsTile16 = false;
-	fValid = true;
-
-	fWhichNameTable = whichNT;
-	fAttrAddress = attrAddr;
-	fAttrByte = attrByte;
-	fAttrQuadrant = attrQuadrant % 4;
-
-	memcpy(fCHRBytes, chrBytes, 16);
-	DecodeTile();
-
-	Invalidate();
-}
-
-
-
-void
 CHRExplorerView::Draw (BRect updateRect)
 {
 	(void)updateRect;
@@ -92,7 +41,7 @@ CHRExplorerView::Draw (BRect updateRect)
 	float scale = 8.0f;
 	BPoint origin(8, 8);
 
-	if (!fIsTile16) {
+	if (!fIsTile8x16) {
 		DrawDecodedZoomed(fDecodedPixels, origin, scale);
 		DrawInfo(BPoint(8, origin.y + 8 * scale + 14));
 	} else {
@@ -103,9 +52,75 @@ CHRExplorerView::Draw (BRect updateRect)
 }
 
 
+void
+CHRExplorerView::MessageReceived (BMessage *message)
+{
+	BView::MessageReceived(message);
+}
+
 
 void
-CHRExplorerView::DrawDecodedZoomed (const uint8 decoded[8][8], BPoint origin, float scale)
+CHRExplorerView::Clear()
+{
+	fValid = false;
+	fTileIndex = 0;
+	fCHRTileAddress = 0;
+	fCHRTileAddressBottom = 0;
+	fPalette = 0;
+	fLocked = false;
+	fIsTile8x16 = false;
+
+	fAttrAddress = 0;
+	fAttrByte = 0;
+	fAttrQuadrant = 0;
+	fWhichNameTable = -1;
+
+	memset(fCHRBytes, 0, sizeof(fCHRBytes));
+	memset(fCHRBytesBottom, 0, sizeof(fCHRBytesBottom));
+	memset(fDecodedPixels, 0, sizeof(fDecodedPixels));
+	memset(fDecodedPixelsBottom, 0, sizeof(fDecodedPixelsBottom));
+
+	Invalidate();
+}
+
+
+void
+CHRExplorerView::SetHostPalette (uint8 *palette)
+{
+	fHostPalette = palette;
+	
+	Invalidate();
+}
+
+
+
+void
+CHRExplorerView::SetTile (int32 whichPT, int32 tileIndex, bool locked,
+	uint32 chrAddr, const uint8 *chrBytes, uint8 bgPalette,
+	int32 whichNT, uint32 attrAddr, uint8 attrByte, uint8 attrQuadrant)
+{
+	fWhichPatternTable = whichPT;
+	fTileIndex = tileIndex;
+	fLocked = locked;
+	fCHRTileAddress = chrAddr;
+	fPalette = bgPalette % 4;
+	fIsTile8x16 = false;
+	fValid = true;
+
+	fWhichNameTable = whichNT;
+	fAttrAddress = attrAddr;
+	fAttrByte = attrByte;
+	fAttrQuadrant = attrQuadrant % 4;
+
+	memcpy(fCHRBytes, chrBytes, 16);
+	DecodeTile();
+
+	Invalidate();
+}
+
+
+void
+CHRExplorerView::DrawDecodedZoomed (uint8 decoded[8][8], BPoint origin, float scale)
 {
 	Mapper *mapper = nes::cart.mapper();
 	BScreen screen(Window());
@@ -122,17 +137,17 @@ CHRExplorerView::DrawDecodedZoomed (const uint8 decoded[8][8], BPoint origin, fl
 	rgb_color palette[4];
 
 	uint8 color0 = mapper->read_vram(0x3f00) & 0x3f;
-	uint8 color1 = mapper->read_vram(0x3f00 + 1 + (fBgPalette * 4) + 0) & 0x3f;
-	uint8 color2 = mapper->read_vram(0x3f00 + 1 + (fBgPalette * 4) + 1) & 0x3f;
-	uint8 color3 = mapper->read_vram(0x3f00 + 1 + (fBgPalette * 4) + 2) & 0x3f;
+	uint8 color1 = mapper->read_vram(0x3f00 + 1 + (fPalette * 4) + 0) & 0x3f;
+	uint8 color2 = mapper->read_vram(0x3f00 + 1 + (fPalette * 4) + 1) & 0x3f;
+	uint8 color3 = mapper->read_vram(0x3f00 + 1 + (fPalette * 4) + 2) & 0x3f;
 
 	palette[0] = cmap->color_list[fHostPalette[color0]];
 	palette[1] = cmap->color_list[fHostPalette[color1]];
 	palette[2] = cmap->color_list[fHostPalette[color2]];
 	palette[3] = cmap->color_list[fHostPalette[color3]];
 
-	for (int y = 0; y < 8; y++) {
-		for (int x = 0; x < 8; x++) {
+	for (int32 y = 0; y < 8; y++) {
+		for (int32 x = 0; x < 8; x++) {
 			uint8 pixel = decoded[y][x] & 0x3;
 			rgb_color color = palette[pixel];
 
@@ -149,7 +164,8 @@ CHRExplorerView::DrawDecodedZoomed (const uint8 decoded[8][8], BPoint origin, fl
 	SetHighColor(255, 255, 255, 255);
 	StrokeRect(BRect(origin.x, origin.y,
 		origin.x + 8 * scale - 1,
-		origin.y + 8 * scale - 1));
+		origin.y + 8 * scale - 1
+	));
 }
 
 
@@ -168,9 +184,8 @@ CHRExplorerView::DrawTileZoomed (BPoint origin, float scale)
 		return;
 	}
 
-	// Make sure decoded pixels exist
+	// make sure decoded pixels exist
 	DecodeTile();
-
 
     // build rgb palette using the tile's bg palette (0-3)
     rgb_color palette[4];
@@ -182,8 +197,8 @@ CHRExplorerView::DrawTileZoomed (BPoint origin, float scale)
 
     // pixels 1-3 use the selected bg palette:
 	// $3f01 + (bgPalette*4) + (pixel-1)
-	for (int32 pixel = 1; pixel <= 3; pixel++) {
-		uint32 addr = 0x3f00 + 1 + (fBgPalette * 4) + (pixel - 1);
+	for (int32 pixel = 1; pixel < 4; pixel++) {
+		uint32 addr = 0x3f00 + 1 + (fPalette * 4) + (pixel - 1);
 		uint8 color = mapper->read_vram(addr) & 0x3f;
 		uint8 index = fHostPalette[color];
 		palette[pixel] = cmap->color_list[index];
@@ -192,8 +207,8 @@ CHRExplorerView::DrawTileZoomed (BPoint origin, float scale)
     // draw zoomed pixel
 	for (int32 y = 0; y < 8; y++) {
 		for (int32 x = 0; x < 8; x++) {
-			uint8 pix = fDecodedPixels[y][x] & 0x3;
-	 		rgb_color color = palette[pix];
+			uint8 pixel = fDecodedPixels[y][x] & 0x3;
+	 		rgb_color color = palette[pixel];
 
 			SetHighColor(color);
 			BRect r(origin.x + x * scale, 
@@ -229,7 +244,7 @@ CHRExplorerView::DrawInfo (BPoint point)
 	// chr address line(s)
 	point.y += 14;
 
-	if (!fIsTile16) {
+	if (!fIsTile8x16) {
 		sprintf(line, "CHR $%04X", (unsigned)fCHRTileAddress);
 	} else {
 		sprintf(line, "CHR TOP $%04X  BOT $%04X",
@@ -258,7 +273,7 @@ CHRExplorerView::DrawInfo (BPoint point)
 	}
 
 	// bg palette line + swatch
-	sprintf(line, "BG Pal: %u", (unsigned)fBgPalette);
+	sprintf(line, "BG Pal: %u", (unsigned)fPalette);
 	DrawString(line, point);
 
 	DrawPaletteSwatch(BPoint(point.x + 78, point.y - 10));
@@ -280,12 +295,12 @@ CHRExplorerView::DrawInfo (BPoint point)
 		cols = 8;
 	}
 
-	int32 totalBytes = fIsTile16 ? 32 : 16;
+	int32 totalBytes = fIsTile8x16 ? 32 : 16;
 
 	for (int32 i = 0; i < totalBytes; i++) {
 		uint8 b;
 
-		if (!fIsTile16) {
+		if (!fIsTile8x16) {
 			b = fCHRBytes[i];
 		} else {
 			if (i < 16) {
@@ -348,16 +363,16 @@ CHRExplorerView::DrawPaletteSwatch (BPoint point)
 {
 	Mapper *mapper = nes::cart.mapper();
 	BScreen screen(Window());
-	const color_map *cmap = screen.ColorMap();
+	color_map const *cmap = screen.ColorMap();
 
 	if (!mapper || !cmap || !fHostPalette)
 		return;
 
 	uint8 colors[4];
 	colors[0] = mapper->read_vram(0x3f00) & 0x3f;
-	colors[1] = mapper->read_vram(0x3f00 + 1 + (fBgPalette * 4) + 0) & 0x3f;
-	colors[2] = mapper->read_vram(0x3f00 + 1 + (fBgPalette * 4) + 1) & 0x3f;
-	colors[3] = mapper->read_vram(0x3f00 + 1 + (fBgPalette * 4) + 2) & 0x3f;
+	colors[1] = mapper->read_vram(0x3f00 + 1 + (fPalette * 4) + 0) & 0x3f;
+	colors[2] = mapper->read_vram(0x3f00 + 1 + (fPalette * 4) + 1) & 0x3f;
+	colors[3] = mapper->read_vram(0x3f00 + 1 + (fPalette * 4) + 2) & 0x3f;
 
 	const float w = 18.0f;
 	const float h = 10.0f;
@@ -375,19 +390,13 @@ CHRExplorerView::DrawPaletteSwatch (BPoint point)
 }
 
 
-void
-CHRExplorerView::SetHostPalette(const uint8 *pal)
-{
-	fHostPalette = pal;
-	
-	Invalidate();
-}
 
 
 void
-CHRExplorerView::SetTile16 (int32 whichPT, int32 topTileIndex, bool locked,
+CHRExplorerView::SetTile8x16 (int32 whichPT, int32 topTileIndex, bool locked,
 	uint32 chrAddrTop, const uint8 *chrTop,
-	uint32 chrAddrBottom, const uint8 *chrBottom, uint8 bgPalette)
+	uint32 chrAddrBottom, const uint8 *chrBottom,
+	uint8 bgPalette)
 {
 	if (!chrTop || !chrBottom) {
 		Clear();
@@ -397,7 +406,7 @@ CHRExplorerView::SetTile16 (int32 whichPT, int32 topTileIndex, bool locked,
 	fWhichPatternTable = whichPT;
 	fTileIndex = topTileIndex;
 	fLocked = locked;
-	fBgPalette = bgPalette % 4;
+	fPalette = bgPalette % 4;
 
 	fCHRTileAddress = chrAddrTop;
 	memcpy(fCHRBytes, chrTop, 16);
@@ -405,7 +414,7 @@ CHRExplorerView::SetTile16 (int32 whichPT, int32 topTileIndex, bool locked,
 	fCHRTileAddressBottom = chrAddrBottom;
 	memcpy(fCHRBytesBottom, chrBottom, 16);
 
-	fIsTile16 = true;
+	fIsTile8x16 = true;
 	fValid = true;
 
 	// top tile
@@ -438,3 +447,4 @@ CHRExplorerView::SetTile16 (int32 whichPT, int32 topTileIndex, bool locked,
 
 	Invalidate();
 }
+

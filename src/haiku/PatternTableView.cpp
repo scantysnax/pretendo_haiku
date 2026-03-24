@@ -432,7 +432,7 @@ PatternTableView::NotifyCHRExplorer()
 		bottomBytes[i] = mapper->read_vram(bottomAddr + i);
 	}
 
-	fCHRExplorer->SetTile16(
+	fCHRExplorer->SetTile8x16(
 		fWhichPatternTable,
 		topIndex,
 		fTileLocked,
