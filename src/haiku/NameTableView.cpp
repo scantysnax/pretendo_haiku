@@ -413,7 +413,6 @@ NameTableView::ComputeTileFromViewPoint (BPoint where, int32 &outTX, int32 &outT
 	}
 
 	// local viewport size
-	
 	if (where.x < 0.0f || where.y < 0.0f || where.x >= 256.0f || where.y >= 240.0f) {
 		return false;
 	}
@@ -451,18 +450,17 @@ NameTableView::DrawNameTable(int32 which)
 	if (!mapper)
 		return;
 
-	// Keep selection in sync for explorer reads.
+	// keep selection in sync for explorer
 	fWhichNameTable = which;
 
-	// Base address of nametable being viewed ($2000/$2400/$2800/$2C00)
+	// address of nametable being viewed ($2000/$2400/$2800/$2C00)
 	uint32 const baseAddr = 0x2000 + (which * 0x400);
 	fCurrentNameTableBase = baseAddr;
 
-	// Background pattern table base ($0000 or $1000), from PPUCTRL bit 4
+	// background pattern table address ($0000 or $1000), from PPUCTRL bit 4
 	uint32 const patternBase = PatternBase();
 	
-
-	// ---- Draw tiles ----
+	// draw tiles
 	for (int32 tileY = 0; tileY < 30; tileY++) {
 		for (int32 tileX = 0; tileX < 32; tileX++) {
 			uint32 ntAddr = baseAddr + tileX + (tileY * 32);
@@ -474,11 +472,13 @@ NameTableView::DrawNameTable(int32 which)
 	}
 
 	// overlays once
-	if (fShowAttributeMap)
+	if (fShowAttributeMap) {
 		DrawAttributeMap(baseAddr);
+	}
 
-	if (fShowAttributeGrid)
+	if (fShowAttributeGrid) {
 		DrawAttributeGrid();
+	}
 
     // update explorer fields for the currently selected tile
     // NOTE: Do not overwrite fHoverTileX/Y here every frame.
@@ -556,7 +556,7 @@ NameTableView::PaletteForAttribute (uint32 nameTableBase, int32 tileX, int32 til
 
 
 void
-NameTableView::DrawTile(uint32 patternBase, uint8 tileIndex, int32 tileX, int32 tileY, uint8 palette)
+NameTableView::DrawTile (uint32 patternBase, uint8 tileIndex, int32 tileX, int32 tileY, uint8 palette)
 {
 	Mapper *mapper = nes::cart.mapper();
 	
@@ -564,7 +564,6 @@ NameTableView::DrawTile(uint32 patternBase, uint8 tileIndex, int32 tileX, int32 
 		return;
 	}
 
-    // safety: bitmap must exist
 	if (!fBits || !fBitmap) {
 		return;
 	}
@@ -598,15 +597,15 @@ NameTableView::DrawAttributeMap (uint32 nameTableBase)
 
 	for (int32 tileY = 0; tileY < 30; tileY++) {
 		for (int tileX = 0; tileX < 32; tileX++) {
-			uint8 pal = PaletteForAttribute(nameTableBase, tileX, tileY);
-			uint8 c = debugColors[pal & 3];
+			uint8 palette = PaletteForAttribute(nameTableBase, tileX, tileY);
+			uint8 color = debugColors[palette % 4];
 
-			int32 px = tileX * 8;
-			int32 py = tileY * 8;
+			int32 tx = tileX * 8;
+			int32 ty = tileY * 8;
 
 			for (int32 y = 0; y < 8; y++) {
 				for (int32 x = 0; x < 8; x++) {
-					DrawPixel(px + x, py + y, c);
+					DrawPixel(tx + x, ty + y, color);
 				}
 			}
         }
@@ -634,11 +633,13 @@ NameTableView::DrawAttributeGrid()
 	// 16x16 quadrant lines
 	SetHighColor(quadColor);
 
-	for (float x = quadStep; x < width; x += quadStep)
+	for (float x = quadStep; x < width; x += quadStep) {
 		StrokeLine(BPoint(x, 0), BPoint(x, height - 1));
+	}
 
-	for (float y = quadStep; y < height; y += quadStep)
+	for (float y = quadStep; y < height; y += quadStep) {
 		StrokeLine(BPoint(0, y), BPoint(width - 1, y));
+	}
 
 	// 32x32 attribute-byte lines
 	SetHighColor(attrColor);
@@ -662,8 +663,9 @@ NameTableView::UpdateExplorer()
 {
 	Mapper *mapper = nes::cart.mapper();
 	
-	if (!mapper || !fCHRExplorer)
+	if (!mapper || !fCHRExplorer) {
 		return;
+	}
 
 	int32 worldTX, worldTY;
 	
@@ -698,15 +700,11 @@ NameTableView::UpdateExplorer()
 	int32 shift = quadrant * 2;
 
 	fHoverPalette = (fHoverAttrByte >> shift) & 0x3;
-	
+	fCHRTileAddress = PatternBase() + fHoverTileIndex * 16;
 
-	// CHR tile bytes
-	uint32 bgPatternBase = PatternBase();
-	
-	fCHRTileAddress = bgPatternBase + fHoverTileIndex * 16;
-
-	for (int i = 0; i < 16; i++)
+	for (int32 i = 0; i < 16; i++) {
 		fCHRBytes[i] = mapper->read_vram(fCHRTileAddress + i);
+	}
 
 	NotifyCHRExplorer();
 }
@@ -736,29 +734,32 @@ NameTableView::DrawScrolledViewport (int32 scrollX, int32 scrollY)
 
 	auto wrap480 = [](int y) -> int {
 		y %= 480;
-		if (y < 0)
+		
+		if (y < 0) {
 			y += 480;
+		}
+		
 		return y;
 	};
 
 	for (int32 screenY = 0; screenY < 240; ++screenY) {
 		for (int32 screenX = 0; screenX < 256; ++screenX) {
 
-			int32 bgX = (screenX + scrollX) & 0x1ff;   // 0-511
+			int32 bgX = (screenX + scrollX) % 512;   // 0-511
 			int32 bgY = wrap480(screenY + scrollY);    // 0-479
 
 			int32 ntX = bgX / 256;                     // 0-1
 			int32 ntY = bgY / 240;                     // 0-1
 			int32 whichNT = ntX + ntY * 2;             // 0-3
 
-			int32 xInNT = bgX & 0xFF;                  // 0-255
+			int32 xInNT = bgX % 256;                  // 0-255
 			int32 yInNT = bgY % 240;                   // 0-239
 
 			int32 tileX = xInNT / 8;                   // 0-31
 			int32 tileY = yInNT / 8;                   // 0-29
 
-			int32 fineX = xInNT & 7;                   // 0-7
-			int32 fineY = yInNT & 7;                   // 0-7
+			int32 fineX = xInNT % 8;                   // 0-7
+			int32 fineY = yInNT % 8;                   // 0-7
 
 			uint32 ntBase = NameTableBaseFromIndex(whichNT);
 			uint32 nameAddr = ntBase + tileY * 32 + tileX;
@@ -792,7 +793,6 @@ NameTableView::DrawPPUViewportOverlay()
 		return;
 	}
 
-	
 	// 1: ghosted "full viewport" box, always drawn in local space
 	PushState();
 
@@ -807,13 +807,13 @@ NameTableView::DrawPPUViewportOverlay()
 
 	
 	// 2: real wrapped viewport pieces for this nametable window
-	int32 const worldL = fScrollX;
-	int32 const worldT = fScrollY;
-	int32 const worldR = fScrollX + 256;
-	int32 const worldB = fScrollY + 240;
+	int32 worldL = fScrollX;
+	int32 worldT = fScrollY;
+	int32 worldR = fScrollX + 256;
+	int32 worldB = fScrollY + 240;
 
-	for (int32 wrapY = 0; wrapY <= 1; wrapY++) {
-		for (int32 wrapX = 0; wrapX <= 1; wrapX++) {
+	for (int32 wrapY = 0; wrapY < 2; wrapY++) {
+		for (int32 wrapX = 0; wrapX < 2; wrapX++) {
 
 			int32 pieceL = worldL - wrapX * 512;
 			int32 pieceT = worldT - wrapY * 480;
@@ -825,8 +825,10 @@ NameTableView::DrawPPUViewportOverlay()
 			int32 visT = std::max(pieceT, static_cast<int32>(0));
 			int32 visR = std::min(pieceR, static_cast<int32>(256));
 			int32 visB = std::min(pieceB, static_cast<int32>(240));
-			if (visL >= visR || visT >= visB)
+			
+			if (visL >= visR || visT >= visB) {
 				continue;
+			}
 
 			BRect r(visL, visT,(visR - 1), (visB - 1));
 
@@ -856,8 +858,9 @@ bool
 NameTableView::ActiveTile (int32 &outTX, int32 &outTY) const
 {
 	if (fTileLocked) {
-		if (fLockToScreen)
+		if (fLockToScreen) {
 			return ComputeTileFromViewPoint(fLockedViewPoint, outTX, outTY);
+		}
 
 		if (fLockedTileX < 0 || fLockedTileY < 0) {
 			return false;
@@ -982,7 +985,7 @@ NameTableView::DrawAttributeQuadrantOverlay()
 			int32 ntY = bgY / 240;
 			int32 whichNT = ntX + ntY * 2;
 
-			int32 xInNT = bgX & 0xFF;
+			int32 xInNT = bgX % 256;
 			int32 yInNT = bgY % 240;
 
 			int32 tileX = xInNT / 8;
