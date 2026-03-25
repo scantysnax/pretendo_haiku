@@ -1061,13 +1061,15 @@ NameTableView::DrawMatchingTileOverlay()
 
 			int32 bgX = (screenX + fScrollX) % 512;
 			int32 bgY = (screenY + fScrollY) % 480;
-			if (bgY < 0)
+			
+			if (bgY < 0) {
 				bgY += 480;
+			}
 
 			int32 ntX = bgX / 256;
 			int32 ntY = bgY / 240;
 
-			int32 xInNT = bgX & 0xFF;
+			int32 xInNT = bgX % 256;
 			int32 yInNT = bgY % 240;
 
 			int32 tileX = xInNT / 8;
@@ -1176,8 +1178,8 @@ NameTableView::DrawTileInfoHUD()
 	int32 tileX = worldTX % 32;
 	int32 tileY = worldTY % 30;
 
-	uint32 nameBase = 0x2000 + (uint32)(whichNT * 0x400);
-	uint32 tileAddr = nameBase + (uint32)(tileY * 32) + (uint32)tileX;
+	uint32 nameBase = 0x2000 + (whichNT * 0x400);
+	uint32 tileAddr = nameBase + (tileY * 32) + tileX;
 	uint8 tileIndex = mapper->read_vram(tileAddr);
 
 	uint32 attrAddr = nameBase + 0x3c0 + ((tileY / 4) * 8) + (tileX / 4);
