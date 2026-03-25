@@ -78,6 +78,11 @@ class PatternTableView : public BView
 		return (nes::ppu::ppuctrl() & 0x20) != 0;
 	}
 	
+	uint32 NameTableBaseFromIndex (int32 which) const
+	{
+		return 0x2000 + (which & 0x3) * 0x400;
+	}
+	
 	private:
 	PretendoWindow *fMainWindow = nullptr;
 	CHRExplorerView* fCHRExplorer = nullptr;
@@ -100,7 +105,6 @@ class PatternTableView : public BView
 	bool fExploreEnabled = true;
 	BPoint fLastMouse;
 	bool fMouseValid = false;
-
 };
 
 #endif

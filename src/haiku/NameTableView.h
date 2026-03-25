@@ -32,7 +32,7 @@ class NameTableView : public BView
     // helpers
 	BPoint ViewToBitmap (BPoint where) const;
 	bool ComputeTileFromViewPoint (BPoint where, int32 &outTX, int32 &outTY) const;
-	uint32 GetBgPatternBase() const;
+	uint32 PatternBase() const;
 	BRect CellRectForViewPoint (BPoint where) const;
 	void DrawAttributeQuadrantOverlay();
 	void DrawMatchingTileOverlay();

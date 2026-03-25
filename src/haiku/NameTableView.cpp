@@ -8,17 +8,16 @@
 
 #include "DebugHelpers.h"
 
-#include <string.h>
-#include <stdio.h>
-
+#include <cstdio>
 #include <algorithm>
 
 
 static inline uint32
 NameTableBaseFromIndex (int32 which)
-{
-	return 0x2000 + (which & 3) * 0x400;
+{	
+	return 0x2000 + (which & 0x3) * 0x400;
 }
+
 
 NameTableView::NameTableView(BRect frame, PretendoWindow *mainWindow, int32 which, CHRExplorerView *explorer)
    : BView(frame, "name_table_view", B_FOLLOW_ALL_SIDES, B_WILL_DRAW | B_PULSE_NEEDED | B_FRAME_EVENTS | B_NAVIGABLE),
@@ -297,7 +296,7 @@ NameTableView::MouseDown(BPoint where)
 
 
 void
-NameTableView::KeyDown (const char* bytes, int32 numBytes)
+NameTableView::KeyDown (const char *bytes, int32 numBytes)
 {
 	(void)numBytes;
 	
@@ -433,7 +432,7 @@ NameTableView::ComputeTileFromViewPoint (BPoint where, int32 &outTX, int32 &outT
 
 
 uint32
-NameTableView::GetBgPatternBase() const
+NameTableView::PatternBase() const
 {
     // background pattern table select is PPUCTRL bit 4:
     // 	0: $0000
@@ -460,7 +459,7 @@ NameTableView::DrawNameTable(int32 which)
 	fCurrentNameTableBase = baseAddr;
 
 	// Background pattern table base ($0000 or $1000), from PPUCTRL bit 4
-	uint32 const patternBase = GetBgPatternBase();
+	uint32 const patternBase = PatternBase();
 	
 
 	// ---- Draw tiles ----
@@ -702,7 +701,7 @@ NameTableView::UpdateExplorer()
 	
 
 	// CHR tile bytes
-	uint32 bgPatternBase = GetBgPatternBase();
+	uint32 bgPatternBase = PatternBase();
 	
 	fCHRTileAddress = bgPatternBase + fHoverTileIndex * 16;
 
@@ -733,7 +732,7 @@ NameTableView::DrawScrolledViewport (int32 scrollX, int32 scrollY)
 		return;
 	}
 
-	uint32 patternBase = GetBgPatternBase();
+	uint32 patternBase = PatternBase();
 
 	auto wrap480 = [](int y) -> int {
 		y %= 480;
@@ -1060,7 +1059,7 @@ NameTableView::DrawMatchingTileOverlay()
 			int32 screenX = screenTileX * 8;
 			int32 screenY = screenTileY * 8;
 
-			int32 bgX = (screenX + fScrollX) & 0x1FF;
+			int32 bgX = (screenX + fScrollX) % 512;
 			int32 bgY = (screenY + fScrollY) % 480;
 			if (bgY < 0)
 				bgY += 480;
@@ -1190,7 +1189,7 @@ NameTableView::DrawTileInfoHUD()
 	int32 shift = (quadrant * 2);
 	uint8 palette = (attrByte >> shift) & 0x03;
 
-	uint32 chrAddr = GetBgPatternBase() + tileIndex * 16;
+	uint32 chrAddr = PatternBase() + tileIndex * 16;
 
 	const char* lockText = "HOVER";
 	
@@ -1288,7 +1287,7 @@ NameTableView::NotifyCHRExplorer()
 	uint8 qy = (tileY % 4) / 2;
 	uint8 quadrant = (qy << 1) | qx;
 
-	int32 whichPT = (GetBgPatternBase() != 0) ? 1 : 0;
+	int32 whichPT = (PatternBase() != 0) ? 1 : 0;
 
 	fCHRExplorer->SetTile(
 		whichPT,
