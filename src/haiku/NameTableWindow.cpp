@@ -7,9 +7,11 @@
 #include "NameTableView.h"
 #include "NameTableWindow.h"
 #include "PretendoWindow.h"
+#include "PatternTableWindow.h"
 
 
-NameTableWindow::NameTableWindow(PretendoWindow *parent, int32 which)
+NameTableWindow::NameTableWindow(PretendoWindow *parent, int32 which,
+	PatternTableWindow* pt0, PatternTableWindow* pt1)
 	: BWindow(BRect(200, 200, 200, 200),
 	          nullptr,
 	          B_FLOATING_WINDOW_LOOK,
@@ -20,11 +22,11 @@ NameTableWindow::NameTableWindow(PretendoWindow *parent, int32 which)
 	fWhich = which;
 	fSettingsMessage = new BMessage;
 
-	float const kExplorerH = 180.0f;
+	const float kNameW = 280.0f;
+	const float kExplorerW = CHRExplorerView::PreferredWidth();
+	const float kWindowH = CHRExplorerView::PreferredHeightForNameTable();
 
-	// Window size: 256x240 + explorer
-	ResizeTo(nametable_size::WIDTH,
-	         nametable_size::HEIGHT + kExplorerH);
+	ResizeTo(kNameW + kExplorerW, kWindowH);
 
 	switch (which) {
 		case 0: SetTitle("Name Table 1 ($2000)"); break;
@@ -34,29 +36,23 @@ NameTableWindow::NameTableWindow(PretendoWindow *parent, int32 which)
 		default: SetTitle("Name Table"); break;
 	}
 
-	BRect nameFrame(0, 0,
-	                nametable_size::WIDTH - 1,
-	                nametable_size::HEIGHT - 1);
+	BRect nameFrame(0, 0, kNameW - 1, kWindowH - 1);
+	BRect explorerFrame(kNameW, 0, kNameW + kExplorerW - 1, kWindowH - 1);
 
-	BRect explorerFrame(0,
-	                     nametable_size::HEIGHT,
-	                     nametable_size::WIDTH - 1,
-	                     nametable_size::HEIGHT + kExplorerH - 1);
+	fView = new NameTableView(nameFrame, fParent, which, nullptr);
+	AddChild(fView);
 
-	// explorer first (so it sits below)
 	fExplorer = new CHRExplorerView(explorerFrame);
 	fExplorer->SetHostPalette(fParent->Palette());
 	AddChild(fExplorer);
 
-	// Main view
-	fView = new NameTableView(nameFrame, fParent, which, fExplorer);
-	AddChild(fView);
+	fView->SetExplorer(fExplorer);
+	fView->SetPatternTables(pt0, pt1);
 
-	SetPulseRate(16667); // approximately 60Hz
+	SetPulseRate(16667);
 
 	LoadSettings();
 }
-
 
 NameTableWindow::~NameTableWindow()
 {
@@ -76,6 +72,14 @@ void
 NameTableWindow::MessageReceived(BMessage *msg)
 {
     BWindow::MessageReceived(msg);
+}
+
+
+void
+NameTableWindow::SetPatternTables(PatternTableWindow* pt0, PatternTableWindow* pt1)
+{
+	if (fView)
+		fView->SetPatternTables(pt0, pt1);
 }
 
 

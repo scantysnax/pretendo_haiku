@@ -10,6 +10,7 @@
 
 class PretendoWindow;
 class NameTableView;
+class PatternTableWindow;
 class CHRExplorerView;
 
 
@@ -23,13 +24,23 @@ class NameTableWindow : public BWindow
 		
 	
 	public:
-			NameTableWindow (PretendoWindow *parent, int32 which);
+			NameTableWindow(PretendoWindow *parent, int32 which,
+	PatternTableWindow* pt0, PatternTableWindow* pt1);
 	virtual ~NameTableWindow();
 	
 	public:
 	virtual bool QuitRequested();
 	virtual void MessageReceived (BMessage *message);
-
+	
+	 public:
+	 NameTableView* View() const
+	 { 
+	 	return fView;
+	 }
+	 
+	 public:
+	 void SetPatternTables(PatternTableWindow* pt0, PatternTableWindow* pt1);
+	  
 	private:
 	void LoadSettings();
 	void SaveSettings();

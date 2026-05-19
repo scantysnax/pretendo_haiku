@@ -302,15 +302,17 @@ class PretendoWindow : public BWindow
 		return fMutex->Unlock();
 	}
 	
+	
+	public:
 	// called by emulator thread
-	void SetLatchedScroll(uint32 x, uint32 y) {
+	void SetLatchedScroll (uint32 x, uint32 y) {
         fLatchedScroll.scroll_x.store(x, std::memory_order_relaxed);
         fLatchedScroll.scroll_y.store(y, std::memory_order_relaxed);
         fLatchedScroll.frame_id.fetch_add(1, std::memory_order_release);
     }
     
-     // called by ui thread:
-    bool GetLatchedScroll(uint32 &x, uint32 &y, uint32 &frameId) const {
+     // called by ui thread
+    bool GetLatchedScroll (uint32 &x, uint32 &y, uint32 &frameId) const {
         frameId = fLatchedScroll.frame_id.load(std::memory_order_acquire);
         x = fLatchedScroll.scroll_x.load(std::memory_order_relaxed);
         y = fLatchedScroll.scroll_y.load(std::memory_order_relaxed);
@@ -319,7 +321,12 @@ class PretendoWindow : public BWindow
     
     private:
     latched_scroll_t fLatchedScroll;
-
+    
+    private:
+    // for the chr explorer
+    void ConnectDebugViews();
+    
+    // keys
 	private:
 	uint8 fUpKey;
 	uint8 fDownKey;

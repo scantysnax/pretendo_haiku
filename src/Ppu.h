@@ -54,6 +54,7 @@ uint16_t vram_address();
 uint16_t temp_address();
 uint8_t  fine_x();
 uint8_t  ppuctrl();
+uint8_t  ppumask();
 
 uint64_t      cycle_count();
 uint_least16_t hpos();

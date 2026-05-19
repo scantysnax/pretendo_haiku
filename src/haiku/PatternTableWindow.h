@@ -18,7 +18,13 @@ class PatternTableWindow : public BWindow
 	public:
     virtual bool QuitRequested();
     virtual void Zoom (BPoint origin, float width, float height);
-
+    
+    public:
+    PatternTableView* View() const 
+    { 
+    	return fView;
+    }
+    
 	private:
     void LoadSettings();
     void SaveSettings();

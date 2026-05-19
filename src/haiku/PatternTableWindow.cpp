@@ -8,8 +8,8 @@
 #include "PretendoWindow.h"
 
 
-PatternTableWindow::PatternTableWindow(PretendoWindow* parent, int32 which)
-    : BWindow(BRect(100, 100, 100, 100),   // temporary, we'll ResizeTo
+PatternTableWindow::PatternTableWindow(PretendoWindow *parent, int32 which)
+    : BWindow(BRect(100, 100, 100, 100),
               nullptr,
               B_FLOATING_WINDOW_LOOK,
               B_NORMAL_WINDOW_FEEL,
@@ -19,37 +19,35 @@ PatternTableWindow::PatternTableWindow(PretendoWindow* parent, int32 which)
     fWhich = which;
     fSettingsMessage = new BMessage;
 
-    // layout
-    const float kPatternSize = 256.0f;   // pattern tables are 256x256
-    const float kExplorerH  = 300.0f;   // explorer height
+    const float kPatternW = 280.0f;
+    const float kExplorerW = CHRExplorerView::PreferredWidth();
+    const float kWindowH = CHRExplorerView::PreferredHeightForPatternTable();
 
-    // resize window to exactly fit pattern + explorer
-    ResizeTo(kPatternSize, kPatternSize + kExplorerH);
+    ResizeTo(kPatternW + kExplorerW, kWindowH);
 
     SetTitle((fWhich == 0)
         ? "Pattern Table 1 (8x8)"
         : "Pattern Table 2 (8x8)");
 
-    // pattern table view (top)
     BRect patternFrame(0, 0,
-                       kPatternSize - 1,
-                       kPatternSize - 1);
+                       kPatternW - 1,
+                       kWindowH - 1);
 
-    // explorer view (bottom)
-    BRect explorerFrame(0,
-                         kPatternSize,
-                         kPatternSize - 1,
-                         kPatternSize + kExplorerH - 1);
+    BRect explorerFrame(kPatternW, 0,
+                        kPatternW + kExplorerW - 1,
+                        kWindowH - 1);
 
-    fExplorer = new CHRExplorerView(explorerFrame);
-	fExplorer->SetHostPalette(fParent->Palette());
-	AddChild(fExplorer);
-    
-    fView = new PatternTableView(patternFrame, fParent, fWhich, fExplorer);
+    fView = new PatternTableView(patternFrame, fParent, fWhich, nullptr);
     AddChild(fView);
 
-    SetPulseRate(16667);    // ~60Hz refresh
-    
+    fExplorer = new CHRExplorerView(explorerFrame);
+    fExplorer->SetHostPalette(fParent->Palette());
+    AddChild(fExplorer);
+
+    fView->SetExplorer(fExplorer);
+
+    SetPulseRate(16667);
+
     LoadSettings();
 }
 
@@ -72,7 +70,7 @@ PatternTableWindow::QuitRequested()
 
 
 void
-PatternTableWindow::Zoom(BPoint origin, float width, float height)
+PatternTableWindow::Zoom (BPoint origin, float width, float height)
 {
     (void)origin;
     (void)width;

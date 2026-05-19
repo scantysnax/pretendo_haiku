@@ -755,34 +755,36 @@ PretendoWindow::OnAdjustPalette()
 void
 PretendoWindow::OnViewPatternTable1()
 {
-	if (! nes::cart.mapper()) {
+	if (!nes::cart.mapper())
 		return;
-	}
 
 	if (fPatternTable1Window && fPatternTable1Window->Lock()) {
 		fPatternTable1Window->Quit();
 		fPatternTable1Window = nullptr;
-	} 
-	
+	}
+
 	fPatternTable1Window = new PatternTableWindow(this, 0);
 	fPatternTable1Window->Show();
+
+	ConnectDebugViews();
 }
 
 
 void
 PretendoWindow::OnViewPatternTable2()
 {
-	if (! nes::cart.mapper()) {
+	if (!nes::cart.mapper())
 		return;
-	}
 
 	if (fPatternTable2Window && fPatternTable2Window->Lock()) {
 		fPatternTable2Window->Quit();
 		fPatternTable2Window = nullptr;
-	} 
-	
+	}
+
 	fPatternTable2Window = new PatternTableWindow(this, 1);
 	fPatternTable2Window->Show();
+
+	ConnectDebugViews();
 }
 
 
@@ -793,11 +795,16 @@ PretendoWindow::OnViewNameTable1()
 		fNameTable1Window->Quit();
 		fNameTable1Window = nullptr;
 	}
-	
+
 	if (nes::cart.mapper() != nullptr) {
-		fNameTable1Window = new NameTableWindow(this, 0);
+		fNameTable1Window = new NameTableWindow(this, 0,
+			fPatternTable1Window, fPatternTable2Window);
 		fNameTable1Window->Show();
+		
+		ConnectDebugViews();
 	}
+	
+	
 }
 
 
@@ -808,10 +815,13 @@ PretendoWindow::OnViewNameTable2()
 		fNameTable2Window->Quit();
 		fNameTable2Window = nullptr;
 	}
-	
+
 	if (nes::cart.mapper() != nullptr) {
-		fNameTable2Window = new NameTableWindow(this, 1);
+		fNameTable2Window = new NameTableWindow(this, 1,
+			fPatternTable1Window, fPatternTable2Window);
 		fNameTable2Window->Show();
+		
+		ConnectDebugViews();
 	}
 }
 
@@ -823,10 +833,13 @@ PretendoWindow::OnViewNameTable3()
 		fNameTable3Window->Quit();
 		fNameTable3Window = nullptr;
 	}
-	
+
 	if (nes::cart.mapper() != nullptr) {
-		fNameTable3Window = new NameTableWindow(this, 2);
+		fNameTable3Window = new NameTableWindow(this, 2,
+			fPatternTable1Window, fPatternTable2Window);
 		fNameTable3Window->Show();
+		
+		ConnectDebugViews();
 	}
 }
 
@@ -838,10 +851,13 @@ PretendoWindow::OnViewNameTable4()
 		fNameTable4Window->Quit();
 		fNameTable4Window = nullptr;
 	}
-	
+
 	if (nes::cart.mapper() != nullptr) {
-		fNameTable4Window = new NameTableWindow(this, 3);
+		fNameTable4Window = new NameTableWindow(this, 3,
+			fPatternTable1Window, fPatternTable2Window);
 		fNameTable4Window->Show();
+		
+		ConnectDebugViews();
 	}
 }
 
@@ -1445,6 +1461,31 @@ PretendoWindow::ReadKeyStates()
 	CheckKey(Controller::INDEX_START, 	fStartKey);
 	CheckKey(Controller::INDEX_B, 		fBKey);
 	CheckKey(Controller::INDEX_A, 		fAKey);
+}
+
+
+void
+PretendoWindow::ConnectDebugViews()
+{
+	if (fNameTable1Window && fNameTable1Window->Lock()) {
+		fNameTable1Window->SetPatternTables(fPatternTable1Window, fPatternTable2Window);
+		fNameTable1Window->Unlock();
+	}
+
+	if (fNameTable2Window && fNameTable2Window->Lock()) {
+		fNameTable2Window->SetPatternTables(fPatternTable1Window, fPatternTable2Window);
+		fNameTable2Window->Unlock();
+	}
+
+	if (fNameTable3Window && fNameTable3Window->Lock()) {
+		fNameTable3Window->SetPatternTables(fPatternTable1Window, fPatternTable2Window);
+		fNameTable3Window->Unlock();
+	}
+
+	if (fNameTable4Window && fNameTable4Window->Lock()) {
+		fNameTable4Window->SetPatternTables(fPatternTable1Window, fPatternTable2Window);
+		fNameTable4Window->Unlock();
+	}
 }
 
 

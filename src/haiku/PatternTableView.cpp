@@ -1,9 +1,32 @@
+// -------------------------------------------------------------
+// PatternTableView.cpp
+//
+// Implements the PatternTable debugger view. This view renders either
+// NES pattern table as a 256x256 debug bitmap, supports 8x8 and 8x16
+// sprite-pair layouts, tracks hover/locked tile selection, and feeds
+// the active tile into CHRExplorerView.
+// -------------------------------------------------------------
 
 #include "PatternTableView.h"
 #include "CHRExplorerView.h"
 #include "DebugHelpers.h"
 
 
+// -------------------------------------------------------------
+// PatternTableView::PatternTableView
+//
+// Creates the PatternTable viewer, allocates the backing bitmap,
+// records the parent/emulator context, and initializes selection state.
+//
+// Parameters:
+//   frame      - Initial view frame in the owning window.
+//   mainWindow - Parent Pretendo window; used for palette access.
+//   which      - Pattern table index: 0 for $0000, 1 for $1000.
+//   explorer   - Optional CHR explorer view to notify on selection changes.
+//
+// Returns:
+//   Constructed PatternTableView object.
+// -------------------------------------------------------------
 PatternTableView::PatternTableView (BRect frame,
                                    PretendoWindow *mainWindow,
                                    int32 which,
@@ -13,7 +36,7 @@ PatternTableView::PatternTableView (BRect frame,
 	fMainWindow = mainWindow;
 	fWhichPatternTable = which;
 	fCHRExplorer = explorer;
-	fPalette = fMainWindow ? fMainWindow->Palette() : nullptr;
+	fHostPalette = fMainWindow ? fMainWindow->Palette() : nullptr;
 
 	SetViewColor(B_TRANSPARENT_COLOR);
 	SetLowColor(B_TRANSPARENT_COLOR);
@@ -34,75 +57,212 @@ PatternTableView::PatternTableView (BRect frame,
 }
 
 
+// -------------------------------------------------------------
+// PatternTableView::~PatternTableView
+//
+// Releases the pattern-table backing bitmap owned by this view.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -------------------------------------------------------------
 PatternTableView::~PatternTableView()
 {
 	delete fBitmap;
 }
 
 
+
+// -------------------------------------------------------------
+// PatternTableView::AttachedToWindow
+//
+// Performs final view setup after the view is attached to a window,
+// refreshes palette/explorer wiring, and seeds persistent explore mode
+// with tile 0 so the explorer is never blank.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -------------------------------------------------------------
 void
 PatternTableView::AttachedToWindow()
 {
+	BView::AttachedToWindow();
+
 	SetViewColor(B_TRANSPARENT_COLOR);
 	SetLowColor(B_TRANSPARENT_COLOR);
 	MakeFocus(true);
 
-	if (fCHRExplorer && fPalette) {
-		fCHRExplorer->SetHostPalette(fPalette);
+	// Refresh palette here, not only in the constructor.
+	// On first window open, fMainWindow->Palette() may not have been ready yet.
+	if (!fHostPalette && fMainWindow) {
+		fHostPalette = fMainWindow->Palette();
 	}
-}
-
-
-void
-PatternTableView::Draw(BRect updateRect)
-{
-	(void)updateRect;
-
-	if (Show8x16()) {
-		DrawPatternTable8x16(fWhichPatternTable);
-	} else {
-		DrawPatternTable8x8(fWhichPatternTable);
+	
+	if (fCHRExplorer && fHostPalette) {
+		fCHRExplorer->SetHostPalette(fHostPalette);
 	}
 
-	DrawBitmap(fBitmap, BPoint(0, 0));
+	// Persistent explore mode:
+	// Seed a default tile so the CHR explorer is never blank.
+	if (fHoverTileIndex < 0)
+		fHoverTileIndex = 0;
 
-	PushState();
-	ConstrainClippingRegion(nullptr);
-	DrawOverlays();
-	PopState();
-}
-
-
-void
-PatternTableView::Pulse()
-{
-	if (!fTileLocked) {
-		return;
-	}
+	fLockedTileIndex = -1;
+	fTileLocked = false;
 
 	UpdateExplorer();
 	NotifyCHRExplorer();
+
 	Invalidate();
 }
 
 
+// -------------------------------------------------------------
+// PatternTableView::Draw
+//
+// Draws the complete PatternTable UI: background, controls panel,
+// bitmap panel, pattern-table bitmap, overlays, viewport border, and
+// bottom Pattern State panel.
+//
+// Parameters:
+//   updateRect - Invalidated region supplied by the app_server. The
+//                current implementation redraws the full view.
+//
+// Returns:
+//   Nothing.
+// -------------------------------------------------------------
 void
-PatternTableView::MouseMoved(BPoint where, uint32 transit, const BMessage *msg)
+PatternTableView::Draw (BRect updateRect)
+{
+	(void)updateRect;
+
+	// Clear the full view before redrawing panels and bitmap content.
+	SetHighColor(216, 216, 216, 255);
+	FillRect(Bounds());
+
+	// Compute the bitmap origin once so panels, bitmap, and overlays align.
+	BPoint origin = BitmapOrigin();
+
+	DrawHeaderUI();
+
+	DrawBitmapPanel(origin);
+
+	if (fBitmap && fBits) {
+		// Rebuild the backing bitmap from current CHR/PPU data.
+		memset(fBits, 0x00, fBitmap->BitsLength());
+
+		if (fViewMode == MODE_8x16) {
+			DrawPatternTable8x16(fWhichPatternTable);
+		} else {
+			DrawPatternTable8x8(fWhichPatternTable);
+		}
+
+		DrawBitmap(fBitmap, origin);
+	}
+
+	// Draw overlays in bitmap-local coordinates.
+	PushState();
+	TranslateBy(origin.x, origin.y);
+
+	DrawOverlays();
+
+	PopState();
+
+	SetHighColor(120, 120, 120, 255);
+	StrokeRect(BRect(
+		origin.x,
+		origin.y,
+		origin.x + 255.0f,
+		origin.y + 255.0f
+	));
+
+	DrawPatternStatePanel();
+}
+
+
+// -------------------------------------------------------------
+// PatternTableView::MouseDown
+//
+// Locks or unlocks the tile under the mouse. Clicking the currently
+// locked tile unlocks it; clicking another tile locks that tile.
+//
+// Parameters:
+//   where - Mouse position in this view's coordinate system.
+//
+// Returns:
+//   Nothing.
+// -------------------------------------------------------------
+void
+PatternTableView::MouseDown (BPoint where)
+{
+	MakeFocus(true);
+	
+	int32 index = TileIndexFromPoint(where);
+	if (index < 0) {
+		return;
+	}
+
+	if (Show8x16()) {
+		index &= ~0x1;
+	}
+
+	if (fTileLocked && fLockedTileIndex == index) {
+		fTileLocked = false;
+		fLockedTileIndex = -1;
+		fHoverTileIndex = index;
+	} else {
+		fTileLocked = true;
+		fLockedTileIndex = index;
+		fHoverTileIndex = index;
+	}
+
+	UpdateExplorer();
+	
+	Invalidate();
+}
+
+
+// -------------------------------------------------------------
+// PatternTableView::MouseMoved
+//
+// Updates hover selection while the mouse moves over the pattern-table
+// bitmap. Persistent explore mode keeps the last valid tile visible when
+// the mouse leaves or moves outside the bitmap.
+//
+// Parameters:
+//   where   - Mouse position in this view's coordinate system.
+//   transit - Haiku mouse transit state, such as entered/exited view.
+//   msg     - Optional drag message; unused here.
+//
+// Returns:
+//   Nothing.
+// -------------------------------------------------------------
+void
+PatternTableView::MouseMoved(BPoint where, uint32 transit, const BMessage* msg)
 {
 	(void)msg;
+
+	if (transit == B_ENTERED_VIEW) {
+		MakeFocus(true);
+	}
 
 	if (transit == B_EXITED_VIEW) {
 		fMouseValid = false;
 
-		if (!fTileLocked && fHoverTileIndex != -1) {
-			fHoverTileIndex = -1;
+		// Persistent explore mode:
+		// Keep the last valid tile visible.
+		// Do not clear fHoverTileIndex.
+		// Do not clear fCHRExplorer.
 
-			if (fCHRExplorer) {
-				fCHRExplorer->Clear();
-			}
-
+		if (!fTileLocked) {
 			Invalidate();
 		}
+
 		return;
 	}
 
@@ -116,15 +276,9 @@ PatternTableView::MouseMoved(BPoint where, uint32 transit, const BMessage *msg)
 	int32 index = TileIndexFromPoint(where);
 
 	if (index < 0) {
-		if (fHoverTileIndex != -1) {
-			fHoverTileIndex = -1;
-
-			if (fCHRExplorer) {
-				fCHRExplorer->Clear();
-			}
-
-			Invalidate();
-		}
+		// Pointer is inside the view but outside the pattern bitmap.
+		// Keep the last valid tile/explorer contents visible.
+		Invalidate();
 		return;
 	}
 
@@ -135,7 +289,8 @@ PatternTableView::MouseMoved(BPoint where, uint32 transit, const BMessage *msg)
 	if (index == fHoverTileIndex) {
 		return;
 	}
-
+	
+	
 	fHoverTileIndex = index;
 
 	UpdateExplorer();
@@ -143,37 +298,51 @@ PatternTableView::MouseMoved(BPoint where, uint32 transit, const BMessage *msg)
 }
 
 
+// -------------------------------------------------------------
+// PatternTableView::Pulse
+//
+// Refreshes the CHR explorer while a tile is locked so the explorer
+// stays synchronized with live CHR/PPU data.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -------------------------------------------------------------
 void
-PatternTableView::MouseDown(BPoint where)
+PatternTableView::Pulse()
 {
-	MakeFocus(true);
-	
-	int32 index = TileIndexFromPoint(where);
-	if (index < 0)
+	if (!fTileLocked) {
 		return;
-
-	if (Show8x16())
-		index &= ~0x1;
-
-	if (fTileLocked && fLockedTileIndex == index) {
-		fTileLocked = false;
-		fLockedTileIndex = -1;
-		fHoverTileIndex = index;
-	} else {
-		fTileLocked = true;
-		fLockedTileIndex = index;
-		fHoverTileIndex = index;
 	}
 
 	UpdateExplorer();
+	NotifyCHRExplorer();
+	
 	Invalidate();
 }
 
 
+
+
+
+// -------------------------------------------------------------
+// PatternTableView::DrawPixel
+//
+// Writes one indexed-color pixel into the backing B_CMAP8 bitmap.
+//
+// Parameters:
+//   x     - Destination X coordinate in bitmap space.
+//   y     - Destination Y coordinate in bitmap space.
+//   color - Host color-map index to write.
+//
+// Returns:
+//   Nothing.
+// -------------------------------------------------------------
 void
 PatternTableView::DrawPixel (int32 x, int32 y, uint8 color)
 {
-	// make sure we can draw
 	if (!fBits || !fBitmap) {
 		return;
 	}
@@ -192,12 +361,29 @@ PatternTableView::DrawPixel (int32 x, int32 y, uint8 color)
 // tileIndex = which 8x8 tile inside that table (0-255 per table)
 // tileX/Y   = where to place it in the debug grid (in tiles)
 
+
+// -------------------------------------------------------------
+// PatternTableView::DrawTile
+//
+// Decodes and draws one NES 2bpp 8x8 CHR tile into the pattern-table
+// backing bitmap, scaled according to fTileSize.
+//
+// Parameters:
+//   patternTable - Pattern table index: 0 for $0000, 1 for $1000.
+//   tileIndex    - Tile index within the selected pattern table.
+//   tileX        - Destination tile-column in the debug grid.
+//   tileY        - Destination tile-row in the debug grid.
+//
+// Returns:
+//   Nothing.
+// -------------------------------------------------------------
 void
 PatternTableView::DrawTile (uint32 patternTable, int32 tileIndex, int32 tileX, int32 tileY)
 {
+	// Rendering requires mapper data, bitmap storage, and a host palette.
 	Mapper *mapper = nes::cart.mapper();
 	
-	if (!mapper || !fBits || !fBitmap || !fPalette) {
+	if (!mapper || !fBits || !fBitmap || !fHostPalette) {
 		return;
 	}
 
@@ -211,10 +397,10 @@ PatternTableView::DrawTile (uint32 patternTable, int32 tileIndex, int32 tileX, i
 
 	// build a stable 4-color debug palette from BG palette 0
 	uint8 pal[4];
-	pal[0] = fPalette[mapper->read_vram(0x3f00) & 0x3f];
-	pal[1] = fPalette[mapper->read_vram(0x3f01) & 0x3f];
-	pal[2] = fPalette[mapper->read_vram(0x3f02) & 0x3f];
-	pal[3] = fPalette[mapper->read_vram(0x3f03) & 0x3f];
+	pal[0] = fHostPalette[mapper->read_vram(0x3f00) & 0x3f];
+	pal[1] = fHostPalette[mapper->read_vram(0x3f01) & 0x3f];
+	pal[2] = fHostPalette[mapper->read_vram(0x3f02) & 0x3f];
+	pal[3] = fHostPalette[mapper->read_vram(0x3f03) & 0x3f];
 
 	// tile address in chr ($0000 or $1000)
 	uint32 const tileAddr = ((patternTable & 1) << 12) + (tileIndex * 16);
@@ -260,6 +446,19 @@ PatternTableView::DrawTile (uint32 patternTable, int32 tileIndex, int32 tileX, i
 //
 // each pattern table contains 256 tiles total
 // we visualize them in a 16x16 grid purely for readability
+
+// -------------------------------------------------------------
+// PatternTableView::DrawPatternTable8x8
+//
+// Draws the selected pattern table as a normal 16x16 grid of 8x8
+// tiles, showing all 256 tiles in linear CHR order.
+//
+// Parameters:
+//   which - Pattern table index: 0 for $0000, 1 for $1000.
+//
+// Returns:
+//   Nothing.
+// -------------------------------------------------------------
 void
 PatternTableView::DrawPatternTable8x8 (int32 which)
 {	
@@ -290,6 +489,21 @@ PatternTableView::DrawPatternTable8x8 (int32 which)
 //
 // the nes does not treat these as independent tiles. they are always paired
 // this function rearranges the linear chr to reflect that pairing
+
+
+// -------------------------------------------------------------
+// PatternTableView::DrawPatternTable8x16
+//
+// Draws the selected pattern table as 8x16 sprite pairs. Even tile
+// indices are drawn as the top half and the following odd tile as the
+// bottom half.
+//
+// Parameters:
+//   which - Pattern table index: 0 for $0000, 1 for $1000.
+//
+// Returns:
+//   Nothing.
+// -------------------------------------------------------------
 void
 PatternTableView::DrawPatternTable8x16 (int32 which)
 {
@@ -330,60 +544,18 @@ PatternTableView::DrawPatternTable8x16 (int32 which)
 }
 
 
-void
-PatternTableView::DrawExplorer (BView *dest)
-{
-	if (!fExploreEnabled) {
-		return;
-	}
-
-	dest->SetHighColor(255,255,255);
-	dest->SetLowColor(0,0,0);
-
-	char line[256];
-
-	sprintf(line, "CHR $%04X", (unsigned)fCHRTileAddress);
-	dest->DrawString(line, BPoint(8, 140));
-
-	// raw bytes
-	for (int32 i = 0; i < 16; i++) {
-		sprintf(line, "%02X", fCHRBytes[i]);
-		dest->DrawString(line, BPoint(8 + (i % 8) * 20, 160 + (i / 8) * 14));
-	}
-}
-
-
-BPoint
-PatternTableView::ViewToBitmap (BPoint where) const
-{
-	return where;
-}
-
-
-bool
-PatternTableView::ComputeTileFromViewPoint (BPoint where, int32 &outTX, int32 &outTY) const
-{
-	if (!fBitmap) {
-		return false;
-	}
-
-	// vsible viewport size
-	if (where.x < 0.0f || where.y < 0.0f || where.x >= 256.0f || where.y >= 240.0f) {
-		return false;
-	}
-
-	BPoint point = ViewToBitmap(where);
-	outTX = static_cast<int32>(point.x) >> 3;   // 0-63
-	outTY = static_cast<int32>(point.y) >> 3;   // 0-59
-
-	if (outTX < 0 || outTX >= 64 || outTY < 0 || outTY >= 60) {
-		return false;
-	}
-
-	return true;
-}
-
-
+// -------------------------------------------------------------
+// PatternTableView::NotifyCHRExplorer
+//
+// Sends the active tile's CHR bytes and metadata to CHRExplorerView.
+// Handles both 8x8 tile mode and 8x16 paired-tile mode.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -------------------------------------------------------------
 void
 PatternTableView::NotifyCHRExplorer()
 {
@@ -392,7 +564,7 @@ PatternTableView::NotifyCHRExplorer()
 	}
 
 	Mapper *mapper = nes::cart.mapper();
-	
+
 	if (!mapper) {
 		fCHRExplorer->Clear();
 		return;
@@ -405,17 +577,18 @@ PatternTableView::NotifyCHRExplorer()
 	}
 
 	if (!Show8x16()) {
-		fCHRExplorer->SetTile(
+		fCHRExplorer->SetTile8x8(
 			fWhichPatternTable,
 			index,
 			fTileLocked,
 			fCHRTileAddress,
 			fCHRBytes,
-			0,
-			-1,
-			0,
-			0,
-			0
+			0,   // bgPalette
+			-1,  // whichNT
+			0,   // nameTileAddr
+			0,   // attrAddr
+			0,   // attrByte
+			0    // attrQuadrant
 		);
 		return;
 	}
@@ -445,19 +618,35 @@ PatternTableView::NotifyCHRExplorer()
 }
 
 
+// -------------------------------------------------------------
+// PatternTableView::TileIndexFromPoint
+//
+// Converts a view-space mouse point into a pattern-table tile index.
+// The calculation accounts for bitmap origin and current 8x8/8x16 mode.
+//
+// Parameters:
+//   where - Point in this view's coordinate system.
+//
+// Returns:
+//   Tile index under the point, or -1 if the point is outside the bitmap.
+// -------------------------------------------------------------
 int32
 PatternTableView::TileIndexFromPoint (BPoint where) const
 {
+	BPoint origin = BitmapOrigin();
+
+	float localX = where.x - origin.x;
+	float localY = where.y - origin.y;
+
 	float tileSize = static_cast<float>(fTileSize);
 	float tableSize = tileSize * 16.0f;
 
-	if (where.x < 0.0f || where.y < 0.0f || where.x >= tableSize || where.y >= tableSize) {
+	if (localX < 0.0f || localY < 0.0f || localX >= tableSize || localY >= tableSize)
 		return -1;
-	}
 
 	if (!Show8x16()) {
-		int32 tx = static_cast<int32>(where.x / tileSize);
-		int32 ty = static_cast<int32>(where.y / tileSize);
+		int32 tx = static_cast<int32>(localX / tileSize);
+		int32 ty = static_cast<int32>(localY / tileSize);
 
 		if (tx < 0 || tx >= 16 || ty < 0 || ty >= 16)
 			return -1;
@@ -465,14 +654,13 @@ PatternTableView::TileIndexFromPoint (BPoint where) const
 		return tx + (ty * 16);
 	}
 
-	int32 cx = static_cast<int32>(where.x / tileSize);
-	int32 cy = static_cast<int32>(where.y / (tileSize * 2.0f));
+	int32 cx = static_cast<int32>(localX / tileSize);
+	int32 cy = static_cast<int32>(localY / (tileSize * 2.0f));
 
-	if (cx < 0 || cx >= 16 || cy < 0 || cy >= 8) {
+	if (cx < 0 || cx >= 16 || cy < 0 || cy >= 8)
 		return -1;
-	}
 
-	int32 within = static_cast<int32>((where.y - (cy * tileSize * 2.0f)) / tileSize);
+	int32 within = static_cast<int32>((localY - (cy * tileSize * 2.0f)) / tileSize);
 	int32 pair = cx + cy * 16;
 
 	if (within < 0) {
@@ -487,8 +675,21 @@ PatternTableView::TileIndexFromPoint (BPoint where) const
 }
 
 
+
+// -------------------------------------------------------------
+// PatternTableView::CellRectForTileIndex
+//
+// Returns the bitmap-space rectangle for a tile or 8x16 sprite-pair cell.
+//
+// Parameters:
+//   index - Tile index to locate. In 8x16 mode this is rounded down to
+//           the even top tile of the pair.
+//
+// Returns:
+//   BRect in bitmap-local coordinates.
+// -------------------------------------------------------------
 BRect
-PatternTableView::CellRectForTileIndex (int32 index) const
+PatternTableView::CellRectForTileIndex(int32 index) const
 {
 	float tileSize = static_cast<float>(fTileSize);
 
@@ -520,29 +721,119 @@ PatternTableView::CellRectForTileIndex (int32 index) const
 	);
 }
 
-
+// -------------------------------------------------------------
+// PatternTableView::DrawOverlays
+//
+// Draws hover/locked selection overlays and the optional external
+// highlight sent from NameTableView. This function expects bitmap-local
+// drawing coordinates; the caller translates before invoking it.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -------------------------------------------------------------
 void
 PatternTableView::DrawOverlays()
 {
 	static const rgb_color kHoverStroke = {  0, 255, 255, 255 };
-	static const rgb_color kHoverFill   = {  0, 255, 255,  48 };
+	static const rgb_color kHoverFill   = {  0, 255, 255,  32 };
 
 	static const rgb_color kLockStroke  = { 255,   0, 255, 255 };
-	static const rgb_color kLockFill    = { 255,   0, 255,  48 };
+	static const rgb_color kLockFill    = { 255,   0, 255,  32 };
 
+	// lock highlight takes priority
+	// Draw active selection first: locked selection wins over hover.
 	if (fTileLocked && fLockedTileIndex >= 0) {
 		BRect r = CellRectForTileIndex(fLockedTileIndex & 0xff);
-		::FillAndStrokeRectTriple(this, r, kLockFill, kLockStroke);
-		return;
+
+		PushState();
+		SetDrawingMode(B_OP_ALPHA);
+		SetBlendingMode(B_PIXEL_ALPHA, B_ALPHA_OVERLAY);
+
+		SetHighColor(kLockFill);
+		FillRect(r);
+
+		SetHighColor(kLockStroke);
+		StrokeRect(r);
+
+		PopState();
+	} else if (fHoverTileIndex >= 0) {
+		BRect r = CellRectForTileIndex(fHoverTileIndex & 0xff);
+
+		PushState();
+		SetDrawingMode(B_OP_ALPHA);
+		SetBlendingMode(B_PIXEL_ALPHA, B_ALPHA_OVERLAY);
+
+		SetHighColor(kHoverFill);
+		FillRect(r);
+
+		SetHighColor(kHoverStroke);
+		StrokeRect(r);
+
+		PopState();
 	}
 
-	if (fHoverTileIndex >= 0) {
-		BRect r = CellRectForTileIndex(fHoverTileIndex & 0xff);
-		::FillAndStrokeRectTriple(this, r, kHoverFill, kHoverStroke);
+	// external highlight from NameTableView
+	// Draw NameTable-driven tile highlight, if one has been supplied.
+	if (fHasExternalHighlight && fExternalWhichPT == fWhichPatternTable && fExternalTileIndex >= 0) {
+		BRect r;
+		float tileSize = static_cast<float>(fTileSize);
+		int32 index = fExternalTileIndex & 0xff;
+
+		if (Show8x16()) {
+			// Match the layout used by DrawPatternTable8x16():
+			// even tile = top half of pair, odd tile = bottom half
+			int32 topIndex = index & ~0x1;
+			int32 pair = topIndex / 2;
+			int32 tx = pair % 16;
+			int32 ty = (pair / 16) * 2;
+
+			if (index & 0x1)
+				ty += 1;
+
+			r = BRect(
+				tx * tileSize,
+				ty * tileSize,
+				((tx + 1) * tileSize) - 1.0f,
+				((ty + 1) * tileSize) - 1.0f
+			);
+		} else {
+			r = CellRectForTileIndex(index);
+		}
+
+		PushState();
+		SetDrawingMode(B_OP_ALPHA);
+		SetBlendingMode(B_PIXEL_ALPHA, B_ALPHA_OVERLAY);
+
+		rgb_color fill   = {255, 255,   0, 40};
+		rgb_color stroke = {255, 255,   0, 255};
+
+		SetHighColor(fill);
+		FillRect(r);
+
+		SetHighColor(stroke);
+		StrokeRect(r);
+		StrokeRect(r.InsetByCopy(1, 1));
+
+		PopState();
 	}
 }
 
 
+// -------------------------------------------------------------
+// PatternTableView::SetViewMode
+//
+// Switches between normal 8x8 display and 8x16 sprite-pair display.
+// Selection state is normalized to an even tile when entering 8x16 mode.
+//
+// Parameters:
+//   vm - New view mode.
+//
+// Returns:
+//   Nothing.
+// -------------------------------------------------------------
 void
 PatternTableView::SetViewMode(view_mode vm)
 {
@@ -574,6 +865,18 @@ PatternTableView::SetViewMode(view_mode vm)
 }
 
 
+// -------------------------------------------------------------
+// PatternTableView::ActiveTileIndex
+//
+// Chooses the tile that should drive overlays and CHR explorer updates.
+// Locked selection takes priority over hover selection.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Locked tile index if locked, otherwise hover tile index. May return -1.
+// -------------------------------------------------------------
 int32
 PatternTableView::ActiveTileIndex() const
 {
@@ -585,6 +888,18 @@ PatternTableView::ActiveTileIndex() const
 }
 
 
+// -------------------------------------------------------------
+// PatternTableView::UpdateExplorer
+//
+// Reads CHR bytes for the active tile from PPU/mapper memory and updates
+// cached tile address/bytes before notifying CHRExplorerView.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -------------------------------------------------------------
 void
 PatternTableView::UpdateExplorer()
 {
@@ -605,6 +920,7 @@ PatternTableView::UpdateExplorer()
 		return;
 	}
 
+	// CHR tiles are 16 bytes each: 8 bytes plane 0, 8 bytes plane 1.
 	uint32 base = fWhichPatternTable ? 0x1000 : 0x0000;
 	uint32 addr = base + (index * 16);
 
@@ -618,16 +934,284 @@ PatternTableView::UpdateExplorer()
 }
 
 
+// -------------------------------------------------------------
+// PatternTableView::SetExplorer
+//
+// Connects or replaces the CHR explorer used by this PatternTableView,
+// passes it the host palette, and seeds it with the current tile.
+//
+// Parameters:
+//   explorer - CHRExplorerView to receive active tile data. May be null.
+//
+// Returns:
+//   Nothing.
+// -------------------------------------------------------------
 void
-PatternTableView::DrawHoverBox (int32 tileIndex)
+PatternTableView::SetExplorer(CHRExplorerView *explorer)
 {
-	if (tileIndex < 0) {
-		return;
+	fCHRExplorer = explorer;
+
+	if (!fHostPalette && fMainWindow) {
+		fHostPalette = fMainWindow->Palette();
 	}
 
-	BRect r = CellRectForTileIndex(tileIndex);
+	if (fCHRExplorer && fHostPalette) {
+		fCHRExplorer->SetHostPalette(fHostPalette);
+	}
 
-	SetHighColor(255, 0, 0);
-	StrokeRect(r);
+	if (fHoverTileIndex < 0) {
+		fHoverTileIndex = 0;
+	}
+
+	UpdateExplorer();
+	NotifyCHRExplorer();
+
+	Invalidate();
+}
+
+
+
+// -------------------------------------------------------------
+// PatternTableView::BitmapOrigin
+//
+// Computes where the 256x256 pattern-table bitmap should be drawn. The
+// bitmap is horizontally inset and vertically centered between the top
+// Controls panel and bottom Pattern State panel.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Top-left point for drawing the pattern-table bitmap.
+// -------------------------------------------------------------
+BPoint
+PatternTableView::BitmapOrigin() const
+{
+	const float bitmapH = 256.0f;
+	const float originX = 12.0f;
+
+	// Must match DrawHeaderUI().
+	const float controlsBottom = 82.0f;
+
+	// Pattern State panel starts below the bitmap and extends
+	// to the same bottom edge as the right-side panels.
+	const float bottomReserve = 132.0f;
+
+	const float topGap = 12.0f;
+	const float bottomGap = 10.0f;
+
+	const float availableTop = controlsBottom + topGap;
+	const float availableBottom = Bounds().bottom - bottomReserve - bottomGap;
+
+	float originY = availableTop + ((availableBottom - availableTop - bitmapH) * 0.5f);
+
+	if (originY < availableTop) {
+		originY = availableTop;
+	}
+
+	return BPoint(originX, originY);
+}
+
+
+// -------------------------------------------------------------
+// PatternTableView::SetExternalHighlight
+//
+// Enables a highlight for a tile referenced by another view, usually a
+// selected tile from NameTableView.
+//
+// Parameters:
+//   whichPT   - Pattern table index that owns the highlighted tile.
+//   tileIndex - Tile index to highlight.
+//
+// Returns:
+//   Nothing.
+// -------------------------------------------------------------
+void
+PatternTableView::SetExternalHighlight (int32 whichPT, int32 tileIndex)
+{
+	fHasExternalHighlight = true;
+	fExternalWhichPT = whichPT;
+	fExternalTileIndex = tileIndex & 0xff;
+
+	Invalidate();
+}
+
+
+// -------------------------------------------------------------
+// PatternTableView::ClearExternalHighlight
+//
+// Disables the external NameTable-driven tile highlight.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -------------------------------------------------------------
+void
+PatternTableView::ClearExternalHighlight()
+{
+	fHasExternalHighlight = false;
+	fExternalTileIndex = -1;
+
+	Invalidate();
+}
+
+
+// -------------------------------------------------------------
+// PatternTableView::DrawPatternStatePanel
+//
+// Draws the bottom Pattern State panel with aligned pattern table, base
+// address, mode, tile, CHR address, and lock/hover state fields.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -------------------------------------------------------------
+void
+PatternTableView::DrawPatternStatePanel()
+{
+	BPoint origin = BitmapOrigin();
+
+	const float panelLeft = 4.0f;
+	const float panelRight = Bounds().right - 8.0f;
+
+	const float panelTop = origin.y + 256.0f + 10.0f;
+	const float panelBottom = Bounds().bottom - 8.0f;
+
+	BRect panel(panelLeft, panelTop, panelRight, panelBottom);
+
+	::DrawDebugPanel(this, panel, "Pattern State");
+
+	SetFontSize(11.0f);
+
+	font_height fh;
+	GetFontHeight(&fh);
+	const float lineH = ceilf(fh.ascent + fh.descent + fh.leading) + 1.0f;
+
+	const float labelX = panel.left + 8.0f;
+	const float valueX = labelX + 44.0f;
+
+	float textY = panel.top + 36.0f;
+
+	uint32 base = fWhichPatternTable ? 0x1000 : 0x0000;
+	int32 index = ActiveTileIndex();
+
+	char s[160];
+
+	auto drawKV = [&](const char *label, const char *value) {
+		SetHighColor(80, 80, 80, 255);
+		DrawString(label, BPoint(labelX, textY));
+
+		SetHighColor(0, 0, 0, 255);
+		DrawString(value, BPoint(valueX, textY));
+
+		textY += lineH;
+	};
+
+	snprintf(s, sizeof(s), "%ld", (long)fWhichPatternTable);
+	drawKV("PT:", s);
+
+	snprintf(s, sizeof(s), "$%04lX", (unsigned long)base);
+	drawKV("Base:", s);
+
+	drawKV("Mode:", Show8x16() ? "8x16" : "8x8");
+
+	if (index >= 0) {
+		uint32 addr = base + ((index & 0xff) * 16);
+
+		snprintf(s, sizeof(s), "$%02lX", (long)(index & 0xff));
+		drawKV("Tile:", s);
+
+		snprintf(s, sizeof(s), "$%04lX", (unsigned long)addr);
+		drawKV("CHR:", s);
+
+		drawKV("State:", fTileLocked ? "LOCKED" : "HOVER");
+	} else {
+		drawKV("Tile:", "--");
+		drawKV("CHR:", "----");
+		drawKV("State:", "--");
+	}
+}
+
+
+// -------------------------------------------------------------
+// PatternTableView::DrawBitmapPanel
+//
+// Draws the light panel frame behind the 256x256 pattern-table bitmap.
+//
+// Parameters:
+//   origin - Top-left bitmap origin in view coordinates.
+//
+// Returns:
+//   Nothing.
+// -------------------------------------------------------------
+void
+PatternTableView::DrawBitmapPanel(BPoint origin)
+{
+	BRect panel(
+		origin.x - 5.0f,
+		origin.y - 5.0f,
+		origin.x + 255.0f + 5.0f,
+		origin.y + 255.0f + 5.0f
+	);
+
+	SetHighColor(228, 228, 228, 255);
+	FillRect(panel);
+
+	SetHighColor(150, 150, 150, 255);
+	StrokeRect(panel);
+}
+
+
+// -------------------------------------------------------------
+// PatternTableView::DrawHeaderUI
+//
+// Draws the top Controls panel describing PatternTable interactions.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -------------------------------------------------------------
+void
+PatternTableView::DrawHeaderUI()
+{
+	const float panelLeft = 4.0f;
+	const float panelTop = 4.0f;
+	const float panelRight = Bounds().right - 8.0f;
+	const float panelBottom = 82.0f;
+
+	BRect panel(panelLeft, panelTop, panelRight, panelBottom);
+
+	::DrawDebugPanel(this, panel, "Controls");
+
+	SetFontSize(11.0f);
+
+	font_height fh;
+	GetFontHeight(&fh);
+	const float lineH = ceilf(fh.ascent + fh.descent + fh.leading) + 2.0f;
+
+	const float labelX = panel.left + 8.0f;
+	const float valueX = labelX + 52.0f;
+
+	float y = panel.top + 36.0f;
+
+	auto drawKV = [&](const char *label, const char *value) {
+		SetHighColor(80, 80, 80, 255);
+		DrawString(label, BPoint(labelX, y));
+
+		SetHighColor(35, 35, 35, 255);
+		DrawString(value, BPoint(valueX, y));
+
+		y += lineH;
+	};
+
+	drawKV("Zoom:",  "toggle 8x16 mode");
+	drawKV("Mouse:", "move explore / click lock");
+	drawKV("CHR:",   "1-4 palette / 0 source");
 }
 

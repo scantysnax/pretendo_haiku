@@ -1168,7 +1168,8 @@ uint64_t cycle_count() { return ppu_cycle_; }
 uint_least16_t hpos()  { return hpos_; }
 uint_least16_t vpos()  { return vpos_; }
 
-uint8_t ppuctrl() { return ppu_control_.raw; }
+uint8_t ppuctrl() { return ppu_control_.raw;	}
+uint8_t ppumask() { return ppu_mask_.raw; 		}
 
 uint8_t palette_ram(uint32_t address) {
 	return palette_[address & 0x1f];
