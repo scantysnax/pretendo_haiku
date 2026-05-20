@@ -177,7 +177,7 @@ class PatternTableView : public BView
 	int32 fExternalTileIndex = -1;
 };
 
-#endif
+#endif // _PATTERN_TABLE_VIEW_H_
 
 
 

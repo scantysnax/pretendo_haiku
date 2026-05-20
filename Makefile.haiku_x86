@@ -127,6 +127,8 @@ CPP_FILES := \
 	src/haiku/NameTableWindow.cpp \
 	src/haiku/PaletteView.cpp \
 	src/haiku/PaletteWindow.cpp \
+	src/haiku/PaletteExplorerView.cpp \
+	src/haiku/PaletteExplorerWindow.cpp \
 	src/haiku/PatternTableView.cpp \
 	src/haiku/PatternTableWindow.cpp \
 	src/haiku/PretendoApp.cpp \

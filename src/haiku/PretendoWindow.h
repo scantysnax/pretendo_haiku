@@ -20,6 +20,7 @@
 #include "NameTableWindow.h"
 #include "Palette.h"
 #include "PaletteWindow.h"
+#include "PaletteInfoWindow.h"
 #include "PatternTableWindow.h"
 #include "PretendoView.h" 
 #include "ROMFilePanel.h"
@@ -33,6 +34,7 @@ class PretendoView;
 class InputWindow;
 class NameTableWindow;
 class PatternTableWindow;
+class PaletteInfoWindow;
 
 
 struct latched_scroll_t {
@@ -84,7 +86,9 @@ class PretendoWindow : public BWindow
 		SHOW_NTBL1 = 	'NTB1',
 		SHOW_NTBL2 = 	'NTB2',
 		SHOW_NTBL3 = 	'NTB3',
-		SHOW_NTBL4 = 	'NTB4'
+		SHOW_NTBL4 = 	'NTB4',
+		SHOW_PALINFO =	'PALI'
+		
 	} messages;	
 	
 	private:
@@ -169,6 +173,7 @@ class PretendoWindow : public BWindow
 	void OnAudioNoise();
 	void OnAudioDMC();
 	void OnReceiveRomDirectory (BMessage *message);
+	void OnShowPaletteInfo();
 
 	// video stuff
 	private:
@@ -270,6 +275,7 @@ class PretendoWindow : public BWindow
 	NameTableWindow *fNameTable3Window = nullptr;
 	NameTableWindow *fNameTable4Window = nullptr;
 	InputWindow *fInputWindow = nullptr;
+	PaletteInfoWindow *fPaletteInfoWindow = nullptr;
 	
 	private:
 	bool fPaused = false;

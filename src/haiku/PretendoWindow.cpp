@@ -262,6 +262,11 @@ PretendoWindow::~PretendoWindow()
 		}
 	}
 	
+	if (fPaletteInfoWindow != nullptr) {
+		fPaletteInfoWindow->Lock();
+		fPaletteInfoWindow->Quit();
+	}
+	
 	// long day.
 	
 	fMutex->Unlock();
@@ -401,6 +406,10 @@ PretendoWindow::MessageReceived (BMessage *message)
 			
 		case messages::RECV_ROM_DIR:
 			OnReceiveRomDirectory(message);
+			break;
+			
+		case messages::SHOW_PALINFO:
+			OnShowPaletteInfo();
 			break;
 			
 		default:
@@ -571,6 +580,7 @@ PretendoWindow::AddMenu()
 	fNameTableMenu->AddItem(new BMenuItem("3 ($2800)", new BMessage(messages::SHOW_NTBL3)));
 	fNameTableMenu->AddItem(new BMenuItem("4 ($2C00)", new BMessage(messages::SHOW_NTBL4)));
 	fToolMenu->AddItem(fNameTableMenu);
+	fToolMenu->AddItem(new BMenuItem("View Palettes", new BMessage(messages::SHOW_PALINFO)));
 	
 	// menu icon
 	fMenuBarIcon = new MenuBarIcon(fMenuBar);
@@ -952,6 +962,23 @@ PretendoWindow::OnReceiveRomDirectory (BMessage *message)
 	} else {
 		fROMDirectory = "/boot/home";
 	}
+}
+
+
+void
+PretendoWindow::OnShowPaletteInfo()
+{
+	if (!nes::cart.mapper()) {
+		return;
+	}
+
+	if (fPaletteInfoWindow && fPaletteInfoWindow->Lock()) {
+		fPaletteInfoWindow->Quit();
+		fPaletteInfoWindow = nullptr;
+	}
+
+	fPaletteInfoWindow = new PaletteInfoWindow(this);
+	fPaletteInfoWindow->Show();
 }
 
 
