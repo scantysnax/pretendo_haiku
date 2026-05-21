@@ -20,7 +20,7 @@
 #include "NameTableWindow.h"
 #include "Palette.h"
 #include "PaletteWindow.h"
-#include "PaletteInfoWindow.h"
+#include "PaletteDebugWindow.h"
 #include "PatternTableWindow.h"
 #include "PretendoView.h" 
 #include "ROMFilePanel.h"
@@ -34,7 +34,7 @@ class PretendoView;
 class InputWindow;
 class NameTableWindow;
 class PatternTableWindow;
-class PaletteInfoWindow;
+class PaletteDebugWindow;
 
 
 struct latched_scroll_t {
@@ -275,7 +275,7 @@ class PretendoWindow : public BWindow
 	NameTableWindow *fNameTable3Window = nullptr;
 	NameTableWindow *fNameTable4Window = nullptr;
 	InputWindow *fInputWindow = nullptr;
-	PaletteInfoWindow *fPaletteInfoWindow = nullptr;
+	PaletteDebugWindow *fPaletteDebugWindow = nullptr;
 	
 	private:
 	bool fPaused = false;

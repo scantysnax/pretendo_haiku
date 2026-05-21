@@ -262,9 +262,9 @@ PretendoWindow::~PretendoWindow()
 		}
 	}
 	
-	if (fPaletteInfoWindow != nullptr) {
-		fPaletteInfoWindow->Lock();
-		fPaletteInfoWindow->Quit();
+	if (fPaletteDebugWindow != nullptr) {
+		fPaletteDebugWindow->Lock();
+		fPaletteDebugWindow->Quit();
 	}
 	
 	// long day.
@@ -972,13 +972,13 @@ PretendoWindow::OnShowPaletteInfo()
 		return;
 	}
 
-	if (fPaletteInfoWindow && fPaletteInfoWindow->Lock()) {
-		fPaletteInfoWindow->Quit();
-		fPaletteInfoWindow = nullptr;
+	if (fPaletteDebugWindow && fPaletteDebugWindow->Lock()) {
+		fPaletteDebugWindow->Quit();
+		fPaletteDebugWindow = nullptr;
 	}
 
-	fPaletteInfoWindow = new PaletteInfoWindow(this);
-	fPaletteInfoWindow->Show();
+	fPaletteDebugWindow = new PaletteDebugWindow(this);
+	fPaletteDebugWindow->Show();
 }
 
 
