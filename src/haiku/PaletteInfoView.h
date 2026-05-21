@@ -20,6 +20,4 @@ class PaletteInfoView : public BView
 };
 
 
-
-
 #endif // _PALETTE_INFO_VIEW_H_

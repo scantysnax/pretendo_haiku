@@ -10,7 +10,7 @@ PaletteInfoWindow::PaletteInfoWindow (PretendoWindow *parent)
 	
 	ResizeTo(400, 400);
 	CenterOnScreen();
-	SetTitle("Palette Info");
+	SetTitle("Palettes");
 	
 	fPaletteInfoView = new PaletteInfoView(Bounds());
 	AddChild(fPaletteInfoView);
