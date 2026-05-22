@@ -1,3 +1,4 @@
+
 # NES Graphics Debugger
 
 The NES Graphics Debugger provides live inspection tools for background NameTables, CHR PatternTables, palettes, attribute data, tile selection, scrolling behavior, and decoded CHR bytes.

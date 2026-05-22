@@ -3,22 +3,31 @@
 
 
 PaletteDebugWindow::PaletteDebugWindow (PretendoWindow *parent)
-	: BWindow(BRect(0, 0, 0, 0), nullptr, B_FLOATING_WINDOW_LOOK,
+	: BWindow(BRect(0, 0, 0, 0), "Palette Viewer", B_FLOATING_WINDOW_LOOK,
 			B_NORMAL_WINDOW_FEEL, B_NOT_RESIZABLE|B_NOT_ZOOMABLE)
 {			
 	fParent = parent;
+	fSettingsMessage = new BMessage;
 	
-	// just for now.
-	ResizeTo(600, 600);
-	CenterOnScreen();
-	SetTitle("Palettes");
+	const float kWindowW = 430.0f;
+	const float kWindowH = 540.0f;
 
-	fPaletteDebugView = new PaletteDebugView(Bounds());
-	AddChild(fPaletteDebugView);
+	ResizeTo(kWindowW, kWindowH);
+	MoveTo(200.0f, 200.0f);
+
 	
+	BRect viewFrame(
+		0.0f,
+		0.0f,
+		kWindowW - 1.0f,
+		kWindowH - 1.0f
+	);
+
+	fView = new PaletteDebugView(viewFrame, fParent);
+	AddChild(fView);
+
 	SetPulseRate(16667);
 	
-	fSettingsMessage = new BMessage;
 	LoadSettings();
 }
  

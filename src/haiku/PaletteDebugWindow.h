@@ -25,7 +25,7 @@ class PaletteDebugWindow : public BWindow
 	
 	private:
 	PretendoWindow *fParent = nullptr;
-	PaletteDebugView *fPaletteDebugView = nullptr;
+	PaletteDebugView *fView = nullptr;
 };
 
 
