@@ -18,6 +18,7 @@
 #include "MenuBarIcon.h"
 #include "Mutex.h"
 #include "NameTableWindow.h"
+#include "OAMDebugWindow.h"
 #include "Palette.h"
 #include "PaletteWindow.h"
 #include "PaletteDebugWindow.h"
@@ -35,6 +36,7 @@ class InputWindow;
 class NameTableWindow;
 class PatternTableWindow;
 class PaletteDebugWindow;
+class OAMDebugWindow;
 
 
 struct latched_scroll_t {
@@ -87,7 +89,8 @@ class PretendoWindow : public BWindow
 		SHOW_NTBL2 = 	'NTB2',
 		SHOW_NTBL3 = 	'NTB3',
 		SHOW_NTBL4 = 	'NTB4',
-		SHOW_PALDBG =	'PDBG'
+		SHOW_PALDBG =	'PDBG',
+		SHOW_OAMDBG = 	'OAMD'
 		
 	} messages;	
 	
@@ -174,6 +177,7 @@ class PretendoWindow : public BWindow
 	void OnAudioDMC();
 	void OnReceiveRomDirectory (BMessage *message);
 	void OnViewPaletteDebugger();
+	void OnViewOAMDebugger();
 
 	// video stuff
 	private:
@@ -276,6 +280,7 @@ class PretendoWindow : public BWindow
 	NameTableWindow *fNameTable4Window = nullptr;
 	InputWindow *fInputWindow = nullptr;
 	PaletteDebugWindow *fPaletteDebugWindow = nullptr;
+	OAMDebugWindow *fOAMDebugWindow = nullptr;
 	
 	private:
 	bool fPaused = false;
@@ -334,6 +339,7 @@ class PretendoWindow : public BWindow
     
     public:
     void PaletteDebugWindowClosed();
+    void OAMDebugWindowClosed();
     
     public:
     void HighlightPaletteDebugger(bool sprites, int32 palette, int32 entry = -1);

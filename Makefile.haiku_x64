@@ -125,6 +125,8 @@ CPP_FILES := \
 	src/haiku/Mutex.cpp \
 	src/haiku/NameTableView.cpp \
 	src/haiku/NameTableWindow.cpp \
+	src/haiku/OAMDebugView.cpp \
+	src/haiku/OAMDebugWindow.cpp \
 	src/haiku/PaletteView.cpp \
 	src/haiku/PaletteWindow.cpp \
 	src/haiku/PaletteDebugView.cpp \

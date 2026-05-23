@@ -413,6 +413,10 @@ PretendoWindow::MessageReceived (BMessage *message)
 			OnViewPaletteDebugger();
 			break;
 			
+		case messages::SHOW_OAMDBG:
+			OnViewOAMDebugger();
+			break;
+			
 		default:
 			break;
 	}
@@ -582,6 +586,7 @@ PretendoWindow::AddMenu()
 	fNameTableMenu->AddItem(new BMenuItem("4 ($2C00)", new BMessage(messages::SHOW_NTBL4)));
 	fToolMenu->AddItem(fNameTableMenu);
 	fToolMenu->AddItem(new BMenuItem("View Palettes", new BMessage(messages::SHOW_PALDBG)));
+	fToolMenu->AddItem(new BMenuItem("View OAM", new BMessage(messages::SHOW_OAMDBG)));
 	
 	// menu icon
 	fMenuBarIcon = new MenuBarIcon(fMenuBar);
@@ -989,6 +994,38 @@ PretendoWindow::OnViewPaletteDebugger()
 	fPaletteDebugWindow = new PaletteDebugWindow(this);
 	fPaletteDebugWindow->Show();
 }
+
+
+void
+PretendoWindow::OnViewOAMDebugger()
+{
+	if (!nes::cart.mapper())
+		return;
+
+	if (fOAMDebugWindow) {
+		if (fOAMDebugWindow->Lock()) {
+			if (fOAMDebugWindow->IsHidden())
+				fOAMDebugWindow->Show();
+
+			fOAMDebugWindow->Activate(true);
+			fOAMDebugWindow->Unlock();
+		}
+
+		return;
+	}
+
+	fOAMDebugWindow = new OAMDebugWindow(this);
+	fOAMDebugWindow->Show();
+}
+
+
+void
+PretendoWindow::OAMDebugWindowClosed()
+{
+	fOAMDebugWindow = nullptr;
+}
+
+
 
 
 void
