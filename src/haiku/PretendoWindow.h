@@ -87,7 +87,7 @@ class PretendoWindow : public BWindow
 		SHOW_NTBL2 = 	'NTB2',
 		SHOW_NTBL3 = 	'NTB3',
 		SHOW_NTBL4 = 	'NTB4',
-		SHOW_PALINFO =	'PALI'
+		SHOW_PALDBG =	'PDBG'
 		
 	} messages;	
 	
@@ -173,7 +173,7 @@ class PretendoWindow : public BWindow
 	void OnAudioNoise();
 	void OnAudioDMC();
 	void OnReceiveRomDirectory (BMessage *message);
-	void OnShowPaletteInfo();
+	void OnViewPaletteDebugger();
 
 	// video stuff
 	private:
@@ -331,6 +331,13 @@ class PretendoWindow : public BWindow
     private:
     // for the chr explorer
     void ConnectDebugViews();
+    
+    public:
+    void PaletteDebugWindowClosed();
+    
+    public:
+    void HighlightPaletteDebugger(bool sprites, int32 palette, int32 entry = -1);
+	void ClearPaletteDebuggerHighlight();
     
     // keys
 	private:

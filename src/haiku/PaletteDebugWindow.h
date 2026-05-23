@@ -18,6 +18,9 @@ class PaletteDebugWindow : public BWindow
 	virtual void MessageReceived (BMessage *message);
 	virtual bool QuitRequested();
 	
+	void SetExternalHighlight(bool sprites, int32 palette, int32 entry = -1);
+	void ClearExternalHighlight();
+	
 	private:
 	void LoadSettings();
 	void SaveSettings();

@@ -30,6 +30,7 @@ class NameTableView : public BView
     // inherited from BView
     public:
     virtual void AttachedToWindow();
+    virtual void DetachedFromWindow();
     virtual void Draw (BRect updateRect);
     virtual void KeyDown (const char *bytes, int32 numBytes);
     virtual void MouseDown (BPoint where);

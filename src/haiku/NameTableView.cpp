@@ -40,6 +40,15 @@ NameTableBaseFromIndex (int32 which)
 }
 
 
+// Forward declarations for local helper functions.
+//
+// These are needed because NameTableView::~NameTableView() uses
+// ClearPatternWindowHighlight(), but the helper's full definition
+// appears later in this file.
+static inline void SetPatternWindowHighlight(PatternTableWindow* window, int32 whichPT, int32 tileIndex);
+static inline void ClearPatternWindowHighlight(PatternTableWindow* window);
+
+
 // -------------------------------------------------------------
 // NameTableView::NameTableView
 //
@@ -82,8 +91,17 @@ NameTableView::NameTableView(BRect frame, PretendoWindow *mainWindow, int32 whic
 // -------------------------------------------------------------
 NameTableView::~NameTableView()
 {
+	// Defensive cleanup. DetachedFromWindow() should normally clear
+	// external highlights first, but this keeps destruction safe even
+	// if the view is deleted through another path.
+	ClearPatternWindowHighlight(fPatternTable0);
+	ClearPatternWindowHighlight(fPatternTable1);
+
+	if (fMainWindow)
+		fMainWindow->ClearPaletteDebuggerHighlight();
+
 	delete fBitmap;
-	
+
 	fBitmap = nullptr;
 	fBits = nullptr;
 	fRowBytes = 0;
@@ -246,6 +264,24 @@ NameTableView::AttachedToWindow()
 	if (fCHRExplorer && fPalette) {
 		fCHRExplorer->SetHostPalette(fPalette);
 	}
+}
+
+
+void
+NameTableView::DetachedFromWindow()
+{
+	// This NameTableView may have been driving external highlights
+	// in other debugger windows. Clear those links when the view is
+	// removed so stale highlights do not remain visible after the
+	// NameTable window is closed.
+
+	ClearPatternWindowHighlight(fPatternTable0);
+	ClearPatternWindowHighlight(fPatternTable1);
+
+	if (fMainWindow)
+		fMainWindow->ClearPaletteDebuggerHighlight();
+
+	BView::DetachedFromWindow();
 }
 
 
@@ -498,7 +534,7 @@ NameTableView::MouseDown (BPoint where)
 //   None.
 // -------------------------------------------------------------
 void
-NameTableView::MouseMoved (BPoint where, uint32 transit, const BMessage *msg)
+NameTableView::MouseMoved(BPoint where, uint32 transit, const BMessage* msg)
 {
 	(void)msg;
 
@@ -509,24 +545,39 @@ NameTableView::MouseMoved (BPoint where, uint32 transit, const BMessage *msg)
 	if (transit == B_EXITED_VIEW) {
 		if (!fTileLocked) {
 			// Persistent explore mode:
-			// Keep the last valid hovered tile and CHR explorer contents.
+			//
+			// Keep the last valid hovered tile, CHR explorer contents,
+			// PatternTable highlight, and Palette Viewer highlight.
+			//
 			// Do not clear fHoverTileX/Y.
 			// Do not call fCHRExplorer->Clear().
+			// Do not call ClearPatternWindowHighlight().
+			// Do not call ClearPaletteDebuggerHighlight().
 			Invalidate();
 		}
+
 		return;
 	}
 
+	// Locked tile mode:
+	//
+	// Mouse movement should not change the active NameTable tile,
+	// CHR explorer contents, PatternTable highlight, or Palette Viewer
+	// highlight.
 	if (fTileLocked) {
 		return;
 	}
 
-	int32 x;
-	int32 y;
+	int32 x = -1;
+	int32 y = -1;
 
 	if (!ComputeTileFromViewPoint(where, x, y)) {
 		// Pointer is outside the bitmap but still inside the view
-		// header/bottom panel area. Keep the last valid tile visible.
+		// header/bottom panel area.
+		//
+		// Persistent explore mode keeps the last valid tile visible.
+		// Do not clear the CHR explorer, PatternTable highlight, or
+		// Palette Viewer highlight here.
 		Invalidate();
 		return;
 	}
@@ -713,7 +764,7 @@ NameTableView::PatternBase() const
 //   None.
 // -------------------------------------------------------------
 void
-NameTableView::DrawNameTable (int32 which)
+NameTableView::DrawNameTable(int32 which)
 {
 	Mapper* mapper = nes::cart.mapper();
 	if (!mapper) {
@@ -722,7 +773,13 @@ NameTableView::DrawNameTable (int32 which)
 
 	fWhichNameTable = which;
 
-	uint32 const baseAddr = 0x2000 + (which << 12); // 0x2000 + (which * 0x400);
+	// NameTable base:
+	//
+	//   0 -> $2000
+	//   1 -> $2400
+	//   2 -> $2800
+	//   3 -> $2C00
+	uint32 const baseAddr = NameTableBaseFromIndex(which);
 	fCurrentNameTableBase = baseAddr;
 
 	uint32 const patternBase = PatternBase();
@@ -966,10 +1023,14 @@ NameTableView::UpdateCHRExplorer()
 	Mapper* mapper = nes::cart.mapper();
 
 	if (!mapper || !fCHRExplorer) {
+		if (fMainWindow)
+			fMainWindow->ClearPaletteDebuggerHighlight();
+
 		return;
 	}
 
-	int32 worldTX, worldTY;
+	int32 worldTX = -1;
+	int32 worldTY = -1;
 
 	if (!ActiveTile(worldTX, worldTY)) {
 		fCHRExplorer->Clear();
@@ -977,24 +1038,39 @@ NameTableView::UpdateCHRExplorer()
 		ClearPatternWindowHighlight(fPatternTable0);
 		ClearPatternWindowHighlight(fPatternTable1);
 
+		if (fMainWindow)
+			fMainWindow->ClearPaletteDebuggerHighlight();
+
 		return;
 	}
 
-	int32 ntX = worldTX / 32;
-	int32 ntY = worldTY / 30;
+	int32 tileX = -1;
+	int32 tileY = -1;
 
-	int32 tileX = worldTX % 32;
-	int32 tileY = worldTY % 30;
+	if (!WorldTileToLocalTile(worldTX, worldTY, tileX, tileY)) {
+		fCHRExplorer->Clear();
 
-	uint32 nameBase = 0x2000 + (ntY * 2 + ntX) * 0x400;
+		ClearPatternWindowHighlight(fPatternTable0);
+		ClearPatternWindowHighlight(fPatternTable1);
+
+		if (fMainWindow)
+			fMainWindow->ClearPaletteDebuggerHighlight();
+
+		return;
+	}
+
+	uint32 nameBase = 0x2000 + (fWhichNameTable * 0x400);
 
 	fCurrentNameTableBase = nameBase;
-	fHoverWhichNameTable = ntY * 2 + ntX;
+	fHoverWhichNameTable = fWhichNameTable;
 
 	uint32 tileAddr = nameBase + (tileY * 32) + tileX;
+
 	fHoverTileIndex = mapper->read_vram(tileAddr);
 
-	uint32 attrAddr = nameBase + 0x3c0 + ((tileY / 4) * 8) + (tileX / 4);
+	uint32 attrAddr = nameBase + 0x3c0
+		+ ((tileY / 4) * 8)
+		+ (tileX / 4);
 
 	fHoverAttrAddr = attrAddr;
 	fHoverAttrByte = mapper->read_vram(attrAddr);
@@ -1002,16 +1078,20 @@ NameTableView::UpdateCHRExplorer()
 	uint8 qx = (tileX % 4) / 2;
 	uint8 qy = (tileY % 4) / 2;
 	uint8 quadrant = (qy << 1) | qx;
+
 	int32 shift = quadrant * 2;
 
 	fHoverPalette = (fHoverAttrByte >> shift) & 0x3;
 
+	if (fMainWindow)
+		fMainWindow->HighlightPaletteDebugger(false, fHoverPalette, -1);
+
 	uint32 patternBase = PatternBase();
+
 	fCHRTileAddress = patternBase + (fHoverTileIndex * 16);
 
-	for (int32 i = 0; i < 16; i++) {
+	for (int32 i = 0; i < 16; i++)
 		fCHRBytes[i] = mapper->read_vram(fCHRTileAddress + i);
-	}
 
 	int32 whichPT = (patternBase != 0) ? 1 : 0;
 
@@ -1464,29 +1544,42 @@ void
 NameTableView::NotifyCHRExplorer()
 {
 	if (!fCHRExplorer) {
+		if (fMainWindow)
+			fMainWindow->ClearPaletteDebuggerHighlight();
+
 		return;
 	}
 
-	int32 worldTX, worldTY;
+	int32 worldTX = -1;
+	int32 worldTY = -1;
 
 	if (!ActiveTile(worldTX, worldTY)) {
 		fCHRExplorer->Clear();
+
+		if (fMainWindow)
+			fMainWindow->ClearPaletteDebuggerHighlight();
+
 		return;
 	}
 
-	// world tile -> local tile within its nametable
-	int32 tileX = worldTX % 32;
-	int32 tileY = worldTY % 30;
+	int32 tileX = -1;
+	int32 tileY = -1;
 
-	// which 2x2 quadrant inside the 4x4 attribute cell
+	if (!WorldTileToLocalTile(worldTX, worldTY, tileX, tileY)) {
+		fCHRExplorer->Clear();
+
+		if (fMainWindow)
+			fMainWindow->ClearPaletteDebuggerHighlight();
+
+		return;
+	}
+
 	uint8 qx = (tileX % 4) / 2;
 	uint8 qy = (tileY % 4) / 2;
 	uint8 quadrant = (qy << 1) | qx;
 
-	// pattern table index: 0 for $0000, 1 for $1000
 	int32 whichPT = (PatternBase() != 0) ? 1 : 0;
 
-	// exact nametable byte address for the selected tile
 	uint32 tileAddr = fCurrentNameTableBase + (tileY * 32) + tileX;
 
 	fCHRExplorer->SetTile8x8(

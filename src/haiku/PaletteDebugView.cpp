@@ -80,29 +80,42 @@ PaletteDebugView::Draw(BRect updateRect)
 void
 PaletteDebugView::DrawHeaderUI()
 {
-	BRect panel(4.0f, 4.0f, Bounds().right - 4.0f, 58.0f);
+	BRect panel(
+		4.0f,
+		4.0f,
+		Bounds().right - 4.0f,
+		96.0f
+	);
 
 	::DrawDebugPanel(this, panel, "Controls");
 
 	SetFontSize(11.0f);
 
+	font_height fh;
+	GetFontHeight(&fh);
+	const float lineH = ceilf(fh.ascent + fh.descent + fh.leading) + 1.0f;
+
 	const float labelX = panel.left + 8.0f;
 	const float valueX = labelX + 58.0f;
 
-	float y = panel.top + 36.0f;
+	float y = panel.top + 34.0f;
 
-	SetHighColor(80, 80, 80, 255);
-	DrawString("Mouse:", BPoint(labelX, y));
-	SetHighColor(35, 35, 35, 255);
-	DrawString("hover inspect / click lock", BPoint(valueX, y));
+	auto drawKV = [&](const char* label, const char* value) {
+		SetHighColor(80, 80, 80, 255);
+		DrawString(label, BPoint(labelX, y));
 
-	y += 14.0f;
+		SetHighColor(35, 35, 35, 255);
+		DrawString(value, BPoint(valueX, y));
 
-	SetHighColor(80, 80, 80, 255);
-	DrawString("Space:", BPoint(labelX, y));
-	SetHighColor(35, 35, 35, 255);
-	DrawString(fFreezeUpdates ? "unfreeze palette updates" : "freeze palette updates",
-		BPoint(valueX, y));
+		y += lineH;
+	};
+
+	drawKV("Mouse:", "hover inspect / click lock");
+	drawKV("Space:", fFreezeUpdates
+		? "unfreeze palette updates"
+		: "freeze palette updates");
+	drawKV("X:", "mirrored palette entry");
+	drawKV("Blue:", "source palette from NameTable");
 }
 
 
@@ -111,9 +124,9 @@ PaletteDebugView::DrawBackgroundPalettes()
 {
 	BRect panel(
 		4.0f,
-		84.0f,
+		108.0f,
 		Bounds().right - 4.0f,
-		224.0f
+		248.0f
 	);
 
 	DrawPalettePanel(panel, "Background Palettes", false);
@@ -125,9 +138,9 @@ PaletteDebugView::DrawSpritePalettes()
 {
 	BRect panel(
 		4.0f,
-		234.0f,
+		258.0f,
 		Bounds().right - 4.0f,
-		374.0f
+		398.0f
 	);
 
 	DrawPalettePanel(panel, "Sprite Palettes", true);
@@ -141,7 +154,8 @@ PaletteDebugView::DrawPalettePanel(BRect panel, const char* title, bool sprites)
 
 	SetFontSize(11.0f);
 
-	const float labelX = panel.left + 8.0f;
+	// Fixed palette-label column.
+	const float labelRightX = panel.left + 52.0f;
 	const float cellStartX = panel.left + 66.0f;
 
 	const float cellW = 42.0f;
@@ -151,20 +165,74 @@ PaletteDebugView::DrawPalettePanel(BRect panel, const char* title, bool sprites)
 
 	const float firstRowY = panel.top + 34.0f;
 
+	uint16 active = fEntryLocked ? fLockedAddress : fHoverAddress;
+
+	bool activeInThisPanel = sprites
+		? active >= 0x3F10 && active <= 0x3F1F
+		: active >= 0x3F00 && active <= 0x3F0F;
+
+	int32 activePalette = -1;
+
+	if (activeInThisPanel) {
+		activePalette = sprites
+			? ((active - 0x3F10) / 4)
+			: ((active - 0x3F00) / 4);
+	}
+
+	bool externalInThisPanel = fHasExternalHighlight
+		&& fExternalHighlightSprites == sprites
+		&& fExternalHighlightPalette >= 0
+		&& fExternalHighlightPalette <= 3;
+
 	char s[64];
 
 	for (int32 pal = 0; pal < 4; pal++) {
 		float y = firstRowY + pal * rowH;
 
+		BRect rowRect(
+			panel.left + 8.0f,
+			y - 2.0f,
+			panel.right - 8.0f,
+			y + cellH + 2.0f
+		);
+
+		// Blue external source highlight, usually sent from NameTableView.
+		if (externalInThisPanel && pal == fExternalHighlightPalette) {
+			BRect extRect = rowRect.InsetByCopy(1.0f, 1.0f);
+
+			SetHighColor(218, 232, 255, 255);
+			FillRect(extRect);
+
+			SetHighColor(45, 110, 210, 255);
+			StrokeRect(extRect);
+
+			BRect inner = extRect.InsetByCopy(1.0f, 1.0f);
+			if (inner.IsValid()) {
+				SetHighColor(85, 145, 235, 255);
+				StrokeRect(inner);
+			}
+		}
+
+		// Yellow local hover/lock row highlight.
+		if (pal == activePalette) {
+			SetHighColor(238, 238, 190, 255);
+			FillRect(rowRect);
+
+			SetHighColor(190, 175, 80, 255);
+			StrokeRect(rowRect);
+		}
+
 		snprintf(s, sizeof(s), "Pal %ld", (long)pal);
 
+		// Right-align the row label inside the fixed label column.
 		SetHighColor(70, 70, 70, 255);
-		DrawString(s, BPoint(labelX, y + 13.0f));
+		float labelW = StringWidth(s);
+		DrawString(s, BPoint(labelRightX - labelW, y + 13.0f));
 
 		for (int32 entry = 0; entry < 4; entry++) {
 			uint16 address = sprites
-				? static_cast<uint16>(0x3f10 + pal * 4 + entry)
-				: static_cast<uint16>(0x3f00 + pal * 4 + entry);
+				? static_cast<uint16>(0x3F10 + pal * 4 + entry)
+				: static_cast<uint16>(0x3F00 + pal * 4 + entry);
 
 			BRect r(
 				cellStartX + entry * (cellW + gapX),
@@ -173,10 +241,31 @@ PaletteDebugView::DrawPalettePanel(BRect panel, const char* title, bool sprites)
 				y + cellH - 1.0f
 			);
 
-			uint16 active = fEntryLocked ? fLockedAddress : fHoverAddress;
 			bool selected = (active == address);
 
 			DrawPaletteEntry(r, address, selected);
+
+			// Optional exact-entry external highlight.
+			if (externalInThisPanel
+				&& pal == fExternalHighlightPalette
+				&& fExternalHighlightEntry == entry) {
+				BRect entryRect = r.InsetByCopy(-3.0f, -3.0f);
+
+				SetHighColor(45, 110, 210, 255);
+				StrokeRect(entryRect);
+
+				BRect inner = entryRect.InsetByCopy(1.0f, 1.0f);
+				if (inner.IsValid()) {
+					SetHighColor(85, 145, 235, 255);
+					StrokeRect(inner);
+				}
+
+				BRect innerWhite = entryRect.InsetByCopy(2.0f, 2.0f);
+				if (innerWhite.IsValid()) {
+					SetHighColor(255, 255, 255, 255);
+					StrokeRect(innerWhite);
+				}
+			}
 		}
 	}
 }
@@ -191,7 +280,7 @@ PaletteDebugView::DrawPaletteEntry(BRect r, uint16 address, bool selected)
 	uint8 hostIndex = nesColor;
 
 	if (fHostPalette)
-		hostIndex = fHostPalette[nesColor & 0x3f];
+		hostIndex = fHostPalette[nesColor & 0x3F];
 
 	const color_map* cmap = BScreen().ColorMap();
 	rgb_color rgb = {0, 0, 0, 255};
@@ -228,7 +317,14 @@ PaletteDebugView::DrawPaletteEntry(BRect r, uint16 address, bool selected)
 	}
 
 	char s[16];
-	snprintf(s, sizeof(s), "%02X", nesColor & 0x3f);
+	snprintf(s, sizeof(s), "%02X", nesColor & 0x3F);
+
+	BFont oldFont;
+	GetFont(&oldFont);
+
+	BFont fixedFont(be_fixed_font);
+	fixedFont.SetSize(10.0f);
+	SetFont(&fixedFont);
 
 	int32 brightness = rgb.red + rgb.green + rgb.blue;
 
@@ -237,15 +333,22 @@ PaletteDebugView::DrawPaletteEntry(BRect r, uint16 address, bool selected)
 	else
 		SetHighColor(0, 0, 0, 255);
 
-	DrawString(s, BPoint(r.left + 13.0f, r.top + 13.0f));
+	float textW = StringWidth(s);
+	float textX = r.left + ((r.Width() - textW) * 0.5f);
+	float textY = r.top + 13.0f;
+
+	DrawString(s, BPoint(textX, textY));
+
+	SetFont(&oldFont);
 }
+
 
 void
 PaletteDebugView::DrawSelectedInfo()
 {
 	BRect panel(
 		4.0f,
-		384.0f,
+		408.0f,
 		Bounds().right - 4.0f,
 		Bounds().bottom - 8.0f
 	);
@@ -364,12 +467,13 @@ PaletteDebugView::DrawSelectedInfo()
 void
 PaletteDebugView::MouseMoved(BPoint where, uint32 transit, const BMessage* message)
 {
+	(void)where;
 	(void)message;
 
 	if (transit == B_EXITED_VIEW) {
 		fMouseInside = false;
 
-		if (!fEntryLocked)
+		if (!fEntryLocked && !fFreezeUpdates)
 			Invalidate();
 
 		return;
@@ -377,11 +481,16 @@ PaletteDebugView::MouseMoved(BPoint where, uint32 transit, const BMessage* messa
 
 	fMouseInside = true;
 
+	// Freeze means the visible/active palette inspection stays fixed.
+	// Mouse movement should not change the active entry while frozen.
+	if (fFreezeUpdates)
+		return;
+
 	// When locked, mouse movement should not change the active entry.
 	if (fEntryLocked)
 		return;
 
-	uint16 address = 0x3f00;
+	uint16 address = 0x3F00;
 
 	if (PaletteEntryAt(where, address)) {
 		if (fHoverAddress != address) {
@@ -397,7 +506,13 @@ PaletteDebugView::MouseDown(BPoint where)
 {
 	MakeFocus(true);
 
-	uint16 address = 0x3F00;
+	// Freeze means the palette viewer is locked in its current state.
+	// Allow Space to unfreeze, but do not allow mouse clicks to change
+	// the selected/locked palette entry.
+	if (fFreezeUpdates)
+		return;
+
+	uint16 address = 0x3f00;
 
 	if (!PaletteEntryAt(where, address))
 		return;
@@ -465,7 +580,6 @@ PaletteDebugView::PaletteEntryAt(BPoint where, uint16& outAddress) const
 					y + cellH - 1.0f
 				);
 
-				// Match the visual selection feel: a few pixels of forgiveness.
 				r.InsetBy(-4.0f, -4.0f);
 
 				if (r.Contains(where)) {
@@ -478,19 +592,18 @@ PaletteDebugView::PaletteEntryAt(BPoint where, uint16& outAddress) const
 		return false;
 	};
 
-	// These must match DrawBackgroundPalettes() and DrawSpritePalettes().
 	BRect bgPanel(
 		4.0f,
-		84.0f,
+		108.0f,
 		Bounds().right - 4.0f,
-		224.0f
+		248.0f
 	);
 
 	BRect spritePanel(
 		4.0f,
-		234.0f,
+		258.0f,
 		Bounds().right - 4.0f,
-		374.0f
+		398.0f
 	);
 
 	if (checkPanel(bgPanel, false))
@@ -539,5 +652,39 @@ PaletteDebugView::ReadPalette(uint16 address) const
 		return 0xf;
 
 	return mapper->read_vram(address) & 0x3f;
+}
+
+void
+PaletteDebugView::SetExternalHighlight(bool sprites, int32 palette, int32 entry)
+{
+	if (palette < 0 || palette > 3) {
+		ClearExternalHighlight();
+		return;
+	}
+
+	if (entry < -1 || entry > 3)
+		entry = -1;
+
+	fHasExternalHighlight = true;
+	fExternalHighlightSprites = sprites;
+	fExternalHighlightPalette = palette;
+	fExternalHighlightEntry = entry;
+
+	Invalidate();
+}
+
+
+void
+PaletteDebugView::ClearExternalHighlight()
+{
+	if (!fHasExternalHighlight)
+		return;
+
+	fHasExternalHighlight = false;
+	fExternalHighlightSprites = false;
+	fExternalHighlightPalette = -1;
+	fExternalHighlightEntry = -1;
+
+	Invalidate();
 }
 

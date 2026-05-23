@@ -281,6 +281,7 @@ PretendoWindow::~PretendoWindow()
 	Sync();	
 }
 
+
 void
 PretendoWindow::MessageReceived (BMessage *message)
 {
@@ -408,8 +409,8 @@ PretendoWindow::MessageReceived (BMessage *message)
 			OnReceiveRomDirectory(message);
 			break;
 			
-		case messages::SHOW_PALINFO:
-			OnShowPaletteInfo();
+		case messages::SHOW_PALDBG:
+			OnViewPaletteDebugger();
 			break;
 			
 		default:
@@ -580,7 +581,7 @@ PretendoWindow::AddMenu()
 	fNameTableMenu->AddItem(new BMenuItem("3 ($2800)", new BMessage(messages::SHOW_NTBL3)));
 	fNameTableMenu->AddItem(new BMenuItem("4 ($2C00)", new BMessage(messages::SHOW_NTBL4)));
 	fToolMenu->AddItem(fNameTableMenu);
-	fToolMenu->AddItem(new BMenuItem("View Palettes", new BMessage(messages::SHOW_PALINFO)));
+	fToolMenu->AddItem(new BMenuItem("View Palettes", new BMessage(messages::SHOW_PALDBG)));
 	
 	// menu icon
 	fMenuBarIcon = new MenuBarIcon(fMenuBar);
@@ -966,15 +967,23 @@ PretendoWindow::OnReceiveRomDirectory (BMessage *message)
 
 
 void
-PretendoWindow::OnShowPaletteInfo()
+PretendoWindow::OnViewPaletteDebugger()
 {
-	if (!nes::cart.mapper()) {
+	if (!nes::cart.mapper())
 		return;
-	}
 
-	if (fPaletteDebugWindow && fPaletteDebugWindow->Lock()) {
-		fPaletteDebugWindow->Quit();
-		fPaletteDebugWindow = nullptr;
+	// If the Palette Viewer already exists, do not toggle it closed.
+	// Bring it forward instead.
+	if (fPaletteDebugWindow) {
+		if (fPaletteDebugWindow->Lock()) {
+			if (fPaletteDebugWindow->IsHidden())
+				fPaletteDebugWindow->Show();
+
+			fPaletteDebugWindow->Activate(true);
+			fPaletteDebugWindow->Unlock();
+		}
+
+		return;
 	}
 
 	fPaletteDebugWindow = new PaletteDebugWindow(this);
@@ -1513,6 +1522,37 @@ PretendoWindow::ConnectDebugViews()
 		fNameTable4Window->SetPatternTables(fPatternTable1Window, fPatternTable2Window);
 		fNameTable4Window->Unlock();
 	}
+}
+
+
+void
+PretendoWindow::HighlightPaletteDebugger(bool sprites, int32 palette, int32 entry)
+{
+	if (!fPaletteDebugWindow)
+		return;
+
+	if (fPaletteDebugWindow->Lock()) {
+		fPaletteDebugWindow->SetExternalHighlight(sprites, palette, entry);
+		fPaletteDebugWindow->Unlock();
+	}
+}
+
+void
+PretendoWindow::ClearPaletteDebuggerHighlight()
+{
+	if (!fPaletteDebugWindow)
+		return;
+
+	if (fPaletteDebugWindow->Lock()) {
+		fPaletteDebugWindow->ClearExternalHighlight();
+		fPaletteDebugWindow->Unlock();
+	}
+}
+
+void
+PretendoWindow::PaletteDebugWindowClosed()
+{
+	fPaletteDebugWindow = nullptr;
 }
 
 

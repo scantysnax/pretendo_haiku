@@ -1,5 +1,6 @@
 
 #include "PaletteDebugWindow.h"
+#include "PretendoWindow.h"
 
 
 PaletteDebugWindow::PaletteDebugWindow (PretendoWindow *parent)
@@ -49,7 +50,26 @@ PaletteDebugWindow::MessageReceived (BMessage *message)
 bool
 PaletteDebugWindow::QuitRequested()
 {
+	if (fParent)
+		fParent->PaletteDebugWindowClosed();
+
 	return true;
+}
+
+
+void
+PaletteDebugWindow::SetExternalHighlight(bool sprites, int32 palette, int32 entry)
+{
+	if (fView)
+		fView->SetExternalHighlight(sprites, palette, entry);
+}
+
+
+void
+PaletteDebugWindow::ClearExternalHighlight()
+{
+	if (fView)
+		fView->ClearExternalHighlight();
 }
 
 

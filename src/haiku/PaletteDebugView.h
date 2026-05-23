@@ -23,6 +23,10 @@ class PaletteDebugView : public BView
 	virtual void MouseDown(BPoint where);
 	virtual void KeyDown(const char* bytes, int32 numBytes);
 	virtual void Pulse();
+	
+	public:
+	void SetExternalHighlight(bool sprites, int32 palette, int32 entry = -1);
+	void ClearExternalHighlight();
 
 	private:
 	void DrawHeaderUI();
@@ -49,6 +53,12 @@ class PaletteDebugView : public BView
 	private:
 	uint16 fHoverAddress = 0x3f00;
 	uint16 fLockedAddress = 0x3f00;
+	
+	private:
+	bool fHasExternalHighlight = false;
+	bool fExternalHighlightSprites = false;
+	int32 fExternalHighlightPalette = -1;
+	int32 fExternalHighlightEntry = -1;
 };
 
 
