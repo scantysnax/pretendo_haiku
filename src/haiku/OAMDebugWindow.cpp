@@ -16,7 +16,7 @@ OAMDebugWindow::OAMDebugWindow(PretendoWindow* parent)
 	fParent = parent;
 
 	const float kWindowW = 450.0f;
-	const float kWindowH = 540.0f;
+	const float kWindowH = 565.0f;
 
 	ResizeTo(kWindowW, kWindowH);
 	MoveTo(240.0f, 240.0f);

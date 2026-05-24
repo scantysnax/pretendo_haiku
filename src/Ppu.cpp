@@ -1179,4 +1179,12 @@ void set_palette_ram(uint32_t address, uint8_t data) {
 	palette_[address & 0x1f] = data & 0x3f;
 }
 
+uint8_t oam_ram(uint32_t address) {
+	return sprite_ram_[address & 0xff];
+}
+
+uint8_t oamaddr() {
+	return sprite_address_;
+}
+
 } // namespace nes::ppu

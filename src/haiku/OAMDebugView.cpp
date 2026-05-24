@@ -115,7 +115,7 @@ OAMDebugView::DrawOAMSummaryPanel()
 		4.0f,
 		88.0f,
 		Bounds().right - 4.0f,
-		158.0f
+		164.0f
 	);
 
 	::DrawDebugPanel(this, panel, "OAM Summary");
@@ -148,18 +148,19 @@ OAMDebugView::DrawOAMSummaryPanel()
 	snprintf(s, sizeof(s), "$%02X", nes::ppu::ppuctrl());
 	drawKV("PPUCTRL:", s);
 
-	drawKV("Mode:", (nes::ppu::ppuctrl() & 0x20) ? "8x16 sprites" : "8x8 sprites");
+	drawKV("Mode:", (nes::ppu::ppuctrl() & 0x20)
+		? "8x16 sprites"
+		: "8x8 sprites");
 }
-
 
 void
 OAMDebugView::DrawSpriteListPanel()
 {
 	BRect panel(
 		4.0f,
-		168.0f,
+		174.0f,
 		Bounds().right - 4.0f,
-		404.0f
+		432.0f
 	);
 
 	::DrawDebugPanel(this, panel, "Sprite List");
@@ -183,35 +184,40 @@ OAMDebugView::DrawSpriteListPanel()
 	DrawString("X", BPoint(xX, y));
 	DrawString("Info", BPoint(xInfo, y));
 
-	y += 14.0f;
+	// Leave a cleaner gap between the header underline and row 00.
+	y += 22.0f;
 
 	SetHighColor(150, 150, 150, 255);
-	StrokeLine(BPoint(panel.left + 8.0f, y - 8.0f),
-		BPoint(panel.right - 8.0f, y - 8.0f));
+	StrokeLine(
+		BPoint(panel.left + 8.0f, y - 13.0f),
+		BPoint(panel.right - 8.0f, y - 13.0f)
+	);
 
+	const float firstRowY = y;
 	const float rowH = 17.0f;
 
-	// Placeholder rows for now. Real OAM reads come next.
 	for (int32 i = 0; i < 8; i++) {
 		char s[64];
+
+		float rowY = firstRowY + (i * rowH);
 
 		SetHighColor(0, 0, 0, 255);
 
 		snprintf(s, sizeof(s), "%02ld", (long)i);
-		DrawString(s, BPoint(xIndex, y));
+		DrawString(s, BPoint(xIndex, rowY));
 
-		DrawString("--", BPoint(xY, y));
-		DrawString("--", BPoint(xTile, y));
-		DrawString("--", BPoint(xAttr, y));
-		DrawString("--", BPoint(xX, y));
-		DrawString("placeholder", BPoint(xInfo, y));
-
-		y += rowH;
+		DrawString("--", BPoint(xY, rowY));
+		DrawString("--", BPoint(xTile, rowY));
+		DrawString("--", BPoint(xAttr, rowY));
+		DrawString("--", BPoint(xX, rowY));
+		DrawString("placeholder", BPoint(xInfo, rowY));
 	}
 
 	SetHighColor(90, 90, 90, 255);
-	DrawString("Real OAM rows will replace these placeholders.",
-		BPoint(panel.left + 10.0f, panel.bottom - 16.0f));
+	DrawString(
+		"Real OAM rows will replace these placeholders.",
+		BPoint(panel.left + 10.0f, panel.bottom - 14.0f)
+	);
 }
 
 
@@ -220,7 +226,7 @@ OAMDebugView::DrawSelectedSpritePanel()
 {
 	BRect panel(
 		4.0f,
-		414.0f,
+		436.0f,
 		Bounds().right - 4.0f,
 		Bounds().bottom - 8.0f
 	);
@@ -287,8 +293,7 @@ OAMDebugView::DrawSelectedSpritePanel()
 
 
 void
-OAMDebugView::MouseMoved(BPoint where, uint32 transit,
-	const BMessage* message)
+OAMDebugView::MouseMoved(BPoint where, uint32 transit, const BMessage* message)
 {
 	(void)message;
 
@@ -303,20 +308,18 @@ OAMDebugView::MouseMoved(BPoint where, uint32 transit,
 	if (fSpriteLocked)
 		return;
 
-	// Placeholder hit testing:
-	// Real sprite-row hit testing comes when we draw all 64 rows.
 	BRect listPanel(
 		4.0f,
-		164.0f,
+		174.0f,
 		Bounds().right - 4.0f,
-		404.0f
+		432.0f
 	);
 
 	if (!listPanel.Contains(where))
 		return;
 
-	float firstRowY = listPanel.top + 50.0f;
-	float rowH = 18.0f;
+	const float firstRowY = listPanel.top + 58.0f;
+	const float rowH = 17.0f;
 
 	int32 row = static_cast<int32>((where.y - firstRowY) / rowH);
 
@@ -337,16 +340,16 @@ OAMDebugView::MouseDown(BPoint where)
 
 	BRect listPanel(
 		4.0f,
-		164.0f,
+		174.0f,
 		Bounds().right - 4.0f,
-		404.0f
+		432.0f
 	);
 
 	if (!listPanel.Contains(where))
 		return;
 
-	float firstRowY = listPanel.top + 50.0f;
-	float rowH = 18.0f;
+	const float firstRowY = listPanel.top + 58.0f;
+	const float rowH = 17.0f;
 
 	int32 row = static_cast<int32>((where.y - firstRowY) / rowH);
 
