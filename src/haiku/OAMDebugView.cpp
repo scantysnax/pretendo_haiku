@@ -396,6 +396,7 @@ OAMDebugView::MouseMoved(BPoint where, uint32 transit,
 	}
 }
 
+
 void
 OAMDebugView::Pulse()
 {
