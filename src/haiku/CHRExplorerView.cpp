@@ -431,8 +431,8 @@ CHRExplorerView::Draw (BRect updateRect)
 			value = fDecodedPixelsBottom[py - 8][px] & 0x3;
 		}
 
-		char pix[64];
-		snprintf(pix, sizeof(pix), "(%ld,%ld) = %u",
+		BString pix;
+		pix.SetToFormat("(%ld,%ld) = %u",
 			(long)px,
 			(long)py,
 			(unsigned)value);
@@ -440,12 +440,13 @@ CHRExplorerView::Draw (BRect updateRect)
 
 		uint8 plane0 = value & 0x1;
 		uint8 plane1 = (value >> 1) & 0x1;
-
-		char bits[64];
-		snprintf(bits, sizeof(bits), "P0=%u  P1=%u",
+		
+		BString bits;
+		bits.SetToFormat("P0=%u  P1=%u",
 			(unsigned)plane0,
 			(unsigned)plane1);
-		drawPixelKV("Bits:", bits);
+		drawPixelKV("Bits:", bits.String());
+		
 
 		int32 row = py;
 
@@ -560,14 +561,14 @@ CHRExplorerView::Draw (BRect updateRect)
 
 			nesColor = mapper->read_vram(palAddr) & 0x3f;
 		}
-
-		char palInfo[64];
-		snprintf(palInfo, sizeof(palInfo), "$%04X", (unsigned)palAddr);
+		
+		BString palInfo;
+		palInfo.SetToFormat("$%04X", (unsigned)palAddr);
 		drawPixelKV("PalAddr:", palInfo);
-
-		char nesInfo[64];
-		snprintf(nesInfo, sizeof(nesInfo), "$%02X", (unsigned)nesColor);
-		drawPixelKV("NES:", nesInfo);
+		
+		BString nesInfo;
+		nesInfo.SetToFormat("$%02X", (unsigned)nesColor);
+		drawPixelKV("NES:", nesInfo.String());
 	} else {
 		drawPixelKV("Pixel:", "--");
 		drawPixelKV("Bits:", "--");
