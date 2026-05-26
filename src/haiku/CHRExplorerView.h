@@ -2,6 +2,13 @@
 #define _CHR_EXPLORER_VIEW_H_
 
 #include <View.h>
+#include <Screen.h>
+#include <String.h>
+
+#include <algorithm>
+#include <cmath>
+#include <cstring>
+#include <cstdio>
 
 
 // -----------------------------------------------------------------------------

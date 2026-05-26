@@ -8,9 +8,6 @@
 
 #include <Screen.h>
 
-#include <cstring>
-#include <cstdio>
-
 #include "CHRExplorerView.h"
 #include "DebugHelpers.h"
 
@@ -436,7 +433,7 @@ CHRExplorerView::Draw (BRect updateRect)
 			(long)px,
 			(long)py,
 			(unsigned)value);
-		drawPixelKV("Pixel:", pix);
+		drawPixelKV("Pixel:", pix.String());
 
 		uint8 plane0 = value & 0x1;
 		uint8 plane1 = (value >> 1) & 0x1;
@@ -564,7 +561,7 @@ CHRExplorerView::Draw (BRect updateRect)
 		
 		BString palInfo;
 		palInfo.SetToFormat("$%04X", (unsigned)palAddr);
-		drawPixelKV("PalAddr:", palInfo);
+		drawPixelKV("PalAddr:", palInfo.String());
 		
 		BString nesInfo;
 		nesInfo.SetToFormat("$%02X", (unsigned)nesColor);
@@ -844,8 +841,7 @@ CHRExplorerView::DrawInfo(BPoint point)
 	const float valueX = point.x + 62.0f;
 
 	float textY = point.y;
-
-	char line[256];
+	BString line;
 
 	auto drawKV = [&](const char *label, const char *value) {
 		SetHighColor(80, 80, 80, 255);
@@ -857,23 +853,24 @@ CHRExplorerView::DrawInfo(BPoint point)
 		textY += lineH;
 	};
 
-	snprintf(line, sizeof(line), "%ld", (long)fWhichPatternTable);
-	drawKV("PT:", line);
+	line.SetToFormat("%ld", (long)fWhichPatternTable);
+	drawKV("PT:", line.String());
 
-	snprintf(line, sizeof(line), "%u", (unsigned)fTileIndex);
-	drawKV("Tile:", line);
+	line.SetToFormat("%u", (unsigned)fTileIndex);
+	drawKV("Tile:", line.String());
 
 	drawKV("State:", fLocked ? "LOCKED" : "HOVER");
 
-	if (!fIsTile8x16) {
-		snprintf(line, sizeof(line), "$%04X", (unsigned)fCHRTileAddress);
-		drawKV("CHR:", line);
-	} else {
-		snprintf(line, sizeof(line), "$%04X", (unsigned)fCHRTileAddress);
-		drawKV("CHR Top:", line);
 
-		snprintf(line, sizeof(line), "$%04X", (unsigned)fCHRTileAddressBottom);
-		drawKV("CHR Bot:", line);
+	if (!fIsTile8x16) {
+		line.SetToFormat("$%04X", (unsigned)fCHRTileAddress);
+		drawKV("CHR:", line.String());
+	} else {
+		line.SetToFormat("$%04X", (unsigned)fCHRTileAddress);
+		drawKV("CHR Top:", line.String());
+
+		line.SetToFormat("$%04X", (unsigned)fCHRTileAddressBottom);
+		drawKV("CHR Bot:", line.String());
 	}
 
 	if (fWhichNameTable >= 0) {
@@ -883,32 +880,32 @@ CHRExplorerView::DrawInfo(BPoint point)
 
 		int32 shift = (fAttrQuadrant % 4) * 2;
 
-		snprintf(line, sizeof(line), "%ld", (long)fWhichNameTable);
-		drawKV("NT:", line);
+		line.SetToFormat("%ld", (long)fWhichNameTable);
+		drawKV("NT:", line.String());
 
-		snprintf(line, sizeof(line), "$%04X", (unsigned)fNameTileAddress);
-		drawKV("Tile Addr:", line);
+		line.SetToFormat("$%04X", (unsigned)fNameTileAddress);
+		drawKV("Tile Addr:", line.String());
 
-		snprintf(line, sizeof(line), "$%02X", (unsigned)fTileIndex);
-		drawKV("Tile Index:", line);
+		line.SetToFormat("$%02X", (unsigned)fTileIndex);
+		drawKV("Tile Index:", line.String());
 
-		snprintf(line, sizeof(line), "$%04X", (unsigned)fAttrAddress);
-		drawKV("Attr:", line);
+		line.SetToFormat("$%04X", (unsigned)fAttrAddress);
+		drawKV("Attr:", line.String());
 
-		snprintf(line, sizeof(line), "$%02X", (unsigned)fAttrByte);
-		drawKV("Attr Byte:", line);
+		line.SetToFormat("$%02X", (unsigned)fAttrByte);
+		drawKV("Attr Byte:", line.String());
 
-		snprintf(line, sizeof(line), "%s  Shift:%ld", kQuadrantNames[fAttrQuadrant % 4],
+		line.SetToFormat("%s  Shift:%ld", kQuadrantNames[fAttrQuadrant % 4],
 			(long)shift);
-		drawKV("Quadrant:", line);
+		drawKV("Quadrant:", line.String());
 
-		snprintf(line, sizeof(line), "%u", (unsigned)fQuadrantPalette);
-		drawKV("Source Pal:", line);
+		line.SetToFormat("%u", (unsigned)fQuadrantPalette);
+		drawKV("Source Pal:", line.String());
 	}
 
-	snprintf(line, sizeof(line), "%u", (unsigned)fPalette);
-	drawKV("Selected:", line);
-
+	line.SetToFormat("%u", (unsigned)fPalette);
+	drawKV("Selected:", line.String());
+	
 	DrawPaletteSwatch(BPoint(valueX + 30.0f, textY - lineH - 10.0f));
 
 	textY += 8.0f;
@@ -947,12 +944,12 @@ CHRExplorerView::DrawInfo(BPoint point)
 				b = fCHRBytesBottom[i - 16];
 		}
 
-		snprintf(line, sizeof(line), "%02X", b);
+		line.SetToFormat("%02X", b);
 
 		int32 col = i % cols;
 		int32 row = i / cols;
 
-		DrawString(line, BPoint(point.x + col * cellW, textY + row * monoLineH));
+		DrawString(line.String(), BPoint(point.x + col * cellW, textY + row * monoLineH));
 	}
 
 	float afterBytesY = textY + (byteRows * monoLineH) + 6.0f;
@@ -1212,7 +1209,8 @@ CHRExplorerView::DrawPalettePreviewGrid(BPoint origin)
 	const float gapX = 14.0f;
 	const float gapY = 18.0f;
 
-	char label[16];
+	//char label[16];
+	BString label;
 
 	// Draw each palette variant in a 2x2 grid.
 	for (int32 pal = 0; pal < 4; pal++) {
@@ -1225,9 +1223,9 @@ CHRExplorerView::DrawPalettePreviewGrid(BPoint origin)
 		);
 
 		// label
-		snprintf(label, sizeof(label), "Pal %d", pal);
+		label.SetToFormat("Pal %d", pal);
 		SetHighColor(0, 0, 0, 255);
-		DrawString(label, BPoint(p.x, p.y - 4));
+		DrawString(label.String(), BPoint(p.x, p.y - 4));
 
 		// top tile
 		DrawTileWithBgPalette(fDecodedPixels, p, scale, (uint8)pal);
@@ -1425,9 +1423,9 @@ CHRExplorerView::DrawQuadrantDiagram(BPoint origin)
 		SetHighColor(0, 0, 0, 255);
 		StrokeRect(r);
 
-		char buf[8];
-		snprintf(buf, sizeof(buf), "%u", (unsigned)pal);
-		DrawString(buf, BPoint(r.left + 6.0f, r.bottom - 4.0f));
+		BString buf;
+		buf.SetToFormat("%u", (unsigned)pal);
+		DrawString(buf.String(), BPoint(r.left + 6.0f, r.bottom - 4.0f));
 	}
 
 	SetHighColor(0, 0, 0, 255);
@@ -1468,7 +1466,7 @@ CHRExplorerView::DrawTileSummary(float x, float y)
 
 	float textY = y;
 
-	char s[160];
+	BString s;
 
 	SetHighColor(0, 0, 0, 255);
 	DrawString("Tile Summary", BPoint(labelX, textY));
@@ -1484,22 +1482,24 @@ CHRExplorerView::DrawTileSummary(float x, float y)
 		textY += lineH;
 	};
 
-	snprintf(s, sizeof(s), "%ld", (long)fWhichPatternTable);
-	drawKV("PT:", s);
+	s.SetToFormat("%ld", (long)fWhichPatternTable);
+	drawKV("PT:", s.String());
 
-	snprintf(s, sizeof(s), "$%02lX", (long)(fTileIndex & 0xff));
-	drawKV("Tile:", s);
+	s.SetToFormat("$%02lX", (long)(fTileIndex & 0xff));
+	drawKV("Tile:", s.String());
 
 	if (!fIsTile8x16) {
-		snprintf(s, sizeof(s), "$%04lX", (unsigned long)fCHRTileAddress);
-		drawKV("CHR:", s);
+		s.SetToFormat("$%04lX", (unsigned long)fCHRTileAddress);
+		drawKV("CHR:", s.String());
 	} else {
-		snprintf(s, sizeof(s), "$%04lX/$%04lX", (unsigned long)fCHRTileAddress, (unsigned long)fCHRTileAddressBottom);
-		drawKV("CHR:", s);
+		s.SetToFormat("$%04lX/$%04lX", (unsigned long)fCHRTileAddress, 
+						(unsigned long)fCHRTileAddressBottom);
+		
+		drawKV("CHR:", s.String());
 	}
-
-	snprintf(s, sizeof(s), "%s   Pal:%u", fIsTile8x16 ? "8x16" : "8x8", (unsigned)fPalette);
-	drawKV("Mode:", s);
+	
+	s.SetToFormat("%s   Pal:%u", fIsTile8x16 ? "8x16" : "8x8", (unsigned)fPalette);
+	drawKV("Mode:", s.String());
 
 	drawKV("State:", fLocked ? "LOCKED" : "HOVER");
 }
@@ -1519,7 +1519,7 @@ CHRExplorerView::DrawTileSummary(float x, float y)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-CHRExplorerView::DrawCHRAnalysis (float x, float y)
+CHRExplorerView::DrawCHRAnalysis(float x, float y)
 {
 	if (!fValid)
 		return;
@@ -1535,13 +1535,11 @@ CHRExplorerView::DrawCHRAnalysis (float x, float y)
 
 	float textY = y;
 
-	char s[160];
-
 	SetHighColor(0, 0, 0, 255);
 	DrawString("CHR Analysis:", BPoint(labelX, textY));
 	textY += lineH;
 
-	auto drawKV = [&](const char *label, const char *value) {
+	auto drawKV = [&](const char* label, const char* value) {
 		SetHighColor(80, 80, 80, 255);
 		DrawString(label, BPoint(labelX, textY));
 
@@ -1569,44 +1567,45 @@ CHRExplorerView::DrawCHRAnalysis (float x, float y)
 				value = fDecodedPixelsBottom[py - 8][px] & 0x3;
 			}
 
-			if (value & 0x1) {
+			if (value & 0x1)
 				usedP0 = true;
-			}
 
-			if (value & 0x2) {
+			if (value & 0x2)
 				usedP1 = true;
-			}
 
 			usedColor[value] = true;
 
-			if (value != 0) {
+			if (value != 0)
 				opaquePixels++;
-			}
 		}
 	}
 
 	drawKV("P0:", usedP0 ? "used" : "blank");
 	drawKV("P1:", usedP1 ? "used" : "blank");
 
-	char colors[32];
-	colors[0] = '\0';
+	BString colors;
 
 	for (int32 i = 0; i < 4; i++) {
 		if (!usedColor[i])
 			continue;
 
-		char tmp[8];
-		snprintf(tmp, sizeof(tmp), "%s%ld", colors[0] ? " " : "", (long)i);
-		strlcat(colors, tmp, sizeof(colors));
+		if (!colors.IsEmpty())
+			colors.Append(" ");
+
+		BString tmp;
+		tmp.SetToFormat("%ld", (long)i);
+		colors.Append(tmp);
 	}
 
-	if (colors[0] == '\0')
-		strlcpy(colors, "-", sizeof(colors));
+	if (colors.IsEmpty())
+		colors.SetTo("-");
 
-	drawKV("Colors:", colors);
+	drawKV("Colors:", colors.String());
 
-	snprintf(s, sizeof(s), "%ld/%ld", (long)opaquePixels, (long)(height * 8));
-	drawKV("Opaque:", s);
+	BString opaque;
+	opaque.SetToFormat("%ld/%ld",
+						(long)opaquePixels, (long)(height * 8));
+	drawKV("Opaque:", opaque.String());
 }
 
 
