@@ -3,9 +3,10 @@
 #include "OAMDebugWindow.h"
 #include "OAMDebugView.h"
 #include "PretendoWindow.h"
+#include "PatternTableWindow.h"
 
 
-OAMDebugWindow::OAMDebugWindow(PretendoWindow* parent)
+OAMDebugWindow::OAMDebugWindow(PretendoWindow *parent)
 	:
 	BWindow(BRect(240.0f, 240.0f, 689.0f, 779.0f),
 		"OAM Viewer",
@@ -16,7 +17,7 @@ OAMDebugWindow::OAMDebugWindow(PretendoWindow* parent)
 	fParent = parent;
 
 	const float kWindowW = 450.0f;
-	const float kWindowH = 565.0f;
+	const float kWindowH = 590.0f;
 
 	ResizeTo(kWindowW, kWindowH);
 	MoveTo(240.0f, 240.0f);
@@ -28,7 +29,12 @@ OAMDebugWindow::OAMDebugWindow(PretendoWindow* parent)
 		kWindowH - 1.0f
 	);
 
-	fView = new OAMDebugView(viewFrame, fParent);
+	fView = new OAMDebugView(Bounds(), parent);
+
+ 	if (parent) {
+		fView->SetHostPalette(parent->Palette());
+ 	}
+ 	
 	AddChild(fView);
 
 	SetPulseRate(16667);

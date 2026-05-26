@@ -9,7 +9,7 @@
 
 class PretendoWindow;
 class OAMDebugView;
-
+class PatternTableWindow;
 
 class OAMDebugWindow : public BWindow
 {
@@ -18,6 +18,9 @@ class OAMDebugWindow : public BWindow
 	virtual ~OAMDebugWindow();
 
 	virtual bool QuitRequested();
+	
+	public:
+	void SetPatternTables(PatternTableWindow *pt0, PatternTableWindow *pt1);
 
 	private:
 	PretendoWindow *fParent = nullptr;

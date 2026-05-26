@@ -1187,4 +1187,6 @@ uint8_t oamaddr() {
 	return sprite_address_;
 }
 
+
 } // namespace nes::ppu
+
