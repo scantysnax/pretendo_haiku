@@ -137,7 +137,6 @@ void
 ROMInfoView::DrawROMInfo(rom_match_t *rom)
 {
 	BList *list = new BList;
-	//char buffer[1024];
 	BString s;
 	int32 i;
 	

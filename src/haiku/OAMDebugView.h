@@ -47,7 +47,7 @@ class OAMDebugView : public BView
 	void ClearPatternTableHighlight();
 	
 	private:
-	PretendoWindow* fParent = nullptr;
+	PretendoWindow *fParent = nullptr;
 	
 	private:
 	BScrollBar *fSpriteScrollBar = nullptr;
