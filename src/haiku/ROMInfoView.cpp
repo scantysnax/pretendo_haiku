@@ -7,16 +7,12 @@ using nes::cart;
 
 ROMInfoView::ROMInfoView (BRect frame)
 	: BOutlineListView (frame, "rom_info_view")
-{
-	
+{	
 }
-
-
 
 
 ROMInfoView::~ROMInfoView()
 {
-	
 }
 
 
@@ -141,7 +137,8 @@ void
 ROMInfoView::DrawROMInfo(rom_match_t *rom)
 {
 	BList *list = new BList;
-	char buffer[1024];
+	//char buffer[1024];
+	BString s;
 	int32 i;
 	
 	BListItem *gameInfoItem = new BStringItem("Game Info");
@@ -169,8 +166,8 @@ ROMInfoView::DrawROMInfo(rom_match_t *rom)
 	AddItem(cicItem);
 	
 	for (xmlAttr *properties = rom->game->properties; properties; properties = properties->next) {
-		snprintf(buffer, sizeof(buffer), "%-15s: %s", properties->name, xmlGetProp(rom->game, properties->name));
-		list->AddItem(new BStringItem(buffer));
+		s.SetToFormat("%-15s: %s", properties->name, xmlGetProp(rom->game, properties->name));
+		list->AddItem(new BStringItem(s.String()));
 	}
 	
 	for (i = list->CountItems()-1; i >= 0; i--) {
@@ -181,8 +178,8 @@ ROMInfoView::DrawROMInfo(rom_match_t *rom)
 	list->MakeEmpty();
 	
 	for (xmlAttr *properties = rom->cart->properties; properties; properties = properties->next) {
-		snprintf(buffer, sizeof(buffer), "%-15s : %s", properties->name, xmlGetProp(rom->cart, properties->name));
-		list->AddItem(new BStringItem(buffer));
+		s.SetToFormat("%-15s : %s", properties->name, xmlGetProp(rom->cart, properties->name));
+		list->AddItem(new BStringItem(s.String()));
 	}
 	
 	for (i = list->CountItems()-1; i >= 0; i--) {
@@ -199,8 +196,8 @@ ROMInfoView::DrawROMInfo(rom_match_t *rom)
 		if (xmlStrcmp(node->name, reinterpret_cast<const xmlChar *>("peripherals")) == 0) {
 			for (xmlNodePtr device = node->children; device; device = device->next) {
 				for (xmlAttr *properties = device->properties; properties; properties = properties->next) {
-					snprintf(buffer, sizeof(buffer), "%-15s : %s", properties->name, xmlGetProp(device, properties->name));
-					list->AddItem(new BStringItem(buffer));
+					s.SetToFormat("%-15s : %s", properties->name, xmlGetProp(device, properties->name));
+					list->AddItem(new BStringItem(s.String()));
 				}
 			}
 			
@@ -219,8 +216,8 @@ ROMInfoView::DrawROMInfo(rom_match_t *rom)
 			for (xmlNodePtr node = board->children; node; node = node->next) {
 				if (xmlStrcmp(node->name, reinterpret_cast<const xmlChar *>("prg")) == 0) {
 					for (xmlAttr *properties = node->properties; properties; properties = properties->next) {
-						snprintf(buffer, sizeof(buffer), "%-15s : %s", properties->name, xmlGetProp(node, properties->name));
-						list->AddItem(new BStringItem(buffer));
+						s.SetToFormat("%-15s : %s", properties->name, xmlGetProp(node, properties->name));
+						list->AddItem(new BStringItem(s.String()));
 					}
 					
 					for (i = list->CountItems()-1; i >= 0; i--) {
@@ -234,8 +231,8 @@ ROMInfoView::DrawROMInfo(rom_match_t *rom)
 				
 				if (xmlStrcmp(node->name, reinterpret_cast<const xmlChar *>("chr")) == 0) {
 					for (xmlAttr *properties = node->properties; properties; properties = properties->next) {
-						snprintf(buffer, sizeof(buffer), "%-15s : %s", properties->name, xmlGetProp(node, properties->name));
-						list->AddItem(new BStringItem(buffer));
+						s.SetToFormat("%-15s : %s", properties->name, xmlGetProp(node, properties->name));
+						list->AddItem(new BStringItem(s.String()));
 					}
 					
 					for (i = list->CountItems()-1; i >= 0; i--) {
@@ -248,8 +245,8 @@ ROMInfoView::DrawROMInfo(rom_match_t *rom)
 
 				if (xmlStrcmp(node->name, reinterpret_cast<const xmlChar *>("wram")) == 0) {
 					for (xmlAttr *properties = node->properties; properties; properties = properties->next) {
-						snprintf(buffer, sizeof(buffer), "%-15s : %s", properties->name, xmlGetProp(node, properties->name));
-						list->AddItem(new BStringItem(buffer));
+						s.SetToFormat("%-15s : %s", properties->name, xmlGetProp(node, properties->name));
+						list->AddItem(new BStringItem(s.String()));
 					}
 
 					for (i = list->CountItems()-1; i >= 0; i--) {
@@ -262,8 +259,8 @@ ROMInfoView::DrawROMInfo(rom_match_t *rom)
 			
 				if (xmlStrcmp(node->name, reinterpret_cast<const xmlChar *>("chip")) == 0) {
 					for (xmlAttr *properties = node->properties; properties; properties = properties->next) {
-						snprintf(buffer, sizeof(buffer), "%-15s : %s", properties->name, xmlGetProp(node, properties->name));
-						list->AddItem(new BStringItem(buffer));
+						s.SetToFormat("%-15s : %s", properties->name, xmlGetProp(node, properties->name));
+						list->AddItem(new BStringItem(s.String());
 					}
 					
 					for (i = list->CountItems()-1; i >= 0; i--) {
@@ -276,8 +273,8 @@ ROMInfoView::DrawROMInfo(rom_match_t *rom)
 				
 				if (xmlStrcmp(node->name, reinterpret_cast<const xmlChar *>("cic")) == 0) {
 					for (xmlAttr *properties = node->properties; properties; properties = properties->next) {
-						snprintf(buffer, sizeof(buffer), "%-15s : %s", properties->name, xmlGetProp(node, properties->name));
-						list->AddItem(new BStringItem(buffer));
+						s.SetToFormat("%-15s : %s", properties->name, xmlGetProp(node, properties->name));
+						list->AddItem(new BStringItem(s.String()));
 					}
 					
 					for (i = list->CountItems()-1; i >= 0; i--) {
