@@ -259,7 +259,7 @@ ROMInfoView::DrawROMInfo(rom_match_t *rom)
 				if (xmlStrcmp(node->name, reinterpret_cast<const xmlChar *>("chip")) == 0) {
 					for (xmlAttr *properties = node->properties; properties; properties = properties->next) {
 						s.SetToFormat("%-15s : %s", properties->name, xmlGetProp(node, properties->name));
-						list->AddItem(new BStringItem(s.String());
+						list->AddItem(new BStringItem(s.String()));
 					}
 					
 					for (i = list->CountItems()-1; i >= 0; i--) {
