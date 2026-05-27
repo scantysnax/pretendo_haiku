@@ -6,7 +6,7 @@
 
 #include "Ppu.h"
 
-#include <stdio.h>
+#include <cstdio>
 
 
 class OAMSpriteScrollBar : public BScrollBar
@@ -493,7 +493,7 @@ OAMDebugView::DrawOAMSummaryPanel()
 	float leftY = panel.top + 36.0f;
 	float rightY = panel.top + 36.0f;
 
-	char s[128];
+	BString s;
 
 	auto drawLeftKV = [&](const char* label, const char* value,
 		bool monoValue) {
@@ -521,18 +521,18 @@ OAMDebugView::DrawOAMSummaryPanel()
 		rightY += lineH;
 	};
 
-	snprintf(s, sizeof(s), "%ld / 64", (long)usedSprites);
-	drawLeftKV("OAM Used:", s, false);
+	s.SetToFormat("%ld / 64", (long)usedSprites);
+	drawLeftKV("OAM Used:", s.String(), false);
 
-	snprintf(s, sizeof(s), "%ld", (long)hiddenSprites);
-	drawLeftKV("Hidden:", s, false);
+	s.SetToFormat("%ld", (long)hiddenSprites);
+	drawLeftKV("Hidden:", s.String(), false);
 
 	drawRightKV("Mode:", (nes::ppu::ppuctrl() & 0x20)
 		? "8x16 sprites"
 		: "8x8 sprites", false);
 
-	snprintf(s, sizeof(s), "$%02X", nes::ppu::ppuctrl());
-	drawRightKV("PPUCTRL:", s, true);
+	s.SetToFormat("$%02X", nes::ppu::ppuctrl());
+	drawRightKV("PPUCTRL:", s.String(), true);
 
 	SetFont(&oldFont);
 }
@@ -630,52 +630,48 @@ OAMDebugView::DrawSpriteListPanel()
 			}
 		}
 
-		char s[128];
+		BString s;
 
 		SetHighColor(0, 0, 0, 255);
 
 		SetFont(&mono);
 
-		snprintf(s, sizeof(s), "%02ld", (long)spriteIndex);
+		s.SetToFormat("%02ld", (long)spriteIndex);
 		DrawString(s, BPoint(xIndex, rowY));
 
-		snprintf(s, sizeof(s), "$%02X", spriteY);
-		DrawString(s, BPoint(xY, rowY));
+		s.SetToFormat("$%02X", spriteY);
+		DrawString(s.String(), BPoint(xY, rowY));
 
-		snprintf(s, sizeof(s), "$%02X", tile);
-		DrawString(s, BPoint(xTile, rowY));
+		s.SetToFormat("$%02X", tile);
+		DrawString(s.String(), BPoint(xTile, rowY));
 
-		snprintf(s, sizeof(s), "$%02X", attr);
-		DrawString(s, BPoint(xAttr, rowY));
+		s.SetToFormat("$%02X", attr);
+		DrawString(s.String(), BPoint(xAttr, rowY));
 
-		snprintf(s, sizeof(s), "$%02X", spriteX);
-		DrawString(s, BPoint(xX, rowY));
+		s.SetToFormat("$%02X", spriteX);
+		DrawString(s.String(), BPoint(xX, rowY));
 
 		SetFont(&oldFont);
-
-		snprintf(s, sizeof(s), "P%u %s%s%s",
+		
+		s.SetToFormat("P%u %s%s%s",
 			(unsigned)pal,
 			priority ? "B" : "F",
 			flipH ? " H" : "",
 			flipV ? " V" : "");
-
-		DrawString(s, BPoint(xInfo, rowY));
+		DrawString(s.String(), BPoint(xInfo, rowY));
 	}
 
 	SetFont(&oldFont);
 
-	char footer[128];
-	snprintf(
-		footer,
-		sizeof(footer),
-		"Showing OAM sprites %02ld-%02ld of 64.",
+	BString footer;
+	footer.SetToFormat("Showing OAM sprites %02ld-%02ld of 64.",
 		(long)fFirstSprite,
 		(long)(fFirstSprite + 7)
 	);
 
 	SetHighColor(90, 90, 90, 255);
 	DrawString(
-		footer,
+		footer.String(),
 		BPoint(panel.left + 10.0f, panel.bottom - 14.0f)
 	);
 }
@@ -749,7 +745,7 @@ OAMDebugView::DrawSelectedSpritePanel()
 
 	DrawSpritePreview(previewRect, active);
 
-	char s[128];
+	BString s;
 
 	if (active < 0) {
 		drawLeftKV("Sprite:", "--", true);
@@ -799,44 +795,44 @@ OAMDebugView::DrawSelectedSpritePanel()
 		chrAddr = spritePatternBase + (tile * 16);
 	}
 
-	snprintf(s, sizeof(s), "%02ld", (long)active);
-	drawLeftKV("Sprite:", s, true);
+	s.SetToFormat("%02ld", (long)active);
+	drawLeftKV("Sprite:", s.String(), true);
 
-	snprintf(s, sizeof(s), "$%02X", spriteY);
-	drawLeftKV("Raw Y:", s, true);
+	s.SetToFormat("$%02X", spriteY);
+	drawLeftKV("Raw Y:", s.String(), true);
 
-	snprintf(s, sizeof(s), "%u", (unsigned)((uint16)spriteY + 1));
-	drawLeftKV("Screen Y:", s, true);
+	s.SetToFormat("%u", (unsigned)((uint16)spriteY + 1));
+	drawLeftKV("Screen Y:", s.String(), true);
 	drawLeftKV("Visible:", spriteY < 0xef ? "yes" : "offscreen", false);
 
-	snprintf(s, sizeof(s), "$%02X", spriteX);
-	drawLeftKV("X:", s, true);
+	s.SetToFormat("$%02X", spriteX);
+	drawLeftKV("X:", s.String(), true);
 
 	if (largeSprites) {
-		snprintf(s, sizeof(s), "$%02X/$%02X",
+		s.SetToFormat("$%02X/$%02X",
 			tile & 0xfe,
 			(tile & 0xfe) + 1);
-		drawLeftKV("Tiles:", s, true);
+		drawLeftKV("Tiles:", s.String(), true);
 	} else {
-		snprintf(s, sizeof(s), "$%02X", tile);
-		drawLeftKV("Tile:", s, true);
+		s.SetToFormat("$%02X", tile);
+		drawLeftKV("Tile:", s.String(), true);
 	}
 
-	snprintf(s, sizeof(s), "$%02X", attr);
-	drawRightKV("Attr:", s, true);
+	s.SetToFormat("$%02X", attr);
+	drawRightKV("Attr:", s.String(), true);
 
 	if (largeSprites) {
-		snprintf(s, sizeof(s), "$%04lX/$%04lX",
+		s.SetToFormat("$%04lX/$%04lX",
 			(unsigned long)chrAddr,
 			(unsigned long)chrAddrBottom);
-		drawRightKV("CHR:", s, true);
+		drawRightKV("CHR:", s.String(), true);
 	} else {
-		snprintf(s, sizeof(s), "$%04lX", (unsigned long)chrAddr);
-		drawRightKV("CHR:", s, true);
+		s.SetToFormat("$%04lX", (unsigned long)chrAddr);
+		drawRightKV("CHR:", s.String(), true);
 	}
 
-	snprintf(s, sizeof(s), "%u", (unsigned)pal);
-	drawRightKV("Palette:", s, false);
+	s.SetToFormat("%u", (unsigned)pal);
+	drawRightKV("Palette:", s.String(), false);
 
 	drawRightKV("Priority:", priority ? "behind BG" : "in front", false);
 

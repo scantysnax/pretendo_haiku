@@ -61,7 +61,7 @@ class NameTableView : public BView
 	//   None.
 	// -------------------------------------------------------------
 	void SetPatternTables (PatternTableWindow *pt0, PatternTableWindow *pt1) {
-		fPatternTable0 =  pt0;
+		fPatternTable0 = pt0;
 		fPatternTable1 = pt1;
 	}
 	

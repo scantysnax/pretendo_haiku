@@ -184,7 +184,7 @@ PaletteDebugView::DrawPalettePanel(BRect panel, const char* title, bool sprites)
 		&& fExternalHighlightPalette >= 0
 		&& fExternalHighlightPalette <= 3;
 
-	char s[64];
+	BString s;
 
 	for (int32 pal = 0; pal < 4; pal++) {
 		float y = firstRowY + pal * rowH;
@@ -222,7 +222,7 @@ PaletteDebugView::DrawPalettePanel(BRect panel, const char* title, bool sprites)
 			StrokeRect(rowRect);
 		}
 
-		snprintf(s, sizeof(s), "Pal %ld", (long)pal);
+		s.SetToFormat("Pal %ld", (long)pal);
 
 		// Right-align the row label inside the fixed label column.
 		SetHighColor(70, 70, 70, 255);
@@ -316,8 +316,8 @@ PaletteDebugView::DrawPaletteEntry(BRect r, uint16 address, bool selected)
 		StrokeRect(r.InsetByCopy(-1.0f, -1.0f));
 	}
 
-	char s[16];
-	snprintf(s, sizeof(s), "%02X", nesColor & 0x3F);
+	BString s;
+	s.SetToFormat("%02X", nesColor & 0x3f);
 
 	BFont oldFont;
 	GetFont(&oldFont);
@@ -337,7 +337,7 @@ PaletteDebugView::DrawPaletteEntry(BRect r, uint16 address, bool selected)
 	float textX = r.left + ((r.Width() - textW) * 0.5f);
 	float textY = r.top + 13.0f;
 
-	DrawString(s, BPoint(textX, textY));
+	DrawString(s.String(), BPoint(textX, textY));
 
 	SetFont(&oldFont);
 }
@@ -362,7 +362,7 @@ PaletteDebugView::DrawSelectedInfo()
 
 	uint8 hostIndex = nesColor;
 	if (fHostPalette)
-		hostIndex = fHostPalette[nesColor & 0x3F];
+		hostIndex = fHostPalette[nesColor & 0x3f];
 
 	const color_map* cmap = BScreen().ColorMap();
 	rgb_color rgb = {0, 0, 0, 255};
@@ -370,15 +370,15 @@ PaletteDebugView::DrawSelectedInfo()
 	if (cmap)
 		rgb = cmap->color_list[hostIndex];
 
-	bool sprites = address >= 0x3F10;
+	bool sprites = address >= 0x3f10;
 
 	int32 palette = sprites
-		? ((address - 0x3F10) / 4)
-		: ((address - 0x3F00) / 4);
+		? ((address - 0x3f10) / 4)
+		: ((address - 0x3f00) / 4);
 
 	int32 entry = sprites
-		? ((address - 0x3F10) % 4)
-		: ((address - 0x3F00) % 4);
+		? ((address - 0x3f10) % 4)
+		: ((address - 0x3f00) % 4);
 
 	SetFontSize(11.0f);
 
@@ -395,9 +395,9 @@ PaletteDebugView::DrawSelectedInfo()
 	float leftY = panel.top + 36.0f;
 	float rightY = panel.top + 36.0f;
 
-	char s[128];
+	BString s;
 
-	auto drawLeftKV = [&](const char* label, const char* value) {
+	auto drawLeftKV = [&](const char *label, const char *value) {
 		SetHighColor(80, 80, 80, 255);
 		DrawString(label, BPoint(leftLabelX, leftY));
 
@@ -407,7 +407,7 @@ PaletteDebugView::DrawSelectedInfo()
 		leftY += lineH;
 	};
 
-	auto drawRightKV = [&](const char* label, const char* value) {
+	auto drawRightKV = [&](const char *label, const char *value) {
 		SetHighColor(80, 80, 80, 255);
 		DrawString(label, BPoint(rightLabelX, rightY));
 
@@ -417,35 +417,35 @@ PaletteDebugView::DrawSelectedInfo()
 		rightY += lineH;
 	};
 
-	snprintf(s, sizeof(s), "$%04X", address);
-	drawLeftKV("Address:", s);
+	s.SetToFormat("$%04X", address);
+	drawLeftKV("Address:", s.String());
 
 	if (resolved != address) {
-		snprintf(s, sizeof(s), "$%04X -> $%04X", address, resolved);
-		drawLeftKV("Mirror:", s);
+		s.SetToFormat("$%04X -> $%04X", address, resolved);
+		drawLeftKV("Mirror:", s.String());
 	} else {
 		drawLeftKV("Mirror:", "none");
 	}
 
 	drawLeftKV("Group:", sprites ? "Sprite" : "Background");
 
-	snprintf(s, sizeof(s), "%ld", (long)palette);
-	drawLeftKV("Palette:", s);
+	s.SetToFormat("%ld", (long)palette);
+	drawLeftKV("Palette:", s.String());
 
-	snprintf(s, sizeof(s), "%ld", (long)entry);
-	drawLeftKV("Entry:", s);
+	s.SetToFormat("%ld", (long)entry);
+	drawLeftKV("Entry:", s.String());
 
-	snprintf(s, sizeof(s), "$%02X", nesColor & 0x3F);
-	drawRightKV("NES:", s);
+	s.SetToFormat("$%02X", nesColor & 0x3f);
+	drawRightKV("NES:", s.String());
 
-	snprintf(s, sizeof(s), "%u", (unsigned)hostIndex);
-	drawRightKV("Host:", s);
-
-	snprintf(s, sizeof(s), "%u,%u,%u",
+	s.SetToFormat("%u", (unsigned)hostIndex);
+	drawRightKV("Host:", s.String());
+	
+	s.SetToFormat("%u,%u,%u",
 		(unsigned)rgb.red,
 		(unsigned)rgb.green,
 		(unsigned)rgb.blue);
-	drawRightKV("RGB:", s);
+	drawRightKV("RGB:", s.String());
 
 	drawRightKV("State:", fEntryLocked ? "LOCKED" : "HOVER");
 
@@ -465,7 +465,7 @@ PaletteDebugView::DrawSelectedInfo()
 
 
 void
-PaletteDebugView::MouseMoved(BPoint where, uint32 transit, const BMessage* message)
+PaletteDebugView::MouseMoved(BPoint where, uint32 transit, const BMessage *message)
 {
 	(void)where;
 	(void)message;
@@ -554,7 +554,7 @@ PaletteDebugView::KeyDown(const char* bytes, int32 numBytes)
 
 
 bool
-PaletteDebugView::PaletteEntryAt(BPoint where, uint16& outAddress) const
+PaletteDebugView::PaletteEntryAt(BPoint where, uint16 &outAddress) const
 {
 	const float cellW = 42.0f;
 	const float cellH = 18.0f;
@@ -570,8 +570,8 @@ PaletteDebugView::PaletteEntryAt(BPoint where, uint16& outAddress) const
 
 			for (int32 entry = 0; entry < 4; entry++) {
 				uint16 address = sprites
-					? static_cast<uint16>(0x3F10 + pal * 4 + entry)
-					: static_cast<uint16>(0x3F00 + pal * 4 + entry);
+					? static_cast<uint16>(0x3f10 + pal * 4 + entry)
+					: static_cast<uint16>(0x3f00 + pal * 4 + entry);
 
 				BRect r(
 					cellStartX + entry * (cellW + gapX),

@@ -1099,8 +1099,8 @@ PatternTableView::DrawPatternStatePanel()
 	uint32 base = fWhichPatternTable ? 0x1000 : 0x0000;
 	int32 index = ActiveTileIndex();
 
-	char s[160];
-
+	BString s;
+	
 	auto drawKV = [&](const char *label, const char *value) {
 		SetHighColor(80, 80, 80, 255);
 		DrawString(label, BPoint(labelX, textY));
@@ -1111,22 +1111,21 @@ PatternTableView::DrawPatternStatePanel()
 		textY += lineH;
 	};
 
-	snprintf(s, sizeof(s), "%ld", (long)fWhichPatternTable);
-	drawKV("PT:", s);
+	s.SetToFormat("%ld", (long)fWhichPatternTable);
+	drawKV("PT:", s.String());
 
-	snprintf(s, sizeof(s), "$%04lX", (unsigned long)base);
-	drawKV("Base:", s);
+	s.SetToFormat("$%04lX", (unsigned long)base);
+	drawKV("Base:", s.String());
 
 	drawKV("Mode:", Show8x16() ? "8x16" : "8x8");
 
 	if (index >= 0) {
 		uint32 addr = base + ((index & 0xff) * 16);
+		s.SetToFormat("$%02lX", (long)(index & 0xff));
+		drawKV("Tile:", s.String());
 
-		snprintf(s, sizeof(s), "$%02lX", (long)(index & 0xff));
-		drawKV("Tile:", s);
-
-		snprintf(s, sizeof(s), "$%04lX", (unsigned long)addr);
-		drawKV("CHR:", s);
+		s.SetToFormat("$%04lX", (unsigned long)addr);
+		drawKV("CHR:", s.String());
 
 		drawKV("State:", fTileLocked ? "LOCKED" : "HOVER");
 	} else {

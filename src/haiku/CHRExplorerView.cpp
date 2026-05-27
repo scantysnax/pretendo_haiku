@@ -6,8 +6,6 @@
 // previews, pixel/bitplane details, and compact tile analysis.
 // -----------------------------------------------------------------------------
 
-#include <Screen.h>
-
 #include "CHRExplorerView.h"
 #include "DebugHelpers.h"
 

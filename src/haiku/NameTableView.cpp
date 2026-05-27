@@ -18,6 +18,8 @@
 
 #include "DebugHelpers.h"
 
+#include <String.h>
+
 #include <cstdio>
 #include <algorithm>
 
@@ -2049,7 +2051,7 @@ NameTableView::DrawDebugPanel()
 	uint16 bgPT = (ctrl & 0x10) ? 0x1000 : 0x0000;
 	uint32 ntBase = 0x2000 + (fWhichNameTable * 0x400);
 
-	char s[160];
+	BString s;
 
 	auto drawKV = [&](const char *label, const char *value) {
 		SetHighColor(80, 80, 80, 255);
@@ -2061,14 +2063,14 @@ NameTableView::DrawDebugPanel()
 		textY += lineH;
 	};
 
-	snprintf(s, sizeof(s), "$%02X", ctrl);
-	drawKV("PPUCTRL:", s);
+	s.SetToFormat("$%02X", ctrl);
+	drawKV("PPUCTRL:", s.String());
 
-	snprintf(s, sizeof(s), "$%04X", bgPT);
-	drawKV("Background:", s);
+	s.SetToFormat("$%04X", bgPT);
+	drawKV("Background:", s.String());
 
-	snprintf(s, sizeof(s), "$%04X", ntBase);
-	drawKV("Name Table:", s);
+	s.SetToFormat("$%04X", ntBase);
+	drawKV("Name Table:", s.String());
 
 	// --- State badges with wrapping ---
 	float sx = labelX;

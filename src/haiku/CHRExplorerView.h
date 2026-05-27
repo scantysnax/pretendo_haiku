@@ -5,11 +5,6 @@
 #include <Screen.h>
 #include <String.h>
 
-#include <algorithm>
-#include <cmath>
-#include <cstring>
-#include <cstdio>
-
 
 // -----------------------------------------------------------------------------
 // CHRExplorerView
