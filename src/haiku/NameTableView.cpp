@@ -2069,7 +2069,7 @@ NameTableView::DrawDebugPanel()
 	s.SetToFormat("$%04X", bgPT);
 	drawKV("Background:", s.String());
 
-	s.SetToFormat("$%04X", ntBase);
+	s.SetToFormat("$%04lX", ntBase);
 	drawKV("Name Table:", s.String());
 
 	// --- State badges with wrapping ---

@@ -1221,7 +1221,7 @@ CHRExplorerView::DrawPalettePreviewGrid(BPoint origin)
 		);
 
 		// label
-		label.SetToFormat("Pal %d", pal);
+		label.SetToFormat("Pal %ld", pal);
 		SetHighColor(0, 0, 0, 255);
 		DrawString(label.String(), BPoint(p.x, p.y - 4));
 
