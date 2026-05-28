@@ -4,6 +4,11 @@
 #include "PatternTableWindow.h"
 #include "PatternTableView.h"
 
+#include "CHRExplorerView.h"
+#include "Cart.h"
+#include "Mapper.h"
+
+
 #include "Ppu.h"
 
 #include <cstdio>
@@ -204,6 +209,7 @@ OAMDebugView::KeyDown(const char* bytes, int32 numBytes)
 
 			UpdatePaletteDebuggerHighlight();
 			UpdatePatternTableHighlight();
+			UpdateCHRExplorer();
 
 			Invalidate();
 			break;
@@ -227,6 +233,7 @@ OAMDebugView::KeyDown(const char* bytes, int32 numBytes)
 
 			UpdatePaletteDebuggerHighlight();
 			UpdatePatternTableHighlight();
+			UpdateCHRExplorer();
 
 			Invalidate();
 			break;
@@ -278,6 +285,7 @@ OAMDebugView::MessageReceived(BMessage* message)
 
 				UpdatePaletteDebuggerHighlight();
 				UpdatePatternTableHighlight();
+				UpdateCHRExplorer();
 
 				Invalidate();
 			}
@@ -331,14 +339,14 @@ OAMDebugView::MouseDown(BPoint where)
 
 	UpdatePaletteDebuggerHighlight();
 	UpdatePatternTableHighlight();
+	UpdateCHRExplorer();
 
 	Invalidate();
 }
 
 
 void
-OAMDebugView::MouseMoved(BPoint where, uint32 transit,
-	const BMessage* message)
+OAMDebugView::MouseMoved(BPoint where, uint32 transit, const BMessage* message)
 {
 	(void)message;
 
@@ -348,10 +356,15 @@ OAMDebugView::MouseMoved(BPoint where, uint32 transit,
 		if (!fSpriteLocked) {
 			fHoverSprite = -1;
 
-			if (fParent)
+			if (fParent) {
 				fParent->ClearPaletteDebuggerHighlight();
-
+			}
+			
 			ClearPatternTableHighlight();
+			
+			if (fCHRExplorer) {
+				fCHRExplorer->Clear();
+			}
 		}
 
 		Invalidate();
@@ -360,8 +373,9 @@ OAMDebugView::MouseMoved(BPoint where, uint32 transit,
 
 	fMouseInside = true;
 
-	if (fSpriteLocked)
+	if (fSpriteLocked) {
 		return;
+	}
 
 	BRect listPanel(
 		4.0f,
@@ -391,6 +405,7 @@ OAMDebugView::MouseMoved(BPoint where, uint32 transit,
 
 		UpdatePaletteDebuggerHighlight();
 		UpdatePatternTableHighlight();
+		UpdateCHRExplorer();
 
 		Invalidate();
 	}
@@ -873,14 +888,21 @@ OAMDebugView::SetFirstSpriteFromScrollBar(int32 firstSprite)
 	
 	UpdatePaletteDebuggerHighlight();
 	UpdatePatternTableHighlight();
+	UpdateCHRExplorer();
 
 	Invalidate();
 }
 
+
 void
-OAMDebugView::SetHostPalette(uint8 *palette)
+OAMDebugView::SetHostPalette(uint8* palette)
 {
 	fHostPalette = palette;
+
+	if (fCHRExplorer) {
+		fCHRExplorer->SetHostPalette(palette);
+	}
+
 	Invalidate();
 }
 
@@ -1080,6 +1102,96 @@ OAMDebugView::UpdatePaletteDebuggerHighlight()
 	fParent->HighlightPaletteDebugger(true, spritePalette, -1);
 }
 
+void
+OAMDebugView::UpdateCHRExplorer()
+{
+	if (!fCHRExplorer)
+		return;
+
+	Mapper *mapper = nes::cart.mapper();
+
+	if (!mapper) {
+		fCHRExplorer->Clear();
+		return;
+	}
+
+	int32 active = fSpriteLocked ? fLockedSprite : fHoverSprite;
+
+	if (active < 0 || active >= 64) {
+		fCHRExplorer->Clear();
+		return;
+	}
+
+	uint32 base = active * 4;
+
+	uint8 spriteY = nes::ppu::oam_ram(base + 0);
+	uint8 tile = nes::ppu::oam_ram(base + 1);
+	uint8 attr = nes::ppu::oam_ram(base + 2);
+
+	if (spriteY >= 0xef) {
+		fCHRExplorer->Clear();
+		return;
+	}
+
+	uint8 spritePalette = attr & 0x03;
+	bool largeSprites = (nes::ppu::ppuctrl() & 0x20) != 0;
+
+	if (largeSprites) {
+		int32 whichPT = tile & 0x01;
+		int32 topTile = tile & 0xfe;
+
+		uint32 chrAddrTop = (whichPT ? 0x1000 : 0x0000)
+			+ (topTile * 16);
+		uint32 chrAddrBottom = chrAddrTop + 16;
+
+		uint8 chrTop[16];
+		uint8 chrBottom[16];
+
+		for (int32 i = 0; i < 16; i++) {
+			chrTop[i] = mapper->read_vram(chrAddrTop + i);
+			chrBottom[i] = mapper->read_vram(chrAddrBottom + i);
+		}
+
+		fCHRExplorer->SetTile8x16(
+			whichPT,
+			topTile,
+			fSpriteLocked,
+			chrAddrTop,
+			chrTop,
+			chrAddrBottom,
+			chrBottom,
+			spritePalette
+		);
+
+		fCHRExplorer->SetUseSpritePalette(true);
+	} else {
+		int32 whichPT = (nes::ppu::ppuctrl() & 0x08) ? 1 : 0;
+		uint32 chrAddr = (whichPT ? 0x1000 : 0x0000)
+			+ (tile * 16);
+
+		uint8 chrBytes[16];
+
+		for (int32 i = 0; i < 16; i++)
+			chrBytes[i] = mapper->read_vram(chrAddr + i);
+
+		fCHRExplorer->SetTile8x8(
+			whichPT,
+			tile,
+			fSpriteLocked,
+			chrAddr,
+			chrBytes,
+			spritePalette,
+			-1,
+			0,
+			0,
+			0,
+			0
+		);
+
+		fCHRExplorer->SetUseSpritePalette(true);
+	}
+}
+
 
 void
 OAMDebugView::SetPatternTables(PatternTableWindow *pt0, PatternTableWindow *pt1)
@@ -1132,5 +1244,17 @@ OAMDebugView::UpdatePatternTableHighlight()
 		ClearPatternWindowHighlight(fPatternTable0);
 		SetPatternWindowHighlight(fPatternTable1, whichPT, tileIndex);
 	}
+}
+
+
+void
+OAMDebugView::SetExplorer(CHRExplorerView *explorer)
+{
+	fCHRExplorer = explorer;
+
+	if (fCHRExplorer && fHostPalette)
+		fCHRExplorer->SetHostPalette(fHostPalette);
+
+	UpdateCHRExplorer();
 }
 

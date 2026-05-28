@@ -12,6 +12,7 @@
 
 class PretendoWindow;
 class PatternTableWindow;
+class CHRExplorerView;
 
 class OAMDebugView : public BView
 {
@@ -32,6 +33,7 @@ class OAMDebugView : public BView
 	void SetFirstSpriteFromScrollBar(int32 firstSprite);
 	void SetHostPalette (uint8 *palette);
 	void SetPatternTables(PatternTableWindow* pt0, PatternTableWindow* pt1);
+	void SetExplorer(CHRExplorerView *explorer);
 	
 	private:
 	void DrawHeaderUI();
@@ -45,6 +47,7 @@ class OAMDebugView : public BView
 	void UpdatePaletteDebuggerHighlight();
 	void UpdatePatternTableHighlight();
 	void ClearPatternTableHighlight();
+	void UpdateCHRExplorer();
 	
 	private:
 	PretendoWindow *fParent = nullptr;
@@ -68,6 +71,9 @@ class OAMDebugView : public BView
 	 private:
 	 PatternTableWindow *fPatternTable0 = nullptr;
 	 PatternTableWindow *fPatternTable1 = nullptr;
+	 
+	 private:
+	 CHRExplorerView *fCHRExplorer = nullptr;
 };
 
 

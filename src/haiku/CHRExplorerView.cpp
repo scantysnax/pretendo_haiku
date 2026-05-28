@@ -545,11 +545,13 @@ CHRExplorerView::Draw (BRect updateRect)
 		// resolve the hovered pixel to its palette RAM address and NES color.
 		uint32 palAddr = 0x3f00;
 		uint8 nesColor = 0;
-		Mapper *mapper = nes::cart.mapper();
+		Mapper* mapper = nes::cart.mapper();
 
 		if (mapper) {
 			if (value == 0) {
 				palAddr = 0x3f00;
+			} else if (fUseSpritePalette) {
+				palAddr = 0x3f10 + (fPalette * 4) + value;
 			} else {
 				palAddr = 0x3f00 + 1 + (fPalette * 4) + (value - 1);
 			}
@@ -653,6 +655,7 @@ CHRExplorerView::Clear()
 
 	fLocked = false;
 	fIsTile8x16 = false;
+	fUseSpritePalette = false;
 
 	fAttrAddress = 0;
 	fAttrByte = 0;
@@ -693,6 +696,26 @@ void
 CHRExplorerView::SetHostPalette(uint8 *palette)
 {
 	fHostPalette = palette;
+	Invalidate();
+}
+
+
+// -----------------------------------------------------------------------------
+// CHRExplorerView::SetUseSpritePalette
+//
+// Selects whether decoded tile previews use background palette addresses
+// ($3F00-$3F0F) or sprite palette addresses ($3F10-$3F1F).
+//
+// Parameters:
+//   useSpritePalette - true for sprite/OAM tiles, false for background tiles.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+CHRExplorerView::SetUseSpritePalette(bool useSpritePalette)
+{
+	fUseSpritePalette = useSpritePalette;
 	Invalidate();
 }
 
@@ -743,6 +766,7 @@ CHRExplorerView::SetTile8x8(int32 whichPT, int32 tileIndex, bool locked,
 		fPalette = fQuadrantPalette;
 
 	fIsTile8x16 = false;
+	fUseSpritePalette = false;
 	fValid = true;
 
 	fWhichNameTable = whichNT;
@@ -1086,6 +1110,7 @@ CHRExplorerView::SetTile8x16(int32 whichPT, int32 topTileIndex, bool locked,
 	fAttrQuadrant = 0;
 
 	fIsTile8x16 = true;
+	fUseSpritePalette = true;
 	fValid = true;
 
 	// top tile
@@ -1133,32 +1158,48 @@ CHRExplorerView::SetTile8x16(int32 whichPT, int32 topTileIndex, bool locked,
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-CHRExplorerView::DrawTileWithBgPalette(const uint8 decoded[8][8], BPoint origin, float scale, uint8 bgPalette)
+CHRExplorerView::DrawTileWithBgPalette(const uint8 decoded[8][8],
+	BPoint origin, float scale, uint8 bgPalette)
 {
-	Mapper *mapper = nes::cart.mapper();
+	Mapper* mapper = nes::cart.mapper();
 	BScreen screen(Window());
-	const color_map *cmap = screen.ColorMap();
+	const color_map* cmap = screen.ColorMap();
 
 	if (!mapper || !cmap || !fHostPalette)
 		return;
 
 	rgb_color pal[4];
 
-	// Read universal background plus the three colors from the selected palette.
 	uint8 nes0 = mapper->read_vram(0x3f00) & 0x3f;
-	uint8 nes1 = mapper->read_vram(0x3f00 + 1 + (bgPalette * 4) + 0) & 0x3f;
-	uint8 nes2 = mapper->read_vram(0x3f00 + 1 + (bgPalette * 4) + 1) & 0x3f;
-	uint8 nes3 = mapper->read_vram(0x3f00 + 1 + (bgPalette * 4) + 2) & 0x3f;
+	uint8 nes1;
+	uint8 nes2;
+	uint8 nes3;
+
+	if (fUseSpritePalette) {
+		// Sprite palettes live at $3f10-$3f1f.
+		//
+		// Pixel 0 is transparent for real sprites, but in the CHR explorer
+		// preview we draw it with the universal background color so the tile
+		// still has a visible background, matching the OAM preview behavior.
+		nes1 = mapper->read_vram(0x3f10 + (bgPalette * 4) + 1) & 0x3f;
+		nes2 = mapper->read_vram(0x3f10 + (bgPalette * 4) + 2) & 0x3f;
+		nes3 = mapper->read_vram(0x3f10 + (bgPalette * 4) + 3) & 0x3f;
+	} else {
+		// Background palettes live at $3F00-$3F0F.
+		nes1 = mapper->read_vram(0x3f00 + 1 + (bgPalette * 4) + 0) & 0x3f;
+		nes2 = mapper->read_vram(0x3f00 + 1 + (bgPalette * 4) + 1) & 0x3f;
+		nes3 = mapper->read_vram(0x3f00 + 1 + (bgPalette * 4) + 2) & 0x3f;
+	}
 
 	pal[0] = cmap->color_list[fHostPalette[nes0]];
 	pal[1] = cmap->color_list[fHostPalette[nes1]];
 	pal[2] = cmap->color_list[fHostPalette[nes2]];
 	pal[3] = cmap->color_list[fHostPalette[nes3]];
 
-	// Draw each decoded NES pixel as a scaled host-color rectangle.
 	for (int y = 0; y < 8; y++) {
 		for (int x = 0; x < 8; x++) {
 			uint8 pix = decoded[y][x] & 0x3;
+
 			SetHighColor(pal[pix]);
 			FillRect(BRect(
 				origin.x + x * scale,
@@ -1221,7 +1262,7 @@ CHRExplorerView::DrawPalettePreviewGrid(BPoint origin)
 		);
 
 		// label
-		label.SetToFormat("Pal %ld", pal);
+		label.SetToFormat("Pal %d", pal);
 		SetHighColor(0, 0, 0, 255);
 		DrawString(label.String(), BPoint(p.x, p.y - 4));
 
