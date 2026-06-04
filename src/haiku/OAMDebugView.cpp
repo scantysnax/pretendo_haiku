@@ -7,11 +7,7 @@
 #include "CHRExplorerView.h"
 #include "Cart.h"
 #include "Mapper.h"
-
-
 #include "Ppu.h"
-
-#include <cstdio>
 
 
 class OAMSpriteScrollBar : public BScrollBar
@@ -131,6 +127,15 @@ OAMDebugView::AttachedToWindow()
 		AddChild(fSpriteScrollBar);
 		fSpriteScrollBar->SetValue(fFirstSprite);
 	}
+	
+	CaptureOAMSnapshot();
+	fFreezeUpdates = true;
+
+	UpdatePaletteDebuggerHighlight();
+	UpdatePatternTableHighlight();
+	UpdateCHRExplorer();
+
+	Invalidate();
 }
 
 void
@@ -184,10 +189,69 @@ OAMDebugView::KeyDown(const char* bytes, int32 numBytes)
 	if (numBytes <= 0)
 		return;
 
+	auto syncAfterSelectionChange = [&]() {
+		if (fFirstSprite < 0)
+			fFirstSprite = 0;
+
+		if (fFirstSprite > 56)
+			fFirstSprite = 56;
+
+		if (fSpriteScrollBar)
+			fSpriteScrollBar->SetValue(fFirstSprite);
+
+		UpdatePaletteDebuggerHighlight();
+		UpdatePatternTableHighlight();
+		UpdateCHRExplorer();
+
+		Invalidate();
+	};
+
+	auto moveActiveSprite = [&](int32 delta) {
+		int32 active = fSpriteLocked ? fLockedSprite : fHoverSprite;
+
+		if (active < 0 || active >= 64)
+			active = fFirstSprite;
+
+		active += delta;
+
+		if (active < 0)
+			active = 0;
+
+		if (active > 63)
+			active = 63;
+
+		if (fSpriteLocked)
+			fLockedSprite = active;
+
+		fHoverSprite = active;
+
+		if (active < fFirstSprite)
+			fFirstSprite = (active / 8) * 8;
+		else if (active >= fFirstSprite + 8)
+			fFirstSprite = (active / 8) * 8;
+
+		syncAfterSelectionChange();
+	};
+
 	switch (bytes[0]) {
 		case ' ':
 			fFreezeUpdates = !fFreezeUpdates;
+
+			CaptureOAMSnapshot();
+
+			UpdatePaletteDebuggerHighlight();
+			UpdatePatternTableHighlight();
+			UpdateCHRExplorer();
+
 			Invalidate();
+			break;
+
+		case B_UP_ARROW:
+			moveActiveSprite(-1);
+			break;
+
+		case B_DOWN_ARROW:
+			moveActiveSprite(1);
 			break;
 
 		case '[':
@@ -204,14 +268,7 @@ OAMDebugView::KeyDown(const char* bytes, int32 numBytes)
 				}
 			}
 
-			if (fSpriteScrollBar)
-				fSpriteScrollBar->SetValue(fFirstSprite);
-
-			UpdatePaletteDebuggerHighlight();
-			UpdatePatternTableHighlight();
-			UpdateCHRExplorer();
-
-			Invalidate();
+			syncAfterSelectionChange();
 			break;
 
 		case ']':
@@ -228,8 +285,12 @@ OAMDebugView::KeyDown(const char* bytes, int32 numBytes)
 				}
 			}
 
-			if (fSpriteScrollBar)
-				fSpriteScrollBar->SetValue(fFirstSprite);
+			syncAfterSelectionChange();
+			break;
+			
+		case 'r':
+		case 'R':
+			CaptureOAMSnapshot();
 
 			UpdatePaletteDebuggerHighlight();
 			UpdatePatternTableHighlight();
@@ -384,8 +445,9 @@ OAMDebugView::MouseMoved(BPoint where, uint32 transit, const BMessage* message)
 		432.0f
 	);
 
-	if (!listPanel.Contains(where))
+	if (!listPanel.Contains(where)) {
 		return;
+	}
 
 	const float firstRowY = listPanel.top + 58.0f;
 	const float rowH = 17.0f;
@@ -417,6 +479,15 @@ OAMDebugView::Pulse()
 {
 	if (fFreezeUpdates)
 		return;
+
+	// Take one coherent OAM snapshot for this debugger refresh.
+	// All drawing and linked inspectors should read from this snapshot,
+	// not directly from live OAM.
+	CaptureOAMSnapshot();
+
+	UpdatePaletteDebuggerHighlight();
+	UpdatePatternTableHighlight();
+	UpdateCHRExplorer();
 
 	Invalidate();
 }
@@ -456,10 +527,12 @@ OAMDebugView::DrawHeaderUI()
 	};
 
 	drawKV("Mouse:", "hover inspect / click lock");
+
 	drawKV("Space:", fFreezeUpdates
-		? "unfreeze OAM updates"
-		: "freeze OAM updates");
-	drawKV("[ / ]:", "previous / next 8 sprites");
+		? "switch to live OAM"
+		: "switch to snapshot OAM");
+
+	drawKV("[ ] R:", "prev/next page / refresh snapshot");
 }
 
 
@@ -491,7 +564,7 @@ OAMDebugView::DrawOAMSummaryPanel()
 	int32 hiddenSprites = 0;
 
 	for (int32 i = 0; i < 64; i++) {
-		uint8 spriteY = nes::ppu::oam_ram((i * 4) + 0);
+		uint8 spriteY = OAMByte((i * 4) + 0);
 
 		if (spriteY >= 0xef)
 			hiddenSprites++;
@@ -542,6 +615,8 @@ OAMDebugView::DrawOAMSummaryPanel()
 	s.SetToFormat("%ld", (long)hiddenSprites);
 	drawLeftKV("Hidden:", s.String(), false);
 
+	drawRightKV("State:", fFreezeUpdates ? "FROZEN" : "LIVE", false);
+
 	drawRightKV("Mode:", (nes::ppu::ppuctrl() & 0x20)
 		? "8x16 sprites"
 		: "8x8 sprites", false);
@@ -551,6 +626,7 @@ OAMDebugView::DrawOAMSummaryPanel()
 
 	SetFont(&oldFont);
 }
+
 
 void
 OAMDebugView::DrawSpriteListPanel()
@@ -610,10 +686,12 @@ OAMDebugView::DrawSpriteListPanel()
 
 		uint32 base = spriteIndex * 4;
 
-		uint8 spriteY = nes::ppu::oam_ram(base + 0);
-		uint8 tile = nes::ppu::oam_ram(base + 1);
-		uint8 attr = nes::ppu::oam_ram(base + 2);
-		uint8 spriteX = nes::ppu::oam_ram(base + 3);
+		uint8 spriteY = OAMByte(base + 0);
+		uint8 tile = OAMByte(base + 1);
+		uint8 attr = OAMByte(base + 2);
+		uint8 spriteX = OAMByte(base + 3);
+
+		bool hidden = spriteY >= 0xef;
 
 		uint8 pal = attr & 0x03;
 		bool priority = (attr & 0x20) != 0;
@@ -627,8 +705,8 @@ OAMDebugView::DrawSpriteListPanel()
 			rowY - 12.0f,
 			panel.right - 24.0f,
 			rowY + 4.0f
-		); 
-		
+		);
+
 		if (spriteIndex == active) {
 			if (fSpriteLocked) {
 				SetHighColor(255, 230, 245, 255);
@@ -647,12 +725,15 @@ OAMDebugView::DrawSpriteListPanel()
 
 		BString s;
 
-		SetHighColor(0, 0, 0, 255);
+		if (hidden)
+			SetHighColor(115, 115, 115, 255);
+		else
+			SetHighColor(0, 0, 0, 255);
 
 		SetFont(&mono);
 
 		s.SetToFormat("%02ld", (long)spriteIndex);
-		DrawString(s, BPoint(xIndex, rowY));
+		DrawString(s.String(), BPoint(xIndex, rowY));
 
 		s.SetToFormat("$%02X", spriteY);
 		DrawString(s.String(), BPoint(xY, rowY));
@@ -667,13 +748,21 @@ OAMDebugView::DrawSpriteListPanel()
 		DrawString(s.String(), BPoint(xX, rowY));
 
 		SetFont(&oldFont);
-		
-		s.SetToFormat("P%u %s%s%s",
-			(unsigned)pal,
-			priority ? "B" : "F",
-			flipH ? " H" : "",
-			flipV ? " V" : "");
-		DrawString(s.String(), BPoint(xInfo, rowY));
+
+		if (hidden) {
+			SetHighColor(115, 115, 115, 255);
+			DrawString("hidden", BPoint(xInfo, rowY));
+		} else {
+			SetHighColor(0, 0, 0, 255);
+
+			s.SetToFormat("P%u %s%s%s",
+				(unsigned)pal,
+				priority ? "B" : "F",
+				flipH ? " H" : "",
+				flipV ? " V" : "");
+
+			DrawString(s.String(), BPoint(xInfo, rowY));
+		}
 	}
 
 	SetFont(&oldFont);
@@ -782,10 +871,10 @@ OAMDebugView::DrawSelectedSpritePanel()
 
 	uint32 base = active * 4;
 
-	uint8 spriteY = nes::ppu::oam_ram(base + 0);
-	uint8 tile = nes::ppu::oam_ram(base + 1);
-	uint8 attr = nes::ppu::oam_ram(base + 2);
-	uint8 spriteX = nes::ppu::oam_ram(base + 3);
+	uint8 spriteY = OAMByte(base + 0);
+	uint8 tile = OAMByte(base + 1);
+	uint8 attr = OAMByte(base + 2);
+	uint8 spriteX = OAMByte(base + 3);
 
 	uint8 pal = attr & 0x03;
 	bool priority = (attr & 0x20) != 0;
@@ -925,8 +1014,9 @@ OAMDebugView::SpritePreviewColor(uint8 spritePalette, uint8 pixel) const
 
 	uint8 nesColor = nes::ppu::palette_ram(paletteAddress) & 0x3f;
 
-	if (!fHostPalette || !Window())
+	if (!fHostPalette || !Window()) {
 		return rgb_color{0, 0, 0, 255};
+	}
 
 	uint8 hostIndex = fHostPalette[nesColor];
 
@@ -972,9 +1062,9 @@ OAMDebugView::DrawSpritePreview(BRect previewRect, int32 spriteIndex)
 
 	uint32 base = spriteIndex * 4;
 
-	uint8 spriteY = nes::ppu::oam_ram(base + 0);
-	uint8 tile = nes::ppu::oam_ram(base + 1);
-	uint8 attr = nes::ppu::oam_ram(base + 2);
+	uint8 spriteY = OAMByte(base + 0);
+	uint8 tile = OAMByte(base + 1);
+	uint8 attr = OAMByte(base + 2);
 
 	uint8 palette = attr & 0x03;
 
@@ -1095,12 +1185,13 @@ OAMDebugView::UpdatePaletteDebuggerHighlight()
 
 	uint32 base = active * 4;
 
-	uint8 attr = nes::ppu::oam_ram(base + 2);
+	uint8 attr = OAMByte(base + 2);
 	uint8 spritePalette = attr & 0x03;
 
 	// true = sprite palette area, palette = 0..3, entry -1 = whole row.
 	fParent->HighlightPaletteDebugger(true, spritePalette, -1);
 }
+
 
 void
 OAMDebugView::UpdateCHRExplorer()
@@ -1108,7 +1199,7 @@ OAMDebugView::UpdateCHRExplorer()
 	if (!fCHRExplorer)
 		return;
 
-	Mapper *mapper = nes::cart.mapper();
+	Mapper* mapper = nes::cart.mapper();
 
 	if (!mapper) {
 		fCHRExplorer->Clear();
@@ -1124,9 +1215,9 @@ OAMDebugView::UpdateCHRExplorer()
 
 	uint32 base = active * 4;
 
-	uint8 spriteY = nes::ppu::oam_ram(base + 0);
-	uint8 tile = nes::ppu::oam_ram(base + 1);
-	uint8 attr = nes::ppu::oam_ram(base + 2);
+	uint8 spriteY = OAMByte(base + 0);
+	uint8 tile = OAMByte(base + 1);
+	uint8 attr = OAMByte(base + 2);
 
 	if (spriteY >= 0xef) {
 		fCHRExplorer->Clear();
@@ -1134,6 +1225,8 @@ OAMDebugView::UpdateCHRExplorer()
 	}
 
 	uint8 spritePalette = attr & 0x03;
+	bool flipH = (attr & 0x40) != 0;
+	bool flipV = (attr & 0x80) != 0;
 	bool largeSprites = (nes::ppu::ppuctrl() & 0x20) != 0;
 
 	if (largeSprites) {
@@ -1164,8 +1257,11 @@ OAMDebugView::UpdateCHRExplorer()
 		);
 
 		fCHRExplorer->SetUseSpritePalette(true);
+		fCHRExplorer->SetSelectedPalette(spritePalette);
+		fCHRExplorer->SetTileTransform(flipH, flipV);
 	} else {
 		int32 whichPT = (nes::ppu::ppuctrl() & 0x08) ? 1 : 0;
+
 		uint32 chrAddr = (whichPT ? 0x1000 : 0x0000)
 			+ (tile * 16);
 
@@ -1189,6 +1285,8 @@ OAMDebugView::UpdateCHRExplorer()
 		);
 
 		fCHRExplorer->SetUseSpritePalette(true);
+		fCHRExplorer->SetSelectedPalette(spritePalette);
+		fCHRExplorer->SetTileTransform(flipH, flipV);
 	}
 }
 
@@ -1223,7 +1321,7 @@ OAMDebugView::UpdatePatternTableHighlight()
 
 	uint32 base = active * 4;
 
-	uint8 tile = nes::ppu::oam_ram(base + 1);
+	uint8 tile = OAMByte(base + 1);
 	bool largeSprites = (nes::ppu::ppuctrl() & 0x20) != 0;
 
 	int32 whichPT;
@@ -1252,9 +1350,29 @@ OAMDebugView::SetExplorer(CHRExplorerView *explorer)
 {
 	fCHRExplorer = explorer;
 
-	if (fCHRExplorer && fHostPalette)
+	if (fCHRExplorer && fHostPalette) {
 		fCHRExplorer->SetHostPalette(fHostPalette);
+	}
 
 	UpdateCHRExplorer();
+}
+
+void
+OAMDebugView::CaptureOAMSnapshot()
+{
+	for (uint32 i = 0; i < 0x100; i++)
+		fFrozenOAM[i] = nes::ppu::oam_ram(i);
+
+	fHaveFrozenOAM = true;
+}
+
+
+uint8
+OAMDebugView::OAMByte(uint32 address) const
+{
+	if (fHaveFrozenOAM)
+		return fFrozenOAM[address & 0xff];
+
+	return nes::ppu::oam_ram(address);
 }
 

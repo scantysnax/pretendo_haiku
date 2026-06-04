@@ -45,6 +45,8 @@ class CHRExplorerView : public BView
 
 	void UpdateHoverPixelFromMouse();
 	void SetUseSpritePalette(bool useSpritePalette);
+	void SetTileTransform(bool flipH, bool flipV);
+	void SetSelectedPalette(uint8 palette);
 
 	private:
 	void DecodeTile();
@@ -73,6 +75,8 @@ class CHRExplorerView : public BView
 	bool fLocked = false;
 	bool fIsTile8x16 = false;
 	bool fUseSpritePalette = false;
+	bool fFlipH = false;
+	bool fFlipV = false;
 
 	// Source pattern/name table identity.
 	int32 fWhichPatternTable = 0;

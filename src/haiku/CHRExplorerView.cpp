@@ -656,6 +656,8 @@ CHRExplorerView::Clear()
 	fLocked = false;
 	fIsTile8x16 = false;
 	fUseSpritePalette = false;
+	fFlipH = false;
+	fFlipV = false;
 
 	fAttrAddress = 0;
 	fAttrByte = 0;
@@ -721,6 +723,38 @@ CHRExplorerView::SetUseSpritePalette(bool useSpritePalette)
 
 
 // -----------------------------------------------------------------------------
+// CHRExplorerView::SetTileTransform
+//
+// Sets optional display transforms for sprite/OAM inspection.  These affect
+// the rendered previews only; the raw CHR bytes remain unchanged.
+//
+// Parameters:
+//   flipH - true to draw the tile horizontally flipped.
+//   flipV - true to draw the tile vertically flipped.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+CHRExplorerView::SetTileTransform(bool flipH, bool flipV)
+{
+	fFlipH = flipH;
+	fFlipV = flipV;
+
+	Invalidate();
+}
+
+
+void
+CHRExplorerView::SetSelectedPalette(uint8 palette)
+{
+	fQuadrantPalette = palette % 4;
+	fPalette = fQuadrantPalette;
+	Invalidate();
+}
+
+
+// -----------------------------------------------------------------------------
 // CHRExplorerView::SetTile8x8
 //
 // Loads an 8x8 CHR tile into the explorer, records optional NameTable and
@@ -767,8 +801,10 @@ CHRExplorerView::SetTile8x8(int32 whichPT, int32 tileIndex, bool locked,
 
 	fIsTile8x16 = false;
 	fUseSpritePalette = false;
+	fFlipH = false;
+	fFlipV = false;
 	fValid = true;
-
+	
 	fWhichNameTable = whichNT;
 	fNameTileAddress = nameTileAddr;
 	fAttrAddress = attrAddr;
@@ -1077,8 +1113,8 @@ CHRExplorerView::DrawPaletteSwatch(BPoint point)
 // -----------------------------------------------------------------------------
 void
 CHRExplorerView::SetTile8x16(int32 whichPT, int32 topTileIndex, bool locked,
-	uint32 chrAddrTop, const uint8 *chrTop,
-	uint32 chrAddrBottom, const uint8 *chrBottom,
+	uint32 chrAddrTop, const uint8* chrTop,
+	uint32 chrAddrBottom, const uint8* chrBottom,
 	uint8 bgPalette)
 {
 	// Both halves are required for an 8x16 tile.
@@ -1091,29 +1127,36 @@ CHRExplorerView::SetTile8x16(int32 whichPT, int32 topTileIndex, bool locked,
 	fTileIndex = topTileIndex;
 	fLocked = locked;
 
-	// true palette from current source tile
+	// Source palette from the caller.
 	fQuadrantPalette = bgPalette % 4;
 
-	// only reset selected palette if not locked
+	// Preserve manual palette selection while locked, but update it normally
+	// during hover/explore mode.
 	if (!fLocked)
 		fPalette = fQuadrantPalette;
 
 	fCHRTileAddress = chrAddrTop;
-	memcpy(fCHRBytes, chrTop, 16);
-
 	fCHRTileAddressBottom = chrAddrBottom;
+
+	memcpy(fCHRBytes, chrTop, 16);
 	memcpy(fCHRBytesBottom, chrBottom, 16);
 
 	fWhichNameTable = -1;
+	fNameTileAddress = 0;
 	fAttrAddress = 0;
 	fAttrByte = 0;
 	fAttrQuadrant = 0;
 
+	// Default CHR explorer behavior is non-sprite:
+	// PatternTableView also uses this function, so OAM-specific sprite palette
+	// and flip handling must be enabled separately by OAMDebugView.
 	fIsTile8x16 = true;
-	fUseSpritePalette = true;
+	fUseSpritePalette = false;
+	fFlipH = false;
+	fFlipV = false;
 	fValid = true;
 
-	// top tile
+	// Decode top tile.
 	for (int32 y = 0; y < 8; y++) {
 		uint8 firstPlane = fCHRBytes[y + 0];
 		uint8 secondPlane = fCHRBytes[y + 8];
@@ -1126,7 +1169,7 @@ CHRExplorerView::SetTile8x16(int32 whichPT, int32 topTileIndex, bool locked,
 		}
 	}
 
-	// bottom tile
+	// Decode bottom tile.
 	for (int32 y = 0; y < 8; y++) {
 		uint8 firstPlane = fCHRBytesBottom[y + 0];
 		uint8 secondPlane = fCHRBytesBottom[y + 8];

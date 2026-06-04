@@ -48,6 +48,8 @@ class OAMDebugView : public BView
 	void UpdatePatternTableHighlight();
 	void ClearPatternTableHighlight();
 	void UpdateCHRExplorer();
+	void CaptureOAMSnapshot();
+	uint8 OAMByte(uint32 address) const;
 	
 	private:
 	PretendoWindow *fParent = nullptr;
@@ -64,6 +66,8 @@ class OAMDebugView : public BView
 	int32 fHoverSprite = -1;
 	int32 fLockedSprite = -1;
 	int32 fFirstSprite = 0;
+	uint8 fFrozenOAM[0x100] = {};
+	bool fHaveFrozenOAM = false;
 	
 	private:
 	uint8 *fHostPalette = nullptr;
