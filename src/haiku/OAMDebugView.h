@@ -14,35 +14,44 @@ class PretendoWindow;
 class PatternTableWindow;
 class CHRExplorerView;
 
+
+// -----------------------------------------------------------------------------
+// OAMDebugView
+//
+// Displays and inspects NES Object Attribute Memory (OAM).  The view supports
+// stable snapshot inspection, live refresh, sprite row selection/locking,
+// selected sprite preview, CHR explorer synchronization, palette debugger
+// synchronization, and pattern table highlighting.
+// -----------------------------------------------------------------------------
 class OAMDebugView : public BView
 {
 	public:
 			OAMDebugView(BRect frame, PretendoWindow* parent);
-	virtual ~OAMDebugView() ;
+	virtual ~OAMDebugView();
 
 	virtual void AttachedToWindow();
 	virtual void Draw(BRect updateRect);
 	virtual void FrameResized(float width, float height);
-	virtual void KeyDown(const char *bytes, int32 numBytes);
+	virtual void KeyDown(const char* bytes, int32 numBytes);
 	virtual void MessageReceived(BMessage* message);
 	virtual void MouseDown(BPoint where);
-	virtual void MouseMoved(BPoint where, uint32 transit, const BMessage *message);
+	virtual void MouseMoved(BPoint where, uint32 transit, const BMessage* message);
 	virtual void Pulse();
-	
+
 	public:
 	void SetFirstSpriteFromScrollBar(int32 firstSprite);
-	void SetHostPalette (uint8 *palette);
+	void SetHostPalette(uint8* palette);
 	void SetPatternTables(PatternTableWindow* pt0, PatternTableWindow* pt1);
-	void SetExplorer(CHRExplorerView *explorer);
-	
+	void SetExplorer(CHRExplorerView* explorer);
+
 	private:
 	void DrawHeaderUI();
 	void DrawOAMSummaryPanel();
 	void DrawSpriteListPanel();
 	void DrawSelectedSpritePanel();
-	void DrawSpritePreview (BRect previewRect, int32 spriteIndex);
-	rgb_color SpritePreviewColor (uint8 spritePalette, uint8 pixel) const;
-	
+	void DrawSpritePreview(BRect previewRect, int32 spriteIndex);
+	rgb_color SpritePreviewColor(uint8 spritePalette, uint8 pixel) const;
+
 	private:
 	void UpdatePaletteDebuggerHighlight();
 	void UpdatePatternTableHighlight();
@@ -50,34 +59,34 @@ class OAMDebugView : public BView
 	void UpdateCHRExplorer();
 	void CaptureOAMSnapshot();
 	uint8 OAMByte(uint32 address) const;
-	
+
 	private:
-	PretendoWindow *fParent = nullptr;
-	
+	PretendoWindow* fParent = nullptr;
+
 	private:
-	BScrollBar *fSpriteScrollBar = nullptr;
+	BScrollBar* fSpriteScrollBar = nullptr;
 
 	private:
 	bool fFreezeUpdates = false;
 	bool fMouseInside = false;
 	bool fSpriteLocked = false;
-	
+
 	private:
 	int32 fHoverSprite = -1;
 	int32 fLockedSprite = -1;
 	int32 fFirstSprite = 0;
 	uint8 fFrozenOAM[0x100] = {};
 	bool fHaveFrozenOAM = false;
-	
+
 	private:
-	uint8 *fHostPalette = nullptr;
-	
-	 private:
-	 PatternTableWindow *fPatternTable0 = nullptr;
-	 PatternTableWindow *fPatternTable1 = nullptr;
-	 
-	 private:
-	 CHRExplorerView *fCHRExplorer = nullptr;
+	uint8* fHostPalette = nullptr;
+
+	private:
+	PatternTableWindow* fPatternTable0 = nullptr;
+	PatternTableWindow* fPatternTable1 = nullptr;
+
+	private:
+	CHRExplorerView* fCHRExplorer = nullptr;
 };
 
 

@@ -12,6 +12,19 @@
 #include <cstring>
 
 
+// -----------------------------------------------------------------------------
+// PaletteDebugView::PaletteDebugView
+//
+// Creates the palette debugger view and stores the parent PretendoWindow used
+// for access to the host palette mapping.
+//
+// Parameters:
+//   frame  - Initial view frame.
+//   parent - Owning PretendoWindow, used to retrieve the host color palette.
+//
+// Returns:
+//   Constructor; no return value.
+// -----------------------------------------------------------------------------
 PaletteDebugView::PaletteDebugView(BRect frame, PretendoWindow* parent)
 	:
 	BView(frame, "palette_debug_view", B_FOLLOW_ALL_SIDES,
@@ -27,11 +40,36 @@ PaletteDebugView::PaletteDebugView(BRect frame, PretendoWindow* parent)
 }
 
 
+// -----------------------------------------------------------------------------
+// PaletteDebugView::~PaletteDebugView
+//
+// Destroys the palette debugger view.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Destructor; no return value.
+// -----------------------------------------------------------------------------
 PaletteDebugView::~PaletteDebugView()
 {
 }
 
 
+
+// -----------------------------------------------------------------------------
+// PaletteDebugView::AttachedToWindow
+//
+// Finalizes view setup after the palette debugger is attached to a window.  The
+// view takes focus and enables pointer tracking so palette entries can be
+// inspected by hover.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PaletteDebugView::AttachedToWindow()
 {
@@ -45,6 +83,19 @@ PaletteDebugView::AttachedToWindow()
 }
 
 
+
+// -----------------------------------------------------------------------------
+// PaletteDebugView::MessageReceived
+//
+// Handles messages sent to the palette debugger view.  PaletteDebugView does
+// not currently consume custom messages, so messages are forwarded to BView.
+//
+// Parameters:
+//   message - Message received by the view.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PaletteDebugView::MessageReceived(BMessage* message)
 {
@@ -52,6 +103,19 @@ PaletteDebugView::MessageReceived(BMessage* message)
 }
 
 
+
+// -----------------------------------------------------------------------------
+// PaletteDebugView::Pulse
+//
+// Refreshes the palette debugger during live updates.  When palette updates are
+// frozen, the current display is kept stable for inspection.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PaletteDebugView::Pulse()
 {
@@ -62,6 +126,19 @@ PaletteDebugView::Pulse()
 }
 
 
+
+// -----------------------------------------------------------------------------
+// PaletteDebugView::Draw
+//
+// Draws the complete palette debugger UI, including the controls panel,
+// background palette panel, sprite palette panel, and selected-color details.
+//
+// Parameters:
+//   updateRect - Region requested for redraw.  The view redraws all panels.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PaletteDebugView::Draw(BRect updateRect)
 {
@@ -77,6 +154,18 @@ PaletteDebugView::Draw(BRect updateRect)
 }
 
 
+// -----------------------------------------------------------------------------
+// PaletteDebugView::DrawHeaderUI
+//
+// Draws the controls/help panel at the top of the palette debugger.  This shows
+// mouse behavior, freeze behavior, and highlight legend information.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PaletteDebugView::DrawHeaderUI()
 {
@@ -119,6 +208,18 @@ PaletteDebugView::DrawHeaderUI()
 }
 
 
+
+// -----------------------------------------------------------------------------
+// PaletteDebugView::DrawBackgroundPalettes
+//
+// Draws the background palette section for palette RAM entries $3F00-$3F0F.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PaletteDebugView::DrawBackgroundPalettes()
 {
@@ -133,6 +234,17 @@ PaletteDebugView::DrawBackgroundPalettes()
 }
 
 
+// -----------------------------------------------------------------------------
+// PaletteDebugView::DrawSpritePalettes
+//
+// Draws the sprite palette section for palette RAM entries $3F10-$3F1F.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PaletteDebugView::DrawSpritePalettes()
 {
@@ -147,6 +259,25 @@ PaletteDebugView::DrawSpritePalettes()
 }
 
 
+
+// -----------------------------------------------------------------------------
+// PaletteDebugView::DrawPalettePanel
+//
+// Draws one palette group panel.  The same renderer is used for both
+// background palettes and sprite palettes, with the sprites flag selecting the
+// base palette RAM address range.
+//
+// The panel also draws local hover/lock highlighting and optional external
+// highlights sent by other debugger views.
+//
+// Parameters:
+//   panel   - Rectangle containing the palette panel.
+//   title   - Panel title text.
+//   sprites - true to draw sprite palettes; false to draw background palettes.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PaletteDebugView::DrawPalettePanel(BRect panel, const char* title, bool sprites)
 {
@@ -271,6 +402,24 @@ PaletteDebugView::DrawPalettePanel(BRect panel, const char* title, bool sprites)
 }
 
 
+// -----------------------------------------------------------------------------
+// PaletteDebugView::DrawPaletteEntry
+//
+// Draws a single NES palette RAM entry.  The entry is resolved through the
+// host palette table and BScreen color map so the displayed color matches the
+// emulator's indexed-color output.
+//
+// Mirrored entries are marked with an X, and the selected entry receives a
+// magenta/white outline.
+//
+// Parameters:
+//   r        - Rectangle to fill with the palette color.
+//   address  - NES palette RAM address represented by this cell.
+//   selected - true if this cell is the active hover/locked entry.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PaletteDebugView::DrawPaletteEntry(BRect r, uint16 address, bool selected)
 {
@@ -343,6 +492,22 @@ PaletteDebugView::DrawPaletteEntry(BRect r, uint16 address, bool selected)
 }
 
 
+// -----------------------------------------------------------------------------
+// PaletteDebugView::DrawSelectedInfo
+//
+// Draws detailed information for the active palette entry.  The active entry is
+// either the locked entry or, when unlocked, the current hover entry.
+//
+// The panel shows the palette address, mirror mapping, background/sprite group,
+// palette row, entry number, NES color index, host color index, RGB value, and
+// hover/lock state.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PaletteDebugView::DrawSelectedInfo()
 {
@@ -464,6 +629,21 @@ PaletteDebugView::DrawSelectedInfo()
 }
 
 
+// -----------------------------------------------------------------------------
+// PaletteDebugView::MouseMoved
+//
+// Updates the hover palette entry as the mouse moves over the palette panels.
+// Hover tracking is disabled while the view is frozen or while an entry is
+// locked.
+//
+// Parameters:
+//   where   - Current mouse position in view coordinates.
+//   transit - Pointer transit code from the BeAPI.
+//   message - Optional drag/drop message associated with the movement.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PaletteDebugView::MouseMoved(BPoint where, uint32 transit, const BMessage *message)
 {
@@ -501,6 +681,21 @@ PaletteDebugView::MouseMoved(BPoint where, uint32 transit, const BMessage *messa
 }
 
 
+// -----------------------------------------------------------------------------
+// PaletteDebugView::MouseDown
+//
+// Locks or unlocks a palette entry when the user clicks a palette cell.
+// Clicking the currently locked entry unlocks it; clicking any other palette
+// entry locks that entry.
+//
+// Mouse locking is disabled while palette updates are frozen.
+//
+// Parameters:
+//   where - Mouse position in view coordinates.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PaletteDebugView::MouseDown(BPoint where)
 {
@@ -534,6 +729,20 @@ PaletteDebugView::MouseDown(BPoint where)
 }
 
 
+// -----------------------------------------------------------------------------
+// PaletteDebugView::KeyDown
+//
+// Handles keyboard shortcuts for the palette debugger.  Space toggles frozen
+// palette inspection so the visible values remain stable while the emulator
+// continues running.
+//
+// Parameters:
+//   bytes    - Key bytes supplied by the BeAPI.
+//   numBytes - Number of valid bytes in bytes.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PaletteDebugView::KeyDown(const char* bytes, int32 numBytes)
 {
@@ -553,6 +762,20 @@ PaletteDebugView::KeyDown(const char* bytes, int32 numBytes)
 }
 
 
+// -----------------------------------------------------------------------------
+// PaletteDebugView::PaletteEntryAt
+//
+// Converts a mouse position into a NES palette RAM address.  Both the
+// background and sprite palette panels are checked, with a small hit-margin
+// around each cell to make selection easier.
+//
+// Parameters:
+//   where      - Mouse position in view coordinates.
+//   outAddress - Receives the palette RAM address if a cell is hit.
+//
+// Returns:
+//   true if the point is over a palette entry; false otherwise.
+// -----------------------------------------------------------------------------
 bool
 PaletteDebugView::PaletteEntryAt(BPoint where, uint16 &outAddress) const
 {
@@ -616,6 +839,19 @@ PaletteDebugView::PaletteEntryAt(BPoint where, uint16 &outAddress) const
 }
 
 
+// -----------------------------------------------------------------------------
+// PaletteDebugView::ResolvePaletteAddress
+//
+// Resolves NES palette RAM mirroring.  Palette addresses are folded into the
+// $3F00-$3F1F range, and the mirrored sprite universal-color entries are mapped
+// back to their background counterparts.
+//
+// Parameters:
+//   address - Palette address to normalize and resolve.
+//
+// Returns:
+//   Resolved palette RAM address.
+// -----------------------------------------------------------------------------
 uint16
 PaletteDebugView::ResolvePaletteAddress(uint16 address) const
 {
@@ -643,6 +879,19 @@ PaletteDebugView::ResolvePaletteAddress(uint16 address) const
 }
 
 
+// -----------------------------------------------------------------------------
+// PaletteDebugView::ReadPalette
+//
+// Reads a NES palette RAM value through the active cartridge mapper.  The value
+// is masked to the valid NES color range of 0-63.
+//
+// Parameters:
+//   address - Palette RAM address to read.
+//
+// Returns:
+//   NES color index stored at the requested palette address, or $0F if no
+//   mapper is available.
+// -----------------------------------------------------------------------------
 uint8
 PaletteDebugView::ReadPalette(uint16 address) const
 {
@@ -654,6 +903,21 @@ PaletteDebugView::ReadPalette(uint16 address) const
 	return mapper->read_vram(address) & 0x3f;
 }
 
+
+// -----------------------------------------------------------------------------
+// PaletteDebugView::SetExternalHighlight
+//
+// Sets a palette highlight requested by another debugger view.  The highlight
+// can mark an entire palette row, or a specific entry within that row.
+//
+// Parameters:
+//   sprites - true to highlight a sprite palette row; false for background.
+//   palette - Palette row index, 0-3.
+//   entry   - Palette entry index, 0-3, or -1 to highlight the whole row.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PaletteDebugView::SetExternalHighlight(bool sprites, int32 palette, int32 entry)
 {
@@ -674,6 +938,17 @@ PaletteDebugView::SetExternalHighlight(bool sprites, int32 palette, int32 entry)
 }
 
 
+// -----------------------------------------------------------------------------
+// PaletteDebugView::ClearExternalHighlight
+//
+// Clears any palette highlight requested by another debugger view.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PaletteDebugView::ClearExternalHighlight()
 {

@@ -10,9 +10,28 @@
 #include "Ppu.h"
 
 
+// -----------------------------------------------------------------------------
+// OAMSpriteScrollBar
+//
+// Private helper scroll bar used by OAMDebugView.  It snaps scrollbar movement
+// to 8-sprite pages so the visible OAM rows remain aligned to sprite groups
+// 00-07, 08-15, and so on.
+// -----------------------------------------------------------------------------
 class OAMSpriteScrollBar : public BScrollBar
 {
 	public:
+	// -------------------------------------------------------------------------
+	// OAMSpriteScrollBar::OAMSpriteScrollBar
+	//
+	// Creates the sprite-page scrollbar used by the OAM viewer.
+	//
+	// Parameters:
+	//   frame - Scrollbar frame in the OAMDebugView coordinate space.
+	//   owner - OAMDebugView that receives snapped page changes.
+	//
+	// Returns:
+	//   Constructor; no return value.
+	// -------------------------------------------------------------------------
 	OAMSpriteScrollBar (BRect frame, OAMDebugView* owner)
 		: BScrollBar(frame, "oam_sprite_scrollbar", nullptr, 0.0f, 56.0f, B_VERTICAL),
 			fOwner(owner)
@@ -21,6 +40,19 @@ class OAMSpriteScrollBar : public BScrollBar
 		SetProportion(8.0f / 64.0f);
 	}
 
+	// -------------------------------------------------------------------------
+	// OAMSpriteScrollBar::ValueChanged
+	//
+	// Handles scrollbar movement and forwards the selected OAM page to the
+	// owning OAMDebugView.  The value is snapped to 8-sprite boundaries so the
+	// list always shows complete OAM pages.
+	//
+	// Parameters:
+	//   value - New scrollbar value requested by the user.
+	//
+	// Returns:
+	//   Nothing.
+	// -------------------------------------------------------------------------
 	virtual void ValueChanged(float value)
 	{
 		BScrollBar::ValueChanged(value);
@@ -46,6 +78,21 @@ class OAMSpriteScrollBar : public BScrollBar
 };
 
 
+// -----------------------------------------------------------------------------
+// SetPatternWindowHighlight
+//
+// Safely applies an external tile highlight to a PatternTableWindow.  The
+// window is locked before accessing its view because pattern table windows are
+// separate BWindow instances.
+//
+// Parameters:
+//   window    - Pattern table window to update.
+//   whichPT   - Pattern table index, 0 for $0000 or 1 for $1000.
+//   tileIndex - Tile index to highlight.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 static inline void
 SetPatternWindowHighlight(PatternTableWindow *window, int32 whichPT, int32 tileIndex)
 {
@@ -61,6 +108,19 @@ SetPatternWindowHighlight(PatternTableWindow *window, int32 whichPT, int32 tileI
 }
 
 
+// -----------------------------------------------------------------------------
+// ClearPatternWindowHighlight
+//
+// Safely clears any external tile highlight from a PatternTableWindow.  The
+// window is locked before accessing its view because pattern table windows are
+// separate BWindow instances.
+//
+// Parameters:
+//   window - Pattern table window to update.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 static inline void
 ClearPatternWindowHighlight(PatternTableWindow *window)
 {
@@ -76,6 +136,20 @@ ClearPatternWindowHighlight(PatternTableWindow *window)
 }
 
 
+// -----------------------------------------------------------------------------
+// OAMDebugView::OAMDebugView
+//
+// Creates the OAM debugger view.  The view displays a snapshot/live view of NES
+// sprite OAM, selected sprite details, and links the selected sprite to the
+// palette debugger, pattern table windows, and CHR explorer.
+//
+// Parameters:
+//   frame  - View frame inside the OAM debugger window.
+//   parent - Owning PretendoWindow used for palette/debugger coordination.
+//
+// Returns:
+//   Constructor; no return value.
+// -----------------------------------------------------------------------------
 OAMDebugView::OAMDebugView(BRect frame, PretendoWindow *parent)
 	: BView(frame, "oam_debug_view", B_FOLLOW_ALL_SIDES,
 	B_WILL_DRAW | B_PULSE_NEEDED | B_FRAME_EVENTS | B_NAVIGABLE)
@@ -87,6 +161,18 @@ OAMDebugView::OAMDebugView(BRect frame, PretendoWindow *parent)
 }
 
 
+// -----------------------------------------------------------------------------
+// OAMDebugView::~OAMDebugView
+//
+// Destroys the OAM debugger view and clears any external debugger highlights
+// owned by the OAM viewer.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Destructor; no return value.
+// -----------------------------------------------------------------------------
 OAMDebugView::~OAMDebugView()
 {
 	if (fParent)
@@ -96,6 +182,20 @@ OAMDebugView::~OAMDebugView()
 }
 
 
+// -----------------------------------------------------------------------------
+// OAMDebugView::AttachedToWindow
+//
+// Performs setup that requires the view to be attached to a window.  This
+// enables keyboard focus, mouse-wheel tracking, creates the OAM page scrollbar,
+// captures the initial OAM snapshot, and starts the viewer in stable snapshot
+// mode.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 OAMDebugView::AttachedToWindow()
 {
@@ -138,6 +238,18 @@ OAMDebugView::AttachedToWindow()
 	Invalidate();
 }
 
+// -----------------------------------------------------------------------------
+// OAMDebugView::Draw
+//
+// Draws the complete OAM debugger view: controls, summary, sprite list, and
+// selected sprite details.
+//
+// Parameters:
+//   updateRect - Invalidated rectangle supplied by the app_server.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 OAMDebugView::Draw(BRect updateRect)
 {
@@ -153,6 +265,19 @@ OAMDebugView::Draw(BRect updateRect)
 }
 
 
+// -----------------------------------------------------------------------------
+// OAMDebugView::FrameResized
+//
+// Repositions and resizes the sprite-page scrollbar when the view frame
+// changes.
+//
+// Parameters:
+//   width  - New view width.
+//   height - New view height.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 OAMDebugView::FrameResized(float width, float height)
 {
@@ -183,6 +308,20 @@ OAMDebugView::FrameResized(float width, float height)
 }
 
 
+// -----------------------------------------------------------------------------
+// OAMDebugView::KeyDown
+//
+// Handles OAM viewer keyboard shortcuts.  Space toggles live/snapshot mode, R
+// refreshes the current snapshot, arrow keys move the active sprite, and [/] or
+// ,/. page through the 64 OAM entries in groups of eight.
+//
+// Parameters:
+//   bytes    - Key bytes provided by the BeAPI input system.
+//   numBytes - Number of bytes in the key sequence.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 OAMDebugView::KeyDown(const char* bytes, int32 numBytes)
 {
@@ -306,6 +445,19 @@ OAMDebugView::KeyDown(const char* bytes, int32 numBytes)
 }
 
 
+// -----------------------------------------------------------------------------
+// OAMDebugView::MessageReceived
+//
+// Handles messages delivered to the view.  The OAM viewer currently handles
+// mouse-wheel messages to page through the sprite list and forwards all other
+// messages to BView.
+//
+// Parameters:
+//   message - Message delivered to the view.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 OAMDebugView::MessageReceived(BMessage* message)
 {
@@ -361,6 +513,19 @@ OAMDebugView::MessageReceived(BMessage* message)
 }
 
 
+// -----------------------------------------------------------------------------
+// OAMDebugView::MouseDown
+//
+// Handles mouse clicks in the sprite list.  Clicking a sprite locks it for
+// inspection; clicking the locked sprite again unlocks it and returns to hover
+// inspection.
+//
+// Parameters:
+//   where - Click position in view coordinates.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 OAMDebugView::MouseDown(BPoint where)
 {
@@ -406,6 +571,21 @@ OAMDebugView::MouseDown(BPoint where)
 }
 
 
+// -----------------------------------------------------------------------------
+// OAMDebugView::MouseMoved
+//
+// Handles hover inspection in the sprite list.  When no sprite is locked, moving
+// over a row updates the active sprite and synchronizes the linked palette,
+// pattern table, and CHR explorer views.
+//
+// Parameters:
+//   where   - Mouse position in view coordinates.
+//   transit - BeAPI pointer transit code.
+//   message - Optional drag message supplied by the input system.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 OAMDebugView::MouseMoved(BPoint where, uint32 transit, const BMessage* message)
 {
@@ -474,6 +654,19 @@ OAMDebugView::MouseMoved(BPoint where, uint32 transit, const BMessage* message)
 }
 
 
+// -----------------------------------------------------------------------------
+// OAMDebugView::Pulse
+//
+// Periodic update hook for live OAM mode.  In live mode, this captures one
+// coherent OAM snapshot, updates linked debugger views, and redraws the OAM
+// view.  In snapshot/frozen mode, no automatic refresh is performed.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 OAMDebugView::Pulse()
 {
@@ -493,6 +686,17 @@ OAMDebugView::Pulse()
 }
 
 
+// -----------------------------------------------------------------------------
+// OAMDebugView::DrawHeaderUI
+//
+// Draws the controls/help panel at the top of the OAM debugger.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 OAMDebugView::DrawHeaderUI()
 {
@@ -529,13 +733,26 @@ OAMDebugView::DrawHeaderUI()
 	drawKV("Mouse:", "hover inspect / click lock");
 
 	drawKV("Space:", fFreezeUpdates
-		? "switch to live OAM"
-		: "switch to snapshot OAM");
+		? "live OAM"
+		: "snapshot OAM");
 
 	drawKV("[ ] R:", "prev/next page / refresh snapshot");
 }
 
 
+// -----------------------------------------------------------------------------
+// OAMDebugView::DrawOAMSummaryPanel
+//
+// Draws the OAM summary panel.  The summary counts visible and hidden sprites,
+// shows whether the viewer is in live or frozen snapshot mode, and reports the
+// active PPU sprite size mode.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 OAMDebugView::DrawOAMSummaryPanel()
 {
@@ -628,6 +845,19 @@ OAMDebugView::DrawOAMSummaryPanel()
 }
 
 
+// -----------------------------------------------------------------------------
+// OAMDebugView::DrawSpriteListPanel
+//
+// Draws the paged OAM sprite list.  Rows show raw OAM fields, decoded summary
+// flags, hidden/offscreen state, sprite-zero marking, current selection, and
+// same-tile highlighting for the active sprite.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 OAMDebugView::DrawSpriteListPanel()
 {
@@ -647,7 +877,7 @@ OAMDebugView::DrawSpriteListPanel()
 	const float xTile = panel.left + 92.0f;
 	const float xAttr = panel.left + 144.0f;
 	const float xX = panel.left + 198.0f;
-	const float xInfo = panel.left + 240.0f;
+	const float xInfo = panel.left + 232.0f;
 
 	float y = panel.top + 36.0f;
 
@@ -678,6 +908,19 @@ OAMDebugView::DrawSpriteListPanel()
 
 	int32 active = fSpriteLocked ? fLockedSprite : fHoverSprite;
 
+	bool haveActiveTile = false;
+	uint8 activeTile = 0;
+
+	if (active >= 0 && active < 64) {
+		uint32 activeBase = active * 4;
+		uint8 activeY = OAMByte(activeBase + 0);
+
+		if (activeY < 0xef) {
+			activeTile = OAMByte(activeBase + 1);
+			haveActiveTile = true;
+		}
+	}
+
 	for (int32 row = 0; row < 8; row++) {
 		int32 spriteIndex = fFirstSprite + row;
 
@@ -691,12 +934,18 @@ OAMDebugView::DrawSpriteListPanel()
 		uint8 attr = OAMByte(base + 2);
 		uint8 spriteX = OAMByte(base + 3);
 
+		bool spriteZero = spriteIndex == 0;
 		bool hidden = spriteY >= 0xef;
 
 		uint8 pal = attr & 0x03;
 		bool priority = (attr & 0x20) != 0;
 		bool flipH = (attr & 0x40) != 0;
 		bool flipV = (attr & 0x80) != 0;
+
+		bool sameTile = haveActiveTile
+			&& spriteIndex != active
+			&& !hidden
+			&& tile == activeTile;
 
 		float rowY = firstRowY + (row * rowH);
 
@@ -706,6 +955,14 @@ OAMDebugView::DrawSpriteListPanel()
 			panel.right - 24.0f,
 			rowY + 4.0f
 		);
+
+		if (sameTile) {
+			SetHighColor(220, 232, 244, 255);
+			FillRect(rowRect);
+
+			SetHighColor(120, 150, 180, 255);
+			StrokeRect(rowRect);
+		}
 
 		if (spriteIndex == active) {
 			if (fSpriteLocked) {
@@ -751,11 +1008,17 @@ OAMDebugView::DrawSpriteListPanel()
 
 		if (hidden) {
 			SetHighColor(115, 115, 115, 255);
-			DrawString("hidden", BPoint(xInfo, rowY));
+
+			if (spriteZero)
+				DrawString("Sprite 0 hidden", BPoint(xInfo, rowY));
+			else
+				DrawString("hidden", BPoint(xInfo, rowY));
 		} else {
 			SetHighColor(0, 0, 0, 255);
 
-			s.SetToFormat("P%u %s%s%s",
+			s.SetToFormat("%s%sP%u %s%s%s",
+				spriteZero ? "Sprite 0 " : "",
+				sameTile ? "same " : "",
 				(unsigned)pal,
 				priority ? "B" : "F",
 				flipH ? " H" : "",
@@ -781,6 +1044,19 @@ OAMDebugView::DrawSpriteListPanel()
 }
 
 
+// -----------------------------------------------------------------------------
+// OAMDebugView::DrawSelectedSpritePanel
+//
+// Draws the selected or hovered sprite details panel.  The panel decodes the
+// active OAM entry into position, tile, CHR address, palette, priority, flip
+// flags, raw OAM byte range, and a small sprite preview.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 OAMDebugView::DrawSelectedSpritePanel()
 {
@@ -814,7 +1090,8 @@ OAMDebugView::DrawSelectedSpritePanel()
 	BFont mono(be_fixed_font);
 	mono.SetSize(11.0f);
 
-	auto drawLeftKV = [&](const char* label, const char* value, bool monoValue) {
+	auto drawLeftKV = [&](const char* label, const char* value,
+		bool monoValue) {
 		SetHighColor(80, 80, 80, 255);
 		SetFont(&oldFont);
 		DrawString(label, BPoint(leftLabelX, leftY));
@@ -826,7 +1103,8 @@ OAMDebugView::DrawSelectedSpritePanel()
 		leftY += lineH;
 	};
 
-	auto drawRightKV = [&](const char* label, const char* value, bool monoValue) {
+	auto drawRightKV = [&](const char* label, const char* value,
+		bool monoValue) {
 		SetHighColor(80, 80, 80, 255);
 		SetFont(&oldFont);
 		DrawString(label, BPoint(rightLabelX, rightY));
@@ -855,13 +1133,14 @@ OAMDebugView::DrawSelectedSpritePanel()
 		drawLeftKV("Sprite:", "--", true);
 		drawLeftKV("Raw Y:", "--", true);
 		drawLeftKV("Screen Y:", "--", true);
+		drawLeftKV("Visible:", "--", false);
 		drawLeftKV("X:", "--", true);
 		drawLeftKV("Tile:", "--", true);
 
-		drawRightKV("Attr:", "--", true);
+		drawRightKV("OAM:", "--", true);
+		drawRightKV("Bytes:", "--", true);
 		drawRightKV("CHR:", "--", true);
-		drawRightKV("Palette:", "--", false);
-		drawRightKV("Priority:", "--", false);
+		drawRightKV("Pal/P:", "--", false);
 		drawRightKV("Flip:", "--", false);
 		drawRightKV("State:", fSpriteLocked ? "LOCKED" : "HOVER", false);
 
@@ -907,6 +1186,7 @@ OAMDebugView::DrawSelectedSpritePanel()
 
 	s.SetToFormat("%u", (unsigned)((uint16)spriteY + 1));
 	drawLeftKV("Screen Y:", s.String(), true);
+
 	drawLeftKV("Visible:", spriteY < 0xef ? "yes" : "offscreen", false);
 
 	s.SetToFormat("$%02X", spriteX);
@@ -922,8 +1202,17 @@ OAMDebugView::DrawSelectedSpritePanel()
 		drawLeftKV("Tile:", s.String(), true);
 	}
 
-	s.SetToFormat("$%02X", attr);
-	drawRightKV("Attr:", s.String(), true);
+	s.SetToFormat("$%02lX-$%02lX",
+		(unsigned long)base,
+		(unsigned long)(base + 3));
+	drawRightKV("OAM:", s.String(), true);
+
+	s.SetToFormat("%02X %02X %02X %02X",
+		spriteY,
+		tile,
+		attr,
+		spriteX);
+	drawRightKV("Bytes:", s.String(), true);
 
 	if (largeSprites) {
 		s.SetToFormat("$%04lX/$%04lX",
@@ -935,10 +1224,10 @@ OAMDebugView::DrawSelectedSpritePanel()
 		drawRightKV("CHR:", s.String(), true);
 	}
 
-	s.SetToFormat("%u", (unsigned)pal);
-	drawRightKV("Palette:", s.String(), false);
-
-	drawRightKV("Priority:", priority ? "behind BG" : "in front", false);
+	s.SetToFormat("%u / %s",
+		(unsigned)pal,
+		priority ? "behind" : "front");
+	drawRightKV("Pal/P:", s.String(), false);
 
 	if (flipH && flipV)
 		drawRightKV("Flip:", "H + V", false);
@@ -955,6 +1244,19 @@ OAMDebugView::DrawSelectedSpritePanel()
 }
 
 
+// -----------------------------------------------------------------------------
+// OAMDebugView::SetFirstSpriteFromScrollBar
+//
+// Updates the first visible OAM sprite in response to scrollbar movement.  The
+// requested value is snapped to an 8-sprite page and linked debugger views are
+// synchronized with the new active row.
+//
+// Parameters:
+//   firstSprite - Requested first visible sprite index.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 OAMDebugView::SetFirstSpriteFromScrollBar(int32 firstSprite)
 {
@@ -983,6 +1285,19 @@ OAMDebugView::SetFirstSpriteFromScrollBar(int32 firstSprite)
 }
 
 
+// -----------------------------------------------------------------------------
+// OAMDebugView::SetHostPalette
+//
+// Sets the host color-map palette used to convert NES palette indices into
+// Haiku rgb_color values.  The embedded CHR explorer is updated with the same
+// host palette.
+//
+// Parameters:
+//   palette - NES-color-index to host-color-index lookup table.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 OAMDebugView::SetHostPalette(uint8* palette)
 {
@@ -996,6 +1311,20 @@ OAMDebugView::SetHostPalette(uint8* palette)
 }
 
 
+// -----------------------------------------------------------------------------
+// OAMDebugView::SpritePreviewColor
+//
+// Converts a decoded sprite pixel value into a Haiku rgb_color using live NES
+// sprite palette RAM and the host palette lookup table.  Pixel value 0 uses the
+// universal background color for preview purposes.
+//
+// Parameters:
+//   spritePalette - Sprite palette row, 0-3.
+//   pixel         - Decoded 2-bit sprite pixel value, 0-3.
+//
+// Returns:
+//   rgb_color for the requested sprite pixel.
+// -----------------------------------------------------------------------------
 rgb_color
 OAMDebugView::SpritePreviewColor(uint8 spritePalette, uint8 pixel) const
 {
@@ -1025,6 +1354,20 @@ OAMDebugView::SpritePreviewColor(uint8 spritePalette, uint8 pixel) const
 }
 
 
+// -----------------------------------------------------------------------------
+// OAMDebugView::DrawSpritePreview
+//
+// Draws a small preview of the selected sprite using the current OAM snapshot,
+// CHR data, sprite palette, and OAM flip flags.  Hidden/offscreen sprites are
+// reported as OFF SCR instead of being rendered.
+//
+// Parameters:
+//   previewRect - Destination rectangle for the preview box.
+//   spriteIndex - OAM sprite index to preview.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 OAMDebugView::DrawSpritePreview(BRect previewRect, int32 spriteIndex)
 {
@@ -1170,6 +1513,18 @@ OAMDebugView::DrawSpritePreview(BRect previewRect, int32 spriteIndex)
 	StrokeRect(previewRect);
 }
 
+// -----------------------------------------------------------------------------
+// OAMDebugView::UpdatePaletteDebuggerHighlight
+//
+// Synchronizes the palette debugger with the active OAM sprite.  The sprite
+// palette row encoded in the OAM attribute byte is highlighted.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 OAMDebugView::UpdatePaletteDebuggerHighlight()
 {
@@ -1193,6 +1548,19 @@ OAMDebugView::UpdatePaletteDebuggerHighlight()
 }
 
 
+// -----------------------------------------------------------------------------
+// OAMDebugView::UpdateCHRExplorer
+//
+// Synchronizes the embedded CHR explorer with the active OAM sprite.  This
+// decodes the sprite pattern table, CHR address, sprite palette, 8x8/8x16 mode,
+// and OAM flip flags, then sends the corresponding CHR bytes to the explorer.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 OAMDebugView::UpdateCHRExplorer()
 {
@@ -1291,6 +1659,19 @@ OAMDebugView::UpdateCHRExplorer()
 }
 
 
+// -----------------------------------------------------------------------------
+// OAMDebugView::SetPatternTables
+//
+// Stores references to the pattern table debugger windows so the OAM viewer can
+// highlight the CHR tile used by the active sprite.
+//
+// Parameters:
+//   pt0 - Pattern table window for pattern table 0 / CHR $0000.
+//   pt1 - Pattern table window for pattern table 1 / CHR $1000.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 OAMDebugView::SetPatternTables(PatternTableWindow *pt0, PatternTableWindow *pt1)
 {
@@ -1301,6 +1682,18 @@ OAMDebugView::SetPatternTables(PatternTableWindow *pt0, PatternTableWindow *pt1)
 }
 
 
+// -----------------------------------------------------------------------------
+// OAMDebugView::ClearPatternTableHighlight
+//
+// Clears OAM-owned external highlights from both pattern table debugger
+// windows.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 OAMDebugView::ClearPatternTableHighlight()
 {
@@ -1309,6 +1702,20 @@ OAMDebugView::ClearPatternTableHighlight()
 }
 
 
+// -----------------------------------------------------------------------------
+// OAMDebugView::UpdatePatternTableHighlight
+//
+// Synchronizes the pattern table debugger windows with the active OAM sprite.
+// In 8x8 mode, the sprite pattern table comes from PPUCTRL bit 3.  In 8x16
+// mode, the low bit of the OAM tile selects the pattern table and the top tile
+// is aligned with tile & $FE.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 OAMDebugView::UpdatePatternTableHighlight()
 {
@@ -1345,6 +1752,18 @@ OAMDebugView::UpdatePatternTableHighlight()
 }
 
 
+// -----------------------------------------------------------------------------
+// OAMDebugView::SetExplorer
+//
+// Connects the embedded CHR explorer used by the OAM debugger.  The host
+// palette is forwarded immediately if it is already available.
+//
+// Parameters:
+//   explorer - CHRExplorerView used to inspect the active sprite tile.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 OAMDebugView::SetExplorer(CHRExplorerView *explorer)
 {
@@ -1357,6 +1776,18 @@ OAMDebugView::SetExplorer(CHRExplorerView *explorer)
 	UpdateCHRExplorer();
 }
 
+// -----------------------------------------------------------------------------
+// OAMDebugView::CaptureOAMSnapshot
+//
+// Captures all 256 bytes of live PPU OAM into the display snapshot buffer.
+// Snapshot mode keeps this buffer stable; live mode refreshes it each pulse.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 OAMDebugView::CaptureOAMSnapshot()
 {
@@ -1367,6 +1798,20 @@ OAMDebugView::CaptureOAMSnapshot()
 }
 
 
+// -----------------------------------------------------------------------------
+// OAMDebugView::OAMByte
+//
+// Reads an OAM byte for display/debugger use.  Once a snapshot exists, all OAM
+// display paths read from the snapshot buffer so each refresh is internally
+// consistent.
+//
+// Parameters:
+//   address - OAM byte address.  The address is wrapped to 0-255.
+//
+// Returns:
+//   OAM byte from the current display snapshot, or live OAM before the first
+//   snapshot has been captured.
+// -----------------------------------------------------------------------------
 uint8
 OAMDebugView::OAMByte(uint32 address) const
 {

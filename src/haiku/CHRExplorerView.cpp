@@ -745,11 +745,30 @@ CHRExplorerView::SetTileTransform(bool flipH, bool flipV)
 }
 
 
+// -----------------------------------------------------------------------------
+// CHRExplorerView::SetSelectedPalette
+//
+// Sets the currently selected palette row for the CHR explorer.  The OAM
+// debugger uses this when inspecting sprites so the explorer's selected palette
+// matches the sprite palette encoded in the sprite attribute byte.
+//
+// The palette value is reduced to the valid NES palette-row range of 0-3.
+// Both fQuadrantPalette and fPalette are updated so the source palette and the
+// actively selected preview palette stay in sync.
+//
+// Parameters:
+//   palette - NES background/sprite palette row index.  Values are wrapped to
+//             the valid range of 0-3.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 CHRExplorerView::SetSelectedPalette(uint8 palette)
 {
 	fQuadrantPalette = palette % 4;
 	fPalette = fQuadrantPalette;
+
 	Invalidate();
 }
 
@@ -1291,7 +1310,6 @@ CHRExplorerView::DrawPalettePreviewGrid(BPoint origin)
 	const float gapX = 14.0f;
 	const float gapY = 18.0f;
 
-	//char label[16];
 	BString label;
 
 	// Draw each palette variant in a 2x2 grid.

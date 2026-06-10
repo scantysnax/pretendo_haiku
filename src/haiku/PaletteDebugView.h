@@ -10,10 +10,19 @@
 class PretendoWindow;
 
 
+// -----------------------------------------------------------------------------
+// PaletteDebugView
+//
+// Debugger view for inspecting NES background and sprite palette RAM.  The
+// view supports hover/click inspection, frozen live updates, mirrored-entry
+// visualization, and external highlights from other debugger views.
+// -----------------------------------------------------------------------------
 class PaletteDebugView : public BView
 {
 	public:
+	// Creates the palette debugger view.
 	PaletteDebugView(BRect frame, PretendoWindow* parent);
+	// Destroys the palette debugger view.
 	virtual ~PaletteDebugView();
 
 	virtual void AttachedToWindow();
@@ -25,10 +34,12 @@ class PaletteDebugView : public BView
 	virtual void Pulse();
 	
 	public:
+	// Sets or clears highlights requested by other debugger views.
 	void SetExternalHighlight(bool sprites, int32 palette, int32 entry = -1);
 	void ClearExternalHighlight();
 
 	private:
+	// Draws the palette debugger panels and selected-entry information.
 	void DrawHeaderUI();
 	void DrawBackgroundPalettes();
 	void DrawSpritePalettes();
@@ -37,24 +48,29 @@ class PaletteDebugView : public BView
 	void DrawPalettePanel(BRect panel, const char* title, bool sprites);
 
 	private:
+	// Palette address lookup and NES palette RAM helpers.
 	bool PaletteEntryAt(BPoint where, uint16& outAddress) const;
 	uint16 ResolvePaletteAddress(uint16 address) const;
 	uint8 ReadPalette(uint16 address) const;
 
 	private:
+	// Parent window and palette mapping state.
 	PretendoWindow* fParent = nullptr;
 	uint8* fHostPalette = nullptr;
 
 	private:
+	// Local interaction state.
 	bool fFreezeUpdates = false;
 	bool fMouseInside = false;
 	bool fEntryLocked = false;
 
 	private:
+	// Active palette RAM addresses.
 	uint16 fHoverAddress = 0x3f00;
 	uint16 fLockedAddress = 0x3f00;
 	
 	private:
+	// External highlight state supplied by other debugger views.
 	bool fHasExternalHighlight = false;
 	bool fExternalHighlightSprites = false;
 	int32 fExternalHighlightPalette = -1;
