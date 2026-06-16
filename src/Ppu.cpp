@@ -1077,8 +1077,7 @@ uint8_t read2002() {
 
 	const uint8_t ret =
 		((status_.raw & (StatusOverflow | StatusSprite0 | StatusVBlank)) |
-		 (latch_ & ~(StatusOverflow | StatusSprite0 | StatusVBlank))) &
-		0xff;
+		 (latch_ & ~(StatusOverflow | StatusSprite0 | StatusVBlank))) & 0xff;
 
 	write_latch_ = false;
 	status_.vblank = false;

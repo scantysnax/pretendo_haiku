@@ -545,6 +545,30 @@ PaletteDebugView::DrawSelectedInfo()
 		? ((address - 0x3f10) % 4)
 		: ((address - 0x3f00) % 4);
 
+	uint8 mask = nes::ppu::ppumask();
+
+	bool monochrome = (mask & 0x01) != 0;
+	bool emphR = (mask & 0x20) != 0;
+	bool emphG = (mask & 0x40) != 0;
+	bool emphB = (mask & 0x80) != 0;
+
+	BString emphasis;
+
+	if (!emphR && !emphG && !emphB) {
+		emphasis.SetTo("none");
+	} else {
+		emphasis.SetTo("");
+
+		if (emphR)
+			emphasis.Append("R");
+
+		if (emphG)
+			emphasis.Append("G");
+
+		if (emphB)
+			emphasis.Append("B");
+	}
+
 	SetFontSize(11.0f);
 
 	font_height fh;
@@ -562,7 +586,7 @@ PaletteDebugView::DrawSelectedInfo()
 
 	BString s;
 
-	auto drawLeftKV = [&](const char *label, const char *value) {
+	auto drawLeftKV = [&](const char* label, const char* value) {
 		SetHighColor(80, 80, 80, 255);
 		DrawString(label, BPoint(leftLabelX, leftY));
 
@@ -572,7 +596,7 @@ PaletteDebugView::DrawSelectedInfo()
 		leftY += lineH;
 	};
 
-	auto drawRightKV = [&](const char *label, const char *value) {
+	auto drawRightKV = [&](const char* label, const char* value) {
 		SetHighColor(80, 80, 80, 255);
 		DrawString(label, BPoint(rightLabelX, rightY));
 
@@ -605,12 +629,18 @@ PaletteDebugView::DrawSelectedInfo()
 
 	s.SetToFormat("%u", (unsigned)hostIndex);
 	drawRightKV("Host:", s.String());
-	
+
 	s.SetToFormat("%u,%u,%u",
 		(unsigned)rgb.red,
 		(unsigned)rgb.green,
 		(unsigned)rgb.blue);
 	drawRightKV("RGB:", s.String());
+
+	s.SetToFormat("$%02X", mask);
+	drawRightKV("PPUMASK:", s.String());
+
+	drawRightKV("Mono:", monochrome ? "ON" : "off");
+	drawRightKV("Emph:", emphasis.String());
 
 	drawRightKV("State:", fEntryLocked ? "LOCKED" : "HOVER");
 

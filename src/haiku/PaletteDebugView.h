@@ -21,15 +21,15 @@ class PretendoWindow;
 class PaletteDebugView : public BView
 {
 	public:
-	PaletteDebugView(BRect frame, PretendoWindow* parent);
+	PaletteDebugView(BRect frame, PretendoWindow *parent);
 	virtual ~PaletteDebugView();
 
 	virtual void AttachedToWindow();
 	virtual void Draw(BRect updateRect);
-	virtual void MessageReceived(BMessage* message);
-	virtual void MouseMoved(BPoint where, uint32 transit, const BMessage* message);
+	virtual void MessageReceived(BMessage *message);
+	virtual void MouseMoved(BPoint where, uint32 transit, const BMessage *message);
 	virtual void MouseDown(BPoint where);
-	virtual void KeyDown(const char* bytes, int32 numBytes);
+	virtual void KeyDown(const char *bytes, int32 numBytes);
 	virtual void Pulse();
 	
 	public:
@@ -42,15 +42,15 @@ class PaletteDebugView : public BView
 	void DrawSpritePalettes();
 	void DrawSelectedInfo();
 	void DrawPaletteEntry(BRect r, uint16 address, bool selected);
-	void DrawPalettePanel(BRect panel, const char* title, bool sprites);
+	void DrawPalettePanel(BRect panel, const char *title, bool sprites);
 
 	private:
-	bool PaletteEntryAt(BPoint where, uint16& outAddress) const;
+	bool PaletteEntryAt(BPoint where, uint16 &outAddress) const;
 	uint16 ResolvePaletteAddress(uint16 address) const;
 	uint8 ReadPalette(uint16 address) const;
 
 	private:
-	PretendoWindow* fParent = nullptr;
+	PretendoWindow *fParent = nullptr;
 	uint8* fHostPalette = nullptr;
 
 	private:
