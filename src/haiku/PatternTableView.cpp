@@ -559,11 +559,10 @@ PatternTableView::DrawPatternTable8x16 (int32 which)
 void
 PatternTableView::NotifyCHRExplorer()
 {
-	if (!fCHRExplorer) {
+	if (!fCHRExplorer)
 		return;
-	}
 
-	Mapper *mapper = nes::cart.mapper();
+	Mapper* mapper = nes::cart.mapper();
 
 	if (!mapper) {
 		fCHRExplorer->Clear();
@@ -571,6 +570,7 @@ PatternTableView::NotifyCHRExplorer()
 	}
 
 	int32 index = ActiveTileIndex();
+
 	if (index < 0) {
 		fCHRExplorer->Clear();
 		return;
@@ -590,11 +590,16 @@ PatternTableView::NotifyCHRExplorer()
 			0,   // attrByte
 			0    // attrQuadrant
 		);
+
+		if (fMainWindow)
+			fMainWindow->HighlightPaletteDebugger(false, 0, -1);
+
 		return;
 	}
 
 	int32 topIndex = index & ~0x1;
-	uint32 topAddr = (fWhichPatternTable ? 0x1000 : 0x0000) + (topIndex * 16);
+	uint32 topAddr = (fWhichPatternTable ? 0x1000 : 0x0000)
+		+ (topIndex * 16);
 	uint32 bottomAddr = topAddr + 16;
 
 	uint8 topBytes[16];
@@ -615,6 +620,9 @@ PatternTableView::NotifyCHRExplorer()
 		bottomBytes,
 		0
 	);
+
+	if (fMainWindow)
+		fMainWindow->HighlightPaletteDebugger(false, 0, -1);
 }
 
 

@@ -204,7 +204,8 @@ PaletteDebugView::DrawHeaderUI()
 		? "unfreeze palette updates"
 		: "freeze palette updates");
 	drawKV("X:", "mirrored palette entry");
-	drawKV("Blue:", "source palette from NameTable");
+	//drawKV("Blue:", "source palette from NameTable");
+	drawKV("Blue:", "external source palette");
 }
 
 
