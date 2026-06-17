@@ -11,7 +11,7 @@ PaletteDebugWindow::PaletteDebugWindow (PretendoWindow *parent)
 	fSettingsMessage = new BMessage;
 	
 	const float kWindowW = 430.0f;
-	const float kWindowH = 540.0f;
+	const float kWindowH = 560.0f;
 
 	ResizeTo(kWindowW, kWindowH);
 	MoveTo(200.0f, 200.0f);

@@ -499,8 +499,8 @@ PaletteDebugView::DrawPaletteEntry(BRect r, uint16 address, bool selected)
 // either the locked entry or, when unlocked, the current hover entry.
 //
 // The panel shows the palette address, mirror mapping, background/sprite group,
-// palette row, entry number, NES color index, host color index, RGB value, and
-// hover/lock state.
+// palette row, entry number, NES color index, host color index, RGB value,
+// PPUMASK value, monochrome state, color-emphasis bits, and hover/lock state.
 //
 // Parameters:
 //   None.
