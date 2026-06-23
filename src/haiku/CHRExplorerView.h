@@ -15,6 +15,8 @@
 // analysis.
 // -----------------------------------------------------------------------------
 
+class PretendoWindow;
+
 class CHRExplorerView : public BView
 {
 	public:
@@ -47,6 +49,8 @@ class CHRExplorerView : public BView
 	void SetUseSpritePalette(bool useSpritePalette);
 	void SetTileTransform(bool flipH, bool flipV);
 	void SetSelectedPalette(uint8 palette);
+	uint8 SelectedPalette() const;
+	void SetPaletteHighlightTarget(PretendoWindow *parent, bool sprites);
 
 	private:
 	void DecodeTile();
@@ -59,6 +63,7 @@ class CHRExplorerView : public BView
 	void DrawQuadrantDiagram (BPoint origin);
 	void DrawTileSummary (float x, float y);
 	void DrawCHRAnalysis (float x, float y);
+	void NotifyPaletteHighlight();
 
 	public:
 	// Preferred dimensions used by the debugger windows.
@@ -115,6 +120,10 @@ class CHRExplorerView : public BView
 
 	// VRAM address of the source NameTable tile byte.
 	uint32 fNameTileAddress = 0;
+	
+	// Palette Highlighting
+	PretendoWindow *fPaletteHighlightParent = nullptr;
+	bool fPaletteHighlightSprites = false;
 };
 
 #endif

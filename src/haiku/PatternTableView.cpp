@@ -591,8 +591,13 @@ PatternTableView::NotifyCHRExplorer()
 			0    // attrQuadrant
 		);
 
-		if (fMainWindow)
-			fMainWindow->HighlightPaletteDebugger(false, 0, -1);
+		if (fMainWindow) {
+			fMainWindow->HighlightPaletteDebugger(
+				false,
+				fCHRExplorer->SelectedPalette(),
+				-1
+			);
+		}
 
 		return;
 	}
@@ -621,8 +626,13 @@ PatternTableView::NotifyCHRExplorer()
 		0
 	);
 
-	if (fMainWindow)
-		fMainWindow->HighlightPaletteDebugger(false, 0, -1);
+	if (fMainWindow) {
+		fMainWindow->HighlightPaletteDebugger(
+			false,
+			fCHRExplorer->SelectedPalette(),
+			-1
+		);
+	}
 }
 
 
@@ -955,26 +965,17 @@ PatternTableView::UpdateExplorer()
 //   Nothing.
 // -------------------------------------------------------------
 void
-PatternTableView::SetExplorer(CHRExplorerView *explorer)
+PatternTableView::SetExplorer(CHRExplorerView* explorer)
 {
 	fCHRExplorer = explorer;
 
-	if (!fHostPalette && fMainWindow) {
-		fHostPalette = fMainWindow->Palette();
-	}
+	if (fCHRExplorer)
+		fCHRExplorer->SetPaletteHighlightTarget(fMainWindow, false);
 
-	if (fCHRExplorer && fHostPalette) {
+	if (fCHRExplorer && fHostPalette)
 		fCHRExplorer->SetHostPalette(fHostPalette);
-	}
 
-	if (fHoverTileIndex < 0) {
-		fHoverTileIndex = 0;
-	}
-
-	UpdateExplorer();
 	NotifyCHRExplorer();
-
-	Invalidate();
 }
 
 

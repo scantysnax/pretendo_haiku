@@ -8,6 +8,7 @@
 
 #include "CHRExplorerView.h"
 #include "DebugHelpers.h"
+#include "PretendoWindow.h"
 
 #include "Cart.h"
 #include "Mapper.h"
@@ -144,8 +145,8 @@ CHRExplorerView::AttachedToWindow()
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-CHRExplorerView::KeyDown (const char *bytes, int32 numBytes)
-{	
+CHRExplorerView::KeyDown(const char* bytes, int32 numBytes)
+{
 	(void)numBytes;
 
 	if (!bytes || !fValid) {
@@ -156,26 +157,31 @@ CHRExplorerView::KeyDown (const char *bytes, int32 numBytes)
 	switch (bytes[0]) {
 		case '1':
 			fPalette = 0;
+			NotifyPaletteHighlight();
 			Invalidate();
 			return;
 
 		case '2':
 			fPalette = 1;
+			NotifyPaletteHighlight();
 			Invalidate();
 			return;
 
 		case '3':
 			fPalette = 2;
+			NotifyPaletteHighlight();
 			Invalidate();
 			return;
 
 		case '4':
 			fPalette = 3;
+			NotifyPaletteHighlight();
 			Invalidate();
 			return;
 
 		case '0':
 			fPalette = fQuadrantPalette;
+			NotifyPaletteHighlight();
 			Invalidate();
 			return;
 	}
@@ -216,13 +222,14 @@ CHRExplorerView::MessageReceived (BMessage *message)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-CHRExplorerView::MouseDown (BPoint where)
+CHRExplorerView::MouseDown(BPoint where)
 {
 	MakeFocus(true);
 
 	int32 pal = PalettePreviewAt(where);
 	if (pal >= 0 && pal < 4) {
 		fPalette = static_cast<uint8>(pal);
+		NotifyPaletteHighlight();
 		Invalidate();
 		return;
 	}
@@ -1639,7 +1646,7 @@ CHRExplorerView::DrawCHRAnalysis(float x, float y)
 	DrawString("CHR Analysis:", BPoint(labelX, textY));
 	textY += lineH;
 
-	auto drawKV = [&](const char* label, const char* value) {
+	auto drawKV = [&](const char *label, const char *value) {
 		SetHighColor(80, 80, 80, 255);
 		DrawString(label, BPoint(labelX, textY));
 
@@ -1706,6 +1713,78 @@ CHRExplorerView::DrawCHRAnalysis(float x, float y)
 	opaque.SetToFormat("%ld/%ld",
 						(long)opaquePixels, (long)(height * 8));
 	drawKV("Opaque:", opaque.String());
+}
+
+
+// -----------------------------------------------------------------------------
+// CHRExplorerView::SelectedPalette
+//
+// Returns the currently selected preview palette row.  PatternTableView can use
+// this to tell PaletteDebugView which background palette row is currently being
+// applied to the CHR preview.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Selected palette row, wrapped to the valid range of 0-3.
+// -----------------------------------------------------------------------------
+uint8
+CHRExplorerView::SelectedPalette() const
+{
+	return fPalette % 4;
+}
+
+
+// -----------------------------------------------------------------------------
+// CHRExplorerView::SetPaletteHighlightTarget
+//
+// Sets the optional PaletteDebugView highlight target used when the selected
+// preview palette changes inside the CHR explorer.
+//
+// PatternTableView uses this so palette-preview clicks and number-key palette
+// changes immediately move the PaletteDebugView blue external-highlight row.
+//
+// Parameters:
+//   parent  - Main Pretendo window used to forward palette debugger highlights.
+//             May be nullptr to disable forwarding.
+//   sprites - true to highlight sprite palettes, false to highlight background
+//             palettes.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+CHRExplorerView::SetPaletteHighlightTarget(PretendoWindow* parent, bool sprites)
+{
+	fPaletteHighlightParent = parent;
+	fPaletteHighlightSprites = sprites;
+}
+
+
+// -----------------------------------------------------------------------------
+// CHRExplorerView::NotifyPaletteHighlight
+//
+// Sends the currently selected preview palette to the PaletteDebugView external
+// highlight path, if a target has been configured.
+//
+// Parameters:  
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+CHRExplorerView::NotifyPaletteHighlight()
+{
+	if (!fPaletteHighlightParent)
+		return;
+
+	fPaletteHighlightParent->HighlightPaletteDebugger(
+		fPaletteHighlightSprites,
+		fPalette % 4,
+		-1
+	);
 }
 
 
