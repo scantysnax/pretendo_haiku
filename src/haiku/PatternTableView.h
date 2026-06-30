@@ -38,7 +38,7 @@ class PatternTableView : public BView
 	} view_mode;
 
 	public:
-	PatternTableView (BRect frame, PretendoWindow* mainWindow, int32 which, CHRExplorerView* explorer);
+	PatternTableView (BRect frame, PretendoWindow *mainWindow, int32 which, CHRExplorerView *explorer);
 	virtual ~PatternTableView();
 
 	// inherited from BView

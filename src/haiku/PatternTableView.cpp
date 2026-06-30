@@ -243,7 +243,7 @@ PatternTableView::MouseDown (BPoint where)
 //   Nothing.
 // -------------------------------------------------------------
 void
-PatternTableView::MouseMoved(BPoint where, uint32 transit, const BMessage* msg)
+PatternTableView::MouseMoved (BPoint where, uint32 transit, const BMessage* msg)
 {
 	(void)msg;
 
@@ -322,8 +322,6 @@ PatternTableView::Pulse()
 	
 	Invalidate();
 }
-
-
 
 
 
@@ -562,7 +560,7 @@ PatternTableView::NotifyCHRExplorer()
 	if (!fCHRExplorer)
 		return;
 
-	Mapper* mapper = nes::cart.mapper();
+	Mapper *mapper = nes::cart.mapper();
 
 	if (!mapper) {
 		fCHRExplorer->Clear();
@@ -965,7 +963,7 @@ PatternTableView::UpdateExplorer()
 //   Nothing.
 // -------------------------------------------------------------
 void
-PatternTableView::SetExplorer(CHRExplorerView *explorer)
+PatternTableView::SetExplorer (CHRExplorerView *explorer)
 {
 	fCHRExplorer = explorer;
 
