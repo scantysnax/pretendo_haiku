@@ -47,8 +47,8 @@ NameTableBaseFromIndex (int32 which)
 // These are needed because NameTableView::~NameTableView() uses
 // ClearPatternWindowHighlight(), but the helper's full definition
 // appears later in this file.
-static inline void SetPatternWindowHighlight(PatternTableWindow* window, int32 whichPT, int32 tileIndex);
-static inline void ClearPatternWindowHighlight(PatternTableWindow* window);
+static inline void SetPatternWindowHighlight(PatternTableWindow *window, int32 whichPT, 												int32 tileIndex);
+static inline void ClearPatternWindowHighlight(PatternTableWindow *window);
 
 
 // -------------------------------------------------------------
@@ -66,8 +66,8 @@ static inline void ClearPatternWindowHighlight(PatternTableWindow* window);
 // Returns:
 //   Constructor; no return value.
 // -------------------------------------------------------------
-NameTableView::NameTableView(BRect frame, PretendoWindow *mainWindow, int32 which, CHRExplorerView *explorer)
-   : BView(frame, "name_table_view", B_FOLLOW_ALL_SIDES, B_WILL_DRAW | B_PULSE_NEEDED | B_FRAME_EVENTS | B_NAVIGABLE),
+NameTableView::NameTableView(BRect frame, PretendoWindow *mainWindow, int32 which, 										 CHRExplorerView *explorer)
+   : BView(frame, "name_table_view", B_FOLLOW_ALL_SIDES, B_WILL_DRAW | B_PULSE_NEEDED | 				B_FRAME_EVENTS | B_NAVIGABLE),
 			fMainWindow(mainWindow),
 			fCHRExplorer(explorer),
 			fWhichNameTable(which),
@@ -188,7 +188,7 @@ ClearPatternWindowHighlight (PatternTableWindow *window)
 //   None.
 // -------------------------------------------------------------
 static inline void
-NameTableTileOrigin(int32 whichNameTable, int32 &originTX, int32 &originTY)
+NameTableTileOrigin (int32 whichNameTable, int32 &originTX, int32 &originTY)
 {
 	switch (whichNameTable % 4) {
 		default:
@@ -280,7 +280,7 @@ NameTableView::DetachedFromWindow()
 	ClearPatternWindowHighlight(fPatternTable0);
 	ClearPatternWindowHighlight(fPatternTable1);
 
-	if (fMainWindow)
+	if (fMainWindow) 
 		fMainWindow->ClearPaletteDebuggerHighlight();
 
 	BView::DetachedFromWindow();
@@ -768,7 +768,7 @@ NameTableView::PatternBase() const
 void
 NameTableView::DrawNameTable(int32 which)
 {
-	Mapper* mapper = nes::cart.mapper();
+	Mapper *mapper = nes::cart.mapper();
 	if (!mapper) {
 		return;
 	}
@@ -1022,7 +1022,7 @@ NameTableView::DrawAttributeGrid()
 void
 NameTableView::UpdateCHRExplorer()
 {
-	Mapper* mapper = nes::cart.mapper();
+	Mapper *mapper = nes::cart.mapper();
 
 	if (!mapper || !fCHRExplorer) {
 		if (fMainWindow)
@@ -1805,7 +1805,7 @@ NameTableView::DrawAttributeMapOverlay()
 		return;
 	}
 
-	Mapper* mapper = nes::cart.mapper();
+	Mapper *mapper = nes::cart.mapper();
 	if (!mapper) {
 		return;
 	}
