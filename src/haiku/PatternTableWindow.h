@@ -20,7 +20,7 @@ class PatternTableWindow : public BWindow
     virtual void Zoom (BPoint origin, float width, float height);
     
     public:
-    PatternTableView* View() const 
+    PatternTableView *View() const 
     { 
     	return fView;
     }

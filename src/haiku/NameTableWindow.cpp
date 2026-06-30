@@ -11,7 +11,7 @@
 
 
 NameTableWindow::NameTableWindow(PretendoWindow *parent, int32 which,
-	PatternTableWindow* pt0, PatternTableWindow* pt1)
+	PatternTableWindow *pt0, PatternTableWindow *pt1)
 	: BWindow(BRect(200, 200, 200, 200),
 	          nullptr,
 	          B_FLOATING_WINDOW_LOOK,

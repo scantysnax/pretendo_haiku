@@ -108,7 +108,6 @@ PatternTableWindow::Zoom (BPoint origin, float width, float height)
 
 
 
-
 void
 PatternTableWindow::LoadSettings()
 {

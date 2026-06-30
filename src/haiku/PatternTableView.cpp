@@ -965,7 +965,7 @@ PatternTableView::UpdateExplorer()
 //   Nothing.
 // -------------------------------------------------------------
 void
-PatternTableView::SetExplorer(CHRExplorerView* explorer)
+PatternTableView::SetExplorer(CHRExplorerView *explorer)
 {
 	fCHRExplorer = explorer;
 
