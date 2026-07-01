@@ -25,17 +25,17 @@ class CHRExplorerView : public BView
 
 	public:
 	virtual void AttachedToWindow();
-	virtual void KeyDown (const char  *bytes, int32 numBytes);
-	virtual void MessageReceived (BMessage* message);
+	virtual void KeyDown (const char *bytes, int32 numBytes);
+	virtual void MessageReceived (BMessage *message);
 	virtual void MouseDown (BPoint where);
-	virtual void MouseMoved (BPoint where, uint32 transit, const BMessage* message);
+	virtual void MouseMoved (BPoint where, uint32 transit, const BMessage *message);
 	virtual void Draw (BRect updateRect);
 
 	public:
 	void Clear();
 	void SetHostPalette (uint8 *palette);
 	void SetTile8x8 (int32 whichPT, int32 tileIndex, bool locked,
-					uint32 chrAddr, const uint8* chrBytes, uint8 bgPalette,
+					uint32 chrAddr, const uint8 *chrBytes, uint8 bgPalette,
 					int32 whichNT, uint32 nameTileAddr,
 					uint32 attrAddr, uint8 attrByte, uint8 attrQuadrant);
 	
@@ -46,11 +46,11 @@ class CHRExplorerView : public BView
 					 uint8 bgPalette);
 
 	void UpdateHoverPixelFromMouse();
-	void SetUseSpritePalette(bool useSpritePalette);
-	void SetTileTransform(bool flipH, bool flipV);
-	void SetSelectedPalette(uint8 palette);
+	void SetUseSpritePalette (bool useSpritePalette);
+	void SetTileTransform (bool flipH, bool flipV);
+	void SetSelectedPalette (uint8 palette);
 	uint8 SelectedPalette() const;
-	void SetPaletteHighlightTarget(PretendoWindow *parent, bool sprites);
+	void SetPaletteHighlightTarget (PretendoWindow *parent, bool sprites);
 
 	private:
 	void DecodeTile();

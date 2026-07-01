@@ -145,7 +145,7 @@ CHRExplorerView::AttachedToWindow()
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-CHRExplorerView::KeyDown(const char* bytes, int32 numBytes)
+CHRExplorerView::KeyDown (const char *bytes, int32 numBytes)
 {
 	(void)numBytes;
 
@@ -222,7 +222,7 @@ CHRExplorerView::MessageReceived (BMessage *message)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-CHRExplorerView::MouseDown(BPoint where)
+CHRExplorerView::MouseDown (BPoint where)
 {
 	MakeFocus(true);
 
@@ -552,7 +552,7 @@ CHRExplorerView::Draw (BRect updateRect)
 		// resolve the hovered pixel to its palette RAM address and NES color.
 		uint32 palAddr = 0x3f00;
 		uint8 nesColor = 0;
-		Mapper* mapper = nes::cart.mapper();
+		Mapper *mapper = nes::cart.mapper();
 
 		if (mapper) {
 			if (value == 0) {
@@ -702,7 +702,7 @@ CHRExplorerView::Clear()
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-CHRExplorerView::SetHostPalette(uint8 *palette)
+CHRExplorerView::SetHostPalette (uint8 *palette)
 {
 	fHostPalette = palette;
 	Invalidate();
@@ -722,7 +722,7 @@ CHRExplorerView::SetHostPalette(uint8 *palette)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-CHRExplorerView::SetUseSpritePalette(bool useSpritePalette)
+CHRExplorerView::SetUseSpritePalette (bool useSpritePalette)
 {
 	fUseSpritePalette = useSpritePalette;
 	Invalidate();
@@ -743,7 +743,7 @@ CHRExplorerView::SetUseSpritePalette(bool useSpritePalette)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-CHRExplorerView::SetTileTransform(bool flipH, bool flipV)
+CHRExplorerView::SetTileTransform (bool flipH, bool flipV)
 {
 	fFlipH = flipH;
 	fFlipV = flipV;
@@ -771,7 +771,7 @@ CHRExplorerView::SetTileTransform(bool flipH, bool flipV)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-CHRExplorerView::SetSelectedPalette(uint8 palette)
+CHRExplorerView::SetSelectedPalette (uint8 palette)
 {
 	fQuadrantPalette = palette % 4;
 	fPalette = fQuadrantPalette;
@@ -803,8 +803,8 @@ CHRExplorerView::SetSelectedPalette(uint8 palette)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-CHRExplorerView::SetTile8x8(int32 whichPT, int32 tileIndex, bool locked,
-	uint32 chrAddr, const uint8* chrBytes, uint8 bgPalette,
+CHRExplorerView::SetTile8x8 (int32 whichPT, int32 tileIndex, bool locked,
+	uint32 chrAddr, const uint8 *chrBytes, uint8 bgPalette,
 	int32 whichNT, uint32 nameTileAddr,
 	uint32 attrAddr, uint8 attrByte, uint8 attrQuadrant)
 {
@@ -822,8 +822,10 @@ CHRExplorerView::SetTile8x8(int32 whichPT, int32 tileIndex, bool locked,
 
 	fQuadrantPalette = bgPalette % 4;
 
-	if (!fLocked)
+	if (!fLocked) {
 		fPalette = fQuadrantPalette;
+	}
+
 
 	fIsTile8x16 = false;
 	fUseSpritePalette = false;
@@ -864,7 +866,7 @@ CHRExplorerView::SetTile8x8(int32 whichPT, int32 tileIndex, bool locked,
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-CHRExplorerView::DrawDecodedZoomed(uint8 decoded[8][8], BPoint origin, float scale)
+CHRExplorerView::DrawDecodedZoomed (uint8 decoded[8][8], BPoint origin, float scale)
 {
 	// Draw the tile using the *current* palette,
 	// not a hardcoded palette 0.
@@ -915,7 +917,7 @@ CHRExplorerView::DrawDecodedZoomed(uint8 decoded[8][8], BPoint origin, float sca
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-CHRExplorerView::DrawInfo(BPoint point)
+CHRExplorerView::DrawInfo (BPoint point)
 {
 	font_height fh;
 	GetFontHeight(&fh);
@@ -1022,10 +1024,11 @@ CHRExplorerView::DrawInfo(BPoint point)
 		if (!fIsTile8x16) {
 			b = fCHRBytes[i];
 		} else {
-			if (i < 16)
+			if (i < 16) {
 				b = fCHRBytes[i];
-			else
+			} else {
 				b = fCHRBytesBottom[i - 16];
+			}
 		}
 
 		line.SetToFormat("%02X", b);
@@ -1087,14 +1090,15 @@ CHRExplorerView::DecodeTile()
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-CHRExplorerView::DrawPaletteSwatch(BPoint point)
+CHRExplorerView::DrawPaletteSwatch (BPoint point)
 {
 	Mapper *mapper = nes::cart.mapper();
 	BScreen screen(Window());
 	const color_map *cmap = screen.ColorMap();
 
-	if (!mapper || !cmap || !fHostPalette)
+	if (!mapper || !cmap || !fHostPalette) {
 		return;
+	}
 
 	uint8 colors[4];
 	colors[0] = mapper->read_vram(0x3f00) & 0x3f;
@@ -1138,9 +1142,9 @@ CHRExplorerView::DrawPaletteSwatch(BPoint point)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-CHRExplorerView::SetTile8x16(int32 whichPT, int32 topTileIndex, bool locked,
-	uint32 chrAddrTop, const uint8* chrTop,
-	uint32 chrAddrBottom, const uint8* chrBottom,
+CHRExplorerView::SetTile8x16 (int32 whichPT, int32 topTileIndex, bool locked,
+	uint32 chrAddrTop, const uint8 *chrTop,
+	uint32 chrAddrBottom, const uint8 *chrBottom,
 	uint8 bgPalette)
 {
 	// Both halves are required for an 8x16 tile.
@@ -1158,9 +1162,10 @@ CHRExplorerView::SetTile8x16(int32 whichPT, int32 topTileIndex, bool locked,
 
 	// Preserve manual palette selection while locked, but update it normally
 	// during hover/explore mode.
-	if (!fLocked)
+	if (!fLocked) {
 		fPalette = fQuadrantPalette;
-
+	}
+	
 	fCHRTileAddress = chrAddrTop;
 	fCHRTileAddressBottom = chrAddrBottom;
 
@@ -1227,15 +1232,16 @@ CHRExplorerView::SetTile8x16(int32 whichPT, int32 topTileIndex, bool locked,
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-CHRExplorerView::DrawTileWithBgPalette(const uint8 decoded[8][8],
+CHRExplorerView::DrawTileWithBgPalette (const uint8 decoded[8][8],
 	BPoint origin, float scale, uint8 bgPalette)
 {
-	Mapper* mapper = nes::cart.mapper();
+	Mapper *mapper = nes::cart.mapper();
 	BScreen screen(Window());
-	const color_map* cmap = screen.ColorMap();
+	const color_map *cmap = screen.ColorMap();
 
-	if (!mapper || !cmap || !fHostPalette)
+	if (!mapper || !cmap || !fHostPalette) {
 		return;
+	}
 
 	rgb_color pal[4];
 
@@ -1302,10 +1308,11 @@ CHRExplorerView::DrawTileWithBgPalette(const uint8 decoded[8][8],
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-CHRExplorerView::DrawPalettePreviewGrid(BPoint origin)
+CHRExplorerView::DrawPalettePreviewGrid (BPoint origin)
 {
-	if (!fValid)
+	if (!fValid) {
 		return;
+	}
 
 	PushState();
 
@@ -1396,8 +1403,9 @@ CHRExplorerView::UpdateHoverPixelFromMouse()
 	fHoverPixelX = -1;
 	fHoverPixelY = -1;
 
-	if (!fValid || !fMouseInside)
+	if (!fValid || !fMouseInside) {
 		return;
+	}
 
 	const float zoomScale = 8.0f;
 	const BPoint zoomOrigin(12.0f, 52.0f);
@@ -1416,15 +1424,17 @@ CHRExplorerView::UpdateHoverPixelFromMouse()
 	fHoverPixelX = (int32)(localX / zoomScale);
 	fHoverPixelY = (int32)(localY / zoomScale);
 
-	if (fHoverPixelX < 0 || fHoverPixelX >= 8)
+	if (fHoverPixelX < 0 || fHoverPixelX >= 8) {
 		return;
+	}
 
 	if (!fIsTile8x16) {
 		if (fHoverPixelY < 0 || fHoverPixelY >= 8)
 			return;
 	} else {
-		if (fHoverPixelY < 0 || fHoverPixelY >= 16)
+		if (fHoverPixelY < 0 || fHoverPixelY >= 16) {
 			return;
+		}
 	}
 
 	fHoverPixelValid = true;
@@ -1443,10 +1453,11 @@ CHRExplorerView::UpdateHoverPixelFromMouse()
 //   Palette index 0-3 if the point is over a preview; -1 otherwise.
 // -----------------------------------------------------------------------------
 int32
-CHRExplorerView::PalettePreviewAt(BPoint where) const
+CHRExplorerView::PalettePreviewAt (BPoint where) const
 {
-	if (!fValid)
+	if (!fValid) {
 		return -1;
+	}
 
 	// Must match CHRExplorerView::Draw().
 	const float minRightColumnX = 170.0f;
@@ -1483,8 +1494,9 @@ CHRExplorerView::PalettePreviewAt(BPoint where) const
 		// Slightly expand clickable area around the preview tile.
 		r.InsetBy(-3.0f, -3.0f);
 
-		if (r.Contains(where))
+		if (r.Contains(where)) {
 			return pal;
+		}
 	}
 
 	return -1;
@@ -1504,7 +1516,7 @@ CHRExplorerView::PalettePreviewAt(BPoint where) const
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-CHRExplorerView::DrawQuadrantDiagram(BPoint origin)
+CHRExplorerView::DrawQuadrantDiagram (BPoint origin)
 {
 	const float cell = 20.0f;
 
@@ -1557,10 +1569,11 @@ CHRExplorerView::DrawQuadrantDiagram(BPoint origin)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-CHRExplorerView::DrawTileSummary(float x, float y)
+CHRExplorerView::DrawTileSummary (float x, float y)
 {
-	if (!fValid)
+	if (!fValid) {
 		return;
+	}
 
 	SetFontSize(11.0f);
 
@@ -1626,7 +1639,7 @@ CHRExplorerView::DrawTileSummary(float x, float y)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-CHRExplorerView::DrawCHRAnalysis(float x, float y)
+CHRExplorerView::DrawCHRAnalysis (float x, float y)
 {
 	if (!fValid)
 		return;
@@ -1674,16 +1687,19 @@ CHRExplorerView::DrawCHRAnalysis(float x, float y)
 				value = fDecodedPixelsBottom[py - 8][px] & 0x3;
 			}
 
-			if (value & 0x1)
+			if (value & 0x1) {
 				usedP0 = true;
+			}
 
-			if (value & 0x2)
+			if (value & 0x2) {
 				usedP1 = true;
+			}
 
 			usedColor[value] = true;
 
-			if (value != 0)
+			if (value != 0) {
 				opaquePixels++;
+			}
 		}
 	}
 
@@ -1696,16 +1712,18 @@ CHRExplorerView::DrawCHRAnalysis(float x, float y)
 		if (!usedColor[i])
 			continue;
 
-		if (!colors.IsEmpty())
+		if (!colors.IsEmpty()) {
 			colors.Append(" ");
+		}
 
 		BString tmp;
 		tmp.SetToFormat("%ld", (long)i);
 		colors.Append(tmp);
 	}
 
-	if (colors.IsEmpty())
+	if (colors.IsEmpty()) {
 		colors.SetTo("-");
+	}
 
 	drawKV("Colors:", colors.String());
 
@@ -1755,7 +1773,7 @@ CHRExplorerView::SelectedPalette() const
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-CHRExplorerView::SetPaletteHighlightTarget(PretendoWindow* parent, bool sprites)
+CHRExplorerView::SetPaletteHighlightTarget(PretendoWindow *parent, bool sprites)
 {
 	fPaletteHighlightParent = parent;
 	fPaletteHighlightSprites = sprites;
