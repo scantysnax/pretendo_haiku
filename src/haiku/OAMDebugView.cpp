@@ -32,7 +32,7 @@ class OAMSpriteScrollBar : public BScrollBar
 	// Returns:
 	//   Constructor; no return value.
 	// -------------------------------------------------------------------------
-	OAMSpriteScrollBar (BRect frame, OAMDebugView* owner)
+	OAMSpriteScrollBar (BRect frame, OAMDebugView *owner)
 		: BScrollBar(frame, "oam_sprite_scrollbar", nullptr, 0.0f, 56.0f, B_VERTICAL),
 			fOwner(owner)
 	{
@@ -57,18 +57,22 @@ class OAMSpriteScrollBar : public BScrollBar
 	{
 		BScrollBar::ValueChanged(value);
 
-		if (!fOwner)
+		if (!fOwner) {
 			return;
+		}
 
 		int32 firstSprite = static_cast<int32>(value);
 
 		// Snap to 8-sprite pages so the rows stay stable.
 		firstSprite = (firstSprite / 8) * 8;
 
-		if (firstSprite < 0)
+		if (firstSprite < 0) {
 			firstSprite = 0;
-		if (firstSprite > 56)
+		}
+		
+		if (firstSprite > 56) {
 			firstSprite = 56;
+		}
 
 		fOwner->SetFirstSpriteFromScrollBar(firstSprite);
 	}
@@ -96,8 +100,9 @@ class OAMSpriteScrollBar : public BScrollBar
 static inline void
 SetPatternWindowHighlight(PatternTableWindow *window, int32 whichPT, int32 tileIndex)
 {
-	if (!window)
+	if (!window) {
 		return;
+	}
 
 	if (window->Lock()) {
 		if (window->View())
@@ -122,10 +127,11 @@ SetPatternWindowHighlight(PatternTableWindow *window, int32 whichPT, int32 tileI
 //   Nothing.
 // -----------------------------------------------------------------------------
 static inline void
-ClearPatternWindowHighlight(PatternTableWindow *window)
+ClearPatternWindowHighlight (PatternTableWindow *window)
 {
-	if (!window)
+	if (!window) {
 		return;
+	}
 
 	if (window->Lock()) {
 		if (window->View())
@@ -150,7 +156,7 @@ ClearPatternWindowHighlight(PatternTableWindow *window)
 // Returns:
 //   Constructor; no return value.
 // -----------------------------------------------------------------------------
-OAMDebugView::OAMDebugView(BRect frame, PretendoWindow *parent)
+OAMDebugView::OAMDebugView (BRect frame, PretendoWindow *parent)
 	: BView(frame, "oam_debug_view", B_FOLLOW_ALL_SIDES,
 	B_WILL_DRAW | B_PULSE_NEEDED | B_FRAME_EVENTS | B_NAVIGABLE)
 {
@@ -175,8 +181,9 @@ OAMDebugView::OAMDebugView(BRect frame, PretendoWindow *parent)
 // -----------------------------------------------------------------------------
 OAMDebugView::~OAMDebugView()
 {
-	if (fParent)
+	if (fParent) {
 		fParent->ClearPaletteDebuggerHighlight();
+	}
 
 	ClearPatternTableHighlight();
 }
@@ -286,8 +293,9 @@ OAMDebugView::FrameResized(float width, float height)
 	(void)width;
 	(void)height;
 
-	if (!fSpriteScrollBar)
+	if (!fSpriteScrollBar) {
 		return;
+	}
 
 	BRect listPanel(
 		4.0f,
@@ -348,26 +356,31 @@ OAMDebugView::KeyDown(const char* bytes, int32 numBytes)
 	auto moveActiveSprite = [&](int32 delta) {
 		int32 active = fSpriteLocked ? fLockedSprite : fHoverSprite;
 
-		if (active < 0 || active >= 64)
+		if (active < 0 || active >= 64) {
 			active = fFirstSprite;
+		}
 
 		active += delta;
 
-		if (active < 0)
+		if (active < 0) {
 			active = 0;
+		}
 
-		if (active > 63)
+		if (active > 63) {
 			active = 63;
+		}
 
-		if (fSpriteLocked)
+		if (fSpriteLocked) {
 			fLockedSprite = active;
+		}
 
 		fHoverSprite = active;
 
-		if (active < fFirstSprite)
+		if (active < fFirstSprite) {
 			fFirstSprite = (active / 8) * 8;
-		else if (active >= fFirstSprite + 8)
+		} else if (active >= fFirstSprite + 8) {
 			fFirstSprite = (active / 8) * 8;
+		}
 
 		syncAfterSelectionChange();
 	};
@@ -397,8 +410,9 @@ OAMDebugView::KeyDown(const char* bytes, int32 numBytes)
 		case ',':
 			fFirstSprite -= 8;
 
-			if (fFirstSprite < 0)
+			if (fFirstSprite < 0) {
 				fFirstSprite = 0;
+			}
 
 			if (!fSpriteLocked) {
 				if (fHoverSprite < fFirstSprite
@@ -414,8 +428,9 @@ OAMDebugView::KeyDown(const char* bytes, int32 numBytes)
 		case '.':
 			fFirstSprite += 8;
 
-			if (fFirstSprite > 56)
+			if (fFirstSprite > 56) {
 				fFirstSprite = 56;
+			}
 
 			if (!fSpriteLocked) {
 				if (fHoverSprite < fFirstSprite
@@ -459,7 +474,7 @@ OAMDebugView::KeyDown(const char* bytes, int32 numBytes)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-OAMDebugView::MessageReceived(BMessage* message)
+OAMDebugView::MessageReceived(BMessage *message)
 {
 	switch (message->what) {
 		case B_MOUSE_WHEEL_CHANGED:
@@ -479,11 +494,13 @@ OAMDebugView::MessageReceived(BMessage* message)
 				fFirstSprite -= 8;
 			}
 
-			if (fFirstSprite < 0)
+			if (fFirstSprite < 0) {
 				fFirstSprite = 0;
+			}
 
-			if (fFirstSprite > 56)
+			if (fFirstSprite > 56) {
 				fFirstSprite = 56;
+			}
 
 			if (fFirstSprite != oldFirstSprite) {
 				if (fSpriteScrollBar)
@@ -527,7 +544,7 @@ OAMDebugView::MessageReceived(BMessage* message)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-OAMDebugView::MouseDown(BPoint where)
+OAMDebugView::MouseDown (BPoint where)
 {
 	MakeFocus(true);
 
@@ -587,7 +604,7 @@ OAMDebugView::MouseDown(BPoint where)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-OAMDebugView::MouseMoved(BPoint where, uint32 transit, const BMessage* message)
+OAMDebugView::MouseMoved (BPoint where, uint32 transit, const BMessage* message)
 {
 	(void)message;
 
@@ -670,8 +687,9 @@ OAMDebugView::MouseMoved(BPoint where, uint32 transit, const BMessage* message)
 void
 OAMDebugView::Pulse()
 {
-	if (fFreezeUpdates)
+	if (fFreezeUpdates) {
 		return;
+	}
 
 	// Take one coherent OAM snapshot for this debugger refresh.
 	// All drawing and linked inspectors should read from this snapshot,
@@ -720,7 +738,7 @@ OAMDebugView::DrawHeaderUI()
 
 	float y = panel.top + 34.0f;
 
-	auto drawKV = [&](const char* label, const char* value) {
+	auto drawKV = [&](const char *label, const char *value) {
 		SetHighColor(80, 80, 80, 255);
 		DrawString(label, BPoint(labelX, y));
 
@@ -783,10 +801,11 @@ OAMDebugView::DrawOAMSummaryPanel()
 	for (int32 i = 0; i < 64; i++) {
 		uint8 spriteY = OAMByte((i * 4) + 0);
 
-		if (spriteY >= 0xef)
+		if (spriteY >= 0xef) {
 			hiddenSprites++;
-		else
+		} else {
 			usedSprites++;
+		}
 	}
 
 	const float leftLabelX = panel.left + 8.0f;
@@ -800,8 +819,7 @@ OAMDebugView::DrawOAMSummaryPanel()
 
 	BString s;
 
-	auto drawLeftKV = [&](const char* label, const char* value,
-		bool monoValue) {
+	auto drawLeftKV = [&](const char *label, const char *value, bool monoValue) {
 		SetHighColor(80, 80, 80, 255);
 		SetFont(&oldFont);
 		DrawString(label, BPoint(leftLabelX, leftY));
@@ -813,8 +831,7 @@ OAMDebugView::DrawOAMSummaryPanel()
 		leftY += lineH;
 	};
 
-	auto drawRightKV = [&](const char* label, const char* value,
-		bool monoValue) {
+	auto drawRightKV = [&](const char *label, const char *value, bool monoValue) {
 		SetHighColor(80, 80, 80, 255);
 		SetFont(&oldFont);
 		DrawString(label, BPoint(rightLabelX, rightY));
@@ -982,10 +999,11 @@ OAMDebugView::DrawSpriteListPanel()
 
 		BString s;
 
-		if (hidden)
+		if (hidden) {
 			SetHighColor(115, 115, 115, 255);
-		else
+		} else {
 			SetHighColor(0, 0, 0, 255);
+		}
 
 		SetFont(&mono);
 
@@ -1090,8 +1108,7 @@ OAMDebugView::DrawSelectedSpritePanel()
 	BFont mono(be_fixed_font);
 	mono.SetSize(11.0f);
 
-	auto drawLeftKV = [&](const char* label, const char* value,
-		bool monoValue) {
+	auto drawLeftKV = [&](const char *label, const char *value, bool monoValue) {
 		SetHighColor(80, 80, 80, 255);
 		SetFont(&oldFont);
 		DrawString(label, BPoint(leftLabelX, leftY));
@@ -1103,8 +1120,7 @@ OAMDebugView::DrawSelectedSpritePanel()
 		leftY += lineH;
 	};
 
-	auto drawRightKV = [&](const char* label, const char* value,
-		bool monoValue) {
+	auto drawRightKV = [&](const char* label, const char* value, bool monoValue) {
 		SetHighColor(80, 80, 80, 255);
 		SetFont(&oldFont);
 		DrawString(label, BPoint(rightLabelX, rightY));
@@ -1262,10 +1278,13 @@ OAMDebugView::SetFirstSpriteFromScrollBar(int32 firstSprite)
 {
 	firstSprite = (firstSprite / 8) * 8;
 
-	if (firstSprite < 0)
+	if (firstSprite < 0) {
 		firstSprite = 0;
-	if (firstSprite > 56)
+	}
+	
+	if (firstSprite > 56) {
 		firstSprite = 56;
+	}
 
 	if (fFirstSprite == firstSprite)
 		return;
@@ -1299,7 +1318,7 @@ OAMDebugView::SetFirstSpriteFromScrollBar(int32 firstSprite)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-OAMDebugView::SetHostPalette(uint8* palette)
+OAMDebugView::SetHostPalette(uint8 *palette)
 {
 	fHostPalette = palette;
 
@@ -1528,8 +1547,9 @@ OAMDebugView::DrawSpritePreview(BRect previewRect, int32 spriteIndex)
 void
 OAMDebugView::UpdatePaletteDebuggerHighlight()
 {
-	if (!fParent)
+	if (!fParent) {
 		return;
+	}
 
 	int32 active = fSpriteLocked ? fLockedSprite : fHoverSprite;
 
@@ -1564,10 +1584,11 @@ OAMDebugView::UpdatePaletteDebuggerHighlight()
 void
 OAMDebugView::UpdateCHRExplorer()
 {
-	if (!fCHRExplorer)
+	if (!fCHRExplorer) {
 		return;
+	}
 
-	Mapper* mapper = nes::cart.mapper();
+	Mapper *mapper = nes::cart.mapper();
 
 	if (!mapper) {
 		fCHRExplorer->Clear();
@@ -1629,10 +1650,7 @@ OAMDebugView::UpdateCHRExplorer()
 		fCHRExplorer->SetTileTransform(flipH, flipV);
 	} else {
 		int32 whichPT = (nes::ppu::ppuctrl() & 0x08) ? 1 : 0;
-
-		uint32 chrAddr = (whichPT ? 0x1000 : 0x0000)
-			+ (tile * 16);
-
+		uint32 chrAddr = (whichPT ? 0x1000 : 0x0000) + (tile * 16);
 		uint8 chrBytes[16];
 
 		for (int32 i = 0; i < 16; i++)
@@ -1791,8 +1809,9 @@ OAMDebugView::SetExplorer(CHRExplorerView *explorer)
 void
 OAMDebugView::CaptureOAMSnapshot()
 {
-	for (uint32 i = 0; i < 0x100; i++)
+	for (uint32 i = 0; i < 0x100; i++) {
 		fFrozenOAM[i] = nes::ppu::oam_ram(i);
+	}
 
 	fHaveFrozenOAM = true;
 }
@@ -1815,8 +1834,9 @@ OAMDebugView::CaptureOAMSnapshot()
 uint8
 OAMDebugView::OAMByte(uint32 address) const
 {
-	if (fHaveFrozenOAM)
+	if (fHaveFrozenOAM) {
 		return fFrozenOAM[address & 0xff];
+	}
 
 	return nes::ppu::oam_ram(address);
 }

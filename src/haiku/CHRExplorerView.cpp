@@ -350,7 +350,7 @@ CHRExplorerView::Draw (BRect updateRect)
 
 	::DrawDebugPanel(this, tilePanel, "Tile");
 	::DrawDebugPanel(this, palettePanel, "Palettes");
-	::DrawDebugPanel(this, pixelPanel, "Pixel / CHR");
+	::DrawDebugPanel(this, pixelPanel, "Pixel Inspector");
 
 	// -------------------------------------------------
 	// Left-side tile preview + info
