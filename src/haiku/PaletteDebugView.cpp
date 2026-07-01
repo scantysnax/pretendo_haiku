@@ -25,7 +25,7 @@
 // Returns:
 //   Constructor; no return value.
 // -----------------------------------------------------------------------------
-PaletteDebugView::PaletteDebugView(BRect frame, PretendoWindow* parent)
+PaletteDebugView::PaletteDebugView (BRect frame, PretendoWindow *parent)
 	:
 	BView(frame, "palette_debug_view", B_FOLLOW_ALL_SIDES,
 		B_WILL_DRAW | B_PULSE_NEEDED | B_FRAME_EVENTS | B_NAVIGABLE)
@@ -97,7 +97,7 @@ PaletteDebugView::AttachedToWindow()
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-PaletteDebugView::MessageReceived(BMessage* message)
+PaletteDebugView::MessageReceived(BMessage *message)
 {
 	BView::MessageReceived(message);
 }
@@ -119,8 +119,9 @@ PaletteDebugView::MessageReceived(BMessage* message)
 void
 PaletteDebugView::Pulse()
 {
-	if (fFreezeUpdates)
+	if (fFreezeUpdates) {
 		return;
+	}
 
 	Invalidate();
 }
@@ -140,7 +141,7 @@ PaletteDebugView::Pulse()
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-PaletteDebugView::Draw(BRect updateRect)
+PaletteDebugView::Draw (BRect updateRect)
 {
 	(void)updateRect;
 
@@ -189,7 +190,7 @@ PaletteDebugView::DrawHeaderUI()
 
 	float y = panel.top + 34.0f;
 
-	auto drawKV = [&](const char* label, const char* value) {
+	auto drawKV = [&](const char *label, const char *value) {
 		SetHighColor(80, 80, 80, 255);
 		DrawString(label, BPoint(labelX, y));
 
@@ -204,7 +205,6 @@ PaletteDebugView::DrawHeaderUI()
 		? "unfreeze palette updates"
 		: "freeze palette updates");
 	drawKV("X:", "mirrored palette entry");
-	//drawKV("Blue:", "source palette from NameTable");
 	drawKV("Blue:", "external source palette");
 }
 
@@ -280,7 +280,7 @@ PaletteDebugView::DrawSpritePalettes()
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-PaletteDebugView::DrawPalettePanel(BRect panel, const char* title, bool sprites)
+PaletteDebugView::DrawPalettePanel (BRect panel, const char *title, bool sprites)
 {
 	::DrawDebugPanel(this, panel, title);
 
@@ -422,21 +422,23 @@ PaletteDebugView::DrawPalettePanel(BRect panel, const char* title, bool sprites)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-PaletteDebugView::DrawPaletteEntry(BRect r, uint16 address, bool selected)
+PaletteDebugView::DrawPaletteEntry (BRect r, uint16 address, bool selected)
 {
 	uint16 resolved = ResolvePaletteAddress(address);
 	uint8 nesColor = ReadPalette(address);
 
 	uint8 hostIndex = nesColor;
 
-	if (fHostPalette)
-		hostIndex = fHostPalette[nesColor & 0x3F];
+	if (fHostPalette) {
+		hostIndex = fHostPalette[nesColor & 0x3f];
+	}
 
-	const color_map* cmap = BScreen().ColorMap();
+	const color_map *cmap = BScreen().ColorMap();
 	rgb_color rgb = {0, 0, 0, 255};
 
-	if (cmap)
+	if (cmap) {
 		rgb = cmap->color_list[hostIndex];
+	}
 
 	SetHighColor(rgb);
 	FillRect(r);
@@ -525,16 +527,18 @@ PaletteDebugView::DrawSelectedInfo()
 	uint16 resolved = ResolvePaletteAddress(address);
 
 	uint8 nesColor = ReadPalette(address);
-
 	uint8 hostIndex = nesColor;
-	if (fHostPalette)
+	
+	if (fHostPalette) {
 		hostIndex = fHostPalette[nesColor & 0x3f];
+	}
 
-	const color_map* cmap = BScreen().ColorMap();
+	const color_map *cmap = BScreen().ColorMap();
 	rgb_color rgb = {0, 0, 0, 255};
 
-	if (cmap)
+	if (cmap) {
 		rgb = cmap->color_list[hostIndex];
+	}
 
 	bool sprites = address >= 0x3f10;
 
@@ -560,14 +564,17 @@ PaletteDebugView::DrawSelectedInfo()
 	} else {
 		emphasis.SetTo("");
 
-		if (emphR)
+		if (emphR) {
 			emphasis.Append("R");
+		}
 
-		if (emphG)
+		if (emphG) {
 			emphasis.Append("G");
+		}
 
-		if (emphB)
+		if (emphB) {
 			emphasis.Append("B");
+		}
 	}
 
 	SetFontSize(11.0f);
@@ -587,7 +594,7 @@ PaletteDebugView::DrawSelectedInfo()
 
 	BString s;
 
-	auto drawLeftKV = [&](const char* label, const char* value) {
+	auto drawLeftKV = [&](const char *label, const char *value) {
 		SetHighColor(80, 80, 80, 255);
 		DrawString(label, BPoint(leftLabelX, leftY));
 
@@ -597,7 +604,7 @@ PaletteDebugView::DrawSelectedInfo()
 		leftY += lineH;
 	};
 
-	auto drawRightKV = [&](const char* label, const char* value) {
+	auto drawRightKV = [&](const char *label, const char *value) {
 		SetHighColor(80, 80, 80, 255);
 		DrawString(label, BPoint(rightLabelX, rightY));
 
@@ -676,7 +683,7 @@ PaletteDebugView::DrawSelectedInfo()
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-PaletteDebugView::MouseMoved(BPoint where, uint32 transit, const BMessage *message)
+PaletteDebugView::MouseMoved (BPoint where, uint32 transit, const BMessage *message)
 {
 	(void)where;
 	(void)message;
@@ -684,8 +691,9 @@ PaletteDebugView::MouseMoved(BPoint where, uint32 transit, const BMessage *messa
 	if (transit == B_EXITED_VIEW) {
 		fMouseInside = false;
 
-		if (!fEntryLocked && !fFreezeUpdates)
+		if (!fEntryLocked && !fFreezeUpdates) {
 			Invalidate();
+		}
 
 		return;
 	}
@@ -694,12 +702,14 @@ PaletteDebugView::MouseMoved(BPoint where, uint32 transit, const BMessage *messa
 
 	// Freeze means the visible/active palette inspection stays fixed.
 	// Mouse movement should not change the active entry while frozen.
-	if (fFreezeUpdates)
+	if (fFreezeUpdates) {
 		return;
+	}
 
 	// When locked, mouse movement should not change the active entry.
-	if (fEntryLocked)
+	if (fEntryLocked) {
 		return;
+	}
 
 	uint16 address = 0x3F00;
 
@@ -728,20 +738,22 @@ PaletteDebugView::MouseMoved(BPoint where, uint32 transit, const BMessage *messa
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-PaletteDebugView::MouseDown(BPoint where)
+PaletteDebugView::MouseDown (BPoint where)
 {
 	MakeFocus(true);
 
 	// Freeze means the palette viewer is locked in its current state.
 	// Allow Space to unfreeze, but do not allow mouse clicks to change
 	// the selected/locked palette entry.
-	if (fFreezeUpdates)
+	if (fFreezeUpdates) {
 		return;
+	}
 
 	uint16 address = 0x3f00;
 
-	if (!PaletteEntryAt(where, address))
+	if (!PaletteEntryAt(where, address)) {
 		return;
+	}
 
 	// Clicking the already locked entry unlocks it.
 	if (fEntryLocked && fLockedAddress == address) {
@@ -775,7 +787,7 @@ PaletteDebugView::MouseDown(BPoint where)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-PaletteDebugView::KeyDown(const char* bytes, int32 numBytes)
+PaletteDebugView::KeyDown (const char *bytes, int32 numBytes)
 {
 	if (numBytes <= 0)
 		return;
@@ -808,7 +820,7 @@ PaletteDebugView::KeyDown(const char* bytes, int32 numBytes)
 //   true if the point is over a palette entry; false otherwise.
 // -----------------------------------------------------------------------------
 bool
-PaletteDebugView::PaletteEntryAt(BPoint where, uint16 &outAddress) const
+PaletteDebugView::PaletteEntryAt (BPoint where, uint16 &outAddress) const
 {
 	const float cellW = 42.0f;
 	const float cellH = 18.0f;
@@ -860,11 +872,13 @@ PaletteDebugView::PaletteEntryAt(BPoint where, uint16 &outAddress) const
 		398.0f
 	);
 
-	if (checkPanel(bgPanel, false))
+	if (checkPanel(bgPanel, false)) {
 		return true;
+	}
 
-	if (checkPanel(spritePanel, true))
+	if (checkPanel(spritePanel, true)) {
 		return true;
+	}
 
 	return false;
 }
@@ -884,12 +898,13 @@ PaletteDebugView::PaletteEntryAt(BPoint where, uint16 &outAddress) const
 //   Resolved palette RAM address.
 // -----------------------------------------------------------------------------
 uint16
-PaletteDebugView::ResolvePaletteAddress(uint16 address) const
+PaletteDebugView::ResolvePaletteAddress (uint16 address) const
 {
 	address &= 0x3fff;
 
-	if (address >= 0x3f00)
+	if (address >= 0x3f00) {
 		address = 0x3f00 | (address & 0x1f);
+	}
 
 	switch (address) {
 		case 0x3f10:
@@ -924,9 +939,9 @@ PaletteDebugView::ResolvePaletteAddress(uint16 address) const
 //   mapper is available.
 // -----------------------------------------------------------------------------
 uint8
-PaletteDebugView::ReadPalette(uint16 address) const
+PaletteDebugView::ReadPalette (uint16 address) const
 {
-	Mapper* mapper = nes::cart.mapper();
+	Mapper *mapper = nes::cart.mapper();
 
 	if (!mapper)
 		return 0xf;
@@ -950,7 +965,7 @@ PaletteDebugView::ReadPalette(uint16 address) const
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-PaletteDebugView::SetExternalHighlight(bool sprites, int32 palette, int32 entry)
+PaletteDebugView::SetExternalHighlight (bool sprites, int32 palette, int32 entry)
 {
 	if (palette < 0 || palette > 3) {
 		ClearExternalHighlight();
@@ -983,8 +998,9 @@ PaletteDebugView::SetExternalHighlight(bool sprites, int32 palette, int32 entry)
 void
 PaletteDebugView::ClearExternalHighlight()
 {
-	if (!fHasExternalHighlight)
+	if (!fHasExternalHighlight) {
 		return;
+	}
 
 	fHasExternalHighlight = false;
 	fExternalHighlightSprites = false;
