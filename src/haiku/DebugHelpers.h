@@ -6,7 +6,7 @@
 #include <View.h>
 
 static inline void
-StrokeRectTriple(BView *v, BRect r, rgb_color mid)
+StrokeRectTriple (BView *v, BRect r, rgb_color mid)
 {
 	if (!v) {
 		return;
@@ -47,8 +47,9 @@ FillAndStrokeRectTriple (BView *v, BRect r, rgb_color fill, rgb_color stroke)
 static inline void
 DrawDebugPanel (BView *view, BRect rect, const char *title)
 {
-	if (!view)
+	if (!view) {
 		return;
+	}
 
 	view->SetHighColor(228, 228, 228, 255);
 	view->FillRect(rect);
