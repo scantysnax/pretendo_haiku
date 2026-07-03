@@ -26,16 +26,16 @@ class CHRExplorerView;
 class OAMDebugView : public BView
 {
 	public:
-			OAMDebugView(BRect frame, PretendoWindow* parent);
+			OAMDebugView(BRect frame, PretendoWindow *parent);
 	virtual ~OAMDebugView();
 
 	virtual void AttachedToWindow();
-	virtual void Draw(BRect updateRect);
-	virtual void FrameResized(float width, float height);
-	virtual void KeyDown(const char* bytes, int32 numBytes);
-	virtual void MessageReceived(BMessage* message);
-	virtual void MouseDown(BPoint where);
-	virtual void MouseMoved(BPoint where, uint32 transit, const BMessage* message);
+	virtual void Draw (BRect updateRect);
+	virtual void FrameResized (float width, float height);
+	virtual void KeyDown (const char* bytes, int32 numBytes);
+	virtual void MessageReceived (BMessage *message);
+	virtual void MouseDown (BPoint where);
+	virtual void MouseMoved (BPoint where, uint32 transit, const BMessage *message);
 	virtual void Pulse();
 
 	public:
@@ -61,10 +61,10 @@ class OAMDebugView : public BView
 	uint8 OAMByte(uint32 address) const;
 
 	private:
-	PretendoWindow* fParent = nullptr;
+	PretendoWindow *fParent = nullptr;
 
 	private:
-	BScrollBar* fSpriteScrollBar = nullptr;
+	BScrollBar *fSpriteScrollBar = nullptr;
 
 	private:
 	bool fFreezeUpdates = false;
@@ -79,14 +79,14 @@ class OAMDebugView : public BView
 	bool fHaveFrozenOAM = false;
 
 	private:
-	uint8* fHostPalette = nullptr;
+	uint8 *fHostPalette = nullptr;
 
 	private:
-	PatternTableWindow* fPatternTable0 = nullptr;
-	PatternTableWindow* fPatternTable1 = nullptr;
+	PatternTableWindow *fPatternTable0 = nullptr;
+	PatternTableWindow *fPatternTable1 = nullptr;
 
 	private:
-	CHRExplorerView* fCHRExplorer = nullptr;
+	CHRExplorerView *fCHRExplorer = nullptr;
 };
 
 

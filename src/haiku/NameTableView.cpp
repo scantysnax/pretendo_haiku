@@ -305,7 +305,7 @@ NameTableView::Draw(BRect updateRect)
 	(void)updateRect;
 
 	// Clear whole view background.
-	SetHighColor(216, 216, 216, 255);
+	SetHighColor(216, 216, 216);
 	FillRect(Bounds());
 
 	BPoint origin = BitmapOrigin();
@@ -356,7 +356,7 @@ NameTableView::Draw(BRect updateRect)
 	PopState();
 
 	// Draw the viewport border after overlays so it stays crisp.
-	SetHighColor(120, 120, 120, 255);
+	SetHighColor(120, 120, 120);
 	StrokeRect(BRect(
 		origin.x,
 		origin.y,
@@ -1245,7 +1245,7 @@ NameTableView::DrawPPUViewportOverlay()
 		}
 
 		// Bright viewport lines drawn over the contrast backing.
-		SetHighColor(255, 255, 0, 255);
+		SetHighColor(255, 255, 0);
 		StrokeRect(r);
 
 		if (r1.IsValid()) {
@@ -1390,9 +1390,9 @@ NameTableView::DrawOverlays()
 		(drawTileY * 8) + 7);
 
 	if (fTileLocked)
-		SetHighColor(255, 0, 255, 255);
+		SetHighColor(255, 0, 255);
 	else
-		SetHighColor(0, 255, 255, 255);
+		SetHighColor(0, 255, 255);
 
 	StrokeRect(r);
 }
@@ -1954,10 +1954,10 @@ NameTableView::DrawHeaderUI()
 	float y = panel.top + 36.0f;
 
 	auto drawKV = [&](const char *label, const char *value) {
-		SetHighColor(80, 80, 80, 255);
+		SetHighColor(80, 80, 80);
 		DrawString(label, BPoint(labelX, y));
 
-		SetHighColor(35, 35, 35, 255);
+		SetHighColor(35, 35, 35);
 		DrawString(value, BPoint(valueX, y));
 
 		y += lineH;
@@ -2054,10 +2054,10 @@ NameTableView::DrawDebugPanel()
 	BString s;
 
 	auto drawKV = [&](const char *label, const char *value) {
-		SetHighColor(80, 80, 80, 255);
+		SetHighColor(80, 80, 80);
 		DrawString(label, BPoint(labelX, textY));
 
-		SetHighColor(0, 0, 0, 255);
+		SetHighColor(0, 0, 0);
 		DrawString(value, BPoint(valueX, textY));
 
 		textY += lineH;
@@ -2099,25 +2099,25 @@ NameTableView::DrawDebugPanel()
 		);
 
 		if (enabled) {
-			SetHighColor(210, 235, 210, 255);
+			SetHighColor(210, 235, 210);
 		} else {
-			SetHighColor(224, 224, 224, 255);
+			SetHighColor(224, 224, 224);
 		}
 		
 		FillRect(r);
 
 		if (enabled) {
-			SetHighColor(80, 150, 80, 255);
+			SetHighColor(80, 150, 80);
 		} else {
-			SetHighColor(165, 165, 165, 255);
+			SetHighColor(165, 165, 165);
 		}
 		
 		StrokeRect(r);
 
 		if (enabled) {
-			SetHighColor(20, 90, 20, 255);
+			SetHighColor(20, 90, 20);
 		} else {
-			SetHighColor(105, 105, 105, 255);
+			SetHighColor(105, 105, 105);
 		}
 
 		DrawString(label, BPoint(sx + padX, sy + 11.0f));
@@ -2156,10 +2156,10 @@ NameTableView::DrawBitmapPanel (BPoint origin)
 		origin.y + 239.0f + 5.0f
 	);
 
-	SetHighColor(228, 228, 228, 255);
+	SetHighColor(228, 228, 228);
 	FillRect(panel);
 
-	SetHighColor(150, 150, 150, 255);
+	SetHighColor(150, 150, 150);
 	StrokeRect(panel);
 }
 

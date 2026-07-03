@@ -1,15 +1,12 @@
 
+#include "DebugHelpers.h"
 #include "PaletteDebugView.h"
 #include "PretendoWindow.h"
-#include "DebugHelpers.h"
 
 #include "Cart.h"
 #include "Mapper.h"
 #include "Nes.h"
 #include "Ppu.h"
-
-#include <cstdio>
-#include <cstring>
 
 
 // -----------------------------------------------------------------------------
@@ -26,9 +23,8 @@
 //   Constructor; no return value.
 // -----------------------------------------------------------------------------
 PaletteDebugView::PaletteDebugView (BRect frame, PretendoWindow *parent)
-	:
-	BView(frame, "palette_debug_view", B_FOLLOW_ALL_SIDES,
-		B_WILL_DRAW | B_PULSE_NEEDED | B_FRAME_EVENTS | B_NAVIGABLE)
+	: BView(frame, "palette_debug_view", B_FOLLOW_ALL_SIDES,
+	B_WILL_DRAW | B_PULSE_NEEDED | B_FRAME_EVENTS | B_NAVIGABLE)
 {
 	fParent = parent;
 	fHostPalette = fParent ? fParent->Palette() : nullptr;
@@ -145,7 +141,7 @@ PaletteDebugView::Draw (BRect updateRect)
 {
 	(void)updateRect;
 
-	SetHighColor(216, 216, 216, 255);
+	SetHighColor(216, 216, 216);
 	FillRect(Bounds());
 
 	DrawHeaderUI();
@@ -191,10 +187,10 @@ PaletteDebugView::DrawHeaderUI()
 	float y = panel.top + 34.0f;
 
 	auto drawKV = [&](const char *label, const char *value) {
-		SetHighColor(80, 80, 80, 255);
+		SetHighColor(80, 80, 80);
 		DrawString(label, BPoint(labelX, y));
 
-		SetHighColor(35, 35, 35, 255);
+		SetHighColor(35, 35, 35);
 		DrawString(value, BPoint(valueX, y));
 
 		y += lineH;
@@ -300,15 +296,15 @@ PaletteDebugView::DrawPalettePanel (BRect panel, const char *title, bool sprites
 	uint16 active = fEntryLocked ? fLockedAddress : fHoverAddress;
 
 	bool activeInThisPanel = sprites
-		? active >= 0x3F10 && active <= 0x3F1F
-		: active >= 0x3F00 && active <= 0x3F0F;
+		? active >= 0x3f10 && active <= 0x3f1f
+		: active >= 0x3f00 && active <= 0x3f0f;
 
 	int32 activePalette = -1;
 
 	if (activeInThisPanel) {
 		activePalette = sprites
-			? ((active - 0x3F10) / 4)
-			: ((active - 0x3F00) / 4);
+			? ((active - 0x3f10) / 4)
+			: ((active - 0x3f00) / 4);
 	}
 
 	bool externalInThisPanel = fHasExternalHighlight
@@ -332,32 +328,32 @@ PaletteDebugView::DrawPalettePanel (BRect panel, const char *title, bool sprites
 		if (externalInThisPanel && pal == fExternalHighlightPalette) {
 			BRect extRect = rowRect.InsetByCopy(1.0f, 1.0f);
 
-			SetHighColor(218, 232, 255, 255);
+			SetHighColor(218, 232, 255);
 			FillRect(extRect);
 
-			SetHighColor(45, 110, 210, 255);
+			SetHighColor(45, 110, 210);
 			StrokeRect(extRect);
 
 			BRect inner = extRect.InsetByCopy(1.0f, 1.0f);
 			if (inner.IsValid()) {
-				SetHighColor(85, 145, 235, 255);
+				SetHighColor(85, 145, 235);
 				StrokeRect(inner);
 			}
 		}
 
 		// Yellow local hover/lock row highlight.
 		if (pal == activePalette) {
-			SetHighColor(238, 238, 190, 255);
+			SetHighColor(238, 238, 190);
 			FillRect(rowRect);
 
-			SetHighColor(190, 175, 80, 255);
+			SetHighColor(190, 175, 80);
 			StrokeRect(rowRect);
 		}
 
 		s.SetToFormat("Pal %ld", (long)pal);
 
 		// Right-align the row label inside the fixed label column.
-		SetHighColor(70, 70, 70, 255);
+		SetHighColor(70, 70, 70);
 		float labelW = StringWidth(s);
 		DrawString(s, BPoint(labelRightX - labelW, y + 13.0f));
 
@@ -383,18 +379,18 @@ PaletteDebugView::DrawPalettePanel (BRect panel, const char *title, bool sprites
 				&& fExternalHighlightEntry == entry) {
 				BRect entryRect = r.InsetByCopy(-3.0f, -3.0f);
 
-				SetHighColor(45, 110, 210, 255);
+				SetHighColor(45, 110, 210);
 				StrokeRect(entryRect);
 
 				BRect inner = entryRect.InsetByCopy(1.0f, 1.0f);
 				if (inner.IsValid()) {
-					SetHighColor(85, 145, 235, 255);
+					SetHighColor(85, 145, 235);
 					StrokeRect(inner);
 				}
 
 				BRect innerWhite = entryRect.InsetByCopy(2.0f, 2.0f);
 				if (innerWhite.IsValid()) {
-					SetHighColor(255, 255, 255, 255);
+					SetHighColor(255, 255, 255);
 					StrokeRect(innerWhite);
 				}
 			}
@@ -443,7 +439,7 @@ PaletteDebugView::DrawPaletteEntry (BRect r, uint16 address, bool selected)
 	SetHighColor(rgb);
 	FillRect(r);
 
-	SetHighColor(0, 0, 0, 255);
+	SetHighColor(0, 0, 0);
 	StrokeRect(r);
 
 	if (resolved != address) {
@@ -461,10 +457,10 @@ PaletteDebugView::DrawPaletteEntry (BRect r, uint16 address, bool selected)
 	}
 
 	if (selected) {
-		SetHighColor(255, 0, 255, 255);
+		SetHighColor(255, 0, 255);
 		StrokeRect(r.InsetByCopy(-2.0f, -2.0f));
 
-		SetHighColor(255, 255, 255, 255);
+		SetHighColor(255, 255, 255);
 		StrokeRect(r.InsetByCopy(-1.0f, -1.0f));
 	}
 
@@ -480,10 +476,11 @@ PaletteDebugView::DrawPaletteEntry (BRect r, uint16 address, bool selected)
 
 	int32 brightness = rgb.red + rgb.green + rgb.blue;
 
-	if (brightness < 260)
-		SetHighColor(255, 255, 255, 255);
-	else
-		SetHighColor(0, 0, 0, 255);
+	if (brightness < 260) {
+		SetHighColor(255, 255, 255);
+	} else {
+		SetHighColor(0, 0, 0);
+	}
 
 	float textW = StringWidth(s);
 	float textX = r.left + ((r.Width() - textW) * 0.5f);
@@ -595,20 +592,20 @@ PaletteDebugView::DrawSelectedInfo()
 	BString s;
 
 	auto drawLeftKV = [&](const char *label, const char *value) {
-		SetHighColor(80, 80, 80, 255);
+		SetHighColor(80, 80, 80);
 		DrawString(label, BPoint(leftLabelX, leftY));
 
-		SetHighColor(0, 0, 0, 255);
+		SetHighColor(0, 0, 0);
 		DrawString(value, BPoint(leftValueX, leftY));
 
 		leftY += lineH;
 	};
 
 	auto drawRightKV = [&](const char *label, const char *value) {
-		SetHighColor(80, 80, 80, 255);
+		SetHighColor(80, 80, 80);
 		DrawString(label, BPoint(rightLabelX, rightY));
 
-		SetHighColor(0, 0, 0, 255);
+		SetHighColor(0, 0, 0);
 		DrawString(value, BPoint(rightValueX, rightY));
 
 		rightY += lineH;
@@ -662,7 +659,7 @@ PaletteDebugView::DrawSelectedInfo()
 	SetHighColor(rgb);
 	FillRect(swatch);
 
-	SetHighColor(0, 0, 0, 255);
+	SetHighColor(0, 0, 0);
 	StrokeRect(swatch);
 }
 
@@ -711,7 +708,7 @@ PaletteDebugView::MouseMoved (BPoint where, uint32 transit, const BMessage *mess
 		return;
 	}
 
-	uint16 address = 0x3F00;
+	uint16 address = 0x3f00;
 
 	if (PaletteEntryAt(where, address)) {
 		if (fHoverAddress != address) {
@@ -943,8 +940,9 @@ PaletteDebugView::ReadPalette (uint16 address) const
 {
 	Mapper *mapper = nes::cart.mapper();
 
-	if (!mapper)
+	if (!mapper) {
 		return 0xf;
+	}
 
 	return mapper->read_vram(address) & 0x3f;
 }

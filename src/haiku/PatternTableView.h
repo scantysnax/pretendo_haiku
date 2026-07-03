@@ -7,10 +7,10 @@
 #include <algorithm>
 
 #include "Cart.h"
+#include "CHRExplorerView.h"
 #include "Nes.h"
 #include "Ppu.h"
 #include "PretendoWindow.h"
-#include "CHRExplorerView.h"
 
 
 // -------------------------------------------------------------
@@ -45,7 +45,7 @@ class PatternTableView : public BView
 	public:
 	virtual void AttachedToWindow();
 	virtual void Draw (BRect updateRect);
-	virtual void MouseMoved (BPoint point, uint32 transit, const BMessage* msg);
+	virtual void MouseMoved (BPoint point, uint32 transit, const BMessage *msg);
 	virtual void MouseDown (BPoint point);
 	virtual void Pulse();
 
@@ -116,7 +116,7 @@ class PatternTableView : public BView
 	// ---------------------------------------------------------
 	bool Show8x16() const
 	{
-		return fViewMode == MODE_8x16;
+		return (fViewMode == MODE_8x16);
 	}
 
 	// ---------------------------------------------------------

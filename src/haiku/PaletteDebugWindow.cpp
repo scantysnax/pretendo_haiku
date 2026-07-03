@@ -43,36 +43,39 @@ PaletteDebugWindow::~PaletteDebugWindow()
 void
 PaletteDebugWindow::MessageReceived (BMessage *message)		
 {
-	BWindow::MessageReceived (message);
+	BWindow::MessageReceived(message);
 }
 
 
 bool
 PaletteDebugWindow::QuitRequested()
 {
-	if (fParent)
+	if (fParent) {
 		fParent->PaletteDebugWindowClosed();
+	}
 
 	return true;
 }
 
 
 void
-PaletteDebugWindow::SetExternalHighlight(bool sprites, int32 palette, int32 entry)
+PaletteDebugWindow::SetExternalHighlight (bool sprites, int32 palette, int32 entry)
 {
-	if (fView)
+	if (fView) {
 		fView->SetExternalHighlight(sprites, palette, entry);
+	}
 }
 
 
 void
 PaletteDebugWindow::ClearExternalHighlight()
 {
-	if (fView)
+	if (fView) {
 		fView->ClearExternalHighlight();
+	}
 }
 
-
+ 
 void
 PaletteDebugWindow::LoadSettings()
 {	

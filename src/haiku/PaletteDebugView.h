@@ -1,11 +1,7 @@
 #ifndef _PALETTE_DEBUG_VIEW_H_
 #define _PALETTE_DEBUG_VIEW_H_
 
-
 #include <View.h>
-#include <Rect.h>
-#include <Point.h>
-#include <SupportDefs.h>
 
 class PretendoWindow;
 
@@ -24,6 +20,7 @@ class PaletteDebugView : public BView
 			PaletteDebugView (BRect frame, PretendoWindow *parent);
 	virtual ~PaletteDebugView();
 
+	public:
 	virtual void AttachedToWindow();
 	virtual void Draw (BRect updateRect);
 	virtual void MessageReceived (BMessage *message);

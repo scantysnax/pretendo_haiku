@@ -262,7 +262,7 @@ OAMDebugView::Draw(BRect updateRect)
 {
 	(void)updateRect;
 
-	SetHighColor(216, 216, 216, 255);
+	SetHighColor(216, 216, 216);
 	FillRect(Bounds());
 
 	DrawHeaderUI();
@@ -739,10 +739,10 @@ OAMDebugView::DrawHeaderUI()
 	float y = panel.top + 34.0f;
 
 	auto drawKV = [&](const char *label, const char *value) {
-		SetHighColor(80, 80, 80, 255);
+		SetHighColor(80, 80, 80);
 		DrawString(label, BPoint(labelX, y));
 
-		SetHighColor(35, 35, 35, 255);
+		SetHighColor(35, 35, 35);
 		DrawString(value, BPoint(valueX, y));
 
 		y += lineH;
@@ -820,11 +820,11 @@ OAMDebugView::DrawOAMSummaryPanel()
 	BString s;
 
 	auto drawLeftKV = [&](const char *label, const char *value, bool monoValue) {
-		SetHighColor(80, 80, 80, 255);
+		SetHighColor(80, 80, 80);
 		SetFont(&oldFont);
 		DrawString(label, BPoint(leftLabelX, leftY));
 
-		SetHighColor(0, 0, 0, 255);
+		SetHighColor(0, 0, 0);
 		SetFont(monoValue ? &mono : &oldFont);
 		DrawString(value, BPoint(leftValueX, leftY));
 
@@ -832,11 +832,11 @@ OAMDebugView::DrawOAMSummaryPanel()
 	};
 
 	auto drawRightKV = [&](const char *label, const char *value, bool monoValue) {
-		SetHighColor(80, 80, 80, 255);
+		SetHighColor(80, 80, 80);
 		SetFont(&oldFont);
 		DrawString(label, BPoint(rightLabelX, rightY));
 
-		SetHighColor(0, 0, 0, 255);
+		SetHighColor(0, 0, 0);
 		SetFont(monoValue ? &mono : &oldFont);
 		DrawString(value, BPoint(rightValueX, rightY));
 
@@ -898,7 +898,7 @@ OAMDebugView::DrawSpriteListPanel()
 
 	float y = panel.top + 36.0f;
 
-	SetHighColor(80, 80, 80, 255);
+	SetHighColor(80, 80, 80);
 	DrawString("#", BPoint(xIndex, y));
 	DrawString("Y", BPoint(xY, y));
 	DrawString("Tile", BPoint(xTile, y));
@@ -908,7 +908,7 @@ OAMDebugView::DrawSpriteListPanel()
 
 	y += 22.0f;
 
-	SetHighColor(150, 150, 150, 255);
+	SetHighColor(150, 150, 150);
 	StrokeLine(
 		BPoint(panel.left + 8.0f, y - 13.0f),
 		BPoint(panel.right - 24.0f, y - 13.0f)
@@ -974,25 +974,25 @@ OAMDebugView::DrawSpriteListPanel()
 		);
 
 		if (sameTile) {
-			SetHighColor(220, 232, 244, 255);
+			SetHighColor(220, 232, 244);
 			FillRect(rowRect);
 
-			SetHighColor(120, 150, 180, 255);
+			SetHighColor(120, 150, 180);
 			StrokeRect(rowRect);
 		}
 
 		if (spriteIndex == active) {
 			if (fSpriteLocked) {
-				SetHighColor(255, 230, 245, 255);
+				SetHighColor(255, 230, 245);
 				FillRect(rowRect);
 
-				SetHighColor(210, 80, 170, 255);
+				SetHighColor(210, 80, 170);
 				StrokeRect(rowRect);
 			} else {
-				SetHighColor(238, 238, 190, 255);
+				SetHighColor(238, 238, 190);
 				FillRect(rowRect);
 
-				SetHighColor(190, 175, 80, 255);
+				SetHighColor(190, 175, 80);
 				StrokeRect(rowRect);
 			}
 		}
@@ -1000,9 +1000,9 @@ OAMDebugView::DrawSpriteListPanel()
 		BString s;
 
 		if (hidden) {
-			SetHighColor(115, 115, 115, 255);
+			SetHighColor(115, 115, 115);
 		} else {
-			SetHighColor(0, 0, 0, 255);
+			SetHighColor(0, 0, 0);
 		}
 
 		SetFont(&mono);
@@ -1025,14 +1025,14 @@ OAMDebugView::DrawSpriteListPanel()
 		SetFont(&oldFont);
 
 		if (hidden) {
-			SetHighColor(115, 115, 115, 255);
+			SetHighColor(115, 115, 115);
 
 			if (spriteZero)
 				DrawString("Sprite 0 hidden", BPoint(xInfo, rowY));
 			else
 				DrawString("hidden", BPoint(xInfo, rowY));
 		} else {
-			SetHighColor(0, 0, 0, 255);
+			SetHighColor(0, 0, 0);
 
 			s.SetToFormat("%s%sP%u %s%s%s",
 				spriteZero ? "Sprite 0 " : "",
@@ -1054,7 +1054,7 @@ OAMDebugView::DrawSpriteListPanel()
 		(long)(fFirstSprite + 7)
 	);
 
-	SetHighColor(90, 90, 90, 255);
+	SetHighColor(90, 90, 90);
 	DrawString(
 		footer.String(),
 		BPoint(panel.left + 10.0f, panel.bottom - 14.0f)
@@ -1109,11 +1109,11 @@ OAMDebugView::DrawSelectedSpritePanel()
 	mono.SetSize(11.0f);
 
 	auto drawLeftKV = [&](const char *label, const char *value, bool monoValue) {
-		SetHighColor(80, 80, 80, 255);
+		SetHighColor(80, 80, 80);
 		SetFont(&oldFont);
 		DrawString(label, BPoint(leftLabelX, leftY));
 
-		SetHighColor(0, 0, 0, 255);
+		SetHighColor(0, 0, 0);
 		SetFont(monoValue ? &mono : &oldFont);
 		DrawString(value, BPoint(leftValueX, leftY));
 
@@ -1121,11 +1121,11 @@ OAMDebugView::DrawSelectedSpritePanel()
 	};
 
 	auto drawRightKV = [&](const char* label, const char* value, bool monoValue) {
-		SetHighColor(80, 80, 80, 255);
+		SetHighColor(80, 80, 80);
 		SetFont(&oldFont);
 		DrawString(label, BPoint(rightLabelX, rightY));
 
-		SetHighColor(0, 0, 0, 255);
+		SetHighColor(0, 0, 0);
 		SetFont(monoValue ? &mono : &oldFont);
 		DrawString(value, BPoint(rightValueX, rightY));
 
@@ -1394,18 +1394,18 @@ OAMDebugView::DrawSpritePreview(BRect previewRect, int32 spriteIndex)
 	BRect shadowRect = previewRect;
 	shadowRect.OffsetBy(2.0f, 2.0f);
 
-	SetHighColor(190, 190, 190, 255);
+	SetHighColor(190, 190, 190);
 	FillRect(shadowRect);
 
 	// Outer preview area: light gray debugger background.
-	SetHighColor(236, 236, 236, 255);
+	SetHighColor(236, 236, 236);
 	FillRect(previewRect);
 
-	SetHighColor(135, 135, 135, 255);
+	SetHighColor(135, 135, 135);
 	StrokeRect(previewRect);
 
 	// Inner highlight edge.
-	SetHighColor(255, 255, 255, 255);
+	SetHighColor(255, 255, 255);
 	StrokeLine(
 		BPoint(previewRect.left + 1.0f, previewRect.top + 1.0f),
 		BPoint(previewRect.right - 1.0f, previewRect.top + 1.0f)
@@ -1416,7 +1416,7 @@ OAMDebugView::DrawSpritePreview(BRect previewRect, int32 spriteIndex)
 	);
 
 	if (spriteIndex < 0 || spriteIndex >= 64 || !nes::cart.mapper()) {
-		SetHighColor(90, 90, 90, 255);
+		SetHighColor(90, 90, 90);
 		DrawString("--", BPoint(previewRect.left + 12.0f,
 			previewRect.top + 24.0f));
 		return;
@@ -1431,7 +1431,7 @@ OAMDebugView::DrawSpritePreview(BRect previewRect, int32 spriteIndex)
 	uint8 palette = attr & 0x03;
 
 	if (spriteY >= 0xef) {
-		SetHighColor(90, 90, 90, 255);
+		SetHighColor(90, 90, 90);
 		DrawString("OFF", BPoint(previewRect.left + 11.0f,
 			previewRect.top + 27.0f));
 		DrawString("SCR", BPoint(previewRect.left + 11.0f,
@@ -1514,10 +1514,10 @@ OAMDebugView::DrawSpritePreview(BRect previewRect, int32 spriteIndex)
 	}
 
 	// Inner sprite canvas outline.
-	SetHighColor(40, 40, 40, 255);
+	SetHighColor(40, 40, 40);
 	StrokeRect(spriteRect);
 
-	SetHighColor(255, 255, 255, 255);
+	SetHighColor(255, 255, 255);
 	StrokeLine(
 		BPoint(spriteRect.left + 1.0f, spriteRect.top + 1.0f),
 		BPoint(spriteRect.right - 1.0f, spriteRect.top + 1.0f)
@@ -1528,7 +1528,7 @@ OAMDebugView::DrawSpritePreview(BRect previewRect, int32 spriteIndex)
 	);
 
 	// Outer preview border, redrawn after all contents.
-	SetHighColor(135, 135, 135, 255);
+	SetHighColor(135, 135, 135);
 	StrokeRect(previewRect);
 }
 

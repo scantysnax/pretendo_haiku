@@ -7,9 +7,9 @@
 // the active tile into CHRExplorerView.
 // -------------------------------------------------------------
 
-#include "PatternTableView.h"
 #include "CHRExplorerView.h"
 #include "DebugHelpers.h"
+#include "PatternTableView.h"
 
 
 // -------------------------------------------------------------
@@ -142,7 +142,7 @@ PatternTableView::Draw (BRect updateRect)
 	(void)updateRect;
 
 	// Clear the full view before redrawing panels and bitmap content.
-	SetHighColor(216, 216, 216, 255);
+	SetHighColor(216, 216, 216);
 	FillRect(Bounds());
 
 	// Compute the bitmap origin once so panels, bitmap, and overlays align.
@@ -173,7 +173,7 @@ PatternTableView::Draw (BRect updateRect)
 
 	PopState();
 
-	SetHighColor(120, 120, 120, 255);
+	SetHighColor(120, 120, 120);
 	StrokeRect(BRect(
 		origin.x,
 		origin.y,
@@ -1109,10 +1109,10 @@ PatternTableView::DrawPatternStatePanel()
 	BString s;
 	
 	auto drawKV = [&](const char *label, const char *value) {
-		SetHighColor(80, 80, 80, 255);
+		SetHighColor(80, 80, 80);
 		DrawString(label, BPoint(labelX, textY));
 
-		SetHighColor(0, 0, 0, 255);
+		SetHighColor(0, 0, 0);
 		DrawString(value, BPoint(valueX, textY));
 
 		textY += lineH;
@@ -1164,10 +1164,10 @@ PatternTableView::DrawBitmapPanel(BPoint origin)
 		origin.y + 255.0f + 5.0f
 	);
 
-	SetHighColor(228, 228, 228, 255);
+	SetHighColor(228, 228, 228);
 	FillRect(panel);
 
-	SetHighColor(150, 150, 150, 255);
+	SetHighColor(150, 150, 150);
 	StrokeRect(panel);
 }
 
@@ -1207,10 +1207,10 @@ PatternTableView::DrawHeaderUI()
 	float y = panel.top + 36.0f;
 
 	auto drawKV = [&](const char *label, const char *value) {
-		SetHighColor(80, 80, 80, 255);
+		SetHighColor(80, 80, 80);
 		DrawString(label, BPoint(labelX, y));
 
-		SetHighColor(35, 35, 35, 255);
+		SetHighColor(35, 35, 35);
 		DrawString(value, BPoint(valueX, y));
 
 		y += lineH;
