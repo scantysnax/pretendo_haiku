@@ -415,10 +415,10 @@ CHRExplorerView::Draw (BRect updateRect)
 	const float pixelValueX = rightColumnX + 54.0f;
 
 	auto drawPixelKV = [&](const char *label, const char *value) {
-		SetHighColor(80, 80, 80, 255);
+		SetHighColor(80, 80, 80);
 		DrawString(label, BPoint(pixelLabelX, textY));
 
-		SetHighColor(0, 0, 0, 255);
+		SetHighColor(0, 0, 0);
 		DrawString(value, BPoint(pixelValueX, textY));
 
 		textY += lineH;
@@ -470,8 +470,8 @@ CHRExplorerView::Draw (BRect updateRect)
 		ByteToBinary(rowP0, bin0);
 		ByteToBinary(rowP1, bin1);
 
-		BFont oldFont;
-		GetFont(&oldFont);
+		BFont prevFont;
+		GetFont(&prevFont);
 
 		BFont mono(be_fixed_font);
 		SetFont(&mono);
@@ -485,10 +485,10 @@ CHRExplorerView::Draw (BRect updateRect)
 		float bitX = pixelValueX + (px * bitW);
 
 		// Row P0
-		SetHighColor(80, 80, 80, 255);
+		SetHighColor(80, 80, 80);
 		DrawString("Row P0:", BPoint(pixelLabelX, textY));
 
-		SetHighColor(0, 0, 0, 255);
+		SetHighColor(0, 0, 0);
 		DrawString(bin0, BPoint(pixelValueX, textY));
 
 		PushState();
@@ -516,10 +516,10 @@ CHRExplorerView::Draw (BRect updateRect)
 		textY += monoLineH;
 
 		// Row P1
-		SetHighColor(80, 80, 80, 255);
+		SetHighColor(80, 80, 80);
 		DrawString("Row P1:", BPoint(pixelLabelX, textY));
 
-		SetHighColor(0, 0, 0, 255);
+		SetHighColor(0, 0, 0);
 		DrawString(bin1, BPoint(pixelValueX, textY));
 
 		PushState();
@@ -546,8 +546,8 @@ CHRExplorerView::Draw (BRect updateRect)
 
 		textY += monoLineH;
 
-		SetFont(&oldFont);
-		SetHighColor(0, 0, 0, 255);
+		SetFont(&prevFont);
+		SetHighColor(0, 0, 0);
 
 		// resolve the hovered pixel to its palette RAM address and NES color.
 		uint32 palAddr = 0x3f00;
@@ -577,8 +577,8 @@ CHRExplorerView::Draw (BRect updateRect)
 		drawPixelKV("Pixel:", "--");
 		drawPixelKV("Bits:", "--");
 
-		BFont oldFont;
-		GetFont(&oldFont);
+		BFont prevFont;
+		GetFont(&prevFont);
 
 		BFont mono(be_fixed_font);
 		SetFont(&mono);
@@ -588,22 +588,22 @@ CHRExplorerView::Draw (BRect updateRect)
 		const float monoLineH = ceilf(monoFH.ascent + monoFH.descent
 			+ monoFH.leading) + 2.0f;
 
-		SetHighColor(80, 80, 80, 255);
+		SetHighColor(80, 80, 80);
 		DrawString("Row P0:", BPoint(pixelLabelX, textY));
 
-		SetHighColor(0, 0, 0, 255);
+		SetHighColor(0, 0, 0);
 		DrawString("--", BPoint(pixelValueX, textY));
 		textY += monoLineH;
 
-		SetHighColor(80, 80, 80, 255);
+		SetHighColor(80, 80, 80);
 		DrawString("Row P1:", BPoint(pixelLabelX, textY));
 
-		SetHighColor(0, 0, 0, 255);
+		SetHighColor(0, 0, 0);
 		DrawString("--", BPoint(pixelValueX, textY));
 		textY += monoLineH;
 
-		SetFont(&oldFont);
-		SetHighColor(0, 0, 0, 255);
+		SetFont(&prevFont);
+		SetHighColor(0, 0, 0);
 
 		drawPixelKV("PalAddr:", "--");
 		drawPixelKV("NES:", "--");
@@ -623,11 +623,11 @@ CHRExplorerView::Draw (BRect updateRect)
 		textY - textAscent + legendBox
 	);
 
-	SetHighColor(255, 0, 0, 255);
+	SetHighColor(255, 0, 0);
 	StrokeRect(selectedBox);
 	StrokeRect(selectedBox.InsetByCopy(-1, -1));
 
-	SetHighColor(0, 0, 0, 255);
+	SetHighColor(0, 0, 0);
 	DrawString("Selected Palette", BPoint(legendTextX, textY));
 
 	// ----- CHR ANALYSIS -----
@@ -773,7 +773,7 @@ CHRExplorerView::SetTileTransform (bool flipH, bool flipV)
 void
 CHRExplorerView::SetSelectedPalette (uint8 palette)
 {
-	fQuadrantPalette = palette % 4;
+	fQuadrantPalette = (palette % 4);
 	fPalette = fQuadrantPalette;
 
 	Invalidate();
@@ -820,7 +820,7 @@ CHRExplorerView::SetTile8x8 (int32 whichPT, int32 tileIndex, bool locked,
 
 	fCHRTileAddress = chrAddr;
 
-	fQuadrantPalette = bgPalette % 4;
+	fQuadrantPalette = (bgPalette % 4);
 
 	if (!fLocked) {
 		fPalette = fQuadrantPalette;
@@ -897,7 +897,7 @@ CHRExplorerView::DrawDecodedZoomed (uint8 decoded[8][8], BPoint origin, float sc
 	);
 
 	PushState();
-	SetHighColor(255, 255, 255, 255);
+	SetHighColor(255, 255, 255);
 	StrokeRect(r);
 	StrokeRect(r.InsetByCopy(-1, -1));
 	PopState();
@@ -930,10 +930,10 @@ CHRExplorerView::DrawInfo (BPoint point)
 	BString line;
 
 	auto drawKV = [&](const char *label, const char *value) {
-		SetHighColor(80, 80, 80, 255);
+		SetHighColor(80, 80, 80);
 		DrawString(label, BPoint(labelX, textY));
 
-		SetHighColor(0, 0, 0, 255);
+		SetHighColor(0, 0, 0);
 		DrawString(value, BPoint(valueX, textY));
 
 		textY += lineH;
@@ -1000,8 +1000,8 @@ CHRExplorerView::DrawInfo (BPoint point)
 	// CHR bytes
 	// -------------------------------------------------
 
-	BFont oldFont;
-	GetFont(&oldFont);
+	BFont prevFont;
+	GetFont(&prevFont);
 
 	BFont mono(be_fixed_font);
 	SetFont(&mono);
@@ -1016,7 +1016,7 @@ CHRExplorerView::DrawInfo (BPoint point)
 	int32 totalBytes = fIsTile8x16 ? 32 : 16;
 	int32 byteRows = (totalBytes + cols - 1) / cols;
 
-	SetHighColor(0, 0, 0, 255);
+	SetHighColor(0, 0, 0);
 
 	for (int32 i = 0; i < totalBytes; i++) {
 		uint8 b;
@@ -1041,8 +1041,8 @@ CHRExplorerView::DrawInfo (BPoint point)
 
 	float afterBytesY = textY + (byteRows * monoLineH) + 6.0f;
 
-	SetFont(&oldFont);
-	SetHighColor(0, 0, 0, 255);
+	SetFont(&prevFont);
+	SetHighColor(0, 0, 0);
 
 	DrawTileSummary(point.x, afterBytesY);
 }
@@ -1116,7 +1116,7 @@ CHRExplorerView::DrawPaletteSwatch (BPoint point)
 		SetHighColor(c);
 		FillRect(r);
 
-		SetHighColor(0, 0, 0, 255);
+		SetHighColor(0, 0, 0);
 		StrokeRect(r);
 	}
 }
@@ -1158,7 +1158,7 @@ CHRExplorerView::SetTile8x16 (int32 whichPT, int32 topTileIndex, bool locked,
 	fLocked = locked;
 
 	// Source palette from the caller.
-	fQuadrantPalette = bgPalette % 4;
+	fQuadrantPalette = (bgPalette % 4);
 
 	// Preserve manual palette selection while locked, but update it normally
 	// during hover/explore mode.
@@ -1285,7 +1285,7 @@ CHRExplorerView::DrawTileWithBgPalette (const uint8 decoded[8][8],
 		}
 	}
 
-	SetHighColor(0, 0, 0, 255);
+	SetHighColor(0, 0, 0);
 	StrokeRect(BRect(
 		origin.x,
 		origin.y,
@@ -1338,7 +1338,7 @@ CHRExplorerView::DrawPalettePreviewGrid (BPoint origin)
 
 		// label
 		label.SetToFormat("Pal %d", pal);
-		SetHighColor(0, 0, 0, 255);
+		SetHighColor(0, 0, 0);
 		DrawString(label.String(), BPoint(p.x, p.y - 4));
 
 		// top tile
@@ -1365,18 +1365,18 @@ CHRExplorerView::DrawPalettePreviewGrid (BPoint origin)
 		bool isSource = (fWhichNameTable >= 0 && (uint8)pal == fQuadrantPalette);
 
 		if (isSelected && isSource) {
-			SetHighColor(0, 0, 0, 255);
+			SetHighColor(0, 0, 0);
 			StrokeRect(tileRect.InsetByCopy(-3, -3));
 
-			SetHighColor(255, 0, 0, 255);
+			SetHighColor(255, 0, 0);
 			StrokeRect(tileRect.InsetByCopy(-2, -2));
 			StrokeRect(tileRect.InsetByCopy(-1, -1));
 		} else if (isSelected) {
-			SetHighColor(255, 0, 0, 255);
+			SetHighColor(255, 0, 0);
 			StrokeRect(tileRect.InsetByCopy(-2, -2));
 			StrokeRect(tileRect.InsetByCopy(-1, -1));
 		} else if (isSource) {
-			SetHighColor(0, 0, 0, 255);
+			SetHighColor(0, 0, 0);
 			StrokeRect(tileRect.InsetByCopy(-2, -2));
 		}
 	}
@@ -1535,11 +1535,11 @@ CHRExplorerView::DrawQuadrantDiagram (BPoint origin)
 		uint8 pal = (fAttrByte >> (q * 2)) & 0x3;
 
 		if (active) {
-			SetHighColor(200, 200, 255, 255);
+			SetHighColor(200, 200, 255);
 			FillRect(r);
 		}
 
-		SetHighColor(0, 0, 0, 255);
+		SetHighColor(0, 0, 0);
 		StrokeRect(r);
 
 		BString buf;
@@ -1547,7 +1547,7 @@ CHRExplorerView::DrawQuadrantDiagram (BPoint origin)
 		DrawString(buf.String(), BPoint(r.left + 6.0f, r.bottom - 4.0f));
 	}
 
-	SetHighColor(0, 0, 0, 255);
+	SetHighColor(0, 0, 0);
 	DrawString("TL", BPoint(origin.x,               origin.y - 2.0f));
 	DrawString("TR", BPoint(origin.x + cell + 2.0f, origin.y - 2.0f));
 	DrawString("BL", BPoint(origin.x,               origin.y + 2.0f * cell + 10.0f));
@@ -1588,15 +1588,15 @@ CHRExplorerView::DrawTileSummary (float x, float y)
 
 	BString s;
 
-	SetHighColor(0, 0, 0, 255);
+	SetHighColor(0, 0, 0);
 	DrawString("Tile Summary:", BPoint(labelX, textY));
 	textY += lineH;
 
 	auto drawKV = [&](const char *label, const char *value) {
-		SetHighColor(80, 80, 80, 255);
+		SetHighColor(80, 80, 80);
 		DrawString(label, BPoint(labelX, textY));
 
-		SetHighColor(0, 0, 0, 255);
+		SetHighColor(0, 0, 0);
 		DrawString(value, BPoint(valueX, textY));
 
 		textY += lineH;
@@ -1641,8 +1641,9 @@ CHRExplorerView::DrawTileSummary (float x, float y)
 void
 CHRExplorerView::DrawCHRAnalysis (float x, float y)
 {
-	if (!fValid)
+	if (!fValid) {
 		return;
+	}
 
 	SetFontSize(11.0f);
 
@@ -1655,15 +1656,15 @@ CHRExplorerView::DrawCHRAnalysis (float x, float y)
 
 	float textY = y;
 
-	SetHighColor(0, 0, 0, 255);
+	SetHighColor(0, 0, 0);
 	DrawString("CHR Analysis:", BPoint(labelX, textY));
 	textY += lineH;
 
 	auto drawKV = [&](const char *label, const char *value) {
-		SetHighColor(80, 80, 80, 255);
+		SetHighColor(80, 80, 80);
 		DrawString(label, BPoint(labelX, textY));
 
-		SetHighColor(0, 0, 0, 255);
+		SetHighColor(0, 0, 0);
 		DrawString(value, BPoint(valueX, textY));
 
 		textY += lineH;
@@ -1750,7 +1751,7 @@ CHRExplorerView::DrawCHRAnalysis (float x, float y)
 uint8
 CHRExplorerView::SelectedPalette() const
 {
-	return fPalette % 4;
+	return (fPalette % 4);
 }
 
 
@@ -1773,7 +1774,7 @@ CHRExplorerView::SelectedPalette() const
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-CHRExplorerView::SetPaletteHighlightTarget(PretendoWindow *parent, bool sprites)
+CHRExplorerView::SetPaletteHighlightTarget (PretendoWindow *parent, bool sprites)
 {
 	fPaletteHighlightParent = parent;
 	fPaletteHighlightSprites = sprites;
