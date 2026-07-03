@@ -1,8 +1,9 @@
-#include "OAMDebugView.h"
-#include "PretendoWindow.h"
+
 #include "DebugHelpers.h"
-#include "PatternTableWindow.h"
+#include "OAMDebugView.h"
 #include "PatternTableView.h"
+#include "PatternTableWindow.h"
+#include "PretendoWindow.h"
 
 #include "CHRExplorerView.h"
 #include "Cart.h"
@@ -53,7 +54,7 @@ class OAMSpriteScrollBar : public BScrollBar
 	// Returns:
 	//   Nothing.
 	// -------------------------------------------------------------------------
-	virtual void ValueChanged(float value)
+	virtual void ValueChanged (float value)
 	{
 		BScrollBar::ValueChanged(value);
 
@@ -245,6 +246,7 @@ OAMDebugView::AttachedToWindow()
 	Invalidate();
 }
 
+
 // -----------------------------------------------------------------------------
 // OAMDebugView::Draw
 //
@@ -258,7 +260,7 @@ OAMDebugView::AttachedToWindow()
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-OAMDebugView::Draw(BRect updateRect)
+OAMDebugView::Draw (BRect updateRect)
 {
 	(void)updateRect;
 
@@ -286,7 +288,7 @@ OAMDebugView::Draw(BRect updateRect)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-OAMDebugView::FrameResized(float width, float height)
+OAMDebugView::FrameResized (float width, float height)
 {
 	BView::FrameResized(width, height);
 
@@ -331,20 +333,24 @@ OAMDebugView::FrameResized(float width, float height)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-OAMDebugView::KeyDown(const char* bytes, int32 numBytes)
+OAMDebugView::KeyDown (const char *bytes, int32 numBytes)
 {
-	if (numBytes <= 0)
+	if (numBytes <= 0) {
 		return;
+	}
 
 	auto syncAfterSelectionChange = [&]() {
-		if (fFirstSprite < 0)
+		if (fFirstSprite < 0) {
 			fFirstSprite = 0;
+		}
 
-		if (fFirstSprite > 56)
+		if (fFirstSprite > 56) {
 			fFirstSprite = 56;
+		}
 
-		if (fSpriteScrollBar)
+		if (fSpriteScrollBar) {
 			fSpriteScrollBar->SetValue(fFirstSprite);
+		}
 
 		UpdatePaletteDebuggerHighlight();
 		UpdatePatternTableHighlight();
@@ -474,7 +480,7 @@ OAMDebugView::KeyDown(const char* bytes, int32 numBytes)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-OAMDebugView::MessageReceived(BMessage *message)
+OAMDebugView::MessageReceived (BMessage *message)
 {
 	switch (message->what) {
 		case B_MOUSE_WHEEL_CHANGED:
@@ -563,13 +569,15 @@ OAMDebugView::MouseDown (BPoint where)
 
 	int32 row = static_cast<int32>((where.y - firstRowY) / rowH);
 
-	if (row < 0 || row >= 8)
+	if (row < 0 || row >= 8) {
 		return;
+	}
 
-	int32 spriteIndex = fFirstSprite + row;
+	int32 spriteIndex = (fFirstSprite + row);
 
-	if (spriteIndex < 0 || spriteIndex >= 64)
+	if (spriteIndex < 0 || spriteIndex >= 64) {
 		return;
+	}
 
 	if (fSpriteLocked && fLockedSprite == spriteIndex) {
 		fSpriteLocked = false;
@@ -651,13 +659,15 @@ OAMDebugView::MouseMoved (BPoint where, uint32 transit, const BMessage* message)
 
 	int32 row = static_cast<int32>((where.y - firstRowY) / rowH);
 
-	if (row < 0 || row >= 8)
+	if (row < 0 || row >= 8) {
 		return;
+	}
 
-	int32 spriteIndex = fFirstSprite + row;
+	int32 spriteIndex = (fFirstSprite + row);
 
-	if (spriteIndex < 0 || spriteIndex >= 64)
+	if (spriteIndex < 0 || spriteIndex >= 64) {
 		return;
+	}
 
 	if (fHoverSprite != spriteIndex) {
 		fHoverSprite = spriteIndex;
@@ -725,7 +735,7 @@ OAMDebugView::DrawHeaderUI()
 		76.0f
 	);
 
-	::DrawDebugPanel(this, panel, "Controls");
+	::DrawDebugPanel(this, panel, "Controls:");
 
 	SetFontSize(11.0f);
 
@@ -781,7 +791,7 @@ OAMDebugView::DrawOAMSummaryPanel()
 		164.0f
 	);
 
-	::DrawDebugPanel(this, panel, "OAM Summary");
+	::DrawDebugPanel(this, panel, "OAM Summary:");
 
 	SetFontSize(11.0f);
 
@@ -789,8 +799,8 @@ OAMDebugView::DrawOAMSummaryPanel()
 	GetFontHeight(&fh);
 	const float lineH = ceilf(fh.ascent + fh.descent + fh.leading) + 1.0f;
 
-	BFont oldFont;
-	GetFont(&oldFont);
+	BFont prevFont;
+	GetFont(&prevFont);
 
 	BFont mono(be_fixed_font);
 	mono.SetSize(11.0f);
@@ -821,11 +831,11 @@ OAMDebugView::DrawOAMSummaryPanel()
 
 	auto drawLeftKV = [&](const char *label, const char *value, bool monoValue) {
 		SetHighColor(80, 80, 80);
-		SetFont(&oldFont);
+		SetFont(&prevFont);
 		DrawString(label, BPoint(leftLabelX, leftY));
 
 		SetHighColor(0, 0, 0);
-		SetFont(monoValue ? &mono : &oldFont);
+		SetFont(monoValue ? &mono : &prevFont);
 		DrawString(value, BPoint(leftValueX, leftY));
 
 		leftY += lineH;
@@ -833,11 +843,11 @@ OAMDebugView::DrawOAMSummaryPanel()
 
 	auto drawRightKV = [&](const char *label, const char *value, bool monoValue) {
 		SetHighColor(80, 80, 80);
-		SetFont(&oldFont);
+		SetFont(&prevFont);
 		DrawString(label, BPoint(rightLabelX, rightY));
 
 		SetHighColor(0, 0, 0);
-		SetFont(monoValue ? &mono : &oldFont);
+		SetFont(monoValue ? &mono : &prevFont);
 		DrawString(value, BPoint(rightValueX, rightY));
 
 		rightY += lineH;
@@ -858,7 +868,7 @@ OAMDebugView::DrawOAMSummaryPanel()
 	s.SetToFormat("$%02X", nes::ppu::ppuctrl());
 	drawRightKV("PPUCTRL:", s.String(), true);
 
-	SetFont(&oldFont);
+	SetFont(&prevFont);
 }
 
 
@@ -917,8 +927,8 @@ OAMDebugView::DrawSpriteListPanel()
 	const float firstRowY = y;
 	const float rowH = 17.0f;
 
-	BFont oldFont;
-	GetFont(&oldFont);
+	BFont prevFont;
+	GetFont(&prevFont);
 
 	BFont mono(be_fixed_font);
 	mono.SetSize(11.0f);
@@ -944,25 +954,25 @@ OAMDebugView::DrawSpriteListPanel()
 		if (spriteIndex < 0 || spriteIndex >= 64)
 			continue;
 
-		uint32 base = spriteIndex * 4;
+		uint32 base = (spriteIndex * 4);
 
 		uint8 spriteY = OAMByte(base + 0);
 		uint8 tile = OAMByte(base + 1);
 		uint8 attr = OAMByte(base + 2);
 		uint8 spriteX = OAMByte(base + 3);
 
-		bool spriteZero = spriteIndex == 0;
-		bool hidden = spriteY >= 0xef;
+		bool spriteZero = (spriteIndex == 0);
+		bool hidden = (spriteY >= 0xef);
 
-		uint8 pal = attr & 0x03;
+		uint8 pal = (attr & 0x3);
 		bool priority = (attr & 0x20) != 0;
 		bool flipH = (attr & 0x40) != 0;
 		bool flipV = (attr & 0x80) != 0;
 
 		bool sameTile = haveActiveTile
-			&& spriteIndex != active
+			&& (spriteIndex != active)
 			&& !hidden
-			&& tile == activeTile;
+			&& (tile == activeTile);
 
 		float rowY = firstRowY + (row * rowH);
 
@@ -997,8 +1007,6 @@ OAMDebugView::DrawSpriteListPanel()
 			}
 		}
 
-		BString s;
-
 		if (hidden) {
 			SetHighColor(115, 115, 115);
 		} else {
@@ -1006,6 +1014,8 @@ OAMDebugView::DrawSpriteListPanel()
 		}
 
 		SetFont(&mono);
+		
+		BString s;
 
 		s.SetToFormat("%02ld", (long)spriteIndex);
 		DrawString(s.String(), BPoint(xIndex, rowY));
@@ -1022,15 +1032,16 @@ OAMDebugView::DrawSpriteListPanel()
 		s.SetToFormat("$%02X", spriteX);
 		DrawString(s.String(), BPoint(xX, rowY));
 
-		SetFont(&oldFont);
+		SetFont(&prevFont);
 
 		if (hidden) {
 			SetHighColor(115, 115, 115);
 
-			if (spriteZero)
+			if (spriteZero) {
 				DrawString("Sprite 0 hidden", BPoint(xInfo, rowY));
-			else
+			} else {
 				DrawString("hidden", BPoint(xInfo, rowY));
+			}
 		} else {
 			SetHighColor(0, 0, 0);
 
@@ -1046,7 +1057,7 @@ OAMDebugView::DrawSpriteListPanel()
 		}
 	}
 
-	SetFont(&oldFont);
+	SetFont(&prevFont);
 
 	BString footer;
 	footer.SetToFormat("Showing OAM sprites %02ld-%02ld of 64.",
@@ -1102,31 +1113,31 @@ OAMDebugView::DrawSelectedSpritePanel()
 	float leftY = panel.top + 36.0f;
 	float rightY = panel.top + 36.0f;
 
-	BFont oldFont;
-	GetFont(&oldFont);
+	BFont prevFont;
+	GetFont(&prevFont);
 
 	BFont mono(be_fixed_font);
 	mono.SetSize(11.0f);
 
 	auto drawLeftKV = [&](const char *label, const char *value, bool monoValue) {
 		SetHighColor(80, 80, 80);
-		SetFont(&oldFont);
+		SetFont(&prevFont);
 		DrawString(label, BPoint(leftLabelX, leftY));
 
 		SetHighColor(0, 0, 0);
-		SetFont(monoValue ? &mono : &oldFont);
+		SetFont(monoValue ? &mono : &prevFont);
 		DrawString(value, BPoint(leftValueX, leftY));
 
 		leftY += lineH;
 	};
 
-	auto drawRightKV = [&](const char* label, const char* value, bool monoValue) {
+	auto drawRightKV = [&](const char *label, const char *value, bool monoValue) {
 		SetHighColor(80, 80, 80);
-		SetFont(&oldFont);
+		SetFont(&prevFont);
 		DrawString(label, BPoint(rightLabelX, rightY));
 
 		SetHighColor(0, 0, 0);
-		SetFont(monoValue ? &mono : &oldFont);
+		SetFont(monoValue ? &mono : &prevFont);
 		DrawString(value, BPoint(rightValueX, rightY));
 
 		rightY += lineH;
@@ -1143,8 +1154,6 @@ OAMDebugView::DrawSelectedSpritePanel()
 
 	DrawSpritePreview(previewRect, active);
 
-	BString s;
-
 	if (active < 0) {
 		drawLeftKV("Sprite:", "--", true);
 		drawLeftKV("Raw Y:", "--", true);
@@ -1160,18 +1169,18 @@ OAMDebugView::DrawSelectedSpritePanel()
 		drawRightKV("Flip:", "--", false);
 		drawRightKV("State:", fSpriteLocked ? "LOCKED" : "HOVER", false);
 
-		SetFont(&oldFont);
+		SetFont(&prevFont);
 		return;
 	}
 
-	uint32 base = active * 4;
+	uint32 base = (active * 4);
 
 	uint8 spriteY = OAMByte(base + 0);
 	uint8 tile = OAMByte(base + 1);
 	uint8 attr = OAMByte(base + 2);
 	uint8 spriteX = OAMByte(base + 3);
 
-	uint8 pal = attr & 0x03;
+	uint8 pal = attr & 0x3;
 	bool priority = (attr & 0x20) != 0;
 	bool flipH = (attr & 0x40) != 0;
 	bool flipV = (attr & 0x80) != 0;
@@ -1181,18 +1190,20 @@ OAMDebugView::DrawSelectedSpritePanel()
 	uint32 chrAddrBottom = 0;
 
 	if (largeSprites) {
-		uint32 whichPT = tile & 0x01;
+		uint32 whichPT = tile & 0x1;
 		uint32 topTile = tile & 0xfe;
 
 		chrAddr = (whichPT ? 0x1000 : 0x0000) + (topTile * 16);
-		chrAddrBottom = chrAddr + 16;
+		chrAddrBottom = (chrAddr + 16);
 	} else {
-		uint32 spritePatternBase = (nes::ppu::ppuctrl() & 0x08)
+		uint32 spritePatternBase = (nes::ppu::ppuctrl() & 0x8)
 			? 0x1000
 			: 0x0000;
 
 		chrAddr = spritePatternBase + (tile * 16);
 	}
+	
+	BString s;
 
 	s.SetToFormat("%02ld", (long)active);
 	drawLeftKV("Sprite:", s.String(), true);
@@ -1245,18 +1256,19 @@ OAMDebugView::DrawSelectedSpritePanel()
 		priority ? "behind" : "front");
 	drawRightKV("Pal/P:", s.String(), false);
 
-	if (flipH && flipV)
+	if (flipH && flipV) {
 		drawRightKV("Flip:", "H + V", false);
-	else if (flipH)
+	} else if (flipH) {
 		drawRightKV("Flip:", "H", false);
-	else if (flipV)
+	} else if (flipV) {
 		drawRightKV("Flip:", "V", false);
-	else
+	} else {
 		drawRightKV("Flip:", "none", false);
+	}
 
 	drawRightKV("State:", fSpriteLocked ? "LOCKED" : "HOVER", false);
 
-	SetFont(&oldFont);
+	SetFont(&prevFont);
 }
 
 
@@ -1286,8 +1298,9 @@ OAMDebugView::SetFirstSpriteFromScrollBar(int32 firstSprite)
 		firstSprite = 56;
 	}
 
-	if (fFirstSprite == firstSprite)
+	if (fFirstSprite == firstSprite) {
 		return;
+	}
 
 	fFirstSprite = firstSprite;
 
@@ -1355,7 +1368,7 @@ OAMDebugView::SpritePreviewColor(uint8 spritePalette, uint8 pixel) const
 		// the current PPU palette.
 		paletteAddress = 0x3f00;
 	} else {
-		// Sprite palettes live at $3F10-$3F1F.
+		// Sprite palettes live at $3f10-$3f1f.
 		// Entries 1-3 are visible sprite colors.
 		paletteAddress = 0x3f10 + (spritePalette * 4) + pixel;
 	}
@@ -1428,7 +1441,7 @@ OAMDebugView::DrawSpritePreview(BRect previewRect, int32 spriteIndex)
 	uint8 tile = OAMByte(base + 1);
 	uint8 attr = OAMByte(base + 2);
 
-	uint8 palette = attr & 0x03;
+	uint8 palette = (attr & 0x3);
 
 	if (spriteY >= 0xef) {
 		SetHighColor(90, 90, 90);
@@ -1474,15 +1487,15 @@ OAMDebugView::DrawSpritePreview(BRect previewRect, int32 spriteIndex)
 		uint32 chrAddr;
 
 		if (largeSprites) {
-			uint32 whichPT = tile & 0x01;
-			uint32 topTile = tile & 0xfe;
+			uint32 whichPT = (tile & 0x1);
+			uint32 topTile = (tile & 0xfe);
 
 			chrAddr = (whichPT ? 0x1000 : 0x0000)
 				+ (topTile * 16)
 				+ ((srcY / 8) * 16)
-				+ (srcY & 0x07);
+				+ (srcY & 0x7);
 		} else {
-			uint32 spritePatternBase = (nes::ppu::ppuctrl() & 0x08)
+			uint32 spritePatternBase = (nes::ppu::ppuctrl() & 0x8)
 				? 0x1000
 				: 0x0000;
 
@@ -1495,11 +1508,12 @@ OAMDebugView::DrawSpritePreview(BRect previewRect, int32 spriteIndex)
 		for (int px = 0; px < spriteW; px++) {
 			int srcX = flipH ? px : (7 - px);
 
-			uint8 pixel = ((plane0 >> srcX) & 0x01)
-				| (((plane1 >> srcX) & 0x01) << 1);
+			uint8 pixel = ((plane0 >> srcX) & 0x1)
+				| (((plane1 >> srcX) & 0x1) << 1);
 
-			if (pixel == 0)
+			if (pixel == 0) {
 				continue;
+			}
 
 			BRect r(
 				startX + (px * scale),
@@ -1558,10 +1572,10 @@ OAMDebugView::UpdatePaletteDebuggerHighlight()
 		return;
 	}
 
-	uint32 base = active * 4;
+	uint32 base = (active * 4);
 
 	uint8 attr = OAMByte(base + 2);
-	uint8 spritePalette = attr & 0x03;
+	uint8 spritePalette = (attr & 0x3);
 
 	// true = sprite palette area, palette = 0..3, entry -1 = whole row.
 	fParent->HighlightPaletteDebugger(true, spritePalette, -1);
@@ -1602,7 +1616,7 @@ OAMDebugView::UpdateCHRExplorer()
 		return;
 	}
 
-	uint32 base = active * 4;
+	uint32 base = (active * 4);
 
 	uint8 spriteY = OAMByte(base + 0);
 	uint8 tile = OAMByte(base + 1);
@@ -1613,14 +1627,14 @@ OAMDebugView::UpdateCHRExplorer()
 		return;
 	}
 
-	uint8 spritePalette = attr & 0x03;
+	uint8 spritePalette = (attr & 0x3);
 	bool flipH = (attr & 0x40) != 0;
 	bool flipV = (attr & 0x80) != 0;
 	bool largeSprites = (nes::ppu::ppuctrl() & 0x20) != 0;
 
 	if (largeSprites) {
-		int32 whichPT = tile & 0x01;
-		int32 topTile = tile & 0xfe;
+		int32 whichPT = (tile & 0x1);
+		int32 topTile = (tile & 0xfe);
 
 		uint32 chrAddrTop = (whichPT ? 0x1000 : 0x0000)
 			+ (topTile * 16);
@@ -1649,7 +1663,7 @@ OAMDebugView::UpdateCHRExplorer()
 		fCHRExplorer->SetSelectedPalette(spritePalette);
 		fCHRExplorer->SetTileTransform(flipH, flipV);
 	} else {
-		int32 whichPT = (nes::ppu::ppuctrl() & 0x08) ? 1 : 0;
+		int32 whichPT = (nes::ppu::ppuctrl() & 0x8) ? 1 : 0;
 		uint32 chrAddr = (whichPT ? 0x1000 : 0x0000) + (tile * 16);
 		uint8 chrBytes[16];
 
@@ -1744,7 +1758,7 @@ OAMDebugView::UpdatePatternTableHighlight()
 		return;
 	}
 
-	uint32 base = active * 4;
+	uint32 base = (active * 4);
 
 	uint8 tile = OAMByte(base + 1);
 	bool largeSprites = (nes::ppu::ppuctrl() & 0x20) != 0;
@@ -1753,10 +1767,10 @@ OAMDebugView::UpdatePatternTableHighlight()
 	int32 tileIndex;
 
 	if (largeSprites) {
-		whichPT = tile & 0x01;
+		whichPT = tile & 0x1;
 		tileIndex = tile & 0xfe;
 	} else {
-		whichPT = (nes::ppu::ppuctrl() & 0x08) ? 1 : 0;
+		whichPT = (nes::ppu::ppuctrl() & 0x8) ? 1 : 0;
 		tileIndex = tile;
 	}
 

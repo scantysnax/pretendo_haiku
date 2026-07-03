@@ -9,10 +9,9 @@
 #include "Mapper.h"
 #include "Ppu.h"
 
-
-class PretendoWindow;
-class PatternTableWindow;
 class CHRExplorerView;
+class PatternTableWindow;
+class PretendoWindow;
 
 
 // -----------------------------------------------------------------------------
@@ -32,25 +31,25 @@ class OAMDebugView : public BView
 	virtual void AttachedToWindow();
 	virtual void Draw (BRect updateRect);
 	virtual void FrameResized (float width, float height);
-	virtual void KeyDown (const char* bytes, int32 numBytes);
+	virtual void KeyDown (const char *bytes, int32 numBytes);
 	virtual void MessageReceived (BMessage *message);
 	virtual void MouseDown (BPoint where);
 	virtual void MouseMoved (BPoint where, uint32 transit, const BMessage *message);
 	virtual void Pulse();
 
 	public:
-	void SetFirstSpriteFromScrollBar(int32 firstSprite);
+	void SetFirstSpriteFromScrollBar (int32 firstSprite);
 	void SetHostPalette(uint8* palette);
-	void SetPatternTables(PatternTableWindow* pt0, PatternTableWindow* pt1);
-	void SetExplorer(CHRExplorerView* explorer);
+	void SetPatternTables (PatternTableWindow *pt0, PatternTableWindow *pt1);
+	void SetExplorer (CHRExplorerView *explorer);
 
 	private:
 	void DrawHeaderUI();
 	void DrawOAMSummaryPanel();
 	void DrawSpriteListPanel();
 	void DrawSelectedSpritePanel();
-	void DrawSpritePreview(BRect previewRect, int32 spriteIndex);
-	rgb_color SpritePreviewColor(uint8 spritePalette, uint8 pixel) const;
+	void DrawSpritePreview (BRect previewRect, int32 spriteIndex);
+	rgb_color SpritePreviewColor (uint8 spritePalette, uint8 pixel) const;
 
 	private:
 	void UpdatePaletteDebuggerHighlight();
@@ -58,7 +57,7 @@ class OAMDebugView : public BView
 	void ClearPatternTableHighlight();
 	void UpdateCHRExplorer();
 	void CaptureOAMSnapshot();
-	uint8 OAMByte(uint32 address) const;
+	uint8 OAMByte (uint32 address) const;
 
 	private:
 	PretendoWindow *fParent = nullptr;

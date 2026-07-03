@@ -1589,7 +1589,7 @@ CHRExplorerView::DrawTileSummary (float x, float y)
 	BString s;
 
 	SetHighColor(0, 0, 0, 255);
-	DrawString("Tile Summary", BPoint(labelX, textY));
+	DrawString("Tile Summary:", BPoint(labelX, textY));
 	textY += lineH;
 
 	auto drawKV = [&](const char *label, const char *value) {
