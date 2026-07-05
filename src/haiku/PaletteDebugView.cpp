@@ -24,7 +24,7 @@
 // -----------------------------------------------------------------------------
 PaletteDebugView::PaletteDebugView (BRect frame, PretendoWindow *parent)
 	: BView(frame, "palette_debug_view", B_FOLLOW_ALL_SIDES,
-	B_WILL_DRAW | B_PULSE_NEEDED | B_FRAME_EVENTS | B_NAVIGABLE)
+			B_WILL_DRAW | B_PULSE_NEEDED | B_FRAME_EVENTS | B_NAVIGABLE)
 {
 	fParent = parent;
 	fHostPalette = fParent ? fParent->Palette() : nullptr;
@@ -312,8 +312,6 @@ PaletteDebugView::DrawPalettePanel (BRect panel, const char *title, bool sprites
 		&& fExternalHighlightPalette >= 0
 		&& fExternalHighlightPalette <= 3;
 
-	BString s;
-
 	for (int32 pal = 0; pal < 4; pal++) {
 		float y = firstRowY + pal * rowH;
 
@@ -349,7 +347,8 @@ PaletteDebugView::DrawPalettePanel (BRect panel, const char *title, bool sprites
 			SetHighColor(190, 175, 80);
 			StrokeRect(rowRect);
 		}
-
+		
+		BString s;
 		s.SetToFormat("Pal %ld", (long)pal);
 
 		// Right-align the row label inside the fixed label column.
@@ -467,8 +466,8 @@ PaletteDebugView::DrawPaletteEntry (BRect r, uint16 address, bool selected)
 	BString s;
 	s.SetToFormat("%02X", nesColor & 0x3f);
 
-	BFont oldFont;
-	GetFont(&oldFont);
+	BFont prevFont;
+	GetFont(&prevFont);
 
 	BFont fixedFont(be_fixed_font);
 	fixedFont.SetSize(10.0f);
@@ -488,7 +487,7 @@ PaletteDebugView::DrawPaletteEntry (BRect r, uint16 address, bool selected)
 
 	DrawString(s.String(), BPoint(textX, textY));
 
-	SetFont(&oldFont);
+	SetFont(&prevFont);
 }
 
 
@@ -589,8 +588,6 @@ PaletteDebugView::DrawSelectedInfo()
 	float leftY = panel.top + 36.0f;
 	float rightY = panel.top + 36.0f;
 
-	BString s;
-
 	auto drawLeftKV = [&](const char *label, const char *value) {
 		SetHighColor(80, 80, 80);
 		DrawString(label, BPoint(leftLabelX, leftY));
@@ -610,6 +607,8 @@ PaletteDebugView::DrawSelectedInfo()
 
 		rightY += lineH;
 	};
+	
+	BString s;
 
 	s.SetToFormat("$%04X", address);
 	drawLeftKV("Address:", s.String());
@@ -970,8 +969,9 @@ PaletteDebugView::SetExternalHighlight (bool sprites, int32 palette, int32 entry
 		return;
 	}
 
-	if (entry < -1 || entry > 3)
+	if (entry < -1 || entry > 3) {
 		entry = -1;
+	}
 
 	fHasExternalHighlight = true;
 	fExternalHighlightSprites = sprites;

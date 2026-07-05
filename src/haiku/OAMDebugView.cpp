@@ -735,7 +735,7 @@ OAMDebugView::DrawHeaderUI()
 		76.0f
 	);
 
-	::DrawDebugPanel(this, panel, "Controls:");
+	::DrawDebugPanel(this, panel, "Controls");
 
 	SetFontSize(11.0f);
 
@@ -791,7 +791,7 @@ OAMDebugView::DrawOAMSummaryPanel()
 		164.0f
 	);
 
-	::DrawDebugPanel(this, panel, "OAM Summary:");
+	::DrawDebugPanel(this, panel, "OAM Summary");
 
 	SetFontSize(11.0f);
 

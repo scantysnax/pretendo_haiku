@@ -55,6 +55,9 @@ uint16_t temp_address();
 uint8_t  fine_x();
 uint8_t  ppuctrl();
 uint8_t  ppumask();
+uint8_t  ppustatus();
+uint16_t ppu_dot();
+uint16_t ppu_scanline();
 
 uint64_t      cycle_count();
 uint_least16_t hpos();

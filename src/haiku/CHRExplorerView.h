@@ -44,7 +44,8 @@ class CHRExplorerView : public BView
 					 uint32 chrAddrTop, const uint8 *chrTop,
 					 uint32 chrAddrBottom, const uint8 *chrBottom,
 					 uint8 bgPalette);
-
+					 
+	public:
 	void UpdateHoverPixelFromMouse();
 	void SetUseSpritePalette (bool useSpritePalette);
 	void SetTileTransform (bool flipH, bool flipV);

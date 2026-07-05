@@ -18,6 +18,7 @@
 #include "ROMFilePanel.h"
 #include "ROMInfoWindow.h"
 #include "VideoScreen.h"
+#include "PPUStatusWindow.h"
  
 // mmx blitters and memcpy()
 #include "asm/blitters.h"
@@ -417,6 +418,10 @@ PretendoWindow::MessageReceived (BMessage *message)
 			OnViewOAMDebugger();
 			break;
 			
+		case messages::SHOW_STATUS:
+			OnViewPPUStatusWindow();
+			break;
+			
 		default:
 			break;
 	}
@@ -575,6 +580,7 @@ PretendoWindow::AddMenu()
 	
 	fToolMenu->AddItem(new BMenuItem("Adjust Palette" B_UTF8_ELLIPSIS, new BMessage(messages::ADJ_PALETTE)));
 	fToolMenu->AddSeparatorItem();
+	fToolMenu->AddItem(new BMenuItem("View PPU Status", new BMessage(messages::SHOW_STATUS)));
 	fPatternTableMenu = new BMenu("View Pattern Tables");
 	fPatternTableMenu->AddItem(new BMenuItem("1 ($0000)", new BMessage(messages::SHOW_PTNTBL1)));
 	fPatternTableMenu->AddItem(new BMenuItem("2 ($1000)", new BMessage(messages::SHOW_PTNTBL2)));
@@ -1020,12 +1026,30 @@ PretendoWindow::OnViewOAMDebugger()
 
 
 void
+PretendoWindow::OnViewPPUStatusWindow()
+{
+	if (fPPUStatusWindow) {
+		fPPUStatusWindow->Activate();
+		return;
+	}
+
+	fPPUStatusWindow = new PPUStatusWindow(this);
+	fPPUStatusWindow->Show();
+}
+
+
+void
 PretendoWindow::OAMDebugWindowClosed()
 {
 	fOAMDebugWindow = nullptr;
 }
 
 
+void
+PretendoWindow::PPUStatusWindowClosed()
+{
+	fPPUStatusWindow = nullptr;
+}
 
 
 void

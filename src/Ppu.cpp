@@ -1147,12 +1147,16 @@ void execute_scanline(const scanline_render &t)      { execute_scanline_impl(t);
 //------------------------------------------------------------------------------
 // Debug helpers
 //------------------------------------------------------------------------------
-scroll_state_t scroll_state() {
+scroll_state_t
+scroll_state()
+{
 	scroll_state_t s{};
+
 	s.v = static_cast<uint16_t>(vram_address_);
 	s.t = static_cast<uint16_t>(nametable_);
 	s.x = tile_offset_;
 	s.ctrl = ppu_control_.raw;
+
 	return s;
 }
 
@@ -1163,12 +1167,15 @@ uint8_t  fine_x()       { return tile_offset_; }
 //------------------------------------------------------------------------------
 // Misc getters
 //------------------------------------------------------------------------------
-uint64_t cycle_count() { return ppu_cycle_; }
-uint_least16_t hpos()  { return hpos_; }
-uint_least16_t vpos()  { return vpos_; }
+uint64_t cycle_count() 	{ return ppu_cycle_; 					}
+uint_least16_t hpos()  	{ return hpos_; 					  	}
+uint_least16_t vpos()  	{ return vpos_; 						}
+uint8_t ppuctrl() 		{ return ppu_control_.raw;				}
+uint8_t ppumask() 		{ return ppu_mask_.raw; 				}
+uint8_t ppustatus() 	{ return status_.raw;					}
+uint16_t ppu_dot()		{ return static_cast<uint16_t>(hpos_); 	}
+uint16_t ppu_scanline() { return static_cast<uint16_t>(vpos_);	}
 
-uint8_t ppuctrl() { return ppu_control_.raw;	}
-uint8_t ppumask() { return ppu_mask_.raw; 		}
 
 uint8_t palette_ram(uint32_t address) {
 	return palette_[address & 0x1f];
