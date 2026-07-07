@@ -38,6 +38,7 @@ class PatternTableWindow;
 class PaletteDebugWindow;
 class OAMDebugWindow;
 class PPUStatusWindow;
+class PPUWriteLogWindow;
 
 
 struct latched_scroll_t {
@@ -92,8 +93,8 @@ class PretendoWindow : public BWindow
 		SHOW_NTBL4 = 	'NTB4',
 		SHOW_PALDBG =	'PDBG',
 		SHOW_OAMDBG = 	'OAMD',
-		SHOW_STATUS =	'STAT'
-		
+		SHOW_STATUS =	'STAT',
+		SHOW_PPULOG =	'WLOG'	
 	} messages;	
 	
 	private:
@@ -181,6 +182,7 @@ class PretendoWindow : public BWindow
 	void OnViewPaletteDebugger();
 	void OnViewOAMDebugger();
 	void OnViewPPUStatusWindow();
+	void OnViewPPUWriteLogWindow();
 
 	// video stuff
 	private:
@@ -285,6 +287,7 @@ class PretendoWindow : public BWindow
 	PaletteDebugWindow *fPaletteDebugWindow = nullptr;
 	OAMDebugWindow *fOAMDebugWindow = nullptr;
 	PPUStatusWindow *fPPUStatusWindow = nullptr;
+	PPUWriteLogWindow *fPPUWriteLogWindow = nullptr;
 	
 	private:
 	bool fPaused = false;
@@ -345,6 +348,7 @@ class PretendoWindow : public BWindow
     void PaletteDebugWindowClosed();
     void OAMDebugWindowClosed();
     void PPUStatusWindowClosed();
+    void PPUWriteLogWindowClosed();
     
     public:
     void HighlightPaletteDebugger(bool sprites, int32 palette, int32 entry = -1);

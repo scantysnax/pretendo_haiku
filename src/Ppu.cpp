@@ -190,10 +190,17 @@ uint8_t        register_2007_buffer_        = 0;
 Status         status_                      = {0};
 uint8_t        tile_offset_                 = 0; // loopy x
 uint8_t        monochrome_mask_             = 0xff;
+static uint64_t frame_counter_				= 0; // frame counter
 
 bool odd_frame_   = false;
 bool write_latch_ = false;
 bool write_block_ = false;
+
+
+static nes::ppu::ppu_write_log_entry_t write_log_[nes::ppu::PPU_WRITE_LOG_CAPACITY];
+static uint32_t write_log_next_ = 0;
+static uint32_t write_log_count_ = 0;
+static uint8_t write_log_write_index_ = 0;
 
 //------------------------------------------------------------------------------
 // Name: sprite_pattern_table
@@ -220,8 +227,7 @@ constexpr uint_least16_t sprite_pattern_address(uint8_t index, uint8_t sprite_li
 template <class Pattern>
 constexpr uint_least16_t sprite_pattern_address(uint8_t index, uint8_t sprite_line, const size_16px &) {
 	return (((index & 1) << 12) | ((index & 0xfe) << 4) | Pattern::offset | (sprite_line & 7) |
-	        ((sprite_line & 0x08) << 1)) &
-	       0xffff;
+	        ((sprite_line & 0x08) << 1)) & 0xffff;
 }
 
 template <class Size, class Pattern>
@@ -871,6 +877,9 @@ void clock_ppu(const nes::ppu::scanline_vblank &) {
 }
 
 void start_frame() {
+	
+	frame_counter_++;
+	
 	vpos_ = 0;
 	nes::apu::start_frame();
 }
@@ -961,12 +970,14 @@ void reset(nes::Reset reset_type) {
 	write_latch_          = false;
 	write_block_          = true;
 	monochrome_mask_      = 0xff;
-
+	frame_counter_		  = 0;
 	std::cout << "PPU reset complete" << std::endl;
 }
 
 void write2000(uint8_t value) {
 
+	log_ppu_write(0x2000, value);
+	
 	latch_ = value;
 
 	if (write_block_) {
@@ -987,6 +998,9 @@ void write2000(uint8_t value) {
 }
 
 void write2001(uint8_t value) {
+	
+	log_ppu_write(0x2001, value);
+	
 	latch_ = value;
 
 	if (write_block_) {
@@ -997,9 +1011,17 @@ void write2001(uint8_t value) {
 	monochrome_mask_  = (ppu_mask_.monochrome) ? 0x30 : 0xff;
 }
 
-void write2002(uint8_t value) { latch_ = value; }
+void write2002(uint8_t value) { 
+	log_ppu_write(0x2002, value);
+	
+	latch_ = value; 
+}
+
 
 void write2003(uint8_t value) {
+	
+	log_ppu_write(0x2003, value);
+	
 	latch_          = value;
 	sprite_address_ = value;
 }
@@ -1010,6 +1032,9 @@ void write2004(uint8_t value) {
 }
 
 void write2005(uint8_t value) {
+	
+	log_ppu_write(0x2005, value);
+	
 	latch_ = value;
 
 	if (write_block_) {
@@ -1030,6 +1055,9 @@ void write2005(uint8_t value) {
 }
 
 void write2006(uint8_t value) {
+	
+	log_ppu_write(0x2006, value);
+	
 	latch_ = value;
 
 	if (write_block_) {
@@ -1050,6 +1078,9 @@ void write2006(uint8_t value) {
 }
 
 void write2007(uint8_t value) {
+	
+	log_ppu_write(0x2007, value);
+	
 	latch_ = value;
 
 	const uint_least16_t temp_address = vram_address_ & 0b00111111'11111111;
@@ -1132,6 +1163,9 @@ uint8_t read2007() {
 }
 
 void write4014(uint8_t value) {
+	
+	log_ppu_write(0x4014, value);
+	
 	const auto sprite_addr = static_cast<uint_least16_t>(value << 8);
 	cpu::schedule_spr_dma(write2004, sprite_addr, 256);
 }
@@ -1181,16 +1215,81 @@ uint8_t palette_ram(uint32_t address) {
 	return palette_[address & 0x1f];
 }
 
+
 void set_palette_ram(uint32_t address, uint8_t data) {
 	palette_[address & 0x1f] = data & 0x3f;
 }
+
 
 uint8_t oam_ram(uint32_t address) {
 	return sprite_ram_[address & 0xff];
 }
 
+
+
 uint8_t oamaddr() {
 	return sprite_address_;
+}
+
+
+void
+log_ppu_write(uint16_t address, uint8_t value) {
+	ppu_write_log_entry_t& entry = write_log_[write_log_next_];
+
+	entry.frame = frame_counter_;
+	entry.dot = static_cast<uint16_t>(hpos_);
+	entry.scanline = static_cast<uint16_t>(vpos_);
+	entry.address = address;
+	entry.value = value;
+	entry.write_index = write_log_write_index_++;
+
+	write_log_next_ = (write_log_next_ + 1) % PPU_WRITE_LOG_CAPACITY;
+
+	if (write_log_count_ < PPU_WRITE_LOG_CAPACITY) {
+		write_log_count_++;
+	}
+}
+
+
+uint32_t
+ppu_write_log_count()
+{
+	return write_log_count_;
+}
+
+
+ppu_write_log_entry_t
+ppu_write_log_entry(uint32_t index)
+{
+	ppu_write_log_entry_t empty{};
+
+	if (index >= write_log_count_)
+		return empty;
+
+	uint32_t start = 0;
+
+	if (write_log_count_ == PPU_WRITE_LOG_CAPACITY) {
+		start = write_log_next_;
+	}
+
+	uint32_t physicalIndex = (start + index) % PPU_WRITE_LOG_CAPACITY;
+
+	return write_log_[physicalIndex];
+}
+
+
+void
+clear_ppu_write_log()
+{
+	write_log_next_ = 0;
+	write_log_count_ = 0;
+	write_log_write_index_ = 0;
+}
+
+
+uint64_t ppu_frame_counter()
+{
+	return frame_counter_;
 }
 
 
