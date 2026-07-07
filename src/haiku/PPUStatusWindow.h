@@ -28,4 +28,4 @@ class PPUStatusWindow : public BWindow
 };
 
 
-#endif // PPU_STATUS_WINDOW_H_
+#endif // _PPU_STATUS_WINDOW_H_

@@ -1,5 +1,5 @@
-#ifndef PPU_WRITE_LOG_WINDOW_H_
-#define PPU_WRITE_LOG_WINDOW_H_
+#ifndef _PPU_WRITE_LOG_WINDOW_H_
+#define _PPU_WRITE_LOG_WINDOW_H_
 
 #include <Window.h>
 
@@ -29,4 +29,4 @@ class PPUWriteLogWindow : public BWindow
 };
 
 
-#endif // PPU_WRITE_LOG_WINDOW_H_
+#endif // _PPU_WRITE_LOG_WINDOW_H_
