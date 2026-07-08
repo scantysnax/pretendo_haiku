@@ -1293,5 +1293,24 @@ uint64_t ppu_frame_counter()
 }
 
 
+uint8_t
+debug_read_ppu_memory(uint16_t address)
+{
+	address &= 0x3fff;
+
+	if (address >= 0x3f00) {
+		uint8_t paletteAddress = address & 0x1f;
+
+		if ((paletteAddress & 0x13) == 0x10) {
+			paletteAddress ^= 0x10;
+		}
+
+		return palette_[paletteAddress] & 0x3f;
+	}
+
+	return nes::cart.mapper()->read_vram(address);
+}
+
+
 } // namespace nes::ppu
 

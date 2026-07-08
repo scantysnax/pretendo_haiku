@@ -1,3 +1,4 @@
+
 #ifndef _PPU_STATUS_WINDOW_H_
 #define _PPU_STATUS_WINDOW_H_
 
@@ -17,7 +18,7 @@ class PPUStatusView;
 class PPUStatusWindow : public BWindow
 {
 	public:
-			PPUStatusWindow(PretendoWindow* parent);
+			PPUStatusWindow (PretendoWindow* parent);
 	virtual ~PPUStatusWindow();
 
 	virtual bool QuitRequested();

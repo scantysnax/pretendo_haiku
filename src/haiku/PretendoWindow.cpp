@@ -20,6 +20,7 @@
 #include "VideoScreen.h"
 #include "PPUStatusWindow.h"
 #include "PPUWriteLogWindow.h"
+#include "PPUMemoryWindow.h"
  
 // mmx blitters and memcpy()
 #include "asm/blitters.h"
@@ -427,6 +428,10 @@ PretendoWindow::MessageReceived (BMessage *message)
 			OnViewPPUWriteLogWindow();
 			break;
 			
+		case messages::SHOW_PPUMEM:
+			OnViewPPUMemoryWindow();
+			break;
+			
 		default:
 			break;
 	}
@@ -587,6 +592,7 @@ PretendoWindow::AddMenu()
 	fToolMenu->AddSeparatorItem();
 	fToolMenu->AddItem(new BMenuItem("View PPU Status" B_UTF8_ELLIPSIS, new BMessage(messages::SHOW_STATUS)));
 	fToolMenu->AddItem(new BMenuItem("View PPU Write Log" B_UTF8_ELLIPSIS, new BMessage(messages::SHOW_PPULOG)));
+	fToolMenu->AddItem(new BMenuItem("View PPU Memory" B_UTF8_ELLIPSIS, new BMessage(messages::SHOW_PPUMEM)));
 	fPatternTableMenu = new BMenu("View Pattern Tables");
 	fPatternTableMenu->AddItem(new BMenuItem("1 ($0000)", new BMessage(messages::SHOW_PTNTBL1)));
 	fPatternTableMenu->AddItem(new BMenuItem("2 ($1000)", new BMessage(messages::SHOW_PTNTBL2)));
@@ -1057,6 +1063,18 @@ PretendoWindow::OnViewPPUWriteLogWindow()
 }
 
 
+void
+PretendoWindow::OnViewPPUMemoryWindow()
+{
+	if (fPPUMemoryWindow) {
+		fPPUMemoryWindow->Activate();
+		return;
+	}
+
+	fPPUMemoryWindow = new PPUMemoryWindow(this);
+	fPPUMemoryWindow->Show();
+}
+
 
 void
 PretendoWindow::OAMDebugWindowClosed()
@@ -1076,6 +1094,13 @@ void
 PretendoWindow::PPUWriteLogWindowClosed()
 {
 	fPPUWriteLogWindow = nullptr;
+}
+
+
+void
+PretendoWindow::PPUMemoryWindowClosed()
+{
+	fPPUMemoryWindow = nullptr;
 }
 
 

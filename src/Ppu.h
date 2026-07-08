@@ -89,6 +89,8 @@ uint32_t ppu_write_log_count();
 ppu_write_log_entry_t ppu_write_log_entry(uint32_t index);
 void clear_ppu_write_log();
 
+uint8_t debug_read_ppu_memory(uint16_t address);
+
 extern bool show_sprites;
 extern bool system_paused;
 

@@ -31,6 +31,7 @@
 #include "asm/blitters.h"
 #include "asm/copies.h"
 
+
 class PretendoView;
 class InputWindow;
 class NameTableWindow;
@@ -39,6 +40,7 @@ class PaletteDebugWindow;
 class OAMDebugWindow;
 class PPUStatusWindow;
 class PPUWriteLogWindow;
+class PPUMemoryWindow;
 
 
 struct latched_scroll_t {
@@ -94,7 +96,8 @@ class PretendoWindow : public BWindow
 		SHOW_PALDBG =	'PDBG',
 		SHOW_OAMDBG = 	'OAMD',
 		SHOW_STATUS =	'STAT',
-		SHOW_PPULOG =	'WLOG'	
+		SHOW_PPULOG =	'WLOG',
+		SHOW_PPUMEM = 	'PPUM'
 	} messages;	
 	
 	private:
@@ -183,6 +186,7 @@ class PretendoWindow : public BWindow
 	void OnViewOAMDebugger();
 	void OnViewPPUStatusWindow();
 	void OnViewPPUWriteLogWindow();
+	void OnViewPPUMemoryWindow();
 
 	// video stuff
 	private:
@@ -288,6 +292,7 @@ class PretendoWindow : public BWindow
 	OAMDebugWindow *fOAMDebugWindow = nullptr;
 	PPUStatusWindow *fPPUStatusWindow = nullptr;
 	PPUWriteLogWindow *fPPUWriteLogWindow = nullptr;
+	PPUMemoryWindow *fPPUMemoryWindow = nullptr;
 	
 	private:
 	bool fPaused = false;
@@ -349,6 +354,7 @@ class PretendoWindow : public BWindow
     void OAMDebugWindowClosed();
     void PPUStatusWindowClosed();
     void PPUWriteLogWindowClosed();
+    void PPUMemoryWindowClosed();
     
     public:
     void HighlightPaletteDebugger(bool sprites, int32 palette, int32 entry = -1);
