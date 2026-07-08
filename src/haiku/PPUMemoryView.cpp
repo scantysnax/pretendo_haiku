@@ -7,6 +7,36 @@
 #include "Ppu.h"
 
 
+class PPUMemoryScrollBar : public BScrollBar
+{
+	public:
+	PPUMemoryScrollBar(BRect frame, PPUMemoryView* owner)
+		:
+		BScrollBar(
+			frame,
+			"ppu_memory_scrollbar",
+			owner,
+			0.0f,
+			1023.0f,
+			B_VERTICAL
+		)
+	{
+		fOwner = owner;
+
+		SetSteps(1.0f, 16.0f);
+	}
+
+	virtual void ValueChanged(float value)
+	{
+		if (fOwner)
+			fOwner->ScrollBarChanged(value);
+	}
+
+	private:
+	PPUMemoryView* fOwner = nullptr;
+};
+
+
 PPUMemoryView::PPUMemoryView (BRect frame, PretendoWindow *parent)
 	: BView(frame, "ppu_memory_view", B_FOLLOW_ALL_SIDES,
 			B_WILL_DRAW | B_PULSE_NEEDED | B_FRAME_EVENTS)
@@ -27,6 +57,21 @@ void
 PPUMemoryView::AttachedToWindow()
 {
 	BView::AttachedToWindow();
+
+	if (!fScrollBar) {
+		BRect scrollFrame(
+			Bounds().right - B_V_SCROLL_BAR_WIDTH,
+			88.0f,
+			Bounds().right,
+			Bounds().bottom - 8.0f
+		);
+
+		fScrollBar = new PPUMemoryScrollBar(scrollFrame, this);
+		AddChild(fScrollBar);
+	}
+
+	LayoutScrollBar();
+	UpdateScrollBar();
 
 	MakeFocus(true);
 }
@@ -121,6 +166,109 @@ PPUMemoryView::Draw (BRect updateRect)
 }
 
 
+void
+PPUMemoryView::FrameResized(float width, float height)
+{
+	(void)width;
+	(void)height;
+
+	LayoutScrollBar();
+
+	BView::FrameResized(width, height);
+}
+
+// -----------------------------------------------------------------------------
+// PPUMemoryView::LayoutScrollBar
+//
+// Positions the vertical memory scrollbar along the right edge of the memory
+// panel.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PPUMemoryView::LayoutScrollBar()
+{
+	if (!fScrollBar) {
+		return;
+	}
+
+	const float top = 88.0f;
+	const float bottom = Bounds().bottom - 8.0f;
+	const float width = B_V_SCROLL_BAR_WIDTH;
+
+	fScrollBar->MoveTo(Bounds().right - width, top);
+	fScrollBar->ResizeTo(width, bottom - top);
+
+	UpdateScrollBar();
+}
+
+
+// -----------------------------------------------------------------------------
+// PPUMemoryView::UpdateScrollBar
+//
+// Synchronizes the scrollbar value with the current base PPU memory address.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PPUMemoryView::UpdateScrollBar()
+{
+	if (!fScrollBar) {
+		return;
+	}
+
+	fUpdatingScrollBar = true;
+
+	const float row = static_cast<float>((fBaseAddress & 0x3ff0) >> 4);
+	fScrollBar->SetValue(row);
+
+	fUpdatingScrollBar = false;
+}
+
+
+// -----------------------------------------------------------------------------
+// PPUMemoryView::ScrollBarChanged
+//
+// Handles vertical scrollbar movement.  Each scrollbar unit maps to one 16-byte
+// PPU memory row.
+//
+// Parameters:
+//   value - Scrollbar row index.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PPUMemoryView::ScrollBarChanged(float value)
+{
+	if (fUpdatingScrollBar) {
+		return;
+	}
+
+	int32 row = static_cast<int32>(value + 0.5f);
+
+	if (row < 0) {
+		row = 0;
+	}
+
+	if (row > 1023) {
+		row = 1023;
+	}
+	
+	fBaseAddress = static_cast<uint16>((row << 4) & 0x3ff0);
+
+	Invalidate();
+}
+
+
 // -----------------------------------------------------------------------------
 // PPUMemoryView::DrawHeaderPanel
 //
@@ -135,10 +283,14 @@ PPUMemoryView::Draw (BRect updateRect)
 void
 PPUMemoryView::DrawHeaderPanel()
 {
+	const float rightEdge = fScrollBar
+		? fScrollBar->Frame().left - 4.0f
+		: Bounds().right - 4.0f;
+
 	BRect panel(
 		4.0f,
 		4.0f,
-		Bounds().right - 4.0f,
+		rightEdge,
 		76.0f
 	);
 
@@ -158,7 +310,7 @@ PPUMemoryView::DrawHeaderPanel()
 	DrawString(line.String(), BPoint(panel.left + 8.0f, panel.top + 42.0f));
 
 	DrawString(
-		"1/2 Pattern   N/M/,/. Nametables   P Palette   Up/Down row   PgUp/PgDn page",
+		"1/2 Pattern   N/M/,/. NTs   P Palette   Up/Down row   PgUp/PgDn page",
 		BPoint(panel.left + 8.0f, panel.top + 60.0f)
 	);
 }
@@ -178,17 +330,21 @@ PPUMemoryView::DrawHeaderPanel()
 void
 PPUMemoryView::DrawMemoryPanel()
 {
+	const float rightEdge = fScrollBar
+		? fScrollBar->Frame().left - 4.0f
+		: Bounds().right - 4.0f;
+
 	BRect panel(
 		4.0f,
 		88.0f,
-		Bounds().right - 4.0f,
+		rightEdge,
 		Bounds().bottom - 8.0f
 	);
 
 	::DrawDebugPanel(this, panel, "Raw PPU Bytes");
 
-	BFont prevFont;
-	GetFont(&prevFont);
+	BFont oldFont;
+	GetFont(&oldFont);
 
 	BFont mono(be_fixed_font);
 	mono.SetSize(10.0f);
@@ -207,7 +363,7 @@ PPUMemoryView::DrawMemoryPanel()
 	SetHighColor(80, 80, 80);
 	DrawString("Address", BPoint(addrX, y));
 	DrawString("00 01 02 03 04 05 06 07  08 09 0A 0B 0C 0D 0E 0F",
-				BPoint(byteX, y));
+		BPoint(byteX, y));
 	DrawString("Text", BPoint(asciiX, y));
 
 	y += lineH + 8.0f;
@@ -220,7 +376,9 @@ PPUMemoryView::DrawMemoryPanel()
 
 	y += 4.0f;
 
-	const uint32 rows = static_cast<uint32>((panel.bottom - y - 8.0f) / lineH);
+	const uint32 rows = static_cast<uint32>(
+		(panel.bottom - y - 8.0f) / lineH
+	);
 
 	BString s;
 	BString bytes;
@@ -270,7 +428,7 @@ PPUMemoryView::DrawMemoryPanel()
 		y += lineH;
 	}
 
-	SetFont(&prevFont);
+	SetFont(&oldFont);
 }
 
 
@@ -287,10 +445,11 @@ PPUMemoryView::DrawMemoryPanel()
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-PPUMemoryView::SetBaseAddress (uint16 address)
+PPUMemoryView::SetBaseAddress(uint16 address)
 {
 	fBaseAddress = address & 0x3ff0;
 
+	UpdateScrollBar();
 	Invalidate();
 }
 
@@ -308,15 +467,16 @@ PPUMemoryView::SetBaseAddress (uint16 address)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-PPUMemoryView::ScrollRows (int32 rows)
+PPUMemoryView::ScrollRows(int32 rows)
 {
 	int32 address = static_cast<int32>(fBaseAddress);
-	
 	address += rows * 16;
+
 	address &= 0x3ff0;
 
 	fBaseAddress = static_cast<uint16>(address);
 
+	UpdateScrollBar();
 	Invalidate();
 }
 
