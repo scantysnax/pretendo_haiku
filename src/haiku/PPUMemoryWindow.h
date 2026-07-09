@@ -29,3 +29,5 @@ class PPUMemoryWindow : public BWindow
 
 
 #endif // _PPU_MEMORY_WINDOW_H_
+
+

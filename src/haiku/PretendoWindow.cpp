@@ -21,7 +21,9 @@
 #include "PPUStatusWindow.h"
 #include "PPUWriteLogWindow.h"
 #include "PPUMemoryWindow.h"
+#include "CPUStatusWindow.h"
  
+
 // mmx blitters and memcpy()
 #include "asm/blitters.h"
 #include "asm/copies.h"
@@ -432,6 +434,10 @@ PretendoWindow::MessageReceived (BMessage *message)
 			OnViewPPUMemoryWindow();
 			break;
 			
+		case messages::SHOW_CPUSTAT:
+			OnViewCPUStatusWindow();
+			break;
+			
 		default:
 			break;
 	}
@@ -593,6 +599,7 @@ PretendoWindow::AddMenu()
 	fToolMenu->AddItem(new BMenuItem("View PPU Status" B_UTF8_ELLIPSIS, new BMessage(messages::SHOW_STATUS)));
 	fToolMenu->AddItem(new BMenuItem("View PPU Write Log" B_UTF8_ELLIPSIS, new BMessage(messages::SHOW_PPULOG)));
 	fToolMenu->AddItem(new BMenuItem("View PPU Memory" B_UTF8_ELLIPSIS, new BMessage(messages::SHOW_PPUMEM)));
+	fToolMenu->AddItem(new BMenuItem("View CPU Stauts" B_UTF8_ELLIPSIS, new BMessage(messages::SHOW_CPUSTAT)));
 	fPatternTableMenu = new BMenu("View Pattern Tables");
 	fPatternTableMenu->AddItem(new BMenuItem("1 ($0000)", new BMessage(messages::SHOW_PTNTBL1)));
 	fPatternTableMenu->AddItem(new BMenuItem("2 ($1000)", new BMessage(messages::SHOW_PTNTBL2)));
@@ -1077,6 +1084,19 @@ PretendoWindow::OnViewPPUMemoryWindow()
 
 
 void
+PretendoWindow::OnViewCPUStatusWindow()
+{
+	if (fCPUStatusWindow) {
+		fCPUStatusWindow->Activate();
+		return;
+	}
+
+	fCPUStatusWindow = new CPUStatusWindow(this);
+	fCPUStatusWindow->Show();
+}
+
+
+void
 PretendoWindow::OAMDebugWindowClosed()
 {
 	fOAMDebugWindow = nullptr;
@@ -1102,6 +1122,14 @@ PretendoWindow::PPUMemoryWindowClosed()
 {
 	fPPUMemoryWindow = nullptr;
 }
+
+
+void
+PretendoWindow::CPUStatusWindowClosed()
+{
+	fCPUStatusWindow = nullptr;
+}
+
 
 
 void

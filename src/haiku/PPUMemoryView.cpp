@@ -10,7 +10,7 @@
 class PPUMemoryScrollBar : public BScrollBar
 {
 	public:
-	PPUMemoryScrollBar(BRect frame, PPUMemoryView* owner)
+	PPUMemoryScrollBar (BRect frame, PPUMemoryView *owner)
 		:
 		BScrollBar(
 			frame,
@@ -26,14 +26,15 @@ class PPUMemoryScrollBar : public BScrollBar
 		SetSteps(1.0f, 16.0f);
 	}
 
-	virtual void ValueChanged(float value)
+	virtual void ValueChanged (float value)
 	{
-		if (fOwner)
+		if (fOwner) {
 			fOwner->ScrollBarChanged(value);
+		}
 	}
 
 	private:
-	PPUMemoryView* fOwner = nullptr;
+	PPUMemoryView *fOwner = nullptr;
 };
 
 
@@ -343,8 +344,8 @@ PPUMemoryView::DrawMemoryPanel()
 
 	::DrawDebugPanel(this, panel, "Raw PPU Bytes");
 
-	BFont oldFont;
-	GetFont(&oldFont);
+	BFont prevFont;
+	GetFont(&prevFont);
 
 	BFont mono(be_fixed_font);
 	mono.SetSize(10.0f);
@@ -428,7 +429,7 @@ PPUMemoryView::DrawMemoryPanel()
 		y += lineH;
 	}
 
-	SetFont(&oldFont);
+	SetFont(&prevFont);
 }
 
 

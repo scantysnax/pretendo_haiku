@@ -699,4 +699,23 @@ uint64_t cycle_count() {
 	return executed_cycles_;
 }
 
+
+cpu_state_t
+debug_cpu_state() {
+	cpu_state_t state{};
+
+	state.pc = PC.raw;
+	state.a = A;
+	state.x = X;
+	state.y = Y;
+	state.s = S;
+	state.p = P;
+	state.instruction = instruction_;
+	state.cycle = cycle_;
+	state.executed_cycles = executed_cycles_;
+
+	return state;
 }
+
+
+} 

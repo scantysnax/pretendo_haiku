@@ -50,7 +50,7 @@ class PPUMemoryView : public BView
 	private:
 	PretendoWindow* fParent = nullptr;
 
-	uint16 fBaseAddress = 0x2000;
+	uint16 fBaseAddress = 0x0000;
 	bool fFreezeUpdates = false;
 
 	BScrollBar* fScrollBar = nullptr;

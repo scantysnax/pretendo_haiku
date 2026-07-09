@@ -41,6 +41,7 @@ class OAMDebugWindow;
 class PPUStatusWindow;
 class PPUWriteLogWindow;
 class PPUMemoryWindow;
+class CPUStatusWindow;
 
 
 struct latched_scroll_t {
@@ -97,7 +98,8 @@ class PretendoWindow : public BWindow
 		SHOW_OAMDBG = 	'OAMD',
 		SHOW_STATUS =	'STAT',
 		SHOW_PPULOG =	'WLOG',
-		SHOW_PPUMEM = 	'PPUM'
+		SHOW_PPUMEM = 	'PPUM',
+		SHOW_CPUSTAT = 	'CPUS'
 	} messages;	
 	
 	private:
@@ -187,6 +189,7 @@ class PretendoWindow : public BWindow
 	void OnViewPPUStatusWindow();
 	void OnViewPPUWriteLogWindow();
 	void OnViewPPUMemoryWindow();
+	void OnViewCPUStatusWindow();
 
 	// video stuff
 	private:
@@ -293,6 +296,7 @@ class PretendoWindow : public BWindow
 	PPUStatusWindow *fPPUStatusWindow = nullptr;
 	PPUWriteLogWindow *fPPUWriteLogWindow = nullptr;
 	PPUMemoryWindow *fPPUMemoryWindow = nullptr;
+	CPUStatusWindow* fCPUStatusWindow = nullptr;
 	
 	private:
 	bool fPaused = false;
@@ -355,6 +359,7 @@ class PretendoWindow : public BWindow
     void PPUStatusWindowClosed();
     void PPUWriteLogWindowClosed();
     void PPUMemoryWindowClosed();
+    void CPUStatusWindowClosed();
     
     public:
     void HighlightPaletteDebugger(bool sprites, int32 palette, int32 entry = -1);

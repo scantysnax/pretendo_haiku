@@ -62,6 +62,21 @@ void exec() {
 	}
 }
 
+struct cpu_state_t {
+	uint16_t pc;
+	uint8_t a;
+	uint8_t x;
+	uint8_t y;
+	uint8_t s;
+	uint8_t p;
+	uint16_t instruction;
+	int cycle;
+	uint64_t executed_cycles;
+};
+
+cpu_state_t debug_cpu_state();
+
+
 }
 
 #endif
