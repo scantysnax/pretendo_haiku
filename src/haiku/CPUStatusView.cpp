@@ -16,7 +16,7 @@ SetStateColor (BView *view, bool active)
 }
 
 
-CPUStatusView::CPUStatusView(BRect frame, PretendoWindow* parent)
+CPUStatusView::CPUStatusView(BRect frame, PretendoWindow *parent)
 	: BView(frame, "cpu_status_view", B_FOLLOW_ALL_SIDES,
 			B_WILL_DRAW | B_PULSE_NEEDED | B_FRAME_EVENTS)
 {

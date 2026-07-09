@@ -14,6 +14,7 @@
 #include <atomic>
 
 #include "AudioStream.h"
+#include "Controller.h"
 #include "InputWindow.h"
 #include "MenuBarIcon.h"
 #include "Mutex.h"
@@ -26,6 +27,10 @@
 #include "PretendoView.h" 
 #include "ROMFilePanel.h"
 #include "ROMInfoWindow.h"
+#include "PPUStatusWindow.h"
+#include "PPUWriteLogWindow.h"
+#include "PPUMemoryWindow.h"
+#include "CPUStatusWindow.h"
 #include "VideoScreen.h"
 
 #include "asm/blitters.h"

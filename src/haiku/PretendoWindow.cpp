@@ -1,4 +1,6 @@
 
+#include "PretendoWindow.h"
+
 // nes stuff
 #include "Apu.h"
 #include "Cart.h"
@@ -7,22 +9,6 @@
 #include "Nes.h"
 #include "Palette.h"
 #include "Reset.h"
-
-// ui and other things
-#include "AudioStream.h"
-#include "Controller.h"
-#include "Mutex.h"
-#include "PaletteWindow.h"
-#include "PretendoView.h"
-#include "PretendoWindow.h"
-#include "ROMFilePanel.h"
-#include "ROMInfoWindow.h"
-#include "VideoScreen.h"
-#include "PPUStatusWindow.h"
-#include "PPUWriteLogWindow.h"
-#include "PPUMemoryWindow.h"
-#include "CPUStatusWindow.h"
- 
 
 // mmx blitters and memcpy()
 #include "asm/blitters.h"
