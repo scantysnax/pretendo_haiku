@@ -199,6 +199,9 @@ class NameTableView : public BView
 
 	// Draws the framed panel behind the bitmap.
 	void DrawBitmapPanel (BPoint origin);
+	
+	// Draws a message that indicates no ROM is loaded.
+	void DrawNoROMMessage();
 };
 
 #endif

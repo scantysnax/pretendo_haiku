@@ -12,7 +12,7 @@ class PaletteView;
 class PaletteWindow : public BWindow
 {	
 	public:
-			PaletteWindow (PretendoWindow *parent);
+			PaletteWindow (PretendoWindow *parent, bool notifyParentOnClose = true);
 	virtual ~PaletteWindow();
 	
 	public:
@@ -25,6 +25,7 @@ class PaletteWindow : public BWindow
 	private:
 	PaletteView *fPaletteView = nullptr;
 	PretendoWindow *fParent = nullptr;
+	bool fNotifyParentOnClose = true;
 	
 	private:
 	BMessage *fSettingsMessage = nullptr;

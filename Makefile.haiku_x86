@@ -117,6 +117,9 @@ CPP_FILES := \
 	src/haiku/AboutWindow.cpp \
 	src/haiku/AudioStream.cpp \
 	src/haiku/CHRExplorerView.cpp \
+	src/haiku/CPUDisasm.cpp \
+	src/haiku/CPUDisasmView.cpp \
+	src/haiku/CPUDisasmWindow.cpp \
 	src/haiku/CPUStatusView.cpp \
 	src/haiku/CPUStatusWindow.cpp \
 	src/haiku/HaikuMain.cpp \

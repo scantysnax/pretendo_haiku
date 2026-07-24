@@ -8,6 +8,8 @@
 #include "Nes.h"
 #include "Ppu.h"
 
+#include <cmath>
+
 
 // -----------------------------------------------------------------------------
 // PaletteDebugView::PaletteDebugView
@@ -104,7 +106,8 @@ PaletteDebugView::MessageReceived(BMessage *message)
 // PaletteDebugView::Pulse
 //
 // Refreshes the palette debugger during live updates.  When palette updates are
-// frozen, the current display is kept stable for inspection.
+// frozen, the current display is kept stable for inspection.  If no ROM is
+// loaded, the empty-state view is static and does not need continuous redraws.
 //
 // Parameters:
 //   None.
@@ -119,25 +122,29 @@ PaletteDebugView::Pulse()
 		return;
 	}
 
+	if (!HasROMLoaded()) {
+		return;
+	}
+
 	Invalidate();
 }
-
 
 
 // -----------------------------------------------------------------------------
 // PaletteDebugView::Draw
 //
-// Draws the complete palette debugger UI, including the controls panel,
-// background palette panel, sprite palette panel, and selected-color details.
+// Draws the palette debugger.  If no ROM is loaded, the header remains visible
+// and the body shows a friendly empty-state message instead of stale/default
+// palette data.
 //
 // Parameters:
-//   updateRect - Region requested for redraw.  The view redraws all panels.
+//   updateRect - Area being redrawn.
 //
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-PaletteDebugView::Draw (BRect updateRect)
+PaletteDebugView::Draw(BRect updateRect)
 {
 	(void)updateRect;
 
@@ -145,6 +152,20 @@ PaletteDebugView::Draw (BRect updateRect)
 	FillRect(Bounds());
 
 	DrawHeaderUI();
+
+	if (!HasROMLoaded()) {
+		BRect panel(
+			4.0f,
+			108.0f,
+			Bounds().right - 4.0f,
+			Bounds().bottom - 8.0f
+		);
+
+		::DrawDebugPanel(this, panel, "Palettes");
+		DrawNoROMMessage(panel);
+		return;
+	}
+
 	DrawBackgroundPalettes();
 	DrawSpritePalettes();
 	DrawSelectedInfo();
@@ -349,17 +370,17 @@ PaletteDebugView::DrawPalettePanel (BRect panel, const char *title, bool sprites
 		}
 		
 		BString s;
-		s.SetToFormat("Pal %ld", (long)pal);
+		s.SetToFormat("Pal %ld", static_cast<long>(pal));
 
 		// Right-align the row label inside the fixed label column.
 		SetHighColor(70, 70, 70);
-		float labelW = StringWidth(s);
-		DrawString(s, BPoint(labelRightX - labelW, y + 13.0f));
-
+		float labelW = StringWidth(s.String());
+		DrawString(s.String(), BPoint(labelRightX - labelW, y + 13.0f));
+		
 		for (int32 entry = 0; entry < 4; entry++) {
 			uint16 address = sprites
-				? static_cast<uint16>(0x3F10 + pal * 4 + entry)
-				: static_cast<uint16>(0x3F00 + pal * 4 + entry);
+				? static_cast<uint16>(0x3f10 + pal * 4 + entry)
+				: static_cast<uint16>(0x3f00 + pal * 4 + entry);
 
 			BRect r(
 				cellStartX + entry * (cellW + gapX),
@@ -661,14 +682,83 @@ PaletteDebugView::DrawSelectedInfo()
 	SetHighColor(0, 0, 0);
 	StrokeRect(swatch);
 }
+// -----------------------------------------------------------------------------
+// PaletteDebugView::HasROMLoaded
+//
+// Returns whether a cartridge mapper is currently available.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   true if a ROM/mapper is currently loaded.
+// -----------------------------------------------------------------------------
+bool
+PaletteDebugView::HasROMLoaded() const
+{
+	return nes::cart.mapper() != nullptr;
+}
+
+
+// -----------------------------------------------------------------------------
+// PaletteDebugView::DrawNoROMMessage
+//
+// Draws a friendly empty-state message when the Palette Debugger is opened
+// without a loaded ROM.
+//
+// Parameters:
+//   panel - Bounds in which the empty-state message should be centered.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PaletteDebugView::DrawNoROMMessage (BRect panel)
+{
+	BFont prevFont;
+	GetFont(&prevFont);
+
+	BFont font = prevFont;
+	font.SetSize(12.0f);
+	SetFont(&font);
+
+	const char* title = "No ROM loaded";
+	const char* detail = "Load a cartridge to inspect palettes.";
+
+	font_height fh;
+	GetFontHeight(&fh);
+
+	const float centerX = panel.left + (panel.Width() * 0.5f);
+	const float centerY = panel.top + (panel.Height() * 0.5f);
+
+	SetHighColor(80, 80, 80, 255);
+	DrawString(
+		title,
+		BPoint(
+			centerX - (StringWidth(title) * 0.5f),
+			centerY - 8.0f
+		)
+	);
+
+	SetHighColor(120, 120, 120, 255);
+	DrawString(
+		detail,
+		BPoint(
+			centerX - (StringWidth(detail) * 0.5f),
+			centerY + fh.ascent + 8.0f
+		)
+	);
+
+	SetFont(&prevFont);
+}
 
 
 // -----------------------------------------------------------------------------
 // PaletteDebugView::MouseMoved
 //
 // Updates the hover palette entry as the mouse moves over the palette panels.
-// Hover tracking is disabled while the view is frozen or while an entry is
-// locked.
+// Hover tracking is disabled while no ROM is loaded, while the view is frozen,
+// or while an entry is locked.
 //
 // Parameters:
 //   where   - Current mouse position in view coordinates.
@@ -679,10 +769,14 @@ PaletteDebugView::DrawSelectedInfo()
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-PaletteDebugView::MouseMoved (BPoint where, uint32 transit, const BMessage *message)
+PaletteDebugView::MouseMoved(BPoint where, uint32 transit, const BMessage* message)
 {
-	(void)where;
 	(void)message;
+
+	if (!HasROMLoaded()) {
+		fMouseInside = false;
+		return;
+	}
 
 	if (transit == B_EXITED_VIEW) {
 		fMouseInside = false;
@@ -725,7 +819,8 @@ PaletteDebugView::MouseMoved (BPoint where, uint32 transit, const BMessage *mess
 // Clicking the currently locked entry unlocks it; clicking any other palette
 // entry locks that entry.
 //
-// Mouse locking is disabled while palette updates are frozen.
+// Mouse locking is disabled while no ROM is loaded or while palette updates are
+// frozen.
 //
 // Parameters:
 //   where - Mouse position in view coordinates.
@@ -734,9 +829,13 @@ PaletteDebugView::MouseMoved (BPoint where, uint32 transit, const BMessage *mess
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-PaletteDebugView::MouseDown (BPoint where)
+PaletteDebugView::MouseDown(BPoint where)
 {
 	MakeFocus(true);
+
+	if (!HasROMLoaded()) {
+		return;
+	}
 
 	// Freeze means the palette viewer is locked in its current state.
 	// Allow Space to unfreeze, but do not allow mouse clicks to change

@@ -135,6 +135,10 @@ class PatternTableView : public BView
 	{
 		return (nes::ppu::ppuctrl() & 0x20) != 0;
 	}
+	
+	private:
+	bool HasROMLoaded() const;
+	void DrawNoROMMessage();
 
 	private:
 	// Parent/debug view references.

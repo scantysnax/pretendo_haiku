@@ -40,6 +40,10 @@ class PaletteDebugView : public BView
 	void DrawSelectedInfo();
 	void DrawPaletteEntry (BRect r, uint16 address, bool selected);
 	void DrawPalettePanel (BRect panel, const char *title, bool sprites);
+	
+	private:
+	bool HasROMLoaded() const;
+	void DrawNoROMMessage(BRect panel);
 
 	private:
 	bool PaletteEntryAt (BPoint where, uint16 &outAddress) const;

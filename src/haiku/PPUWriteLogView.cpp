@@ -1,11 +1,13 @@
 
-
 #include "PPUWriteLogView.h"
 
+#include "Cart.h"
 #include "DebugHelpers.h"
 #include "PretendoWindow.h"
 
 #include "Ppu.h"
+
+#include <cmath>
 
 
 PPUWriteLogView::PPUWriteLogView (BRect frame, PretendoWindow *parent)
@@ -36,6 +38,10 @@ PPUWriteLogView::AttachedToWindow()
 void
 PPUWriteLogView::Pulse()
 {
+	if (!HasROMLoaded()) {
+		return;
+	}
+
 	if (!fFreezeUpdates) {
 		Invalidate();
 	}
@@ -43,9 +49,20 @@ PPUWriteLogView::Pulse()
 
 
 void
-PPUWriteLogView::KeyDown (const char *bytes, int32 numBytes)
+PPUWriteLogView::KeyDown(const char *bytes, int32 numBytes)
 {
 	if (numBytes <= 0) {
+		return;
+	}
+
+	if (!HasROMLoaded()) {
+		if (bytes[0] == ' ') {
+			fFreezeUpdates = !fFreezeUpdates;
+			Invalidate();
+			return;
+		}
+
+		BView::KeyDown(bytes, numBytes);
 		return;
 	}
 
@@ -69,7 +86,7 @@ PPUWriteLogView::KeyDown (const char *bytes, int32 numBytes)
 
 
 void
-PPUWriteLogView::Draw(BRect updateRect)
+PPUWriteLogView::Draw (BRect updateRect)
 {
 	(void)updateRect;
 
@@ -77,6 +94,20 @@ PPUWriteLogView::Draw(BRect updateRect)
 	FillRect(Bounds());
 
 	DrawHeaderPanel();
+
+	if (!HasROMLoaded()) {
+		BRect panel(
+			4.0f,
+			70.0f,
+			Bounds().right - 4.0f,
+			Bounds().bottom - 8.0f
+		);
+
+		::DrawDebugPanel(this, panel, "Recent Writes");
+		DrawNoROMMessage(panel);
+		return;
+	}
+
 	DrawLogPanel();
 }
 
@@ -267,7 +298,7 @@ PPUWriteLogView::RegisterName (uint16 address) const
 			return "PPUMASK";
 
 		case 0x2002:
-			return "PPUSTAT";
+			return "PPUSTATUS";
 
 		case 0x2003:
 			return "OAMADDR";
@@ -276,7 +307,7 @@ PPUWriteLogView::RegisterName (uint16 address) const
 			return "OAMDATA";
 
 		case 0x2005:
-			return "PPUSCRL";
+			return "PPUSCROLL";
 
 		case 0x2006:
 			return "PPUADDR";
@@ -374,5 +405,75 @@ PPUWriteLogView::DescribeWrite (uint16 address, uint8 value, BString &text) cons
 			text.SetTo("unknown write");
 			break;
 	}
+}
+
+// -----------------------------------------------------------------------------
+// PPUWriteLogView::HasROMLoaded
+//
+// Returns whether a cartridge mapper is currently available.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   true if a ROM/mapper is currently loaded.
+// -----------------------------------------------------------------------------
+bool
+PPUWriteLogView::HasROMLoaded() const
+{
+	return nes::cart.mapper() != nullptr;
+}
+
+
+// -----------------------------------------------------------------------------
+// PPUWriteLogView::DrawNoROMMessage
+//
+// Draws a friendly empty-state message when the PPU Write Log window is opened
+// without a loaded ROM.
+//
+// Parameters:
+//   panel - Bounds in which the empty-state message should be centered.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PPUWriteLogView::DrawNoROMMessage (BRect panel)
+{
+	BFont prevFont;
+	GetFont(&prevFont);
+
+	BFont font = prevFont;
+	font.SetSize(12.0f);
+	SetFont(&font);
+
+	const char* title = "No ROM loaded";
+	const char* detail = "Load a cartridge to inspect PPU writes.";
+
+	font_height fh;
+	GetFontHeight(&fh);
+
+	const float centerX = panel.left + (panel.Width() * 0.5f);
+	const float centerY = panel.top + (panel.Height() * 0.5f);
+
+	SetHighColor(80, 80, 80, 255);
+	DrawString(
+		title,
+		BPoint(
+			centerX - (StringWidth(title) * 0.5f),
+			centerY - 8.0f
+		)
+	);
+
+	SetHighColor(120, 120, 120, 255);
+	DrawString(
+		detail,
+		BPoint(
+			centerX - (StringWidth(detail) * 0.5f),
+			centerY + fh.ascent + 8.0f
+		)
+	);
+
+	SetFont(&prevFont);
 }
 

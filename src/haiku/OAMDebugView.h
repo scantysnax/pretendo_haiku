@@ -25,7 +25,7 @@ class PretendoWindow;
 class OAMDebugView : public BView
 {
 	public:
-			OAMDebugView(BRect frame, PretendoWindow *parent);
+			OAMDebugView (BRect frame, PretendoWindow *parent);
 	virtual ~OAMDebugView();
 
 	virtual void AttachedToWindow();
@@ -39,7 +39,7 @@ class OAMDebugView : public BView
 
 	public:
 	void SetFirstSpriteFromScrollBar (int32 firstSprite);
-	void SetHostPalette(uint8* palette);
+	void SetHostPalette (uint8* palette);
 	void SetPatternTables (PatternTableWindow *pt0, PatternTableWindow *pt1);
 	void SetExplorer (CHRExplorerView *explorer);
 
@@ -58,6 +58,10 @@ class OAMDebugView : public BView
 	void UpdateCHRExplorer();
 	void CaptureOAMSnapshot();
 	uint8 OAMByte (uint32 address) const;
+	
+	private:
+	bool HasROMLoaded() const;
+	void DrawNoROMMessage (BRect panel);
 
 	private:
 	PretendoWindow *fParent = nullptr;

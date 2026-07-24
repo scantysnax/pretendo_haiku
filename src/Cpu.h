@@ -74,7 +74,12 @@ struct cpu_state_t {
 	uint64_t executed_cycles;
 };
 
+
 cpu_state_t debug_cpu_state();
+
+bool debug_instruction_boundary();
+bool debug_instruction_was_executed(uint16_t address);
+void debug_clear_instruction_trace();
 
 
 }

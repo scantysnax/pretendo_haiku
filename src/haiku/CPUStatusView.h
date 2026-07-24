@@ -35,6 +35,10 @@ class CPUStatusView : public BView
 	
 	private:
 	void DrawFlag (BRect rect, const char *name, bool active);
+	
+	private:
+	bool HasROMLoaded() const;
+	void DrawNoROMMessage (BRect panel);
 
 	private:
 	PretendoWindow *fParent = nullptr;

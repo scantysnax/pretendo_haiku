@@ -497,6 +497,117 @@ uint8_t read_memory(uint_least16_t address) {
 	}
 }
 
+
+uint8_t
+debug_read_memory(uint_least16_t address)
+{
+	switch ((address >> 12) & 0xf) {
+		case 0x0:
+			return read_0(address);
+
+		case 0x1:
+			return read_1(address);
+
+		case 0x2:
+		case 0x3:
+			// PPU register range.  Do not perform side-effectful PPU reads.
+			return 0x00;
+
+		case 0x4:
+			// APU / IO range.  Do not perform side-effectful APU, controller,
+			// or DMA reads.  Cartridge expansion space starts at $4020.
+			if (address < 0x4020) {
+				return 0x00;
+			}
+
+			if (!nes::cart.mapper()) {
+				return 0x00;
+			}
+
+			return read_4(address);
+
+		case 0x5:
+			if (!nes::cart.mapper()) {
+				return 0x00;
+			}
+
+			return read_5(address);
+
+		case 0x6:
+			if (!nes::cart.mapper()) {
+				return 0x00;
+			}
+
+			return read_6(address);
+
+		case 0x7:
+			if (!nes::cart.mapper()) {
+				return 0x00;
+			}
+
+			return read_7(address);
+
+		case 0x8:
+			if (!nes::cart.mapper()) {
+				return 0x00;
+			}
+
+			return read_8(address);
+
+		case 0x9:
+			if (!nes::cart.mapper()) {
+				return 0x00;
+			}
+
+			return read_9(address);
+
+		case 0xa:
+			if (!nes::cart.mapper()) {
+				return 0x00;
+			}
+
+			return read_a(address);
+
+		case 0xb:
+			if (!nes::cart.mapper()) {
+				return 0x00;
+			}
+
+			return read_b(address);
+
+		case 0xc:
+			if (!nes::cart.mapper()) {
+				return 0x00;
+			}
+
+			return read_c(address);
+
+		case 0xd:
+			if (!nes::cart.mapper()) {
+				return 0x00;
+			}
+
+			return read_d(address);
+
+		case 0xe:
+			if (!nes::cart.mapper()) {
+				return 0x00;
+			}
+
+			return read_e(address);
+
+		case 0xf:
+			if (!nes::cart.mapper()) {
+				return 0x00;
+			}
+
+			return read_f(address);
+
+		default:
+			return 0x00;
+	}
+}
+
 //-------------------------------------------------------------------
 // Name: trash_ram
 //-------------------------------------------------------------------

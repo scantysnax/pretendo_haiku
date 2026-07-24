@@ -33,6 +33,10 @@ class PPUStatusView : public BView
 	void DrawMaskPanel();
 	void DrawStatusPanel();
 	void DrawTimingPanel();
+	
+	private:
+	bool HasROMLoaded() const;
+	void DrawNoROMMessage (BRect panel);
 
 	private:
 	PretendoWindow *fParent = nullptr;

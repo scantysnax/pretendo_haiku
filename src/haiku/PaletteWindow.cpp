@@ -4,13 +4,30 @@
 #include "Palette.h"
 
 #include <File.h>
- 
 
-PaletteWindow::PaletteWindow (PretendoWindow *parent)
+
+// -----------------------------------------------------------------------------
+// PaletteWindow::PaletteWindow
+//
+// Creates the palette adjustment window.  notifyParentOnClose controls whether
+// this window reports its closure back to PretendoWindow.  The startup/internal
+// palette window uses false because it is created only to initialize palette
+// state and should not affect tool-window input tracking.
+//
+// Parameters:
+//   parent              - Owning PretendoWindow.
+//   notifyParentOnClose - true for interactive windows, false for internal use.
+//
+// Returns:
+//   Nothing.
+// ----------------------------------------------------------------------------- 
+
+PaletteWindow::PaletteWindow (PretendoWindow *parent, bool notifyParentOnClose)
 	: BWindow(BRect(0, 0, 0, 0), "Adjust Palette", B_FLOATING_WINDOW_LOOK, 
 		B_NORMAL_WINDOW_FEEL, B_NOT_RESIZABLE|B_NOT_ZOOMABLE)
 {
 	fParent = parent;
+	fNotifyParentOnClose = notifyParentOnClose;
 	
 	ResizeTo(480, 580);
 	
@@ -22,6 +39,7 @@ PaletteWindow::PaletteWindow (PretendoWindow *parent)
 }
 
 
+
 PaletteWindow::~PaletteWindow()
 {
 	SaveSettings();
@@ -29,9 +47,26 @@ PaletteWindow::~PaletteWindow()
 }
 
 
+// -----------------------------------------------------------------------------
+// PaletteWindow::QuitRequested
+//
+// Notifies the parent window when an interactive palette window closes.  Startup
+// palette-helper windows do not notify the parent because they are not counted
+// as tool-input windows.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   true to allow the window to close.
+// -----------------------------------------------------------------------------
 bool
 PaletteWindow::QuitRequested()
 {
+	if (fNotifyParentOnClose && fParent) {
+		fParent->PaletteWindowClosed();
+	}
+
 	return true;
 }
 

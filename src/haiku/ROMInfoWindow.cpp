@@ -3,14 +3,17 @@
 
 #include <iostream>
 
+#include "PretendoWindow.h"
 #include "ROMInfoWindow.h"
 #include "Settings.h"
 
-ROMInfoWindow::ROMInfoWindow()
+ROMInfoWindow::ROMInfoWindow (PretendoWindow *parent)
 	: BWindow(BRect(0, 0, 0, 0), "ROM Info", B_FLOATING_WINDOW_LOOK, B_NORMAL_WINDOW_FEEL,
 	B_NOT_RESIZABLE|B_NOT_ZOOMABLE)
 
 {
+	fParent = parent;
+	
 	ResizeTo(720, 320);
 	
 	BRect r = Bounds();
@@ -39,9 +42,25 @@ ROMInfoWindow::MessageReceived (BMessage *message)
 }
 
 
+// -----------------------------------------------------------------------------
+// ROMInfoWindow::QuitRequested
+//
+// Notifies the parent PretendoWindow that the ROM info window is closing so the
+// parent can release tool-input ownership and clear its stored window pointer.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   true to allow the window to close.
+// -----------------------------------------------------------------------------
 bool
-ROMInfoWindow::QuitRequested (void)
+ROMInfoWindow::QuitRequested()
 {
+	if (fParent) {
+		fParent->ROMInfoWindowClosed();
+	}
+
 	return true;
 }
 

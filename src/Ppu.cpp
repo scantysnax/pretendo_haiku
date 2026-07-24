@@ -1313,6 +1313,68 @@ debug_read_ppu_memory(uint16_t address)
 	return nes::cart.mapper()->read_vram(address);
 }
 
+// -----------------------------------------------------------------------------
+// nes::ppu::debug_step_dot
+//
+// Advances the emulator by one PPU dot using the same timing relationship used
+// by normal scanline execution.  This is intended for debugger stepping and
+// intentionally ignores system_paused so a paused emulator can still advance
+// under debugger control.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+debug_step_dot()
+{
+	alignas(512) static uint32_t dummyBuffer[256] = {};
+
+	if (hpos_ >= CyclesPerScanline) {
+		hpos_ = 0;
+		++vpos_;
+	}
+
+	if (vpos_ > 262) {
+		vpos_ = 0;
+		hpos_ = 0;
+	}
+
+	// Match execute_scanline_impl(), but only at the start of a scanline.
+	if (hpos_ == 0) {
+		if (UNLIKELY(vpos_ == 262)) {
+			start_frame();
+		} else if (UNLIKELY(vpos_ == 241)) {
+			end_frame();
+		}
+	}
+
+	if (vpos_ == 0) {
+		clock_ppu(nes::ppu::scanline_prerender{});
+	} else if (vpos_ >= 1 && vpos_ <= 240) {
+		clock_ppu(nes::ppu::scanline_render(dummyBuffer));
+	} else if (vpos_ == 241) {
+		clock_ppu(nes::ppu::scanline_postrender{});
+	} else {
+		clock_ppu(nes::ppu::scanline_vblank{});
+	}
+
+	if ((ppu_cycle_ % 3) == CpuAlignment) {
+		nes::cpu::exec<1>();
+		nes::apu::exec<1>();
+	}
+
+	++hpos_;
+	++ppu_cycle_;
+
+	if (hpos_ >= CyclesPerScanline) {
+		hpos_ = 0;
+		++vpos_;
+	}
+}
+
 
 } // namespace nes::ppu
 

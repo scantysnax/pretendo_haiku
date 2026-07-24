@@ -3,9 +3,11 @@
 #define _AUDIO_STREAM_H_
 
 #include <SoundPlayer.h>
+
 #include <cstring>
 
 #include "Mutex.h"
+
 #include "asm/copies.h"
 
 
@@ -20,6 +22,11 @@ class AudioStream
 	void Start();
 	void Stop();
 	void Stream (void const *stream, size_t const samples);
+	void SetMuted (bool muted);
+	void ClearBuffer();
+	void SuspendForDebugger();
+	void ResumeFromDebugger();
+	void ResetPacing();
 	
 	private:
 	void PlayBuffer (void *buffer, size_t const size);
@@ -32,8 +39,10 @@ class AudioStream
 	size_t fBufferSize = 0;
 	uint8 *fSoundBuffer = nullptr;
 	Mutex *fMutex = nullptr;
+	bool fDebugSuspended = false;
 	
 	private:
+	bool fMuted = false;
 	bool fStreaming = false;
 };
 

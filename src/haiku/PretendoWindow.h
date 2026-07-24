@@ -1,3 +1,4 @@
+
 #ifndef _PRETENDO_WINDOW_H_
 #define _PRETENDO_WINDOW_H_
 
@@ -15,6 +16,9 @@
 
 #include "AudioStream.h"
 #include "Controller.h"
+#include "CPUDisasmView.h"
+#include "CPUDisasmWindow.h"
+#include "CPUStatusWindow.h"
 #include "InputWindow.h"
 #include "MenuBarIcon.h"
 #include "Mutex.h"
@@ -24,29 +28,38 @@
 #include "PaletteWindow.h"
 #include "PaletteDebugWindow.h"
 #include "PatternTableWindow.h"
-#include "PretendoView.h" 
+#include "PPUMemoryWindow.h"
+#include "PPUStatusWindow.h"
+#include "PPUWriteLogWindow.h" 
+#include "PretendoView.h"
 #include "ROMFilePanel.h"
 #include "ROMInfoWindow.h"
-#include "PPUStatusWindow.h"
-#include "PPUWriteLogWindow.h"
-#include "PPUMemoryWindow.h"
-#include "CPUStatusWindow.h"
 #include "VideoScreen.h"
+
+#include "Apu.h"
+#include "Cart.h"
+#include "Input.h"
+#include "Mapper.h"
+#include "Nes.h"
+#include "Palette.h"
+#include "Ppu.h"
+#include "Reset.h"
 
 #include "asm/blitters.h"
 #include "asm/copies.h"
 
 
-class PretendoView;
+class CPUDisasmWindow;
+class CPUStatusWindow;
 class InputWindow;
 class NameTableWindow;
-class PatternTableWindow;
-class PaletteDebugWindow;
 class OAMDebugWindow;
+class PaletteDebugWindow;
+class PatternTableWindow;
 class PPUStatusWindow;
-class PPUWriteLogWindow;
 class PPUMemoryWindow;
-class CPUStatusWindow;
+class PPUWriteLogWindow;
+class PretendoView;
 
 
 struct latched_scroll_t {
@@ -69,12 +82,11 @@ class PretendoWindow : public BWindow
 		ROM_INFO = 		'INFO',
 		QUIT = 			'QUIT',
 		// emulator
-		CPU_RUN = 		'RUN_',
-		CPU_STOP = 		'STOP',
-		CPU_PAUSE =		'PAUS',
-		CPU_DEBUG = 	'DBUG',
-		RST_SOFT = 		'SOFT',
-		RST_HARD = 		'HARD',
+		CPU_RUN = 	'RUN ',
+		CPU_STOP = 	'STOP',
+		CPU_PAUSE =	'PAUS',
+		RST_SOFT = 	'SOFT',
+		RST_HARD = 	'HARD',
 		// video
 		CHANGE_RENDER = 	'CHRN',
 		DRAW_BITMAP = 		'DRAW',
@@ -83,7 +95,7 @@ class PretendoWindow : public BWindow
 		// input
 		CFG_INPUT = 'CFGI',
 		// rom directory
-		SET_ROMDIR = 	'ROMS',
+		SET_ROMDIR = 	'ROMD',
 		RECV_ROM_DIR = 	'RECV',
 		// sound channel enable/disable
 		ENABLE_SQ1 = 	'SQR1',
@@ -92,45 +104,46 @@ class PretendoWindow : public BWindow
 		ENABLE_NOISE = 	'NOIS',
 		ENABLE_DMC = 	'DPCM',
 		// tools
-		ADJ_PALETTE =	'ADJP',
-		SHOW_PTNTBL1 = 	'PTB1',
-		SHOW_PTNTBL2 = 	'PTB2',
-		SHOW_NTBL1 = 	'NTB1',
-		SHOW_NTBL2 = 	'NTB2',
-		SHOW_NTBL3 = 	'NTB3',
-		SHOW_NTBL4 = 	'NTB4',
-		SHOW_PALDBG =	'PDBG',
-		SHOW_OAMDBG = 	'OAMD',
-		SHOW_STATUS =	'STAT',
-		SHOW_PPULOG =	'WLOG',
-		SHOW_PPUMEM = 	'PPUM',
-		SHOW_CPUSTAT = 	'CPUS'
+		ADJ_PALETTE =		'ADJP',
+		VIEW_PTNTBL1 = 		'PTB1',
+		VIEW_PTNTBL2 = 		'PTB2',
+		VIEW_NTBL1 = 		'NTB1',
+		VIEW_NTBL2 = 		'NTB2',
+		VIEW_NTBL3 = 		'NTB3',
+		VIEW_NTBL4 = 		'NTB4',
+		VIEW_PALDBG =		'PDBG',
+		VIEW_OAMDBG = 		'OAMD',
+		VIEW_PPUSTAT =		'STAT',
+		VIEW_PPULOG =		'WLOG',
+		VIEW_PPUMEM = 		'PPUM',
+		VIEW_CPUSTAT = 		'CPUS',
+		VIEW_CPUDISASM = 	'CPUD'
 	} messages;	
 	
 	private:
 	typedef enum {
-		UP = 0x57,
-		DOWN = 0x62,
-		LEFT = 0x61,
-		RIGHT = 0x63,
-		SELECT = 0x3c,
-		START = 0x3d,
-		B = 0x4c,
-		A = 0x4d
+		UP = 		0x57,
+		DOWN = 		0x62,
+		LEFT = 		0x61,
+		RIGHT = 	0x63,
+		SELECT = 	0x3c,
+		START = 	0x3d,
+		B = 		0x4c,
+		A = 		0x4d
 	} default_keys;
 	
 	private:
 	typedef enum {
-		WIDTH = 256,
-		HEIGHT = 240,
-		MENU_HEIGHT = 21
+		WIDTH = 		256,
+		HEIGHT = 		240,
+		MENU_HEIGHT = 	21
 	} screen_size;
 	
 	private:
 	typedef enum {
-		NONE = 0,
-		BITMAP = 1,
-		OVERLAY = 2,
+		NONE = 		 0,
+		BITMAP = 	 1,
+		OVERLAY = 	 2,
 		FULLSCREEN = 3
 	} video_framework;
 	
@@ -195,6 +208,7 @@ class PretendoWindow : public BWindow
 	void OnViewPPUWriteLogWindow();
 	void OnViewPPUMemoryWindow();
 	void OnViewCPUStatusWindow();
+	void OnViewCPUDisasmWindow();
 
 	// video stuff
 	private:
@@ -211,6 +225,10 @@ class PretendoWindow : public BWindow
 	void DrawBitmap();
 	void DrawOverlay();
 	void DrawFullScreen();
+	void RedrawLastFrame();
+	void ClearVideoView();
+	void ForceFullRedraw();
+	void ForceFullBitmapRedraw();
 	
 	// video interface
 	public:
@@ -235,6 +253,8 @@ class PretendoWindow : public BWindow
 	BMenu *fVideoMenu = nullptr;
 	BMenu *fAudioMenu = nullptr;
 	BMenu *fToolMenu = nullptr;
+	BMenu *fCPUToolMenu = nullptr;
+	BMenu *fPPUToolMenu = nullptr;
 	BMenu *fPatternTableMenu = nullptr;
 	BMenu *fNameTableMenu = nullptr;
 	MenuBarIcon *fMenuBarIcon = nullptr;
@@ -280,7 +300,15 @@ class PretendoWindow : public BWindow
 	bool fFrameworkChanging = false;
 	bool fDoubled = false;
 	int32 fClear = 0;
+	bool fForceFullBitmapRedraw = false;
 	
+	public:
+	bool IsFullScreen() const { 
+		return fFullScreen;
+	};
+    
+    void FinishExitFullScreen();
+
 	// sound
 	private:
 	AudioStream *fAudioStream = nullptr;
@@ -301,7 +329,8 @@ class PretendoWindow : public BWindow
 	PPUStatusWindow *fPPUStatusWindow = nullptr;
 	PPUWriteLogWindow *fPPUWriteLogWindow = nullptr;
 	PPUMemoryWindow *fPPUMemoryWindow = nullptr;
-	CPUStatusWindow* fCPUStatusWindow = nullptr;
+	CPUStatusWindow *fCPUStatusWindow = nullptr;
+	CPUDisasmWindow *fCPUDisasmWindow = nullptr;
 	
 	private:
 	bool fPaused = false;
@@ -314,12 +343,6 @@ class PretendoWindow : public BWindow
 	thread_id fThread = B_BAD_THREAD_ID;
 	static status_t emulator_thread (void *data);
 	bool fRunning = false;
-
-	// input
-	private:
-	key_info fKeyStates;
-	inline void CheckKey (int32 index, int32 key);
-	inline void ReadKeyStates();
 	
 	// mutex
 	private:
@@ -330,46 +353,125 @@ class PretendoWindow : public BWindow
 		return fMutex->Lock();
 	}
 	
+	bool LockMutex (bigtime_t timeOut) const {
+		return fMutex->Lock(timeOut);
+	}
+
 	bool UnlockMutex() const { 
 		return fMutex->Unlock();
 	}
 	
+	private:
+	latched_scroll_t fLatchedScroll;
 	
 	public:
 	// called by emulator thread
 	void SetLatchedScroll (uint32 x, uint32 y) {
-        fLatchedScroll.scroll_x.store(x, std::memory_order_relaxed);
-        fLatchedScroll.scroll_y.store(y, std::memory_order_relaxed);
-        fLatchedScroll.frame_id.fetch_add(1, std::memory_order_release);
-    }
+		fLatchedScroll.scroll_x.store(x, std::memory_order_relaxed);
+		fLatchedScroll.scroll_y.store(y, std::memory_order_relaxed);
+		fLatchedScroll.frame_id.fetch_add(1, std::memory_order_release);
+	}
     
-     // called by ui thread
-    bool GetLatchedScroll (uint32 &x, uint32 &y, uint32 &frameId) const {
-        frameId = fLatchedScroll.frame_id.load(std::memory_order_acquire);
-        x = fLatchedScroll.scroll_x.load(std::memory_order_relaxed);
-        y = fLatchedScroll.scroll_y.load(std::memory_order_relaxed);
-        return true;
-    }
+	public:
+    // called by ui thread
+	bool GetLatchedScroll (uint32 &x, uint32 &y, uint32 &frameId) const {
+		frameId = fLatchedScroll.frame_id.load(std::memory_order_acquire);
+		x = fLatchedScroll.scroll_x.load(std::memory_order_relaxed);
+		y = fLatchedScroll.scroll_y.load(std::memory_order_relaxed);
+		return true;
+	}
     
-    private:
-    latched_scroll_t fLatchedScroll;
-    
-    private:
     // for the chr explorer
-    void ConnectDebugViews();
+    private:
+	void ConnectDebugViews();
+    
+    // for debugging
+	public:
+	void DebugStepInstruction();
+	void DebugResumeExecution();
+	void DebugStepFrame();
+	void InvalidateDebugViews();
+	
+	// close callbacks    
+    public:
+    void ROMInfoWindowClosed();
+	void PaletteWindowClosed();
+	void InputWindowClosed();
+
+	void PatternTable1WindowClosed();
+	void PatternTable2WindowClosed();
+
+	void NameTable1WindowClosed();
+	void NameTable2WindowClosed();
+	void NameTable3WindowClosed();
+	void NameTable4WindowClosed();
+
+	void PaletteDebugWindowClosed();
+	void OAMDebugWindowClosed();
+
+	void PPUStatusWindowClosed();
+	void PPUWriteLogWindowClosed();
+	void PPUMemoryWindowClosed();
+
+	void CPUStatusWindowClosed();
+	void CPUDisasmWindowClosed();
     
     public:
-    void PaletteDebugWindowClosed();
-    void OAMDebugWindowClosed();
-    void PPUStatusWindowClosed();
-    void PPUWriteLogWindowClosed();
-    void PPUMemoryWindowClosed();
-    void CPUStatusWindowClosed();
+	void HighlightPaletteDebugger (bool sprites, int32 palette, int32 entry = -1);
+    void ClearPaletteDebuggerHighlight();
+    void LoadROMPath (const char *path);
     
+    // keyboard
     public:
-    void HighlightPaletteDebugger(bool sprites, int32 palette, int32 entry = -1);
-	void ClearPaletteDebuggerHighlight();
+    void HandleEmulatorKey (int32 key, bool pressed);
+	void ClearControllerInput();
+	void CheckKey (int32 index, int32 key);
+    void ReadKeyStates();
+    key_info fKeyStates;
+    bool fToolInputActive = false;
     
+    // tool things
+    void BeginToolInput();
+	void EndToolInput();
+	void ResetToolInput();
+	bool ToolInputActive() const;
+	bool ShouldPollGlobalInput() const;
+	int32 CountVisibleToolWindows() const;
+	int32 fToolInputDepth = 0;
+	
+	private:
+	bool fToolWindowsSuspendedForFullScreen = false;
+	
+	private:
+	// fullscreen things
+	void SuspendToolWindowsForFullScreen();
+	void RestoreToolWindowsAfterFullScreen();
+	bool HideToolWindowForFullScreen (BWindow *window);
+	void ShowToolWindowAfterFullScreen (BWindow *window, bool wasVisible);
+	
+	private:
+	bool fWasROMInfoWindowVisibleBeforeFullScreen = false;
+	bool fWasPaletteWindowVisibleBeforeFullScreen = false;
+	bool fWasInputWindowVisibleBeforeFullScreen = false;
+
+	bool fWasPatternTable1WindowVisibleBeforeFullScreen = false;
+	bool fWasPatternTable2WindowVisibleBeforeFullScreen = false;
+
+	bool fWasNameTable1WindowVisibleBeforeFullScreen = false;
+	bool fWasNameTable2WindowVisibleBeforeFullScreen = false;
+	bool fWasNameTable3WindowVisibleBeforeFullScreen = false;
+	bool fWasNameTable4WindowVisibleBeforeFullScreen = false;
+
+	bool fWasPaletteDebugWindowVisibleBeforeFullScreen = false;
+	bool fWasOAMDebugWindowVisibleBeforeFullScreen = false;
+
+	bool fWasPPUStatusWindowVisibleBeforeFullScreen = false;
+	bool fWasPPUWriteLogWindowVisibleBeforeFullScreen = false;
+	bool fWasPPUMemoryWindowVisibleBeforeFullScreen = false;
+
+	bool fWasCPUStatusWindowVisibleBeforeFullScreen = false;
+	bool fWasCPUDisasmWindowVisibleBeforeFullScreen = false;
+	
     // keys
 	private:
 	uint8 fUpKey;
@@ -448,8 +550,6 @@ class PretendoWindow : public BWindow
 	}	
 };
 
-
 				
 #endif // _PRETENDO_WINDOW_H_
-
 

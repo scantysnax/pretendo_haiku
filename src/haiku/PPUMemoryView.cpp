@@ -1,10 +1,13 @@
 
 #include "PPUMemoryView.h"
 
+#include "Cart.h"
 #include "DebugHelpers.h"
 #include "PretendoWindow.h"
 
 #include "Ppu.h"
+
+#include <cmath>
 
 
 class PPUMemoryScrollBar : public BScrollBar
@@ -81,6 +84,10 @@ PPUMemoryView::AttachedToWindow()
 void
 PPUMemoryView::Pulse()
 {
+	if (!HasROMLoaded()) {
+		return;
+	}
+
 	if (!fFreezeUpdates) {
 		Invalidate();
 	}
@@ -88,9 +95,20 @@ PPUMemoryView::Pulse()
 
 
 void
-PPUMemoryView::KeyDown (const char* bytes, int32 numBytes)
+PPUMemoryView::KeyDown(const char* bytes, int32 numBytes)
 {
 	if (numBytes <= 0) {
+		return;
+	}
+
+	if (!HasROMLoaded()) {
+		if (bytes[0] == ' ') {
+			fFreezeUpdates = !fFreezeUpdates;
+			Invalidate();
+			return;
+		}
+
+		BView::KeyDown(bytes, numBytes);
 		return;
 	}
 
@@ -154,6 +172,19 @@ PPUMemoryView::KeyDown (const char* bytes, int32 numBytes)
 }
 
 
+// -----------------------------------------------------------------------------
+// PPUMemoryView::Draw
+//
+// Draws the PPU memory viewer.  If no ROM is loaded, the header remains visible,
+// the scrollbar is hidden, and the memory panel shows a friendly empty-state
+// message instead of zeroed memory.
+//
+// Parameters:
+//   updateRect - Area being redrawn.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PPUMemoryView::Draw (BRect updateRect)
 {
@@ -162,7 +193,39 @@ PPUMemoryView::Draw (BRect updateRect)
 	SetHighColor(216, 216, 216);
 	FillRect(Bounds());
 
+	const bool hasROM = HasROMLoaded();
+
+	if (fScrollBar) {
+		if (hasROM && fScrollBar->IsHidden())
+			fScrollBar->Show();
+		else if (!hasROM && !fScrollBar->IsHidden())
+			fScrollBar->Hide();
+	}
+
 	DrawHeaderPanel();
+
+	const float rightEdge = (fScrollBar && !fScrollBar->IsHidden())
+		? fScrollBar->Frame().left - 4.0f
+		: Bounds().right - 4.0f;
+
+	BRect panel(
+		4.0f,
+		88.0f,
+		rightEdge,
+		Bounds().bottom - 8.0f
+	);
+
+	if (!hasROM) {
+		if (fBaseAddress != 0x0000) {
+			fBaseAddress = 0x0000;
+			UpdateScrollBar();
+		}
+
+		::DrawDebugPanel(this, panel, "PPU Memory");
+		DrawNoROMMessage(panel);
+		return;
+	}
+
 	DrawMemoryPanel();
 }
 
@@ -250,6 +313,10 @@ PPUMemoryView::UpdateScrollBar()
 void
 PPUMemoryView::ScrollBarChanged(float value)
 {
+	if (!HasROMLoaded()) {
+		return;
+	}
+	
 	if (fUpdatingScrollBar) {
 		return;
 	}
@@ -284,7 +351,7 @@ PPUMemoryView::ScrollBarChanged(float value)
 void
 PPUMemoryView::DrawHeaderPanel()
 {
-	const float rightEdge = fScrollBar
+	const float rightEdge = (fScrollBar && !fScrollBar->IsHidden())
 		? fScrollBar->Frame().left - 4.0f
 		: Bounds().right - 4.0f;
 
@@ -331,7 +398,7 @@ PPUMemoryView::DrawHeaderPanel()
 void
 PPUMemoryView::DrawMemoryPanel()
 {
-	const float rightEdge = fScrollBar
+	const float rightEdge = (fScrollBar && !fScrollBar->IsHidden())
 		? fScrollBar->Frame().left - 4.0f
 		: Bounds().right - 4.0f;
 
@@ -432,6 +499,76 @@ PPUMemoryView::DrawMemoryPanel()
 	SetFont(&prevFont);
 }
 
+// -----------------------------------------------------------------------------
+// PPUMemoryView::HasROMLoaded
+//
+// Returns whether a cartridge mapper is currently available.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   true if a ROM/mapper is currently loaded.
+// -----------------------------------------------------------------------------
+bool
+PPUMemoryView::HasROMLoaded() const
+{
+	return nes::cart.mapper() != nullptr;
+}
+
+
+// -----------------------------------------------------------------------------
+// PPUMemoryView::DrawNoROMMessage
+//
+// Draws a friendly empty-state message when the PPU Memory window is opened
+// without a loaded ROM.
+//
+// Parameters:
+//   panel - Bounds in which the empty-state message should be centered.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PPUMemoryView::DrawNoROMMessage(BRect panel)
+{
+	BFont prevFont;
+	GetFont(&prevFont);
+
+	BFont font = prevFont;
+	font.SetSize(12.0f);
+	SetFont(&font);
+
+	const char* title = "No ROM loaded"; 
+	const char* detail = "Load a cartridge to inspect PPU memory.";
+
+	font_height fh;
+	GetFontHeight(&fh);
+
+	const float centerX = panel.left + (panel.Width() * 0.5f);
+	const float centerY = panel.top + (panel.Height() * 0.5f);
+
+	SetHighColor(80, 80, 80, 255);
+	DrawString(
+		title,
+		BPoint(
+			centerX - (StringWidth(title) * 0.5f),
+			centerY - 8.0f
+		)
+	);
+
+	SetHighColor(120, 120, 120, 255);
+	DrawString(
+		detail,
+		BPoint(
+			centerX - (StringWidth(detail) * 0.5f),
+			centerY + fh.ascent + 8.0f
+		)
+	);
+
+	SetFont(&prevFont);
+}
+
 
 // -----------------------------------------------------------------------------
 // PPUMemoryView::SetBaseAddress
@@ -458,7 +595,8 @@ PPUMemoryView::SetBaseAddress(uint16 address)
 // -----------------------------------------------------------------------------
 // PPUMemoryView::ScrollRows
 //
-// Scrolls the memory viewer by a signed number of 16-byte rows.
+// Scrolls the memory viewer by a signed number of 16-byte rows.  Scrolling is
+// clamped to the valid PPU memory range instead of wrapping around.
 //
 // Parameters:
 //   rows - Number of rows to scroll.  Negative values scroll upward; positive
@@ -468,12 +606,18 @@ PPUMemoryView::SetBaseAddress(uint16 address)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-PPUMemoryView::ScrollRows(int32 rows)
+PPUMemoryView::ScrollRows (int32 rows)
 {
-	int32 address = static_cast<int32>(fBaseAddress);
+	int32 address = static_cast<int32>(fBaseAddress & 0x3ff0);
 	address += rows * 16;
 
-	address &= 0x3ff0;
+	if (address < 0x0000) {
+		address = 0x0000;
+	}
+
+	if (address > 0x3ff0) {
+		address = 0x3ff0;
+	}
 
 	fBaseAddress = static_cast<uint16>(address);
 

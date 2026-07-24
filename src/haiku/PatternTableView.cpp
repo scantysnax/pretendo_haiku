@@ -7,9 +7,13 @@
 // the active tile into CHRExplorerView.
 // -------------------------------------------------------------
 
+#include "Cart.h"
 #include "CHRExplorerView.h"
 #include "DebugHelpers.h"
 #include "PatternTableView.h"
+
+#include <cmath>
+#include <cstring>
 
 
 // -------------------------------------------------------------
@@ -107,16 +111,21 @@ PatternTableView::AttachedToWindow()
 		fCHRExplorer->SetHostPalette(fHostPalette);
 	}
 
-	// Persistent explore mode:
+		// Persistent explore mode:
 	// Seed a default tile so the CHR explorer is never blank.
-	if (fHoverTileIndex < 0)
+	if (fHoverTileIndex < 0) {
 		fHoverTileIndex = 0;
+	}
 
 	fLockedTileIndex = -1;
 	fTileLocked = false;
 
-	UpdateExplorer();
-	NotifyCHRExplorer();
+	if (HasROMLoaded()) {
+		UpdateExplorer();
+		NotifyCHRExplorer();
+	} else if (fCHRExplorer) {
+		fCHRExplorer->Clear();
+	}
 
 	Invalidate();
 }
@@ -127,7 +136,8 @@ PatternTableView::AttachedToWindow()
 //
 // Draws the complete PatternTable UI: background, controls panel,
 // bitmap panel, pattern-table bitmap, overlays, viewport border, and
-// bottom Pattern State panel.
+// bottom Pattern State panel. If no ROM is loaded, the normal UI frame
+// remains visible and the bitmap area shows a friendly empty-state message.
 //
 // Parameters:
 //   updateRect - Invalidated region supplied by the app_server. The
@@ -141,19 +151,21 @@ PatternTableView::Draw (BRect updateRect)
 {
 	(void)updateRect;
 
-	// Clear the full view before redrawing panels and bitmap content.
 	SetHighColor(216, 216, 216);
 	FillRect(Bounds());
 
-	// Compute the bitmap origin once so panels, bitmap, and overlays align.
 	BPoint origin = BitmapOrigin();
 
 	DrawHeaderUI();
-
 	DrawBitmapPanel(origin);
 
+	if (!HasROMLoaded()) {
+		DrawNoROMMessage();
+		DrawPatternStatePanel();
+		return;
+	}
+
 	if (fBitmap && fBits) {
-		// Rebuild the backing bitmap from current CHR/PPU data.
 		memset(fBits, 0x00, fBitmap->BitsLength());
 
 		if (fViewMode == MODE_8x16) {
@@ -165,7 +177,6 @@ PatternTableView::Draw (BRect updateRect)
 		DrawBitmap(fBitmap, origin);
 	}
 
-	// Draw overlays in bitmap-local coordinates.
 	PushState();
 	TranslateBy(origin.x, origin.y);
 
@@ -201,6 +212,10 @@ void
 PatternTableView::MouseDown (BPoint where)
 {
 	MakeFocus(true);
+	
+	if (!HasROMLoaded()) {
+		return;
+	}
 	
 	int32 index = TileIndexFromPoint(where);
 	if (index < 0) {
@@ -246,6 +261,11 @@ void
 PatternTableView::MouseMoved (BPoint where, uint32 transit, const BMessage* msg)
 {
 	(void)msg;
+	
+	if (!HasROMLoaded()) {
+		fMouseValid = false;
+		return;
+	}
 
 	if (transit == B_ENTERED_VIEW) {
 		MakeFocus(true);
@@ -313,6 +333,10 @@ PatternTableView::MouseMoved (BPoint where, uint32 transit, const BMessage* msg)
 void
 PatternTableView::Pulse()
 {
+	if (!HasROMLoaded()) {
+		return;
+	}
+	
 	if (!fTileLocked) {
 		return;
 	}
@@ -347,17 +371,6 @@ PatternTableView::DrawPixel (int32 x, int32 y, uint8 color)
 
 	*(uint8 *)(fBits+x+(y*fRowBytes)) = color;
 }
-
-
-
-// draw a single tile from a pattern table into the pattern-table debug view
-//
-// patternTable = 0 or 1 selecting:
-//      0: pattern table at $0000
-//      1: pattern table at $1000
-//
-// tileIndex = which 8x8 tile inside that table (0-255 per table)
-// tileX/Y   = where to place it in the debug grid (in tiles)
 
 
 // -------------------------------------------------------------
@@ -436,15 +449,6 @@ PatternTableView::DrawTile (uint32 patternTable, int32 tileIndex, int32 tileX, i
 }
 
 
-// draw an entire pattern table as a 16x16 grid of 8x8 tiles.
-//
-// which = 0 or 1 selecting:
-//   0: pattern table at $0000
-//   1: pattern table at $1000
-//
-// each pattern table contains 256 tiles total
-// we visualize them in a 16x16 grid purely for readability
-
 // -------------------------------------------------------------
 // PatternTableView::DrawPatternTable8x8
 //
@@ -477,16 +481,6 @@ PatternTableView::DrawPatternTable8x8 (int32 which)
 		}
 	}
 }
-
-
-// draw the pattern table arranged the way the ppu uses it in 8x16 sprite mode
-//
-// in 8x16 mode, each sprite is made of 2 stacked tiles:
-//   top tile = even index
-//   bottom tile = next odd index
-//
-// the nes does not treat these as independent tiles. they are always paired
-// this function rearranges the linear chr to reflect that pairing
 
 
 // -------------------------------------------------------------
@@ -557,8 +551,9 @@ PatternTableView::DrawPatternTable8x16 (int32 which)
 void
 PatternTableView::NotifyCHRExplorer()
 {
-	if (!fCHRExplorer)
+	if (!fCHRExplorer) {
 		return;
+	}
 
 	Mapper *mapper = nes::cart.mapper();
 
@@ -601,8 +596,7 @@ PatternTableView::NotifyCHRExplorer()
 	}
 
 	int32 topIndex = index & ~0x1;
-	uint32 topAddr = (fWhichPatternTable ? 0x1000 : 0x0000)
-		+ (topIndex * 16);
+	uint32 topAddr = (fWhichPatternTable ? 0x1000 : 0x0000) + (topIndex * 16);
 	uint32 bottomAddr = topAddr + 16;
 
 	uint8 topBytes[16];
@@ -838,18 +832,6 @@ PatternTableView::DrawOverlays()
 }
 
 
-// -------------------------------------------------------------
-// PatternTableView::SetViewMode
-//
-// Switches between normal 8x8 display and 8x16 sprite-pair display.
-// Selection state is normalized to an even tile when entering 8x16 mode.
-//
-// Parameters:
-//   vm - New view mode.
-//
-// Returns:
-//   Nothing.
-// -------------------------------------------------------------
 void
 PatternTableView::SetViewMode(view_mode vm)
 {
@@ -859,24 +841,27 @@ PatternTableView::SetViewMode(view_mode vm)
 
 	fViewMode = vm;
 
-	// in 8x16 mode the top tile must be even
+	// In 8x16 mode the top tile must be even.
 	if (Show8x16()) {
-		if (fHoverTileIndex >= 0)
+		if (fHoverTileIndex >= 0) {
 			fHoverTileIndex &= ~0x1;
+		}
 
 		if (fLockedTileIndex >= 0) {
 			fLockedTileIndex &= ~0x1;
 		}
 	}
 
-	// prevent stale explorer data when switching modes
+	// Prevent stale explorer data when switching modes.
 	if (fCHRExplorer) {
 		fCHRExplorer->Clear();
 	}
 
-	UpdateExplorer();
-	NotifyCHRExplorer();
-	
+	if (HasROMLoaded()) {
+		UpdateExplorer();
+		NotifyCHRExplorer();
+	}
+
 	Invalidate();
 }
 
@@ -1118,20 +1103,20 @@ PatternTableView::DrawPatternStatePanel()
 		textY += lineH;
 	};
 
-	s.SetToFormat("%ld", (long)fWhichPatternTable);
+	s.SetToFormat("%ld", static_cast<long>(fWhichPatternTable));
 	drawKV("PT:", s.String());
 
-	s.SetToFormat("$%04lX", (unsigned long)base);
+	s.SetToFormat("$%04lX", static_cast<unsigned long>(base));
 	drawKV("Base:", s.String());
 
 	drawKV("Mode:", Show8x16() ? "8x16" : "8x8");
 
 	if (index >= 0) {
 		uint32 addr = base + ((index & 0xff) * 16);
-		s.SetToFormat("$%02lX", (long)(index & 0xff));
+		s.SetToFormat("$%02lX", static_cast<unsigned long>(index & 0xff));
 		drawKV("Tile:", s.String());
 
-		s.SetToFormat("$%04lX", (unsigned long)addr);
+		s.SetToFormat("$%04lX", static_cast<unsigned long>(addr));
 		drawKV("CHR:", s.String());
 
 		drawKV("State:", fTileLocked ? "LOCKED" : "HOVER");
@@ -1219,5 +1204,88 @@ PatternTableView::DrawHeaderUI()
 	drawKV("Zoom:",  "toggle 8x16 mode");
 	drawKV("Mouse:", "move explore / click lock");
 	drawKV("CHR:",   "1-4 palette / 0 source");
+}
+
+
+// -----------------------------------------------------------------------------
+// PatternTableView::HasROMLoaded
+//
+// Returns whether a cartridge mapper is currently available.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   true if a ROM/mapper is currently loaded.
+// -----------------------------------------------------------------------------
+bool
+PatternTableView::HasROMLoaded() const
+{
+	return nes::cart.mapper() != nullptr;
+}
+
+
+// -----------------------------------------------------------------------------
+// PatternTableView::DrawNoROMMessage
+//
+// Draws a friendly empty-state message in the pattern-table bitmap area when
+// the pattern table window is opened without a loaded ROM.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PatternTableView::DrawNoROMMessage()
+{
+	BPoint origin = BitmapOrigin();
+
+	BRect panel(
+		origin.x,
+		origin.y,
+		origin.x + 255.0f,
+		origin.y + 255.0f
+	);
+
+	SetHighColor(230, 230, 230);
+	FillRect(panel);
+
+	SetHighColor(160, 160, 160);
+	StrokeRect(panel);
+
+	BFont prevFont;
+	GetFont(&prevFont);
+
+	BFont font = prevFont;
+	font.SetSize(12.0f);
+	SetFont(&font);
+
+	const char *title = "No ROM loaded";
+	const char *detail = "Load a cartridge to view pattern tables.";
+
+	font_height fh;
+	GetFontHeight(&fh);
+
+	const float titleWidth = StringWidth(title);
+	const float detailWidth = StringWidth(detail);
+
+	const float centerX = panel.left + (panel.Width() * 0.5f);
+	const float centerY = panel.top + (panel.Height() * 0.5f);
+
+	SetHighColor(80, 80, 80);
+	DrawString(
+		title,
+		BPoint(centerX - (titleWidth * 0.5f), centerY - 8.0f)
+	);
+
+	SetHighColor(120, 120, 120);
+	DrawString(
+		detail,
+		BPoint(centerX - (detailWidth * 0.5f), centerY + fh.ascent + 8.0f)
+	);
+
+	SetFont(&prevFont);
 }
 

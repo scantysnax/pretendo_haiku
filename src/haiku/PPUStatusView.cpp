@@ -1,9 +1,12 @@
 
 #include "PPUStatusView.h"
 
+#include "Cart.h"
 #include "DebugHelpers.h"
 #include "Ppu.h"
 #include "PretendoWindow.h"
+
+#include <cmath>
 
 
 static void
@@ -40,9 +43,25 @@ PPUStatusView::AttachedToWindow()
 }
 
 
+// -----------------------------------------------------------------------------
+// PPUStatusView::Pulse
+//
+// Refreshes the PPU status viewer while a ROM is loaded.  If no ROM is loaded,
+// the empty-state view is static and does not need continuous redraws.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PPUStatusView::Pulse()
 {
+	if (!HasROMLoaded()) {
+		return;
+	}
+
 	Invalidate();
 }
 
@@ -52,10 +71,24 @@ PPUStatusView::Draw (BRect updateRect)
 {
 	(void)updateRect;
 
-	SetHighColor(216, 216, 216);
+	SetHighColor(216, 216, 216, 255);
 	FillRect(Bounds());
 
 	DrawHeaderPanel();
+
+	if (!HasROMLoaded()) {
+		BRect panel(
+			4.0f,
+			74.0f,
+			Bounds().right - 4.0f,
+			Bounds().bottom - 8.0f
+		);
+
+		::DrawDebugPanel(this, panel, "PPU State");
+		DrawNoROMMessage(panel);
+		return;
+	}
+
 	DrawRegisterPanel();
 	DrawTimingPanel();
 	DrawControlPanel();
@@ -304,8 +337,12 @@ PPUStatusView::DrawControlPanel()
 	s.SetToFormat("%u", static_cast<unsigned>(coarseY));
 	drawRightKV("Coarse Y:", s.String());
 
-	s.SetToFormat("%u / %u", static_cast<unsigned>(ntX), 
-							 static_cast<unsigned>(ntY));
+	s.SetToFormat(
+		"%u / %u",
+		static_cast<unsigned>(ntX),
+		static_cast<unsigned>(ntY)
+	
+	);
 	drawRightKV("NT X/Y:", s.String());
 
 	s.SetToFormat("%u", static_cast<unsigned>(fineY));
@@ -595,4 +632,77 @@ PPUStatusView::DrawTimingPanel()
 	DrawString(region, BPoint(rightValueX, rightY));
 	rightY += lineH;
 }
+
+
+// -----------------------------------------------------------------------------
+// PPUStatusView::HasROMLoaded
+//
+// Returns whether a cartridge mapper is currently available.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   true if a ROM/mapper is currently loaded.
+// -----------------------------------------------------------------------------
+bool
+PPUStatusView::HasROMLoaded() const
+{
+	return nes::cart.mapper() != nullptr;
+}
+
+
+// -----------------------------------------------------------------------------
+// PPUStatusView::DrawNoROMMessage
+//
+// Draws a friendly empty-state message when the PPU Status window is opened
+// without a loaded ROM.
+//
+// Parameters:
+//   panel - Bounds in which the empty-state message should be centered.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PPUStatusView::DrawNoROMMessage (BRect panel)
+{
+	BFont oldFont;
+	GetFont(&oldFont);
+
+	BFont font = oldFont;
+	font.SetSize(12.0f);
+	SetFont(&font);
+
+	const char* title = "No ROM loaded";
+	const char* detail = "Load a cartridge to inspect PPU state.";
+
+	font_height fh;
+	GetFontHeight(&fh);
+
+	const float centerX = panel.left + (panel.Width() * 0.5f);
+	const float centerY = panel.top + (panel.Height() * 0.5f);
+
+	SetHighColor(80, 80, 80, 255);
+	DrawString(
+		title,
+		BPoint(
+			centerX - (StringWidth(title) * 0.5f),
+			centerY - 8.0f
+		)
+	);
+
+	SetHighColor(120, 120, 120, 255);
+	DrawString(
+		detail,
+		BPoint(
+			centerX - (StringWidth(detail) * 0.5f),
+			centerY + fh.ascent + 8.0f
+		)
+	);
+
+	SetFont(&oldFont);
+}
+
+
 

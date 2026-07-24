@@ -39,6 +39,10 @@ class PPUWriteLogView : public BView
 	private:
 	const char *RegisterName (uint16 address) const;
 	void DescribeWrite (uint16 address, uint8 value, BString &text) const;
+	
+	private:
+	bool HasROMLoaded() const;
+	void DrawNoROMMessage (BRect panel);
 
 	private:
 	PretendoWindow *fParent = nullptr;

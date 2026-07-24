@@ -1,6 +1,8 @@
 
-#include "Cpu.h"
 #include "CPUStatusView.h"
+
+#include "Cart.h"
+#include "Cpu.h"
 #include "DebugHelpers.h"
 #include "PretendoWindow.h"
 
@@ -16,7 +18,7 @@ SetStateColor (BView *view, bool active)
 }
 
 
-CPUStatusView::CPUStatusView(BRect frame, PretendoWindow *parent)
+CPUStatusView::CPUStatusView (BRect frame, PretendoWindow *parent)
 	: BView(frame, "cpu_status_view", B_FOLLOW_ALL_SIDES,
 			B_WILL_DRAW | B_PULSE_NEEDED | B_FRAME_EVENTS)
 {
@@ -39,13 +41,42 @@ CPUStatusView::AttachedToWindow()
 }
 
 
+// -----------------------------------------------------------------------------
+// CPUStatusView::Pulse
+//
+// Refreshes the CPU status viewer while a ROM is loaded.  If no ROM is loaded,
+// the empty-state view is static and does not need continuous redraws.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 CPUStatusView::Pulse()
 {
+	if (!HasROMLoaded()) {
+		return;
+	}
+
 	Invalidate();
 }
 
 
+// -----------------------------------------------------------------------------
+// CPUStatusView::Draw
+//
+// Draws the CPU status viewer.  If no ROM is loaded, the header remains visible
+// and the body shows a friendly empty-state message instead of stale/default CPU
+// state.
+//
+// Parameters:
+//   updateRect - Area being redrawn.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 CPUStatusView::Draw (BRect updateRect)
 {
@@ -55,6 +86,20 @@ CPUStatusView::Draw (BRect updateRect)
 	FillRect(Bounds());
 
 	DrawHeaderPanel();
+
+	if (!HasROMLoaded()) {
+		BRect panel(
+			4.0f,
+			74.0f,
+			Bounds().right - 4.0f,
+			Bounds().bottom - 8.0f
+		);
+
+		::DrawDebugPanel(this, panel, "CPU State");
+		DrawNoROMMessage(panel);
+		return;
+	}
+
 	DrawRegisterPanel();
 	DrawFlagsPanel();
 	DrawTimingPanel();
@@ -373,7 +418,7 @@ CPUStatusView::DrawTimingPanel()
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-CPUStatusView::DrawFlag (BRect rect, const char* name, bool active)
+CPUStatusView::DrawFlag (BRect rect, const char *name, bool active)
 {
 	SetHighColor(245, 245, 245);
 	FillRect(rect);
@@ -393,5 +438,76 @@ CPUStatusView::DrawFlag (BRect rect, const char* name, bool active)
 	SetFontSize(9.0f);
 	SetHighColor(80, 80, 80);
 	DrawString(active ? "1" : "0", BPoint(rect.left + 4.0f, rect.bottom - 5.0f));
+}
+
+
+// -----------------------------------------------------------------------------
+// CPUStatusView::HasROMLoaded
+//
+// Returns whether a cartridge mapper is currently available.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   true if a ROM/mapper is currently loaded.
+// -----------------------------------------------------------------------------
+bool
+CPUStatusView::HasROMLoaded() const
+{
+	return nes::cart.mapper() != nullptr;
+}
+
+
+// -----------------------------------------------------------------------------
+// CPUStatusView::DrawNoROMMessage
+//
+// Draws a friendly empty-state message when the CPU Status window is opened
+// without a loaded ROM.
+//
+// Parameters:
+//   panel - Bounds in which the empty-state message should be centered.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+CPUStatusView::DrawNoROMMessage (BRect panel)
+{
+	BFont prevFont;
+	GetFont(&prevFont);
+
+	BFont font = prevFont;
+	font.SetSize(12.0f);
+	SetFont(&font);
+
+	const char *title = "No ROM loaded";
+	const char *detail = "Load a cartridge to inspect CPU state.";
+
+	font_height fh;
+	GetFontHeight(&fh);
+
+	const float centerX = panel.left + (panel.Width() * 0.5f);
+	const float centerY = panel.top + (panel.Height() * 0.5f);
+
+	SetHighColor(80, 80, 80);
+	DrawString(
+		title,
+		BPoint(
+			centerX - (StringWidth(title) * 0.5f),
+			centerY - 8.0f
+		)
+	);
+
+	SetHighColor(120, 120, 120);
+	DrawString(
+		detail,
+		BPoint(
+			centerX - (StringWidth(detail) * 0.5f),
+			centerY + fh.ascent + 8.0f
+		)
+	);
+
+	SetFont(&prevFont);
 }
 

@@ -12,10 +12,12 @@
 #include "ROMInfoView.h"
 
 
+class PretendoWindow;
+
 class ROMInfoWindow : public BWindow
 {	
 	public:
-			ROMInfoWindow();
+			ROMInfoWindow (PretendoWindow *parent);
 	virtual ~ROMInfoWindow();
 	
 	public:
@@ -28,6 +30,7 @@ class ROMInfoWindow : public BWindow
 	BMessage *fSettingsMessage;
 	
 	private:
+	PretendoWindow *fParent = nullptr;
 	ROMInfoView *fROMInfoView = nullptr;
 };
 

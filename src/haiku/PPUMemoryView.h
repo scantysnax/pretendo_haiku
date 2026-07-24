@@ -23,37 +23,41 @@ class PPUMemoryScrollBar;
 class PPUMemoryView : public BView
 {
 	public:
-			PPUMemoryView(BRect frame, PretendoWindow* parent);
+			PPUMemoryView (BRect frame, PretendoWindow *parent);
 	virtual ~PPUMemoryView();
 
 	virtual void AttachedToWindow();
-	virtual void Draw(BRect updateRect);
-	virtual void KeyDown(const char* bytes, int32 numBytes);
+	virtual void Draw (BRect updateRect);
+	virtual void KeyDown (const char *bytes, int32 numBytes);
 	virtual void Pulse();
-	virtual void FrameResized(float width, float height);
+	virtual void FrameResized (float width, float height);
 
 	private:
 	void DrawHeaderPanel();
 	void DrawMemoryPanel();
+	
+	private:
+	bool HasROMLoaded() const;
+	void DrawNoROMMessage (BRect panel);
 
-	void SetBaseAddress(uint16 address);
-	void ScrollRows(int32 rows);
+	void SetBaseAddress (uint16 address);
+	void ScrollRows (int32 rows);
 
 	void LayoutScrollBar();
 	void UpdateScrollBar();
-	void ScrollBarChanged(float value);
+	void ScrollBarChanged (float value);
 
-	const char* RegionName(uint16 address) const;
+	const char* RegionName (uint16 address) const;
 
 	friend class PPUMemoryScrollBar;
 
 	private:
-	PretendoWindow* fParent = nullptr;
+	PretendoWindow *fParent = nullptr;
 
 	uint16 fBaseAddress = 0x0000;
 	bool fFreezeUpdates = false;
 
-	BScrollBar* fScrollBar = nullptr;
+	BScrollBar *fScrollBar = nullptr;
 	bool fUpdatingScrollBar = false;
 };
 

@@ -1,20 +1,124 @@
 
 #include "PretendoWindow.h"
 
-// nes stuff
-#include "Apu.h"
-#include "Cart.h"
-#include "Input.h"
-#include "Mapper.h"
-#include "Nes.h"
-#include "Palette.h"
-#include "Reset.h"
-
-// mmx blitters and memcpy()
-#include "asm/blitters.h"
-#include "asm/copies.h"
+#include <cstdio>
 
 
+// -----------------------------------------------------------------------------
+// InvalidateWindowContents
+//
+// Invalidates the first child view of a debugger/tool window.  Tool windows own
+// their drawing views, and BWindow itself does not provide Invalidate().
+//
+// Parameters:
+//   window - Tool/debugger window whose main child view should be redrawn.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+static void
+InvalidateWindowContents (BWindow *window)
+{
+	if (!window) {
+		return;
+	}
+
+	if (!window->Lock()) {
+		return;
+	}
+
+	BView *child = window->ChildAt(0);
+
+	if (child) {
+		child->Invalidate();
+	}
+
+	window->Unlock();
+}
+
+
+// -----------------------------------------------------------------------------
+// ResetCPUDisasmWindow
+//
+// Resets and invalidates the CPU disassembly view if the disassembly window is
+// currently open.  This is used on ROM load/reset because InvalidateDebugViews()
+// intentionally skips the disassembler during single-step refreshes.
+//
+// Parameters:
+//   window - CPU disassembly tool window.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+static void
+ResetCPUDisasmWindow (BWindow *window)
+{
+	if (!window) {
+		return;
+	}
+
+	if (!window->Lock()) {
+		return;
+	}
+
+	BView *child = window->ChildAt(0);
+	CPUDisasmView *view = dynamic_cast<CPUDisasmView *>(child);
+
+	if (view) {
+		view->ResetView();
+	} else if (child) {
+		child->Invalidate();
+	}
+
+	window->Unlock();
+}
+
+
+// -----------------------------------------------------------------------------
+// InvalidateViewTree
+//
+// Invalidates a view and all of its child views.  This is useful after display
+// mode changes where app_server backing-store contents may be stale.
+//
+// Parameters:
+//   view - Root view to invalidate.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+static void
+InvalidateViewTree (BView *view)
+{
+	if (!view) {
+		return;
+	}
+
+	view->Invalidate(view->Bounds());
+
+	for (int32 i = 0; ; i++) {
+		BView *child = view->ChildAt(i);
+
+		if (!child) {
+			break;
+		}
+
+		InvalidateViewTree(child);
+	}
+}
+
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::PretendoWindow
+//
+// Creates the main emulator window, initializes menus, video buffers, audio
+// streaming, settings, palette state, and the emulator worker thread.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 PretendoWindow::PretendoWindow()
 	: BWindow (BRect (0, 0, screen_size::WIDTH-1, screen_size::HEIGHT-1), 
 				"Pretendo", B_TITLED_WINDOW, B_NOT_RESIZABLE, 0)		
@@ -107,8 +211,6 @@ PretendoWindow::PretendoWindow()
 	
 	// we can't change to full screen yet
 	fVideoMenu->ItemAt(video_framework::FULLSCREEN)->SetEnabled(false);
-	
-	memset(&fKeyStates, 0, sizeof(key_info));
 
 	fOpenPanel = new ROMFilePanel();
 	fOpenPanel->SetPanelDirectory(fROMDirectory);
@@ -159,7 +261,7 @@ PretendoWindow::PretendoWindow()
 	// eli: we need to grab the palete from PaletteWindow and apply it
 	// 		this is a super hack, but convenient for now
 	// 		this will call the constructor to set the palette
-	fPaletteWindow = new PaletteWindow(this); 
+	fPaletteWindow = new PaletteWindow(this, false); 
 	
 	// dispose of this since we don't need it anymore
 	if (fPaletteWindow->Lock()) {
@@ -176,6 +278,18 @@ PretendoWindow::PretendoWindow()
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::~PretendoWindow
+//
+// Stops and releases emulator resources, closes owned child windows, saves
+// settings, and releases allocated video/audio objects.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 PretendoWindow::~PretendoWindow()
 {	
 	// break everything down and clean up
@@ -198,28 +312,20 @@ PretendoWindow::~PretendoWindow()
 	
 	// we don't delete BWindows, we call Quit()
 	// note: calling  Quit() requires the window to be locked 
-
-	if (fROMInfoWindow != nullptr) {
-		if (fROMInfoWindow->Lock()) {
-			fROMInfoWindow->Quit();
-		}
+	
+	if (fCPUDisasmWindow != nullptr) {
+		fCPUDisasmWindow->Lock();
+		fCPUDisasmWindow->Quit();
 	}
 	
-	if (fPaletteWindow != nullptr) {
-		if (fPaletteWindow->Lock()) {
-			fPaletteWindow->Quit();
-		}
+	if (fCPUStatusWindow != nullptr) {
+		fCPUStatusWindow->Lock();
+		fCPUStatusWindow->Quit();
 	}
 	
-	if (fPatternTable1Window != nullptr) {
-		if (fPatternTable1Window->Lock()) {
-			fPatternTable1Window->Quit();
-		}
-	}
-
-	if (fPatternTable2Window != nullptr) {
-		if (fPatternTable2Window->Lock()) {
-			fPatternTable2Window->Quit();
+	if (fInputWindow != nullptr) {
+		if (fInputWindow->Lock()) {
+			fInputWindow->Quit();
 		}
 	}
 	
@@ -247,15 +353,54 @@ PretendoWindow::~PretendoWindow()
 		}
 	}
 	
-	if (fInputWindow != nullptr) {
-		if (fInputWindow->Lock()) {
-			fInputWindow->Quit();
-		}
+	if (fOAMDebugWindow != nullptr) {
+		fOAMDebugWindow->Lock();
+		fOAMDebugWindow->Quit();
 	}
 	
 	if (fPaletteDebugWindow != nullptr) {
 		fPaletteDebugWindow->Lock();
 		fPaletteDebugWindow->Quit();
+	}
+	
+	if (fPaletteWindow != nullptr) {
+		if (fPaletteWindow->Lock()) {
+			fPaletteWindow->Quit();
+		}
+	}
+	
+	if (fPatternTable1Window != nullptr) {
+		if (fPatternTable1Window->Lock()) {
+			fPatternTable1Window->Quit();
+		}
+	}
+
+	if (fPatternTable2Window != nullptr) {
+		if (fPatternTable2Window->Lock()) {
+			fPatternTable2Window->Quit();
+		}
+	}
+	
+	if (fPPUMemoryWindow != nullptr) {
+		fPPUMemoryWindow->Lock();
+		fPPUMemoryWindow->Quit();
+	}
+	
+	
+	if (fPPUStatusWindow != nullptr) {
+		fPPUStatusWindow->Lock();
+		fPPUStatusWindow->Quit();
+	}
+	
+	if (fPPUWriteLogWindow != nullptr) {
+		fPPUWriteLogWindow->Lock();
+		fPPUWriteLogWindow->Quit();
+	}
+	
+	if (fROMInfoWindow != nullptr) {
+		if (fROMInfoWindow->Lock()) {
+			fROMInfoWindow->Quit();
+		}
 	}
 	
 	// long day.
@@ -273,18 +418,36 @@ PretendoWindow::~PretendoWindow()
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::MessageReceived
+//
+// Dispatches application messages from menus, file refs, video rendering,
+// emulator controls, settings dialogs, and debugger/tool-window commands.
+//
+// Parameters:
+//   message - Message received by the main window.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PretendoWindow::MessageReceived (BMessage *message)
 {
 	switch (message->what) {
 		case messages::DRAW_BITMAP:
-			// this has to go here, since the window is apparently guaranteed to be locked
-			fView->DrawBitmap(fBitmap, fView->Bounds());
+			if (fView && fBitmap) {
+				fView->SetDisplayBitmap(fBitmap);
+				fView->CaptureLastFrame(fBitmap);
+
+				// Keep the existing live-video path working.
+				fView->DrawBitmap(fBitmap, fView->Bounds());
+			}
 			break;
 		
 		case messages::CHANGE_RENDER:
 			ChangeFramework(
-				static_cast<video_framework>(fVideoMenu->IndexOf(fVideoMenu->FindMarked())));
+				static_cast<video_framework>(fVideoMenu->IndexOf(fVideoMenu->FindMarked()))
+			);
 			break;
 		
 		case messages::LEAVE_FULLSCREEN:
@@ -301,8 +464,18 @@ PretendoWindow::MessageReceived (BMessage *message)
 			break;
 			
 		case B_REFS_RECEIVED:
-			be_app->PostMessage(message);
-			break;
+		{
+			entry_ref ref;
+
+			if (message->FindRef("refs", &ref) == B_OK) {
+				BPath path(&ref);
+
+				if (path.InitCheck() == B_OK) {
+					LoadROMPath(path.Path());
+				}
+			}
+			
+		} break;
 
 		case messages::FREE_ROM:
 			OnFreeROM();
@@ -352,27 +525,27 @@ PretendoWindow::MessageReceived (BMessage *message)
 			OnAdjustPalette();
 			break;
 			
-		case messages::SHOW_PTNTBL1:			
+		case messages::VIEW_PTNTBL1:			
 			OnViewPatternTable1();
 			break;
 			
-		case messages::SHOW_PTNTBL2:
+		case messages::VIEW_PTNTBL2:
 			OnViewPatternTable2();
 			break;
 		
-		case messages::SHOW_NTBL1:
+		case messages::VIEW_NTBL1:
 			OnViewNameTable1();
 			break;
 			
-		case messages::SHOW_NTBL2:
+		case messages::VIEW_NTBL2:
 			OnViewNameTable2();
 			break;
 			
-		case messages::SHOW_NTBL3:
+		case messages::VIEW_NTBL3:
 			OnViewNameTable3();
 			break;
 		
-		case messages::SHOW_NTBL4:
+		case messages::VIEW_NTBL4:
 			OnViewNameTable4();
 			break;
 			
@@ -400,45 +573,72 @@ PretendoWindow::MessageReceived (BMessage *message)
 			OnReceiveRomDirectory(message);
 			break;
 			
-		case messages::SHOW_PALDBG:
+		case messages::VIEW_PALDBG:
 			OnViewPaletteDebugger();
 			break;
 			
-		case messages::SHOW_OAMDBG:
+		case messages::VIEW_OAMDBG:
 			OnViewOAMDebugger();
 			break;
 			
-		case messages::SHOW_STATUS:
+		case messages::VIEW_PPUSTAT:
 			OnViewPPUStatusWindow();
 			break;
 			
-		case messages::SHOW_PPULOG:
+		case messages::VIEW_PPULOG:
 			OnViewPPUWriteLogWindow();
 			break;
 			
-		case messages::SHOW_PPUMEM:
+		case messages::VIEW_PPUMEM:
 			OnViewPPUMemoryWindow();
 			break;
 			
-		case messages::SHOW_CPUSTAT:
+		case messages::VIEW_CPUSTAT:
 			OnViewCPUStatusWindow();
+			break;
+			
+		case messages::VIEW_CPUDISASM:
+			OnViewCPUDisasmWindow();
 			break;
 			
 		default:
 			break;
 	}
 		
-	BWindow::MessageReceived (message);
+	BWindow::MessageReceived(message);
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::WindowActivated
+//
+// Handles main-window activation changes.  The current implementation delegates
+// to BWindow and leaves emulator/tool focus state unchanged.
+//
+// Parameters:
+//   flag - true when the window becomes active.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PretendoWindow::WindowActivated (bool flag)
 {
-	BWindow::WindowActivated (flag);	
+	BWindow::WindowActivated(flag);	
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::MenusBeginning
+//
+// Builds the temporary recent-ROM submenu before the menu bar is displayed.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PretendoWindow::MenusBeginning()
 {	
@@ -455,6 +655,17 @@ PretendoWindow::MenusBeginning()
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::MenusEnded
+//
+// Removes the temporary recent-ROM submenu after menu tracking ends.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PretendoWindow::MenusEnded()
 {	
@@ -465,6 +676,18 @@ PretendoWindow::MenusEnded()
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::QuitRequested
+//
+// Requests application shutdown, releases the emulator mutex to stop the worker
+// thread, waits for the thread to exit, and posts B_QUIT_REQUESTED to the app.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   true to allow the window to close.
+// -----------------------------------------------------------------------------
 bool
 PretendoWindow::QuitRequested()
 {	
@@ -485,6 +708,18 @@ PretendoWindow::QuitRequested()
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::ResizeTo
+//
+// Resizes the emulator window while accounting for the menu bar height.
+//
+// Parameters:
+//   width  - Requested client width.
+//   height - Requested emulator-view height, excluding the menu bar.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PretendoWindow::ResizeTo (float width, float height)
 {
@@ -494,6 +729,20 @@ PretendoWindow::ResizeTo (float width, float height)
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::Zoom
+//
+// Toggles between 1x and 2x windowed video sizes and repositions the menu-bar
+// icon.  The default BWindow zoom behavior is intentionally bypassed.
+//
+// Parameters:
+//   origin - Requested zoom origin, unused.
+//   width  - Requested zoom width, unused.
+//   height - Requested zoom height, unused.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PretendoWindow::Zoom (BPoint origin, float width, float height)
 {
@@ -521,6 +770,18 @@ PretendoWindow::Zoom (BPoint origin, float width, float height)
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::AddMenu
+//
+// Builds the main menu bar, emulator controls, video/audio settings menus, and
+// debugger/tool menus.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PretendoWindow::AddMenu()
 {
@@ -576,28 +837,34 @@ PretendoWindow::AddMenu()
 	(fAudioMenu->ItemAt(nes::apu::sound_channel::NOISE))->SetMarked(true);
 	(fAudioMenu->ItemAt(nes::apu::sound_channel::DPCM))->SetMarked(true);
 	
-	fSettingsMenu->AddItem(new BMenuItem("Input" B_UTF8_ELLIPSIS, new BMessage(messages::CFG_INPUT)));
-	fSettingsMenu->AddSeparatorItem();
-	fSettingsMenu->AddItem(new BMenuItem("ROM Directory" B_UTF8_ELLIPSIS, new BMessage(messages::SET_ROMDIR)));
+	fSettingsMenu->AddItem(new BMenuItem("Adjust Palette" B_UTF8_ELLIPSIS, new BMessage(messages::ADJ_PALETTE)));
+	fSettingsMenu->AddItem(new BMenuItem("Setup Input" B_UTF8_ELLIPSIS, new BMessage(messages::CFG_INPUT)));
+	fSettingsMenu->AddItem(new BMenuItem("Set ROM Directory" B_UTF8_ELLIPSIS, new BMessage(messages::SET_ROMDIR)));
 	
-	fToolMenu->AddItem(new BMenuItem("Adjust Palette" B_UTF8_ELLIPSIS, new BMessage(messages::ADJ_PALETTE)));
-	fToolMenu->AddSeparatorItem();
-	fToolMenu->AddItem(new BMenuItem("View PPU Status" B_UTF8_ELLIPSIS, new BMessage(messages::SHOW_STATUS)));
-	fToolMenu->AddItem(new BMenuItem("View PPU Write Log" B_UTF8_ELLIPSIS, new BMessage(messages::SHOW_PPULOG)));
-	fToolMenu->AddItem(new BMenuItem("View PPU Memory" B_UTF8_ELLIPSIS, new BMessage(messages::SHOW_PPUMEM)));
-	fToolMenu->AddItem(new BMenuItem("View CPU Stauts" B_UTF8_ELLIPSIS, new BMessage(messages::SHOW_CPUSTAT)));
+	fCPUToolMenu = new BMenu("CPU");
+	fToolMenu->AddItem(fCPUToolMenu);
+	fCPUToolMenu->AddItem(new BMenuItem("View Status" B_UTF8_ELLIPSIS, new BMessage(messages::VIEW_CPUSTAT)));
+	fCPUToolMenu->AddItem(new BMenuItem("View Disassembly" B_UTF8_ELLIPSIS, new BMessage(messages::VIEW_CPUDISASM)));
+	
+	fPPUToolMenu = new BMenu("PPU");
+	fToolMenu->AddItem(fPPUToolMenu);
+	fPPUToolMenu->AddItem(new BMenuItem("View PPU Status" B_UTF8_ELLIPSIS, new BMessage(messages::VIEW_PPUSTAT)));
+	fPPUToolMenu->AddItem(new BMenuItem("View PPU Write Log" B_UTF8_ELLIPSIS, new BMessage(messages::VIEW_PPULOG)));
+	fPPUToolMenu->AddItem(new BMenuItem("View PPU Memory" B_UTF8_ELLIPSIS, new BMessage(messages::VIEW_PPUMEM)));
+	fPPUToolMenu->AddItem(new BMenuItem("View Palettes", new BMessage(messages::VIEW_PALDBG)));
+	fPPUToolMenu->AddItem(new BMenuItem("View OAM", new BMessage(messages::VIEW_OAMDBG)));
+	fPPUToolMenu->AddSeparatorItem();
 	fPatternTableMenu = new BMenu("View Pattern Tables");
-	fPatternTableMenu->AddItem(new BMenuItem("1 ($0000)", new BMessage(messages::SHOW_PTNTBL1)));
-	fPatternTableMenu->AddItem(new BMenuItem("2 ($1000)", new BMessage(messages::SHOW_PTNTBL2)));
-	fToolMenu->AddItem(fPatternTableMenu);
+	fPatternTableMenu->AddItem(new BMenuItem("1 ($0000)", new BMessage(messages::VIEW_PTNTBL1)));
+	fPatternTableMenu->AddItem(new BMenuItem("2 ($1000)", new BMessage(messages::VIEW_PTNTBL2)));
+	fPPUToolMenu->AddItem(fPatternTableMenu);
+	
 	fNameTableMenu = new BMenu("View Name Tables");
-	fNameTableMenu->AddItem(new BMenuItem("1 ($2000)", new BMessage(messages::SHOW_NTBL1)));
-	fNameTableMenu->AddItem(new BMenuItem("2 ($2400)", new BMessage(messages::SHOW_NTBL2)));
-	fNameTableMenu->AddItem(new BMenuItem("3 ($2800)", new BMessage(messages::SHOW_NTBL3)));
-	fNameTableMenu->AddItem(new BMenuItem("4 ($2C00)", new BMessage(messages::SHOW_NTBL4)));
-	fToolMenu->AddItem(fNameTableMenu);
-	fToolMenu->AddItem(new BMenuItem("View Palettes", new BMessage(messages::SHOW_PALDBG)));
-	fToolMenu->AddItem(new BMenuItem("View OAM", new BMessage(messages::SHOW_OAMDBG)));
+	fNameTableMenu->AddItem(new BMenuItem("1 ($2000)", new BMessage(messages::VIEW_NTBL1)));
+	fNameTableMenu->AddItem(new BMenuItem("2 ($2400)", new BMessage(messages::VIEW_NTBL2)));
+	fNameTableMenu->AddItem(new BMenuItem("3 ($2800)", new BMessage(messages::VIEW_NTBL3)));
+	fNameTableMenu->AddItem(new BMenuItem("4 ($2C00)", new BMessage(messages::VIEW_NTBL4)));
+	fPPUToolMenu->AddItem(fNameTableMenu);
 	
 	// menu icon
 	fMenuBarIcon = new MenuBarIcon(fMenuBar);
@@ -606,44 +873,181 @@ PretendoWindow::AddMenu()
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::OnLoadROM
+//
+// Loads a ROM from a message containing a "rom_path" string.  The actual ROM
+// load/reset/debug refresh work is centralized in LoadROMPath() so manual file
+// loading, recent-document loading, and other future load paths behave the same.
+//
+// Parameters:
+//   message - Message containing the "rom_path" string.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PretendoWindow::OnLoadROM (BMessage *message)
 {
 	BString path;
 	
-	if (message->FindString("rom_path", &path) == B_OK) {
-		OnFreeROM();
-		if (nes::cart.load(path.String()) == false) {
-			(new BAlert("Error", "Error.  Couldnt't load ROM Image.", "Okay", nullptr, nullptr,
-				B_WIDTH_AS_USUAL, B_STOP_ALERT))->Go();
-			return;
-		}
+	if (message->FindString("rom_path", &path) != B_OK) {
+		return;
 	}
+
+	LoadROMPath(path.String());
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::OnFreeROM
+//
+// Stops emulation, clears debugger/input/audio state, unloads the current ROM,
+// clears the cached video frame, and refreshes debugger windows so no stale ROM
+// state remains visible.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PretendoWindow::OnFreeROM()
 {	
 	OnStop();
+
+	ClearControllerInput();
+
+	nes::apu::debug_set_audio_muted(false);
+	nes::ppu::system_paused = false;
+
+	if (fAudioStream) {
+		fAudioStream->ClearBuffer();
+		fAudioStream->ResetPacing();
+		fAudioStream->SetMuted(false);
+	}
+
 	nes::cart.unload();
+	
+	ClearVideoView();
+
+	nes::cpu::debug_clear_instruction_trace();
+
+	InvalidateDebugViews();
+	ResetCPUDisasmWindow(fCPUDisasmWindow);
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::ForceFullRedraw
+//
+// Forces the main emulator window and its child views to redraw after a display
+// mode transition, such as leaving fullscreen.  The function clears the root
+// view background, clears the emulator view, invalidates the view hierarchy, and
+// then asks the window to process pending updates.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::ForceFullRedraw()
+{
+	if (!Lock()) {
+		return;
+	}
+
+	BView *root = ChildAt(0);
+
+	if (root) {
+		root->SetHighColor(216, 216, 216);
+		root->FillRect(root->Bounds());
+		InvalidateViewTree(root);
+	}
+
+	if (fView) {
+		fView->SetHighColor(0, 0, 0);
+		fView->FillRect(fView->Bounds());
+		fView->Invalidate(fView->Bounds());
+	}
+
+	UpdateIfNeeded();
+
+	Unlock();
+
+	RedrawLastFrame();
+}
+
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::ForceFullBitmapRedraw
+//
+// Forces the next DrawBitmap() call to copy the entire emulator back buffer into
+// the windowed front bitmap instead of relying on the dirty buffer.  This is
+// useful after returning from fullscreen, where stale windowed pixels may not be
+// represented in the dirty buffer.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::ForceFullBitmapRedraw()
+{
+	fForceFullBitmapRedraw = true;
+}
+
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::OnROMInfo
+//
+// Opens the ROM information window or brings the existing one forward.  New
+// interactive tool windows claim tool-input ownership so fullscreen global input
+// polling is disabled while the window is open.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PretendoWindow::OnROMInfo()
 {
-	if (fROMInfoWindow && fROMInfoWindow->Lock()) {
-		fROMInfoWindow->Quit();
-		fROMInfoWindow = nullptr;
+	if (fROMInfoWindow) {
+		if (fROMInfoWindow->Lock()) {
+			if (fROMInfoWindow->IsHidden())
+				fROMInfoWindow->Show();
+
+			fROMInfoWindow->Activate(true);
+			fROMInfoWindow->Unlock();
+		}
+
+		return;
 	}
-	
-	if (nes::cart.mapper() != nullptr) { // && ! fROMInfoWindow) {
-		fROMInfoWindow = new ROMInfoWindow();
-		fROMInfoWindow->Show();
-	}
+
+	fROMInfoWindow = new ROMInfoWindow(this);
+	BeginToolInput();
+	fROMInfoWindow->Show();
 }
 
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::OnQuit
+//
+// Handles the Quit menu command by asking the application to terminate.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PretendoWindow::OnQuit()
 {	
@@ -652,6 +1056,19 @@ PretendoWindow::OnQuit()
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::OnRun
+//
+// Starts or resumes emulation when a ROM is loaded.  On first run this performs
+// a hard reset, unlocks the emulator mutex, starts audio, and enables fullscreen
+// mode.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PretendoWindow::OnRun()
 {	
@@ -670,6 +1087,18 @@ PretendoWindow::OnRun()
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::OnStop
+//
+// Stops emulation, reacquires the emulator mutex when needed, stops audio,
+// clears the active video target, and disables fullscreen mode.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PretendoWindow::OnStop()
 {		
@@ -701,6 +1130,18 @@ PretendoWindow::OnStop()
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::OnPause
+//
+// Toggles pause while the emulator is running by locking or unlocking the
+// emulator mutex and starting or stopping host audio playback.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PretendoWindow::OnPause()
 {	
@@ -724,6 +1165,17 @@ PretendoWindow::OnPause()
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::OnSoftReset
+//
+// Performs a soft reset of the loaded emulator state.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PretendoWindow::OnSoftReset()
 {
@@ -731,6 +1183,17 @@ PretendoWindow::OnSoftReset()
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::OnHardReset
+//
+// Performs a hard reset of the loaded emulator state.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PretendoWindow::OnHardReset()
 {
@@ -738,19 +1201,51 @@ PretendoWindow::OnHardReset()
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::OnConfigureInput
+//
+// Opens the input configuration window or brings the existing one forward.  New
+// interactive tool windows claim tool-input ownership so fullscreen global input
+// polling is disabled while the window is open.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PretendoWindow::OnConfigureInput()
 {
-	if (fInputWindow && fInputWindow->Lock()) {
-		fInputWindow->Quit();
-		fInputWindow = nullptr;
+	if (fInputWindow) {
+		if (fInputWindow->Lock()) {
+			if (fInputWindow->IsHidden())
+				fInputWindow->Show();
+
+			fInputWindow->Activate(true);
+			fInputWindow->Unlock();
+		}
+
+		return;
 	}
-		
+
 	fInputWindow = new InputWindow(this);
-	fInputWindow->Show();	
+	BeginToolInput();
+	fInputWindow->Show();
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::OnSetRomDirectory
+//
+// Opens a directory-selection panel used to choose the default ROM directory.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PretendoWindow::OnSetRomDirectory()
 {
@@ -762,133 +1257,290 @@ PretendoWindow::OnSetRomDirectory()
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::OnAdjustPalette
+//
+// Opens the interactive palette adjustment window or brings the existing one
+// forward.  This path uses the normal notifying PaletteWindow constructor and
+// claims tool-input ownership while the window is open.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PretendoWindow::OnAdjustPalette()
 {
-	if (fPaletteWindow != nullptr) {
-		fPaletteWindow->Lock();
-		fPaletteWindow->Quit();
-		fPaletteWindow = nullptr;
-	} 
 	
-	if (fPaletteWindow == nullptr) {
-		fPaletteWindow = new PaletteWindow(this);
+	if (fPaletteWindow) {
+		if (fPaletteWindow->Lock()) {
+			if (fPaletteWindow->IsHidden())
+				fPaletteWindow->Show();
+
+			fPaletteWindow->Activate(true);
+			fPaletteWindow->Unlock();
+		}
+
+		return;
 	}
-	
+
+	fPaletteWindow = new PaletteWindow(this);
+	BeginToolInput();
 	fPaletteWindow->Show();
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::OnViewPatternTable1
+//
+// Opens pattern table window 1, or brings the existing window forward.  New
+// windows claim tool-input ownership and are connected to open name table views.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PretendoWindow::OnViewPatternTable1()
 {
-	if (!nes::cart.mapper())
-		return;
+	if (fPatternTable1Window) {
+		if (fPatternTable1Window->Lock()) {
+			if (fPatternTable1Window->IsHidden())
+				fPatternTable1Window->Show();
 
-	if (fPatternTable1Window && fPatternTable1Window->Lock()) {
-		fPatternTable1Window->Quit();
-		fPatternTable1Window = nullptr;
+			fPatternTable1Window->Activate(true);
+			fPatternTable1Window->Unlock();
+		}
+
+		return;
 	}
 
 	fPatternTable1Window = new PatternTableWindow(this, 0);
+	BeginToolInput();
 	fPatternTable1Window->Show();
 
 	ConnectDebugViews();
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::OnViewPatternTable2
+//
+// Opens pattern table window 2, or brings the existing window forward.  New
+// windows claim tool-input ownership and are connected to open name table views.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PretendoWindow::OnViewPatternTable2()
 {
-	if (!nes::cart.mapper())
-		return;
+	if (fPatternTable2Window) {
+		if (fPatternTable2Window->Lock()) {
+			if (fPatternTable2Window->IsHidden())
+				fPatternTable2Window->Show();
 
-	if (fPatternTable2Window && fPatternTable2Window->Lock()) {
-		fPatternTable2Window->Quit();
-		fPatternTable2Window = nullptr;
+			fPatternTable2Window->Activate(true);
+			fPatternTable2Window->Unlock();
+		}
+
+		return;
 	}
 
 	fPatternTable2Window = new PatternTableWindow(this, 1);
+	BeginToolInput();
 	fPatternTable2Window->Show();
 
 	ConnectDebugViews();
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::OnViewNameTable1
+//
+// Opens name table window 1, or brings the existing window forward.  The window
+// is connected to the current pattern table windows and claims tool-input
+// ownership while open.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PretendoWindow::OnViewNameTable1()
 {
-	if (fNameTable1Window && fNameTable1Window->Lock()) {
-		fNameTable1Window->Quit();
-		fNameTable1Window = nullptr;
+	if (fNameTable1Window) {
+		if (fNameTable1Window->Lock()) {
+			if (fNameTable1Window->IsHidden())
+				fNameTable1Window->Show();
+
+			fNameTable1Window->Activate(true);
+			fNameTable1Window->Unlock();
+		}
+
+		return;
 	}
 
-	if (nes::cart.mapper() != nullptr) {
-		fNameTable1Window = new NameTableWindow(this, 0,
-			fPatternTable1Window, fPatternTable2Window);
-		fNameTable1Window->Show();
+	fNameTable1Window = new NameTableWindow(
+		this,
+		0,
+		fPatternTable1Window,
+		fPatternTable2Window
+	);
+
+	BeginToolInput();
+	fNameTable1Window->Show();
 		
-		ConnectDebugViews();
-	}
-	
-	
+	ConnectDebugViews();	
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::OnViewNameTable2
+//
+// Opens name table window 2, or brings the existing window forward.  The window
+// is connected to the current pattern table windows and claims tool-input
+// ownership while open.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PretendoWindow::OnViewNameTable2()
 {
-	if (fNameTable2Window && fNameTable2Window->Lock()) {
-		fNameTable2Window->Quit();
-		fNameTable2Window = nullptr;
+	if (fNameTable2Window) {
+		if (fNameTable2Window->Lock()) {
+			if (fNameTable2Window->IsHidden())
+				fNameTable2Window->Show();
+
+			fNameTable2Window->Activate(true);
+			fNameTable2Window->Unlock();
+		}
+
+		return;
 	}
 
-	if (nes::cart.mapper() != nullptr) {
-		fNameTable2Window = new NameTableWindow(this, 1,
-			fPatternTable1Window, fPatternTable2Window);
-		fNameTable2Window->Show();
+	fNameTable2Window = new NameTableWindow(
+		this,
+		1,
+		fPatternTable1Window,
+		fPatternTable2Window
+	);
+
+	BeginToolInput();
+	fNameTable2Window->Show();
 		
-		ConnectDebugViews();
-	}
+	ConnectDebugViews();
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::OnViewNameTable3
+//
+// Opens name table window 3, or brings the existing window forward.  The window
+// is connected to the current pattern table windows and claims tool-input
+// ownership while open.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PretendoWindow::OnViewNameTable3()
 {
-	if (fNameTable3Window && fNameTable3Window->Lock()) {
-		fNameTable3Window->Quit();
-		fNameTable3Window = nullptr;
-	}
+	if (fNameTable3Window) {
+		if (fNameTable3Window->Lock()) {
+			if (fNameTable3Window->IsHidden())
+				fNameTable3Window->Show();
 
-	if (nes::cart.mapper() != nullptr) {
-		fNameTable3Window = new NameTableWindow(this, 2,
-			fPatternTable1Window, fPatternTable2Window);
-		fNameTable3Window->Show();
-		
-		ConnectDebugViews();
+			fNameTable3Window->Activate(true);
+			fNameTable3Window->Unlock();
+		}
+
+		return;
 	}
+	
+	fNameTable3Window = new NameTableWindow(
+		this,
+		2,
+		fPatternTable1Window,
+		fPatternTable2Window
+	);
+
+	BeginToolInput();
+	fNameTable3Window->Show();
+		
+	ConnectDebugViews();
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::OnViewNameTable4
+//
+// Opens name table window 4, or brings the existing window forward.  The window
+// is connected to the current pattern table windows and claims tool-input
+// ownership while open.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PretendoWindow::OnViewNameTable4()
 {
-	if (fNameTable4Window && fNameTable4Window->Lock()) {
-		fNameTable4Window->Quit();
-		fNameTable4Window = nullptr;
+	if (fNameTable4Window) {
+		if (fNameTable4Window->Lock()) {
+			if (fNameTable4Window->IsHidden())
+				fNameTable4Window->Show();
+
+			fNameTable4Window->Activate(true);
+			fNameTable4Window->Unlock();
+		}
+
+		return;
 	}
 
-	if (nes::cart.mapper() != nullptr) {
-		fNameTable4Window = new NameTableWindow(this, 3,
-			fPatternTable1Window, fPatternTable2Window);
-		fNameTable4Window->Show();
+	fNameTable4Window = new NameTableWindow(
+		this,
+		3,
+		fPatternTable1Window,
+		fPatternTable2Window
+	);
+
+	BeginToolInput();
+	fNameTable4Window->Show();
 		
-		ConnectDebugViews();
-	}
+	ConnectDebugViews();
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::OnAudioSquare1
+//
+// Toggles the APU square 1 channel menu state and mutes or unmutes that channel.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PretendoWindow::OnAudioSquare1()
 {
@@ -904,6 +1556,17 @@ PretendoWindow::OnAudioSquare1()
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::OnAudioSquare2
+//
+// Toggles the APU square 2 channel menu state and mutes or unmutes that channel.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PretendoWindow::OnAudioSquare2()
 {	
@@ -919,6 +1582,17 @@ PretendoWindow::OnAudioSquare2()
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::OnAudioTriangle
+//
+// Toggles the APU triangle channel menu state and mutes or unmutes that channel.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PretendoWindow::OnAudioTriangle()
 {
@@ -934,6 +1608,17 @@ PretendoWindow::OnAudioTriangle()
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::OnAudioNoise
+//
+// Toggles the APU noise channel menu state and mutes or unmutes that channel.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PretendoWindow::OnAudioNoise()
 {
@@ -949,6 +1634,17 @@ PretendoWindow::OnAudioNoise()
 }
 
 	
+// -----------------------------------------------------------------------------
+// PretendoWindow::OnAudioDMC
+//
+// Toggles the APU DMC/DPCM channel menu state and mutes or unmutes that channel.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void 
 PretendoWindow::OnAudioDMC()
 {
@@ -964,6 +1660,18 @@ PretendoWindow::OnAudioDMC()
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::OnReceiveRomDirectory
+//
+// Stores the selected ROM directory from a file-panel message, or falls back to
+// /boot/home when the message does not contain a valid ref.
+//
+// Parameters:
+//   message - Directory-selection message from the ROM directory panel.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PretendoWindow::OnReceiveRomDirectory (BMessage *message)
 {
@@ -982,12 +1690,22 @@ PretendoWindow::OnReceiveRomDirectory (BMessage *message)
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::OnViewPaletteDebugger
+//
+// Opens the palette debugger window or brings the existing one forward.  New
+// interactive tool windows claim tool-input ownership so fullscreen global input
+// polling is disabled while the window is open.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PretendoWindow::OnViewPaletteDebugger()
 {
-	if (!nes::cart.mapper())
-		return;
-
 	// If the Palette Viewer already exists, do not toggle it closed.
 	// Bring it forward instead.
 	if (fPaletteDebugWindow) {
@@ -1003,16 +1721,27 @@ PretendoWindow::OnViewPaletteDebugger()
 	}
 
 	fPaletteDebugWindow = new PaletteDebugWindow(this);
+	BeginToolInput();
 	fPaletteDebugWindow->Show();
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::OnViewOAMDebugger
+//
+// Opens the OAM debugger window or brings the existing one forward.  New
+// interactive tool windows claim tool-input ownership so fullscreen global input
+// polling is disabled while the window is open.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PretendoWindow::OnViewOAMDebugger()
 {
-	if (!nes::cart.mapper())
-		return;
-
 	if (fOAMDebugWindow) {
 		if (fOAMDebugWindow->Lock()) {
 			if (fOAMDebugWindow->IsHidden())
@@ -1026,98 +1755,516 @@ PretendoWindow::OnViewOAMDebugger()
 	}
 
 	fOAMDebugWindow = new OAMDebugWindow(this);
+	BeginToolInput();
 	fOAMDebugWindow->Show();
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::OnViewPPUStatusWindow
+//
+// Opens the PPU status window or brings the existing one forward.  New
+// interactive tool windows claim tool-input ownership so fullscreen global input
+// polling is disabled while the window is open.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PretendoWindow::OnViewPPUStatusWindow()
 {
 	if (fPPUStatusWindow) {
-		fPPUStatusWindow->Activate();
+		if (fPPUStatusWindow->Lock()) {
+			if (fPPUStatusWindow->IsHidden())
+				fPPUStatusWindow->Show();
+
+			fPPUStatusWindow->Activate(true);
+			fPPUStatusWindow->Unlock();
+		}
+
 		return;
 	}
 
 	fPPUStatusWindow = new PPUStatusWindow(this);
+	BeginToolInput();
 	fPPUStatusWindow->Show();
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::OnViewPPUWriteLogWindow
+//
+// Opens the PPU write-log window or brings the existing one forward.  New
+// interactive tool windows claim tool-input ownership so fullscreen global input
+// polling is disabled while the window is open.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PretendoWindow::OnViewPPUWriteLogWindow()
 {
 	if (fPPUWriteLogWindow) {
-		fPPUWriteLogWindow->Activate();
+		if (fPPUWriteLogWindow->Lock()) {
+			if (fPPUWriteLogWindow->IsHidden())
+				fPPUWriteLogWindow->Show();
+
+			fPPUWriteLogWindow->Activate(true);
+			fPPUWriteLogWindow->Unlock();
+		}
+
 		return;
 	}
 
 	fPPUWriteLogWindow = new PPUWriteLogWindow(this);
+	BeginToolInput();
 	fPPUWriteLogWindow->Show();
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::OnViewPPUMemoryWindow
+//
+// Opens the PPU memory window or brings the existing one forward.  New
+// interactive tool windows claim tool-input ownership so fullscreen global input
+// polling is disabled while the window is open.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PretendoWindow::OnViewPPUMemoryWindow()
 {
 	if (fPPUMemoryWindow) {
-		fPPUMemoryWindow->Activate();
+		if (fPPUMemoryWindow->Lock()) {
+			if (fPPUMemoryWindow->IsHidden())
+				fPPUMemoryWindow->Show();
+
+			fPPUMemoryWindow->Activate(true);
+			fPPUMemoryWindow->Unlock();
+		}
+
 		return;
 	}
 
 	fPPUMemoryWindow = new PPUMemoryWindow(this);
+	BeginToolInput();
 	fPPUMemoryWindow->Show();
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::OnViewCPUStatusWindow
+//
+// Opens the CPU status window or brings the existing one forward.  New
+// interactive tool windows claim tool-input ownership so fullscreen global input
+// polling is disabled while the window is open.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PretendoWindow::OnViewCPUStatusWindow()
 {
 	if (fCPUStatusWindow) {
-		fCPUStatusWindow->Activate();
+		if (fCPUStatusWindow->Lock()) {
+			if (fCPUStatusWindow->IsHidden())
+				fCPUStatusWindow->Show();
+
+			fCPUStatusWindow->Activate(true);
+			fCPUStatusWindow->Unlock();
+		}
+
 		return;
 	}
 
 	fCPUStatusWindow = new CPUStatusWindow(this);
+	BeginToolInput();
 	fCPUStatusWindow->Show();
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::OnViewCPUDisasmWindow
+//
+// Opens the CPU disassembly window or brings the existing one forward.  New
+// interactive tool windows claim tool-input ownership so fullscreen global input
+// polling is disabled while the window is open.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::OnViewCPUDisasmWindow()
+{
+	if (fCPUDisasmWindow) {
+		if (fCPUDisasmWindow->Lock()) {
+			if (fCPUDisasmWindow->IsHidden())
+				fCPUDisasmWindow->Show();
+
+			fCPUDisasmWindow->Activate(true);
+			fCPUDisasmWindow->Unlock();
+		}
+
+		return;
+	}
+
+	fCPUDisasmWindow = new CPUDisasmWindow(this);
+	BeginToolInput();
+	fCPUDisasmWindow->Show();
+}
+
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::ROMInfoWindowClosed
+//
+// Releases tool-input ownership for the ROM info window and clears the
+// stored window pointer.  This is called by the child window as it closes.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::ROMInfoWindowClosed()
+{
+	EndToolInput();
+	fROMInfoWindow = nullptr;
+}
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::PaletteWindowClosed
+//
+// Releases tool-input ownership for the palette window and clears the
+// stored window pointer.  This is called by the child window as it closes.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::PaletteWindowClosed()
+{
+	EndToolInput();
+	fPaletteWindow = nullptr;
+}
+
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::InputWindowClosed
+//
+// Releases tool-input ownership for the input configuration window and clears
+// the stored window pointer.  This is called by the child window as it closes.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::InputWindowClosed()
+{
+	EndToolInput();
+	fInputWindow = nullptr;
+}
+
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::PatternTable1WindowClosed
+//
+// Releases tool-input ownership for the first Pattern Table window and clears the
+// stored window pointer.  This is called by the child window as it closes.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::PatternTable1WindowClosed()
+{
+	EndToolInput();
+	fPatternTable1Window = nullptr;
+
+	ConnectDebugViews();
+}
+
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::PatternTable2WindowClosed
+//
+// Releases tool-input ownership for the second Pattern Table window and clears the
+// stored window pointer.  This is called by the child window as it closes.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::PatternTable2WindowClosed()
+{
+	EndToolInput();
+	fPatternTable2Window = nullptr;
+
+	ConnectDebugViews();
+}
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::NameTable1WindowClosed
+//
+// Releases tool-input ownership for the first Name Table window and clears the
+// stored window pointer.  This is called by the child window as it closes.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::NameTable1WindowClosed()
+{
+	EndToolInput();
+	fNameTable1Window = nullptr;
+}
+
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::NameTable2WindowClosed
+//
+// Releases tool-input ownership for the second Name Table window and clears the
+// stored window pointer.  This is called by the child window as it closes.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::NameTable2WindowClosed()
+{
+	EndToolInput();
+	fNameTable2Window = nullptr;
+}
+
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::NameTable3WindowClosed
+//
+// Releases tool-input ownership for the third Name Table window and clears the
+// stored window pointer.  This is called by the child window as it closes.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::NameTable3WindowClosed()
+{
+	EndToolInput();
+	fNameTable3Window = nullptr;
+}
+
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::NameTable4WindowClosed
+//
+// Releases tool-input ownership for the fourth Name Table window and clears the
+// stored window pointer.  This is called by the child window as it closes.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::NameTable4WindowClosed()
+{
+	EndToolInput();
+	fNameTable4Window = nullptr;
+}
+
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::PaletteDebugWindowClosed
+//
+// Releases tool-input ownership for the palette debug window and clears the
+// stored window pointer.  This is called by the child window as it closes.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::PaletteDebugWindowClosed()
+{
+	EndToolInput();
+	fPaletteDebugWindow = nullptr;
+}
+
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::OAMDebugWindowClosed
+//
+// Releases tool-input ownership for the OAM Debugger window and clears the
+// stored window pointer.  This is called by the child window as it closes.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PretendoWindow::OAMDebugWindowClosed()
 {
+	EndToolInput();
 	fOAMDebugWindow = nullptr;
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::PPUStatusWindowClosed
+//
+// Releases tool-input ownership for the PPU Status window and clears the
+// stored window pointer.  This is called by the child window as it closes.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PretendoWindow::PPUStatusWindowClosed()
 {
+	EndToolInput();
 	fPPUStatusWindow = nullptr;
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::PPUWriteLogWindowClosed
+//
+// Releases tool-input ownership for the PPU Write Log window and clears the
+// stored window pointer.  This is called by the child window as it closes.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PretendoWindow::PPUWriteLogWindowClosed()
 {
+	EndToolInput();
 	fPPUWriteLogWindow = nullptr;
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::PPUMemoryWindowClosed
+//
+// Releases tool-input ownership for the PPU Memory window and clears the
+// stored window pointer.  This is called by the child window as it closes.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PretendoWindow::PPUMemoryWindowClosed()
 {
+	EndToolInput();
 	fPPUMemoryWindow = nullptr;
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::CPUStatusWindowClosed
+//
+// Releases tool-input ownership for the CPU Status window and clears the
+// stored window pointer.  This is called by the child window as it closes.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PretendoWindow::CPUStatusWindowClosed()
 {
+	EndToolInput();
 	fCPUStatusWindow = nullptr;
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::CPUDisasmWindowClosed
+//
+// Releases tool-input ownership for the CPU Disassembly window and clears the
+// stored window pointer.  This is called by the child window as it closes.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::CPUDisasmWindowClosed()
+{
+	EndToolInput();
+	fCPUDisasmWindow = nullptr;
+}
 
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::RenderLine8
+//
+// Converts one NES RGB scanline into an 8-bit color-map destination buffer using
+// the active mapped palette.
+//
+// Parameters:
+//   dest   - Destination scanline buffer.
+//   source - Source NES color-index scanline.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PretendoWindow::RenderLine8 (uint8 *dest, const uint32_t *source)
 {
@@ -1136,6 +2283,19 @@ PretendoWindow::RenderLine8 (uint8 *dest, const uint32_t *source)
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::RenderLine16
+//
+// Converts one NES RGB scanline into a 16-bit destination buffer using the
+// active mapped palette.
+//
+// Parameters:
+//   dest   - Destination scanline buffer.
+//   source - Source NES color-index scanline.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PretendoWindow::RenderLine16 (uint8 *dest, const uint32_t *source)
 {
@@ -1154,6 +2314,19 @@ PretendoWindow::RenderLine16 (uint8 *dest, const uint32_t *source)
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::RenderLine32
+//
+// Converts one NES RGB scanline into a 32-bit destination buffer using the
+// active mapped palette.
+//
+// Parameters:
+//   dest   - Destination scanline buffer.
+//   source - Source NES color-index scanline.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PretendoWindow::RenderLine32 (uint8 *dest, const uint32_t *source)
 {
@@ -1172,6 +2345,18 @@ PretendoWindow::RenderLine32 (uint8 *dest, const uint32_t *source)
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::ClearDirty
+//
+// Performs the deferred dirty-buffer clear/toggle operation used by the legacy
+// dirty blitters to force pending screen updates.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PretendoWindow::ClearDirty()
 {
@@ -1190,6 +2375,18 @@ PretendoWindow::ClearDirty()
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::ClearBitmap
+//
+// Clears either the overlay bitmap or the normal windowed bitmap to the proper
+// blank video value for its color format.
+//
+// Parameters:
+//   overlay - true to clear the overlay bitmap, false to clear the BBitmap.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void 
 PretendoWindow::ClearBitmap (bool overlay)
 {
@@ -1210,6 +2407,18 @@ PretendoWindow::ClearBitmap (bool overlay)
 
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::SetRenderer
+//
+// Selects the scanline renderer and mapped palette tables for the active front
+// buffer color space.
+//
+// Parameters:
+//   cs - Color space of the active front buffer.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void 
 PretendoWindow::SetRenderer (color_space cs)
 {	
@@ -1243,6 +2452,21 @@ PretendoWindow::SetRenderer (color_space cs)
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::SetFrontBuffer
+//
+// Configures the active video front buffer, prepares fullscreen/windowed buffer
+// layout, and selects the appropriate scanline renderer.
+//
+// Parameters:
+//   bits        - Front-buffer base pointer.
+//   cs          - Front-buffer color space.
+//   pixel_width - Number of destination bytes per NES pixel in the back buffer.
+//   row_bytes   - Number of bytes per front-buffer row.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PretendoWindow::SetFrontBuffer (uint8 *bits, color_space cs, int32 pixel_width, int32 row_bytes)
 {
@@ -1269,6 +2493,54 @@ PretendoWindow::SetFrontBuffer (uint8 *bits, color_space cs, int32 pixel_width, 
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::FinishExitFullScreen
+//
+// Finishes the transition back from fullscreen mode.  Controller input is
+// cleared so fullscreen-polled keys do not stick.  The next windowed bitmap
+// update is forced to repaint the full frame so stale fullscreen/windowed pixels
+// do not remain visible.  Tool/debug windows hidden for fullscreen are restored
+// afterward.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::FinishExitFullScreen()
+{
+	fFullScreen = false;
+
+	ClearControllerInput();
+
+	ForceFullBitmapRedraw();
+	ForceFullRedraw();
+
+	snooze(50000);
+
+	ForceFullBitmapRedraw();
+	ForceFullRedraw();
+
+	RestoreToolWindowsAfterFullScreen();
+
+	InvalidateDebugViews();
+}
+
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::ChangeFramework
+//
+// Switches between video output frameworks, tears down the previous video path,
+// configures the new path, and performs fullscreen-exit cleanup when needed.
+//
+// Parameters:
+//   fw - New video framework to activate.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PretendoWindow::ChangeFramework (video_framework fw)
 {	
@@ -1283,10 +2555,12 @@ PretendoWindow::ChangeFramework (video_framework fw)
 	
 	fVideoMenu->ItemAt(fFramework)->SetMarked(true);
 			
-	// break down previous framework
+	// Break down previous framework.
+	const bool leavingFullScreen = fPrevFramework == video_framework::FULLSCREEN;
+
 	switch (fPrevFramework) {
 		case video_framework::NONE:
-			// nothing to do here
+			// Nothing to do here.
 			break;
 			
 		case video_framework::BITMAP:
@@ -1295,15 +2569,23 @@ PretendoWindow::ChangeFramework (video_framework fw)
 			
 		case video_framework::OVERLAY:
 			ClearBitmap(true);
-			fView->ClearViewOverlay();
-			fView->SetViewColor(0, 0, 0);
-			fView->Invalidate();
+
+			if (fView) {
+				fView->ClearViewOverlay();
+				fView->SetViewColor(0, 0, 0);
+				fView->Invalidate();
+			}
+
 			break;
 			
-		case video_framework::FULLSCREEN:			
-			if (fVideoScreen->Lock()) {
+		case video_framework::FULLSCREEN:
+			ClearControllerInput();
+
+			if (fVideoScreen && fVideoScreen->Lock()) {
 				fVideoScreen->Quit();
 			}
+
+			fVideoScreen = nullptr;
 			break;
 	}
 	
@@ -1332,31 +2614,74 @@ PretendoWindow::ChangeFramework (video_framework fw)
 			fView->Invalidate();
 			break;
 			
-			case video_framework::FULLSCREEN:
-			fVideoScreen = new VideoScreen (this);
+		case video_framework::FULLSCREEN:
+			ClearControllerInput();
+			SuspendToolWindowsForFullScreen();
+
+			fVideoScreen = new VideoScreen(this);
 			fVideoScreen->Show();
-			snooze (1000000); 	// wait a little while for the screen to connect
-			SetFrontBuffer(fVideoScreen->Bits(), B_CMAP8, 
-							fVideoScreen->PixelWidth() / 2, fVideoScreen->RowBytes());
+
+			snooze(1000000);
+
+			SetFrontBuffer(
+				fVideoScreen->Bits(),
+				B_CMAP8,
+				fVideoScreen->PixelWidth() / 2,
+				fVideoScreen->RowBytes()
+			);
+
 			fFullScreen = true;
+			ClearControllerInput();
 			break;
-	}
+		}
+	
+		if (leavingFullScreen && fFramework != video_framework::FULLSCREEN) {
+			FinishExitFullScreen();
+		}
 	
 	fFrameworkChanging = false;
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::DrawBitmap
+//
+// Copies the emulator back buffer into the windowed bitmap.  Normally this uses
+// the dirty buffer to update only changed pixels.  After fullscreen/display-mode
+// transitions, a one-shot full copy is used so stale windowed pixels are
+// completely overwritten.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PretendoWindow::DrawBitmap()
 {
-	// drawing code for BBitmap
-	
 	uint8 *dest = fBitmapBits;
 	uint8 *source = fBackBuffer.bits;
 	uint8 *dirty = fDirtyBuffer.bits;
 	
 	size_t const size = screen_size::WIDTH;
 	size_t height = screen_size::HEIGHT;
+
+	if (fForceFullBitmapRedraw) {
+		while (height--) {
+			// fBitmap is B_CMAP8, so copy one byte per visible pixel.
+			// Do not multiply by fPixelWidth here.
+			mmx_copy(dest, source, size);
+
+			dest += fFrontBuffer.row_bytes;
+			source += fBackBuffer.row_bytes;
+		}
+
+		fForceFullBitmapRedraw = false;
+
+		PostMessage(messages::DRAW_BITMAP);
+		return;
+	}
 	
 	while (height--) {
 		blit_windowed_dirty_mmx(source, dirty, dest, size, fPixelWidth);
@@ -1366,18 +2691,22 @@ PretendoWindow::DrawBitmap()
 		dirty += fBackBuffer.row_bytes;
 	}
 
-	// FIXME: what is the right way to do this?	
-	
-	// this crashes/hangs sometimes on exit
-	//Lock();
-	//fView->DrawBitmap(fBitmap, fView->Bounds());
-	//Unlock();
-	
-	// oddly, this method seems to work well
 	PostMessage(messages::DRAW_BITMAP);	
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::DrawOverlay
+//
+// Draws the overlay video path.  The legacy implementation is currently disabled
+// because overlay support is unavailable on the target hardware/path.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PretendoWindow::DrawOverlay()
 {
@@ -1443,6 +2772,18 @@ PretendoWindow::DrawOverlay()
 #endif
 }
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::DrawFullScreen
+//
+// Copies dirty NES back-buffer pixels to the fullscreen front buffer using the
+// fullscreen 2x dirty blitter.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PretendoWindow::DrawFullScreen()
 {
@@ -1464,6 +2805,18 @@ PretendoWindow::DrawFullScreen()
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::BlitScreen
+//
+// Dispatches the completed frame to the currently selected video framework,
+// unless a framework change is in progress.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PretendoWindow::BlitScreen()
 {	
@@ -1492,6 +2845,72 @@ PretendoWindow::BlitScreen()
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::RedrawLastFrame
+//
+// Redraws the most recently completed video frame while the emulator is paused.
+// The main window is locked before touching its child view because this may be
+// called from a debugger window thread.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::RedrawLastFrame()
+{
+	if (!Lock()) {
+		return;
+	}
+
+	BView *child = ChildAt(0);
+
+	if (child) {
+		child->Invalidate();
+		child->Window()->UpdateIfNeeded();
+	}
+
+	Unlock();
+}
+
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::ClearVideoView
+//
+// Clears the cached video frame and redraws the main emulator view black.  This
+// prevents the previous ROM's final frame from remaining visible after a ROM is
+// unloaded or replaced.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::ClearVideoView()
+{
+	if (fView) {
+		fView->ClearLastFrame();
+	}
+}
+
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::submit_scanline
+//
+// Receives one rendered NES scanline and converts it into the emulator back
+// buffer using the active scanline renderer.
+//
+// Parameters:
+//   scanline - Scanline index to write.
+//   source   - Source NES color-index scanline.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PretendoWindow::submit_scanline(int scanline, const uint32_t *source)
 {
@@ -1499,8 +2918,21 @@ PretendoWindow::submit_scanline(int scanline, const uint32_t *source)
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::set_palette
+//
+// Builds mapped host palettes for 8-bit, 16-bit, 32-bit, and overlay output
+// from the emulator RGB palette and color-emphasis table.
+//
+// Parameters:
+//   intensity - Color-emphasis multiplier table.
+//   pal       - Source RGB NES palette.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void 
-PretendoWindow::set_palette(const color_emphasis_t *intensity, const rgb_color_t *pal)
+PretendoWindow::set_palette (const color_emphasis_t *intensity, const rgb_color_t *pal)
 {
 	int32 i, j;
 	rgb_color c;
@@ -1554,6 +2986,17 @@ PretendoWindow::set_palette(const color_emphasis_t *intensity, const rgb_color_t
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::start_frame
+//
+// Prepares per-frame video state before the emulator renders a frame.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void  
 PretendoWindow::start_frame()
 {	
@@ -1562,6 +3005,18 @@ PretendoWindow::start_frame()
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::end_frame
+//
+// Finalizes one emulator frame by blitting video and streaming one frame worth
+// of APU samples to the host audio stream.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void	
 PretendoWindow::end_frame()
 {
@@ -1574,43 +3029,89 @@ PretendoWindow::end_frame()
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::emulator_thread
+//
+// Main emulator thread.  In windowed mode, controller input is handled by
+// PretendoView key events.  In fullscreen mode, global key polling is used
+// because normal BView keyboard focus may not be reliable.
+//
+// Global polling is disabled while debugger input is active or while the
+// emulator is debugger-paused, preventing debugger shortcuts from leaking into
+// NES controller input.
+//
+// Parameters:
+//   data - PretendoWindow pointer.
+//
+// Returns:
+//   B_OK when the thread exits.
+// -----------------------------------------------------------------------------
 status_t
 PretendoWindow::emulator_thread (void *data)
 {
-	// start the show!
-	PretendoWindow *window = reinterpret_cast<PretendoWindow *>(data);	
+	PretendoWindow* window = reinterpret_cast<PretendoWindow *>(data);	
 	
 	while (1) {
-		// lock mutex
 		if (window->LockMutex() == false) { 
 			break;
 		}
 		
-		// do frame events
-		window->start_frame();
-		nes::run_frame(window);
-		window->end_frame();
-		window->ReadKeyStates();	
+		if (!nes::ppu::system_paused) {
+			window->start_frame();
+			nes::run_frame(window);
+			window->end_frame();
+
+			if (window->ShouldPollGlobalInput()) {
+				window->ReadKeyStates();
+			}
+		}
 		
-		// unlock mutex
 		window->UnlockMutex();
+
+		if (nes::ppu::system_paused) {
+			snooze(10000);
+		}
 	}	
 	
 	return B_OK;
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::CheckKey
+//
+// Updates one NES controller button from Haiku's global key state table.  This
+// is used only while fullscreen mode is active, where normal BView key events
+// may not be delivered reliably.
+//
+// Parameters:
+//   index - NES controller button index.
+//   key   - Haiku key code to test.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 inline void
 PretendoWindow::CheckKey (int32 index, int32 key)
 {
-	// read keystates as explained in the BeBook
-	// note the window does not need to have focus for this to work
-	
 	nes::input::controller1.keystate_[index] = 
 		fKeyStates.key_states[key >> 3] & (1 << (7 - (key % 8)));
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::ReadKeyStates
+//
+// Polls global keyboard state and maps configured keys to NES controller input.
+// This is intentionally used only in fullscreen mode so debugger/tool-window
+// shortcuts do not also trigger emulator controller buttons.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 inline void
 PretendoWindow::ReadKeyStates()
 {
@@ -1627,6 +3128,520 @@ PretendoWindow::ReadKeyStates()
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::HandleEmulatorKey
+//
+// Updates controller-1 input state from a focused PretendoView key event.  This
+// is the normal windowed-mode input path and prevents debugger/tool-window
+// shortcuts from also affecting emulator input.
+//
+// Parameters:
+//   key     - Haiku key code.
+//   pressed - true on key down, false on key up.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::HandleEmulatorKey(int32 key, bool pressed)
+{
+	const uint8 value = pressed ? 1 : 0;
+
+	if (key == fUpKey) {
+		nes::input::controller1.keystate_[Controller::INDEX_UP] = value;
+	} else if (key == fDownKey) {
+		nes::input::controller1.keystate_[Controller::INDEX_DOWN] = value;
+	} else if (key == fLeftKey) {
+		nes::input::controller1.keystate_[Controller::INDEX_LEFT] = value;
+	} else if (key == fRightKey) {
+		nes::input::controller1.keystate_[Controller::INDEX_RIGHT] = value;
+	} else if (key == fSelectKey) {
+		nes::input::controller1.keystate_[Controller::INDEX_SELECT] = value;
+	} else if (key == fStartKey) {
+		nes::input::controller1.keystate_[Controller::INDEX_START] = value;
+	} else if (key == fBKey) {
+		nes::input::controller1.keystate_[Controller::INDEX_B] = value;
+	} else if (key == fAKey) {
+		nes::input::controller1.keystate_[Controller::INDEX_A] = value;
+	}
+}
+
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::ClearControllerInput
+//
+// Releases all controller-1 buttons.  This prevents stuck buttons when changing
+// focus, entering debugger step mode, or switching between windowed and
+// fullscreen input paths.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::ClearControllerInput()
+{
+	nes::input::controller1.keystate_[Controller::INDEX_UP] = 0;
+	nes::input::controller1.keystate_[Controller::INDEX_DOWN] = 0;
+	nes::input::controller1.keystate_[Controller::INDEX_LEFT] = 0;
+	nes::input::controller1.keystate_[Controller::INDEX_RIGHT] = 0;
+	nes::input::controller1.keystate_[Controller::INDEX_SELECT] = 0;
+	nes::input::controller1.keystate_[Controller::INDEX_START] = 0;
+	nes::input::controller1.keystate_[Controller::INDEX_B] = 0;
+	nes::input::controller1.keystate_[Controller::INDEX_A] = 0;
+}
+
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::BeginToolInput
+//
+// Marks that a debugger/tool window owns keyboard input.  While at least one
+// tool window is active, fullscreen global keyboard polling is disabled so tool
+// shortcuts cannot leak into NES controller input.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::BeginToolInput()
+{
+	fToolInputDepth++;
+
+	ClearControllerInput();
+}
+
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::EndToolInput
+//
+// Releases one debugger/tool-window keyboard ownership claim.  The counter is
+// clamped at zero so duplicate close/destruction paths cannot make it negative.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::EndToolInput()
+{
+	if (fToolInputDepth > 0) {
+		fToolInputDepth--;
+	} else {
+		fToolInputDepth = 0;
+	}
+
+	if (fToolInputDepth == 0) {
+		ClearControllerInput();
+	}
+}
+
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::ToolInputActive
+//
+// Returns whether any debugger/tool window currently owns keyboard input.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   true if one or more tool windows own keyboard input.
+// -----------------------------------------------------------------------------
+bool
+PretendoWindow::ToolInputActive() const
+{
+	return fToolInputDepth > 0;
+}
+
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::ShouldPollGlobalInput
+//
+// Returns whether global keyboard polling should be used for emulator input.
+// Global polling is needed in fullscreen mode, but it is disabled whenever a
+// visible/non-suspended tool window owns keyboard input or the emulator is debugger-paused.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   true if fullscreen global input polling should be active.
+// -----------------------------------------------------------------------------
+bool
+PretendoWindow::ShouldPollGlobalInput() const
+{
+	if (!fFullScreen) {
+		return false;
+	}
+
+	if (ToolInputActive()) {
+		return false;
+	}
+
+	if (nes::ppu::system_paused) {
+		return false;
+	}
+
+	return true;
+}
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::CountVisibleToolWindows
+//
+// Counts the open tool/debug windows that are currently visible.  This is used
+// after leaving fullscreen to rebuild fToolInputDepth from actual surviving
+// window state instead of restoring a stale saved counter.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Number of visible tool/debug windows.
+// -----------------------------------------------------------------------------
+int32
+PretendoWindow::CountVisibleToolWindows() const
+{
+	int32 count = 0;
+
+	auto countWindow = [&count](BWindow *window)
+	{
+		if (!window) {
+			return;
+		}
+
+		if (!window->Lock()) {
+			return;
+		}
+
+		if (!window->IsHidden()) {
+			count++;
+		}
+
+		window->Unlock();
+	};
+
+	countWindow(fROMInfoWindow);
+	countWindow(fPaletteWindow);
+	countWindow(fInputWindow);
+
+	countWindow(fPatternTable1Window);
+	countWindow(fPatternTable2Window);
+
+	countWindow(fNameTable1Window);
+	countWindow(fNameTable2Window);
+	countWindow(fNameTable3Window);
+	countWindow(fNameTable4Window);
+
+	countWindow(fPaletteDebugWindow);
+	countWindow(fOAMDebugWindow);
+
+	countWindow(fPPUStatusWindow);
+	countWindow(fPPUWriteLogWindow);
+	countWindow(fPPUMemoryWindow);
+
+	countWindow(fCPUStatusWindow);
+	countWindow(fCPUDisasmWindow);
+
+	return count;
+}
+
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::ShowToolWindowAfterFullScreen
+//
+// Shows one tool/debug window after leaving fullscreen if that window was
+// visible before fullscreen began.  Windows that were already hidden before
+// fullscreen remain hidden.
+//
+// Parameters:
+//   window     - Tool/debug window to show.
+//   wasVisible - true if this window was visible before fullscreen.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::ShowToolWindowAfterFullScreen(BWindow *window, bool wasVisible)
+{
+	if (!window || !wasVisible) {
+		return;
+	}
+
+	if (!window->Lock()) {
+		return;
+	}
+
+	if (window->IsHidden()) {
+		window->Show();
+	}
+
+	window->Unlock();
+}
+
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::HideToolWindowForFullScreen
+//
+// Hides one visible tool/debug window while entering fullscreen.  The window is
+// hidden, not closed, so its view state, scroll position, selection state, and
+// parent connections remain intact.
+//
+// Parameters:
+//   window - Tool/debug window to hide.
+//
+// Returns:
+//   true if the window existed and was visible before being hidden.
+// -----------------------------------------------------------------------------
+bool
+PretendoWindow::HideToolWindowForFullScreen (BWindow *window)
+{
+	if (!window) {
+		return false;
+	}
+
+	if (!window->Lock()) {
+		return false;
+	}
+
+	const bool wasVisible = !window->IsHidden();
+
+	if (wasVisible) {
+		window->Hide();
+	}
+
+	window->Unlock();
+
+	return wasVisible;
+}
+
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::SuspendToolWindowsForFullScreen
+//
+// Temporarily hides visible tool/debug windows before entering fullscreen.  The
+// windows are not closed, so their state is preserved.  Tool-input ownership is
+// suspended while fullscreen is active so global keyboard polling can control
+// the emulator.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::SuspendToolWindowsForFullScreen()
+{
+	if (fToolWindowsSuspendedForFullScreen) {
+		return;
+	}
+
+	fToolWindowsSuspendedForFullScreen = true;
+
+	fWasROMInfoWindowVisibleBeforeFullScreen =
+		HideToolWindowForFullScreen(fROMInfoWindow);
+	
+	fWasPaletteWindowVisibleBeforeFullScreen =
+		HideToolWindowForFullScreen(fPaletteWindow);
+	
+	fWasInputWindowVisibleBeforeFullScreen =
+		HideToolWindowForFullScreen(fInputWindow);
+
+	fWasPatternTable1WindowVisibleBeforeFullScreen =
+		HideToolWindowForFullScreen(fPatternTable1Window);
+	
+	fWasPatternTable2WindowVisibleBeforeFullScreen =
+		HideToolWindowForFullScreen(fPatternTable2Window);
+
+	fWasNameTable1WindowVisibleBeforeFullScreen =
+		HideToolWindowForFullScreen(fNameTable1Window);
+	
+	fWasNameTable2WindowVisibleBeforeFullScreen =
+		HideToolWindowForFullScreen(fNameTable2Window);
+	
+	fWasNameTable3WindowVisibleBeforeFullScreen =
+		HideToolWindowForFullScreen(fNameTable3Window);
+	
+	fWasNameTable4WindowVisibleBeforeFullScreen =
+		HideToolWindowForFullScreen(fNameTable4Window);
+
+	fWasPaletteDebugWindowVisibleBeforeFullScreen =
+		HideToolWindowForFullScreen(fPaletteDebugWindow);
+	
+	fWasOAMDebugWindowVisibleBeforeFullScreen =
+		HideToolWindowForFullScreen(fOAMDebugWindow);
+
+	fWasPPUStatusWindowVisibleBeforeFullScreen =
+		HideToolWindowForFullScreen(fPPUStatusWindow);
+	
+	fWasPPUWriteLogWindowVisibleBeforeFullScreen =
+		HideToolWindowForFullScreen(fPPUWriteLogWindow);
+	
+	fWasPPUMemoryWindowVisibleBeforeFullScreen =
+		HideToolWindowForFullScreen(fPPUMemoryWindow);
+
+	fWasCPUStatusWindowVisibleBeforeFullScreen =
+		HideToolWindowForFullScreen(fCPUStatusWindow);
+	
+	fWasCPUDisasmWindowVisibleBeforeFullScreen =
+		HideToolWindowForFullScreen(fCPUDisasmWindow);
+
+	fToolInputDepth = 0;
+
+	ClearControllerInput();
+}
+
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::RestoreToolWindowsAfterFullScreen
+//
+// Restores tool/debug windows that were visible before fullscreen and rebuilds
+// fToolInputDepth from actual surviving visible windows.  This avoids stale
+// counter state if any hidden tool window was closed while fullscreen was active.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::RestoreToolWindowsAfterFullScreen()
+{
+	if (!fToolWindowsSuspendedForFullScreen) {
+		return;
+	}
+
+	ShowToolWindowAfterFullScreen(
+		fROMInfoWindow,
+		fWasROMInfoWindowVisibleBeforeFullScreen
+	);
+	
+	ShowToolWindowAfterFullScreen(
+		fPaletteWindow,
+		fWasPaletteWindowVisibleBeforeFullScreen
+	);
+	
+	ShowToolWindowAfterFullScreen(
+		fInputWindow,
+		fWasInputWindowVisibleBeforeFullScreen
+	);
+
+	ShowToolWindowAfterFullScreen(
+		fPatternTable1Window,
+		fWasPatternTable1WindowVisibleBeforeFullScreen
+	);
+	
+	ShowToolWindowAfterFullScreen(
+		fPatternTable2Window,
+		fWasPatternTable2WindowVisibleBeforeFullScreen
+	);
+
+	ShowToolWindowAfterFullScreen(
+		fNameTable1Window,
+		fWasNameTable1WindowVisibleBeforeFullScreen
+	);
+	
+	ShowToolWindowAfterFullScreen(
+		fNameTable2Window,
+		fWasNameTable2WindowVisibleBeforeFullScreen
+	);
+	
+	ShowToolWindowAfterFullScreen(
+		fNameTable3Window,
+		fWasNameTable3WindowVisibleBeforeFullScreen
+	);
+	
+	ShowToolWindowAfterFullScreen(
+		fNameTable4Window,
+		fWasNameTable4WindowVisibleBeforeFullScreen
+	);
+
+	ShowToolWindowAfterFullScreen(
+		fPaletteDebugWindow,
+		fWasPaletteDebugWindowVisibleBeforeFullScreen
+	);
+	
+	ShowToolWindowAfterFullScreen(
+		fOAMDebugWindow,
+		fWasOAMDebugWindowVisibleBeforeFullScreen
+	);
+
+	ShowToolWindowAfterFullScreen(
+		fPPUStatusWindow,
+		fWasPPUStatusWindowVisibleBeforeFullScreen
+	);
+	
+	ShowToolWindowAfterFullScreen(
+		fPPUWriteLogWindow,
+		fWasPPUWriteLogWindowVisibleBeforeFullScreen
+	);
+	
+	ShowToolWindowAfterFullScreen(
+		fPPUMemoryWindow,
+		fWasPPUMemoryWindowVisibleBeforeFullScreen
+	);
+
+	ShowToolWindowAfterFullScreen(
+		fCPUStatusWindow,
+		fWasCPUStatusWindowVisibleBeforeFullScreen
+	);
+	
+	ShowToolWindowAfterFullScreen(
+		fCPUDisasmWindow,
+		fWasCPUDisasmWindowVisibleBeforeFullScreen
+	);
+
+	fToolInputDepth = CountVisibleToolWindows();
+
+	fWasROMInfoWindowVisibleBeforeFullScreen = false;
+	fWasPaletteWindowVisibleBeforeFullScreen = false;
+	fWasInputWindowVisibleBeforeFullScreen = false;
+
+	fWasPatternTable1WindowVisibleBeforeFullScreen = false;
+	fWasPatternTable2WindowVisibleBeforeFullScreen = false;
+
+	fWasNameTable1WindowVisibleBeforeFullScreen = false;
+	fWasNameTable2WindowVisibleBeforeFullScreen = false;
+	fWasNameTable3WindowVisibleBeforeFullScreen = false;
+	fWasNameTable4WindowVisibleBeforeFullScreen = false;
+
+	fWasPaletteDebugWindowVisibleBeforeFullScreen = false;
+	fWasOAMDebugWindowVisibleBeforeFullScreen = false;
+
+	fWasPPUStatusWindowVisibleBeforeFullScreen = false;
+	fWasPPUWriteLogWindowVisibleBeforeFullScreen = false;
+	fWasPPUMemoryWindowVisibleBeforeFullScreen = false;
+
+	fWasCPUStatusWindowVisibleBeforeFullScreen = false;
+	fWasCPUDisasmWindowVisibleBeforeFullScreen = false;
+
+	fToolWindowsSuspendedForFullScreen = false;
+
+	ClearControllerInput();
+	InvalidateDebugViews();
+}
+
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::ConnectDebugViews
+//
+// Reconnects open name table windows to the currently open pattern table
+// windows so cross-window highlighting remains valid.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PretendoWindow::ConnectDebugViews()
 {
@@ -1652,11 +3667,207 @@ PretendoWindow::ConnectDebugViews()
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::DebugStepInstruction
+//
+// Enters debugger step mode and advances one CPU instruction.  Controller input
+// is cleared before stepping so debugger shortcuts, such as S, do not also act
+// as emulator controller buttons.
+//
+// Audio output is muted, but the host sound player is left running because its
+// callback is also used for emulator pacing.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
-PretendoWindow::HighlightPaletteDebugger(bool sprites, int32 palette, int32 entry)
+PretendoWindow::DebugStepInstruction()
 {
-	if (!fPaletteDebugWindow)
+	if (!nes::cart.mapper()) {
 		return;
+	}
+
+	nes::apu::debug_set_audio_muted(true);
+
+	if (fAudioStream) {
+		fAudioStream->SetMuted(true);
+	}
+
+	nes::ppu::system_paused = true;
+	ClearControllerInput();
+
+	if (!LockMutex(2000000)) {
+		puts("DebugStepInstruction: timed out waiting for emulator mutex");
+		return;
+	}
+
+	nes::debug_step_instruction();
+
+	UnlockMutex();
+
+	RedrawLastFrame();
+	InvalidateDebugViews();
+}
+
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::LoadROMPath
+//
+// Loads a ROM from a filesystem path using the shared ROM-load path.  This keeps
+// manual loads, recent-document loads, and future drag/drop loads consistent.
+// Controller input, debugger pause state, audio mute state, audio pacing state,
+// and CPU trace state are reset for the newly loaded ROM.
+//
+// Parameters:
+//   path - Filesystem path to the ROM image.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::LoadROMPath(const char* path)
+{
+	if (!path) {
+		return;
+	}
+
+	OnFreeROM();
+
+	if (nes::cart.load(path) == false) {
+		(new BAlert(
+			"Error",
+			"Error.  Couldn't load ROM Image.",
+			"Okay",
+			nullptr,
+			nullptr,
+			B_WIDTH_AS_USUAL,
+			B_STOP_ALERT
+		))->Go();
+
+		return;
+	}
+
+	nes::reset(nes::Reset::Hard);
+
+	ClearControllerInput();
+
+	nes::apu::debug_set_audio_muted(false);
+	nes::ppu::system_paused = false;
+
+	if (fAudioStream) {
+		fAudioStream->ClearBuffer();
+		fAudioStream->ResetPacing();
+		fAudioStream->SetMuted(false);
+	}
+
+	nes::cpu::debug_clear_instruction_trace();
+
+	InvalidateDebugViews();
+	ResetCPUDisasmWindow(fCPUDisasmWindow);
+}
+
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::DebugResumeExecution
+//
+// Leaves debugger step mode, clears controller input, unmutes audio, clears stale
+// host samples, drains accumulated audio pacing permits, resumes normal PPU
+// execution, and refreshes debugger windows.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::DebugResumeExecution()
+{
+	ClearControllerInput();
+
+	nes::apu::debug_set_audio_muted(false);
+
+	if (fAudioStream) {
+		fAudioStream->ClearBuffer();
+		fAudioStream->ResetPacing();
+		fAudioStream->SetMuted(false);
+	}
+
+	nes::ppu::system_paused = false;
+
+	InvalidateDebugViews();
+}
+
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::DebugStepFrame
+//
+// Enters debugger frame-step mode and advances one full PPU frame.  Controller
+// input is cleared before stepping so debugger shortcuts do not also act as
+// emulator controller buttons.
+//
+// Audio output is muted, but the host sound player is left running because its
+// callback is also used for emulator pacing.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::DebugStepFrame()
+{
+	if (!nes::cart.mapper()) {
+		return;
+	}
+
+	nes::apu::debug_set_audio_muted(true);
+
+	if (fAudioStream) {
+		fAudioStream->SetMuted(true);
+	}
+
+	nes::ppu::system_paused = true;
+	ClearControllerInput();
+
+	if (!LockMutex(2000000)) {
+		puts("DebugStepFrame: timed out waiting for emulator mutex");
+		return;
+	}
+
+	nes::debug_step_frame();
+
+	UnlockMutex();
+
+	RedrawLastFrame();
+	InvalidateDebugViews();
+}
+
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::HighlightPaletteDebugger
+//
+// Sends an external palette-entry highlight request to the palette debugger when
+// that debugger window is open.
+//
+// Parameters:
+//   sprites - true for sprite palettes, false for background palettes.
+//   palette - Palette index to highlight.
+//   entry   - Entry index within the palette.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::HighlightPaletteDebugger (bool sprites, int32 palette, int32 entry)
+{
+	if (!fPaletteDebugWindow) {
+		return;
+	}
 
 	if (fPaletteDebugWindow->Lock()) {
 		fPaletteDebugWindow->SetExternalHighlight(sprites, palette, entry);
@@ -1664,11 +3875,71 @@ PretendoWindow::HighlightPaletteDebugger(bool sprites, int32 palette, int32 entr
 	}
 }
 
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::InvalidateDebugViews
+//
+// Refreshes open debugger/tool windows after a debugger-controlled state
+// change, such as single-stepping one CPU instruction.
+//
+// CPUDisasmWindow is intentionally not invalidated here because the disassembly
+// view is usually the caller during single-step and will invalidate itself after
+// updating its PC/follow state.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::InvalidateDebugViews()
+{
+	InvalidateWindowContents(fROMInfoWindow);
+	InvalidateWindowContents(fPaletteWindow);
+
+	InvalidateWindowContents(fPatternTable1Window);
+	InvalidateWindowContents(fPatternTable2Window);
+
+	InvalidateWindowContents(fNameTable1Window);
+	InvalidateWindowContents(fNameTable2Window);
+	InvalidateWindowContents(fNameTable3Window);
+	InvalidateWindowContents(fNameTable4Window);
+
+	InvalidateWindowContents(fInputWindow);
+
+	InvalidateWindowContents(fPaletteDebugWindow);
+	InvalidateWindowContents(fOAMDebugWindow);
+
+	InvalidateWindowContents(fPPUStatusWindow);
+	InvalidateWindowContents(fPPUWriteLogWindow);
+	InvalidateWindowContents(fPPUMemoryWindow);
+
+	InvalidateWindowContents(fCPUStatusWindow);
+
+	// Do not invalidate fCPUDisasmWindow here.
+	// CPUDisasmView::KeyDown() updates and invalidates itself after stepping.
+}
+
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::ClearPaletteDebuggerHighlight
+//
+// Clears any external highlight currently displayed by the palette debugger
+// window, when that window is open.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PretendoWindow::ClearPaletteDebuggerHighlight()
 {
-	if (!fPaletteDebugWindow)
+	if (!fPaletteDebugWindow) {
 		return;
+	}
 
 	if (fPaletteDebugWindow->Lock()) {
 		fPaletteDebugWindow->ClearExternalHighlight();
@@ -1676,13 +3947,19 @@ PretendoWindow::ClearPaletteDebuggerHighlight()
 	}
 }
 
-void
-PretendoWindow::PaletteDebugWindowClosed()
-{
-	fPaletteDebugWindow = nullptr;
-}
 
-
+// -----------------------------------------------------------------------------
+// PretendoWindow::LoadSettings
+//
+// Loads persisted window position, scale, ROM directory, and input bindings from
+// the Pretendo settings file, creating default settings when needed.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PretendoWindow::LoadSettings()
 {
@@ -1793,6 +4070,18 @@ PretendoWindow::LoadSettings()
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::SaveSettings
+//
+// Saves window position, scale, ROM directory, and input bindings to the
+// Pretendo settings file.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PretendoWindow::SaveSettings()
 {

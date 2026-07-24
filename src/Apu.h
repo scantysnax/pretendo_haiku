@@ -34,6 +34,11 @@ union APUStatus {
 constexpr int frequency		= 48000;
 constexpr int frame_rate 	= 60; 
 constexpr int buffer_size = (frequency / frame_rate) * 4;
+constexpr uint8_t SilentSample = 128;
+
+extern bool debug_audio_muted;
+void debug_set_audio_muted(bool muted);
+bool debug_audio_is_muted();
 
 
 void reset(Reset reset_type);

@@ -22,13 +22,14 @@ class OAMDebugWindow : public BWindow
 	virtual bool QuitRequested();
 
 	public:
-	void SetPatternTables(PatternTableWindow* pt0, PatternTableWindow* pt1);
+	void SetPatternTables (PatternTableWindow *pt0, PatternTableWindow *pt1);
 
 	private:
-	PretendoWindow* fParent = nullptr;
-	OAMDebugView* fView = nullptr;
-	CHRExplorerView* fExplorer = nullptr;
+	PretendoWindow *fParent = nullptr;
+	OAMDebugView *fView = nullptr;
+	CHRExplorerView *fExplorer = nullptr;
 };
 
 
 #endif // _OAM_DEBUG_WINDOW_H_
+

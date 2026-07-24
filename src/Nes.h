@@ -16,7 +16,9 @@ extern Cart cart;
 void reset(Reset reset_type);
 
 // This is what PretendoWindow.cpp is calling
-void run_frame(PretendoWindow* window);
+void run_frame(PretendoWindow *window);
+void debug_step_instruction();
+void debug_step_frame();
 
 } // namespace nes
 

@@ -55,7 +55,7 @@ class CHRExplorerView : public BView
 
 	private:
 	void DecodeTile();
-	void DrawDecodedZoomed (uint8 decoded[8][8], BPoint origin, float scale);
+	void DrawDecodedZoomed (uint8 decoded[8][8], BPoint origin, float scale, int32 displayYBase = 0);
 	void DrawInfo (BPoint point);
 	void DrawPaletteSwatch (BPoint point);
 	void DrawPalettePreviewGrid (BPoint origin);
@@ -65,6 +65,11 @@ class CHRExplorerView : public BView
 	void DrawTileSummary (float x, float y);
 	void DrawCHRAnalysis (float x, float y);
 	void NotifyPaletteHighlight();
+	void ClearState();
+	
+	private:
+	bool HasROMLoaded() const;
+	void DrawNoROMMessage();
 
 	public:
 	// Preferred dimensions used by the debugger windows.
@@ -125,6 +130,8 @@ class CHRExplorerView : public BView
 	// Palette Highlighting
 	PretendoWindow *fPaletteHighlightParent = nullptr;
 	bool fPaletteHighlightSprites = false;
+	
+	bool fNoROMStateCleared = false;
 };
 
 #endif

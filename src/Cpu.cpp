@@ -96,6 +96,9 @@ uint8_t irq_sources_ = 0x00;
 uint16_t instruction_ = 0;
 int cycle_            = 0;
 
+// debug trace state
+bool sExecutedInstructionAddress[0x10000] = {};
+
 // internal registers (which get trashed by instructions)
 register16 effective_address_ = {};
 register16 data16_            = {};
@@ -562,10 +565,15 @@ void clock() {
  * @brief tick
  */
 void tick() {
+	if (cycle_ == 0) {
+		sExecutedInstructionAddress[PC.raw] = true;
+	}
+
 	clock();
 	sync_handler();
 	++executed_cycles_;
 }
+
 
 /**
  * @brief nmi
@@ -584,6 +592,8 @@ void reset() {
 		nmi_asserted_    = false;
 		executed_cycles_ = 1;
 	}
+	
+	debug_clear_instruction_trace();
 }
 
 /**
@@ -715,6 +725,54 @@ debug_cpu_state() {
 	state.executed_cycles = executed_cycles_;
 
 	return state;
+}
+
+
+bool
+debug_instruction_boundary()
+{
+	return cycle_ == 0;
+}
+
+
+// -----------------------------------------------------------------------------
+// nes::cpu::debug_instruction_was_executed
+//
+// Returns whether the supplied CPU address has been observed as the start of an
+// executed instruction since the trace was last cleared.
+//
+// Parameters:
+//   address - CPU address to query.
+//
+// Returns:
+//   true if the address has been executed as an instruction start.
+// -----------------------------------------------------------------------------
+bool
+debug_instruction_was_executed(uint16_t address)
+{
+	return sExecutedInstructionAddress[address];
+}
+
+
+// -----------------------------------------------------------------------------
+// nes::cpu::debug_clear_instruction_trace
+//
+// Clears the executed-instruction address trace.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+debug_clear_instruction_trace()
+{
+	std::fill(
+		sExecutedInstructionAddress,
+		sExecutedInstructionAddress + 0x10000,
+		false
+	);
 }
 
 

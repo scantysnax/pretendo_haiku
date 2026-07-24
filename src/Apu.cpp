@@ -12,8 +12,10 @@
 // note: DMC and DPCM may be used interchangeably
 
 namespace nes::apu {
-namespace {
 
+bool debug_audio_muted = false;	
+
+namespace {
 
 typedef enum {
 	ENABLE_SQUARE1 = 	0x1,
@@ -24,7 +26,6 @@ typedef enum {
 	FRAME_IRQ = 		0x40,
 	DMC_IRQ = 			0x80
 } apu_status;
-	
 	
 
 union APUFrameCounter {
@@ -420,7 +421,23 @@ void write4017(uint8_t value) {
 }
 
 
-void tick() {
+// -----------------------------------------------------------------------------
+// tick
+//
+// Advances the APU by one APU cycle.  Frame counter timing, IRQ generation,
+// channel clocks, and sample generation continue normally.  When debugger audio
+// mute is active, the mixed output sample is replaced with silence before it is
+// written to the host sample buffer.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+tick()
+{
 	if (!(frame_counter_.inihibit_frame_irq) && (status.frame_irq)) {
 		cpu::irq(cpu::APU_IRQ);
 	}
@@ -434,7 +451,11 @@ void tick() {
 	}
 
 	if ((apu_cycles_ % ClocksPerSample) == 0) {
-		sample_buffer_[sample_buffer_end] = mix_channels();
+		if (debug_audio_is_muted()) {
+			sample_buffer_[sample_buffer_end] = SilentSample;
+		} else {
+			sample_buffer_[sample_buffer_end] = mix_channels();
+		}
 		
 		sample_buffer_end = (sample_buffer_end + 1) % sizeof(sample_buffer_);
 	}
@@ -454,16 +475,51 @@ uint64_t cycle_count() {
 }
 
 
-size_t read_samples(uint8_t *buffer, size_t size) {
+// -----------------------------------------------------------------------------
+// nes::apu::read_samples
+//
+// Reads mixed APU samples into the supplied host audio buffer.  The destination
+// buffer is always fully initialized.  If debugger audio mute is active, or if
+// not enough queued APU samples are available, unsigned 8-bit silence is written
+// for the remaining output.
+//
+// Parameters:
+//   buffer - Destination audio buffer.
+//   size   - Number of samples requested by the host audio callback.
+//
+// Returns:
+//   Number of samples written to buffer.
+// -----------------------------------------------------------------------------
+size_t
+read_samples(uint8_t* buffer, size_t size)
+{
+	if (!buffer || size == 0) {
+		return 0;
+	}
 
-    size_t index = sample_buffer_start;
-    size_t i = 0;
-    for(; i < size && index != sample_buffer_end; ++i) {
-        buffer[i] = sample_buffer_[index];
-        index = (index + 1) % buffer_size;
-    }
+	if (debug_audio_is_muted()) {
+		for (size_t i = 0; i < size; i++) {
+			buffer[i] = SilentSample;
+		}
 
-    return i;
+		sample_buffer_start = sample_buffer_end;
+		return size;
+	}
+
+	size_t i = 0;
+
+	while (i < size && sample_buffer_start != sample_buffer_end) {
+		buffer[i] = sample_buffer_[sample_buffer_start];
+		sample_buffer_start = (sample_buffer_start + 1) % buffer_size;
+		i++;
+	}
+
+	while (i < size) {
+		buffer[i] = SilentSample;
+		i++;
+	}
+
+	return size;
 }
 
 
@@ -523,6 +579,50 @@ unmute_channel (int const channel)
 		dmc.unmute();
 		break;
 	}			
+}
+
+// -----------------------------------------------------------------------------
+// nes::apu::debug_set_audio_muted
+//
+// Enables or disables debugger audio mute.  The queued sample buffer is flushed
+// whenever the mute state changes so stale audio cannot remain frozen in the
+// host output path.
+//
+// Parameters:
+//   muted - true to mute debugger audio output.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+debug_set_audio_muted(bool muted)
+{
+	debug_audio_muted = muted;
+
+	for (size_t i = 0; i < buffer_size; i++) {
+		sample_buffer_[i] = SilentSample;
+	}
+
+	sample_buffer_start = 0;
+	sample_buffer_end = 0;
+}
+
+
+// -----------------------------------------------------------------------------
+// nes::apu::debug_audio_is_muted
+//
+// Returns whether debugger audio mute is currently active.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   true if debugger audio output is muted.
+// -----------------------------------------------------------------------------
+bool
+debug_audio_is_muted()
+{
+	return debug_audio_muted;
 }
 
 }
