@@ -96,8 +96,13 @@ uint8_t irq_sources_ = 0x00;
 uint16_t instruction_ = 0;
 int cycle_            = 0;
 
-// debug trace state
+// debug trace / breakpoint state
 bool sExecutedInstructionAddress[0x10000] = {};
+bool sExecuteBreakpointAddress[0x10000] = {};
+bool sDebugBreakpointHit = false;
+uint16_t sDebugBreakpointHitAddress = 0x0000;
+bool sDebugSkipBreakpointOnce = false;
+uint32_t sExecuteBreakpointHitCount[0x10000] = {};
 
 // internal registers (which get trashed by instructions)
 register16 effective_address_ = {};
@@ -128,11 +133,21 @@ uint8_t dmc_dma_delay_                 = 0;
 // stats
 uint64_t executed_cycles_ = 1; // NOTE(eteran): 1 instead of 0 makes 4.irq_and_dma.nes pass...
 
-/**
- * @brief jam_handler
- */
+// eli - make this useful
 [[noreturn]] void jam_handler() {
-	// TODO(eteran): do something useful here...
+	std::cerr
+		<< "CPU JAM abort"
+		<< " PC=$" << std::hex << static_cast<unsigned>(PC.raw)
+		<< " instruction=$" << static_cast<unsigned>(instruction_)
+		<< " cycle=" << std::dec << cycle_
+		<< " A=$" << std::hex << static_cast<unsigned>(A)
+		<< " X=$" << static_cast<unsigned>(X)
+		<< " Y=$" << static_cast<unsigned>(Y)
+		<< " S=$" << static_cast<unsigned>(S)
+		<< " P=$" << static_cast<unsigned>(P)
+		<< " cycles=" << std::dec << executed_cycles_
+		<< std::endl;
+
 	abort();
 }
 
@@ -566,6 +581,19 @@ void clock() {
  */
 void tick() {
 	if (cycle_ == 0) {
+		if (sDebugBreakpointHit) {
+			return;
+		}
+
+		if (sDebugSkipBreakpointOnce) {
+			sDebugSkipBreakpointOnce = false;
+		} else if (sExecuteBreakpointAddress[PC.raw]) {
+			sDebugBreakpointHit = true;
+			sDebugBreakpointHitAddress = PC.raw;
+			sExecuteBreakpointHitCount[PC.raw]++;
+			return;
+		}
+
 		sExecutedInstructionAddress[PC.raw] = true;
 	}
 
@@ -632,6 +660,8 @@ void stop() {
 	dmc_dma_source_address_ = 0;
 	dmc_dma_count_          = 0;
 	dmc_dma_delay_          = 0;
+	
+	debug_clear_breakpoint_hit();	
 }
 
 /**
@@ -775,5 +805,209 @@ debug_clear_instruction_trace()
 	);
 }
 
+// -----------------------------------------------------------------------------
+// nes::cpu::debug_add_execute_breakpoint
+//
+// Enables an execute breakpoint at a CPU address.  The breakpoint is checked
+// when the CPU is about to fetch an opcode at instruction cycle 0.
+//
+// Parameters:
+//   address - CPU address to break on when used as an instruction start.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+debug_add_execute_breakpoint(uint16_t address)
+{
+	sExecuteBreakpointAddress[address] = true;
+}
 
-} 
+
+void
+debug_remove_execute_breakpoint(uint16_t address)
+{
+	sExecuteBreakpointAddress[address] = false;
+	sExecuteBreakpointHitCount[address] = 0;
+
+	if (sDebugBreakpointHit && sDebugBreakpointHitAddress == address) {
+		debug_clear_breakpoint_hit();
+	}
+}
+
+
+void
+debug_clear_execute_breakpoints()
+{
+	std::fill(
+		sExecuteBreakpointAddress,
+		sExecuteBreakpointAddress + 0x10000,
+		false
+	);
+
+	debug_clear_breakpoint_hit();
+	debug_clear_breakpoint_hit_counts();
+}
+
+
+// -----------------------------------------------------------------------------
+// nes::cpu::debug_has_execute_breakpoint
+//
+// Returns whether an execute breakpoint is enabled at a CPU address.
+//
+// Parameters:
+//   address - CPU address to query.
+//
+// Returns:
+//   true if an execute breakpoint exists at address.
+// -----------------------------------------------------------------------------
+bool
+debug_has_execute_breakpoint(uint16_t address)
+{
+	return sExecuteBreakpointAddress[address];
+}
+
+
+// -----------------------------------------------------------------------------
+// nes::cpu::debug_breakpoint_hit
+//
+// Returns whether the CPU has reached an enabled execute breakpoint since the
+// hit state was last cleared.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   true if an execute breakpoint has been hit.
+// -----------------------------------------------------------------------------
+bool
+debug_breakpoint_hit()
+{
+	return sDebugBreakpointHit;
+}
+
+
+// -----------------------------------------------------------------------------
+// nes::cpu::debug_breakpoint_hit_address
+//
+// Returns the CPU address of the most recent execute breakpoint hit.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   CPU address for the most recent breakpoint hit.
+// -----------------------------------------------------------------------------
+uint16_t
+debug_breakpoint_hit_address()
+{
+	return sDebugBreakpointHitAddress;
+}
+
+
+// -----------------------------------------------------------------------------
+// nes::cpu::debug_clear_breakpoint_hit
+//
+// Clears the current breakpoint-hit latch.  This does not remove any breakpoints.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+debug_clear_breakpoint_hit()
+{
+	sDebugBreakpointHit = false;
+	sDebugBreakpointHitAddress = 0x0000;
+}
+
+
+// -----------------------------------------------------------------------------
+// nes::cpu::debug_skip_breakpoint_once
+//
+// Skips execute-breakpoint checking for the next instruction boundary.  This is
+// used when resuming from a breakpoint so execution can advance past the
+// breakpoint instruction instead of immediately re-triggering the same hit.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+debug_skip_breakpoint_once()
+{
+	sDebugSkipBreakpointOnce = true;
+}
+
+// -----------------------------------------------------------------------------
+// nes::cpu::debug_resume_past_breakpoint
+//
+// Prepares execution to continue from a latched execute breakpoint.  The next
+// instruction-boundary breakpoint check is skipped once so the CPU can execute
+// the breakpoint instruction instead of immediately re-triggering the same hit.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+debug_resume_past_breakpoint()
+{
+	if (!sDebugBreakpointHit) {
+		return;
+	}
+
+	sDebugSkipBreakpointOnce = true;
+	debug_clear_breakpoint_hit();
+}
+
+// -----------------------------------------------------------------------------
+// nes::cpu::debug_breakpoint_hit_count
+//
+// Returns the number of times an execute breakpoint has been hit at the supplied
+// CPU address since the count was last cleared.
+//
+// Parameters:
+//   address - CPU address to query.
+//
+// Returns:
+//   Number of breakpoint hits recorded for address.
+// -----------------------------------------------------------------------------
+uint32_t
+debug_breakpoint_hit_count(uint16_t address)
+{
+	return sExecuteBreakpointHitCount[address];
+}
+
+
+// -----------------------------------------------------------------------------
+// nes::cpu::debug_clear_breakpoint_hit_counts
+//
+// Clears all execute-breakpoint hit counters.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+debug_clear_breakpoint_hit_counts()
+{
+	std::fill(
+		sExecuteBreakpointHitCount,
+		sExecuteBreakpointHitCount + 0x10000,
+		0
+	);
+}
+
+
+}
+
+ 

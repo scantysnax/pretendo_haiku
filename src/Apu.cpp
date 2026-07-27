@@ -452,7 +452,7 @@ tick()
 
 	if ((apu_cycles_ % ClocksPerSample) == 0) {
 		if (debug_audio_is_muted()) {
-			sample_buffer_[sample_buffer_end] = SilentSample;
+			sample_buffer_[sample_buffer_end] = silence;
 		} else {
 			sample_buffer_[sample_buffer_end] = mix_channels();
 		}
@@ -499,7 +499,7 @@ read_samples(uint8_t* buffer, size_t size)
 
 	if (debug_audio_is_muted()) {
 		for (size_t i = 0; i < size; i++) {
-			buffer[i] = SilentSample;
+			buffer[i] = silence;
 		}
 
 		sample_buffer_start = sample_buffer_end;
@@ -515,7 +515,7 @@ read_samples(uint8_t* buffer, size_t size)
 	}
 
 	while (i < size) {
-		buffer[i] = SilentSample;
+		buffer[i] = silence;
 		i++;
 	}
 
@@ -600,7 +600,7 @@ debug_set_audio_muted(bool muted)
 	debug_audio_muted = muted;
 
 	for (size_t i = 0; i < buffer_size; i++) {
-		sample_buffer_[i] = SilentSample;
+		sample_buffer_[i] = silence;
 	}
 
 	sample_buffer_start = 0;

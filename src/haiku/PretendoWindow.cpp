@@ -403,6 +403,12 @@ PretendoWindow::~PretendoWindow()
 		}
 	}
 	
+	if (fCPUMemoryWindow != nullptr) {
+	if (fCPUMemoryWindow->Lock()) {
+		fCPUMemoryWindow->Quit();
+	}
+}
+	
 	// long day.
 	
 	fMutex->Unlock();
@@ -599,6 +605,10 @@ PretendoWindow::MessageReceived (BMessage *message)
 			
 		case messages::VIEW_CPUDISASM:
 			OnViewCPUDisasmWindow();
+			break;
+			
+		case messages::VIEW_CPUMEM:
+			OnViewCPUMemoryWindow();
 			break;
 			
 		default:
@@ -845,6 +855,7 @@ PretendoWindow::AddMenu()
 	fToolMenu->AddItem(fCPUToolMenu);
 	fCPUToolMenu->AddItem(new BMenuItem("View Status" B_UTF8_ELLIPSIS, new BMessage(messages::VIEW_CPUSTAT)));
 	fCPUToolMenu->AddItem(new BMenuItem("View Disassembly" B_UTF8_ELLIPSIS, new BMessage(messages::VIEW_CPUDISASM)));
+	fCPUToolMenu->AddItem(new BMenuItem("View Memory" B_UTF8_ELLIPSIS, new BMessage(messages::VIEW_CPUMEM)));
 	
 	fPPUToolMenu = new BMenu("PPU");
 	fToolMenu->AddItem(fPPUToolMenu);
@@ -1060,8 +1071,11 @@ PretendoWindow::OnQuit()
 // PretendoWindow::OnRun
 //
 // Starts or resumes emulation when a ROM is loaded.  On first run this performs
-// a hard reset, unlocks the emulator mutex, starts audio, and enables fullscreen
-// mode.
+// a hard reset, clears any stale execute-breakpoint hit latch, unlocks the
+// emulator mutex, starts audio, and enables fullscreen mode.
+//
+// If emulation is already running but paused, this delegates to OnPause() so the
+// normal pause/unpause path is preserved.
 //
 // Parameters:
 //   None.
@@ -1072,10 +1086,13 @@ PretendoWindow::OnQuit()
 void
 PretendoWindow::OnRun()
 {	
-	if (! fRunning) {
+	if (!fRunning) {
 		// make sure we have a cart loaded
 		if (nes::cart.mapper()) {
 			reset(nes::Reset::Hard);
+
+			nes::cpu::debug_clear_breakpoint_hit();
+
 			fMutex->Unlock(); // unlock the mutual exclusion
 			fRunning = true;  // signal the thread that we're running
 			fAudioStream->Start();
@@ -1931,6 +1948,42 @@ PretendoWindow::OnViewCPUDisasmWindow()
 
 
 // -----------------------------------------------------------------------------
+// PretendoWindow::OnViewCPUMemoryWindow
+//
+// Opens the CPU memory viewer window or brings the existing one forward.  New
+// interactive tool windows claim tool-input ownership so fullscreen global input
+// polling is disabled while the window is open.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::OnViewCPUMemoryWindow()
+{
+	if (fCPUMemoryWindow) {
+		if (fCPUMemoryWindow->Lock()) {
+			if (fCPUMemoryWindow->IsHidden()) {
+				fCPUMemoryWindow->Show();
+			}
+
+			fCPUMemoryWindow->Activate(true);
+			fCPUMemoryWindow->Unlock();
+		}
+
+		return;
+	}
+
+	fCPUMemoryWindow = new CPUMemoryWindow(this);
+	BeginToolInput();
+	fCPUMemoryWindow->Show();
+}
+
+
+
+// -----------------------------------------------------------------------------
 // PretendoWindow::ROMInfoWindowClosed
 //
 // Releases tool-input ownership for the ROM info window and clears the
@@ -2235,8 +2288,17 @@ PretendoWindow::CPUStatusWindowClosed()
 // -----------------------------------------------------------------------------
 // PretendoWindow::CPUDisasmWindowClosed
 //
-// Releases tool-input ownership for the CPU Disassembly window and clears the
-// stored window pointer.  This is called by the child window as it closes.
+// Handles the CPU disassembly window closing.  Since execute breakpoints are
+// controlled from the disassembly debugger, closing the window clears execute
+// breakpoints and any latched breakpoint-hit state so hidden breakpoints do not
+// leave the emulator appearing frozen.
+//
+// If the debugger paused emulation through S or V, closing the disassembler also
+// resumes normal emulation so the ROM continues running at normal speed.
+//
+// This does not resume execution just because the window was opened.  It only
+// resumes when the debugger was the thing that placed emulation into paused
+// stepping mode.
 //
 // Parameters:
 //   None.
@@ -2247,8 +2309,43 @@ PretendoWindow::CPUStatusWindowClosed()
 void
 PretendoWindow::CPUDisasmWindowClosed()
 {
-	EndToolInput();
 	fCPUDisasmWindow = nullptr;
+
+	EndToolInput();
+
+	nes::cpu::debug_clear_execute_breakpoints();
+	nes::cpu::debug_clear_breakpoint_hit();
+
+	if (!fDebuggerPausedEmulation) {
+		return;
+	}
+
+	if (!fRunning) {
+		fDebuggerPausedEmulation = false;
+		return;
+	}
+
+	DebugResumeExecution();
+}
+
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::CPUMemoryWindowClosed
+//
+// Releases tool-input ownership for the CPU Memory window and clears the stored
+// window pointer.  This is called by the child window as it closes.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::CPUMemoryWindowClosed()
+{
+	EndToolInput();
+	fCPUMemoryWindow = nullptr;
 }
 
 
@@ -3040,6 +3137,11 @@ PretendoWindow::end_frame()
 // emulator is debugger-paused, preventing debugger shortcuts from leaking into
 // NES controller input.
 //
+// Execute breakpoints are detected by the CPU core at instruction boundaries.
+// When a breakpoint hit is latched, the emulator enters debugger pause mode
+// after the current frame finishes.  The hit latch is intentionally left set so
+// debugger views can report the hit address.
+//
 // Parameters:
 //   data - PretendoWindow pointer.
 //
@@ -3049,30 +3151,48 @@ PretendoWindow::end_frame()
 status_t
 PretendoWindow::emulator_thread (void *data)
 {
-	PretendoWindow* window = reinterpret_cast<PretendoWindow *>(data);	
-	
+	PretendoWindow *window = reinterpret_cast<PretendoWindow *>(data);	
+
 	while (1) {
 		if (window->LockMutex() == false) { 
 			break;
 		}
-		
+
+		bool breakpointHit = false;
+
 		if (!nes::ppu::system_paused) {
 			window->start_frame();
 			nes::run_frame(window);
 			window->end_frame();
 
-			if (window->ShouldPollGlobalInput()) {
+			if (nes::cpu::debug_breakpoint_hit()) {
+				breakpointHit = true;
+				nes::ppu::system_paused = true;
+				nes::apu::debug_set_audio_muted(true);
+
+				if (window->fAudioStream) {
+					window->fAudioStream->SetMuted(true);
+				}
+			}
+
+			if (!breakpointHit && window->ShouldPollGlobalInput()) {
 				window->ReadKeyStates();
 			}
 		}
-		
+
 		window->UnlockMutex();
+
+		if (breakpointHit) {
+			window->RedrawLastFrame();
+			window->InvalidateDebugViews();
+			InvalidateWindowContents(window->fCPUDisasmWindow);
+		}
 
 		if (nes::ppu::system_paused) {
 			snooze(10000);
 		}
-	}	
-	
+	}
+
 	return B_OK;
 }
 
@@ -3348,6 +3468,7 @@ PretendoWindow::CountVisibleToolWindows() const
 
 	countWindow(fCPUStatusWindow);
 	countWindow(fCPUDisasmWindow);
+	countWindow(fCPUMemoryWindow);
 
 	return count;
 }
@@ -3598,6 +3719,11 @@ PretendoWindow::RestoreToolWindowsAfterFullScreen()
 		fCPUDisasmWindow,
 		fWasCPUDisasmWindowVisibleBeforeFullScreen
 	);
+	
+	ShowToolWindowAfterFullScreen(
+		fCPUMemoryWindow,
+		fWasCPUMemoryWindowVisibleBeforeFullScreen
+	);
 
 	fToolInputDepth = CountVisibleToolWindows();
 
@@ -3622,6 +3748,7 @@ PretendoWindow::RestoreToolWindowsAfterFullScreen()
 
 	fWasCPUStatusWindowVisibleBeforeFullScreen = false;
 	fWasCPUDisasmWindowVisibleBeforeFullScreen = false;
+	fWasCPUMemoryWindowVisibleBeforeFullScreen = false;
 
 	fToolWindowsSuspendedForFullScreen = false;
 
@@ -3670,12 +3797,18 @@ PretendoWindow::ConnectDebugViews()
 // -----------------------------------------------------------------------------
 // PretendoWindow::DebugStepInstruction
 //
-// Enters debugger step mode and advances one CPU instruction.  Controller input
-// is cleared before stepping so debugger shortcuts, such as S, do not also act
-// as emulator controller buttons.
+// Enters debugger step mode and advances one CPU instruction.  If a ROM is
+// loaded but the emulator has not entered run mode yet, the emulator session is
+// started in debugger-paused mode first.
 //
-// Audio output is muted, but the host sound player is left running because its
-// callback is also used for emulator pacing.
+// If the emulator was actively running before the step request, the emulator
+// mutex is acquired before stepping.  If the emulator was already paused, or was
+// just started for debugging, the debugger steps directly.
+//
+// Controller input is cleared before stepping so debugger shortcuts, such as S,
+// do not also act as emulator controller buttons.
+//
+// Audio output is muted while stepping.
 //
 // Parameters:
 //   None.
@@ -3690,6 +3823,10 @@ PretendoWindow::DebugStepInstruction()
 		return;
 	}
 
+	StartEmulatorForDebugging();
+
+	const bool needsLock = fRunning && !fPaused;
+
 	nes::apu::debug_set_audio_muted(true);
 
 	if (fAudioStream) {
@@ -3697,16 +3834,27 @@ PretendoWindow::DebugStepInstruction()
 	}
 
 	nes::ppu::system_paused = true;
+	fPaused = true;
+	fDebuggerPausedEmulation = true;
+
 	ClearControllerInput();
 
-	if (!LockMutex(2000000)) {
-		puts("DebugStepInstruction: timed out waiting for emulator mutex");
-		return;
+	bool locked = false;
+
+	if (needsLock) {
+		if (!LockMutex(2000000)) {
+			puts("DebugStepInstruction: timed out waiting for emulator mutex");
+			return;
+		}
+
+		locked = true;
 	}
 
 	nes::debug_step_instruction();
 
-	UnlockMutex();
+	if (locked) {
+		UnlockMutex();
+	}
 
 	RedrawLastFrame();
 	InvalidateDebugViews();
@@ -3773,9 +3921,14 @@ PretendoWindow::LoadROMPath(const char* path)
 // -----------------------------------------------------------------------------
 // PretendoWindow::DebugResumeExecution
 //
-// Leaves debugger step mode, clears controller input, unmutes audio, clears stale
-// host samples, drains accumulated audio pacing permits, resumes normal PPU
-// execution, and refreshes debugger windows.
+// Leaves debugger step mode, starts emulation if needed, clears controller input,
+// resumes cleanly from an execute-breakpoint hit when needed, unmutes audio,
+// clears stale host samples, resumes normal PPU execution, and refreshes
+// debugger windows.
+//
+// If execution is resumed from an execute breakpoint, the CPU is told to run
+// past the breakpoint address without immediately re-triggering the same
+// breakpoint while PC is still sitting there.
 //
 // Parameters:
 //   None.
@@ -3786,7 +3939,23 @@ PretendoWindow::LoadROMPath(const char* path)
 void
 PretendoWindow::DebugResumeExecution()
 {
+	if (!nes::cart.mapper()) {
+		return;
+	}
+
+	if (!fRunning) {
+		StartEmulatorForRunning();
+		InvalidateDebugViews();
+		return;
+	}
+
 	ClearControllerInput();
+
+	if (nes::cpu::debug_breakpoint_hit()) {
+		nes::cpu::debug_resume_past_breakpoint();
+	} else {
+		nes::cpu::debug_clear_breakpoint_hit();
+	}
 
 	nes::apu::debug_set_audio_muted(false);
 
@@ -3796,6 +3965,8 @@ PretendoWindow::DebugResumeExecution()
 		fAudioStream->SetMuted(false);
 	}
 
+	fDebuggerPausedEmulation = false;
+	fPaused = false;
 	nes::ppu::system_paused = false;
 
 	InvalidateDebugViews();
@@ -3805,12 +3976,18 @@ PretendoWindow::DebugResumeExecution()
 // -----------------------------------------------------------------------------
 // PretendoWindow::DebugStepFrame
 //
-// Enters debugger frame-step mode and advances one full PPU frame.  Controller
-// input is cleared before stepping so debugger shortcuts do not also act as
-// emulator controller buttons.
+// Enters debugger frame-step mode and advances one full PPU frame.  If a ROM is
+// loaded but the emulator has not entered run mode yet, the emulator session is
+// started in debugger-paused mode first.
 //
-// Audio output is muted, but the host sound player is left running because its
-// callback is also used for emulator pacing.
+// If the emulator was actively running before the frame-step request, the
+// emulator mutex is acquired before stepping.  If the emulator was already
+// paused, or was just started for debugging, the debugger steps directly.
+//
+// Controller input is cleared before stepping so debugger shortcuts do not also
+// act as emulator controller buttons.
+//
+// Audio output is muted while stepping.
 //
 // Parameters:
 //   None.
@@ -3825,6 +4002,10 @@ PretendoWindow::DebugStepFrame()
 		return;
 	}
 
+	StartEmulatorForDebugging();
+
+	const bool needsLock = fRunning && !fPaused;
+
 	nes::apu::debug_set_audio_muted(true);
 
 	if (fAudioStream) {
@@ -3832,21 +4013,190 @@ PretendoWindow::DebugStepFrame()
 	}
 
 	nes::ppu::system_paused = true;
+	fPaused = true;
+	fDebuggerPausedEmulation = true;
+
 	ClearControllerInput();
 
-	if (!LockMutex(2000000)) {
-		puts("DebugStepFrame: timed out waiting for emulator mutex");
-		return;
+	bool locked = false;
+
+	if (needsLock) {
+		if (!LockMutex(2000000)) {
+			puts("DebugStepFrame: timed out waiting for emulator mutex");
+			return;
+		}
+
+		locked = true;
 	}
 
 	nes::debug_step_frame();
 
-	UnlockMutex();
+	if (locked) {
+		UnlockMutex();
+	}
 
 	RedrawLastFrame();
 	InvalidateDebugViews();
+} 
+
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::StartEmulatorForRunning
+//
+// Starts the emulator session in normal running mode if a ROM is loaded but the
+// emulator has not entered run mode yet.  This is used by debugger Run/G so
+// pressing G from the disassembly window behaves consistently with choosing Run
+// from the menu.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::StartEmulatorForRunning()
+{
+	if (fRunning) {
+		return;
+	}
+
+	if (!nes::cart.mapper()) {
+		return;
+	}
+
+	reset(nes::Reset::Hard);
+
+	nes::cpu::debug_clear_breakpoint_hit();
+	nes::apu::debug_set_audio_muted(false);
+	nes::ppu::system_paused = false;
+
+	ClearControllerInput();
+
+	if (fAudioStream) {
+		fAudioStream->ClearBuffer();
+		fAudioStream->ResetPacing();
+		fAudioStream->SetMuted(false);
+		fAudioStream->Start();
+	}
+
+	if (fVideoMenu && fVideoMenu->ItemAt(video_framework::FULLSCREEN)) {
+		fVideoMenu->ItemAt(video_framework::FULLSCREEN)->SetEnabled(true);
+	}
+
+	fDebuggerPausedEmulation = false;
+	fPaused = false;
+	fRunning = true;
+
+	fMutex->Unlock();
 }
 
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::EnsureDebugSessionStarted
+//
+// Starts the emulator core in debugger-paused mode if it has not been started
+// yet.  This allows CPU debugger commands such as S and V to work immediately
+// after loading a ROM, without requiring the user to press G first.
+//
+// The emulator worker thread is released from its initial startup mutex hold,
+// but PPU execution remains debugger-paused.  Audio is kept muted for debugger
+// stepping.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::EnsureDebugSessionStarted()
+{
+	if (fRunning) {
+		return;
+	}
+
+	if (!nes::cart.mapper()) {
+		return;
+	}
+
+	reset(nes::Reset::Hard);
+
+	nes::cpu::debug_clear_breakpoint_hit();
+	nes::apu::debug_set_audio_muted(true);
+	nes::ppu::system_paused = true;
+
+	if (fAudioStream) {
+		fAudioStream->ClearBuffer();
+		fAudioStream->ResetPacing();
+		fAudioStream->SetMuted(true);
+	}
+
+	ClearControllerInput();
+
+	fRunning = true;
+
+	if (fVideoMenu && fVideoMenu->ItemAt(video_framework::FULLSCREEN)) {
+		fVideoMenu->ItemAt(video_framework::FULLSCREEN)->SetEnabled(true);
+	}
+
+	fMutex->Unlock();
+}
+
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::StartEmulatorForDebugging
+//
+// Starts the emulator session in debugger-paused mode if a ROM is loaded but the
+// emulator has not entered run mode yet.  This lets debugger commands such as S
+// and V bootstrap emulation without requiring the user to choose Run from the
+// menu first.
+//
+// The emulator is initialized using the same hard reset used by normal startup,
+// audio is muted, the worker thread is released, and the emulator remains paused
+// so the debugger controls stepping.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::StartEmulatorForDebugging()
+{
+	if (fRunning) {
+		return;
+	}
+
+	if (!nes::cart.mapper()) {
+		return;
+	}
+
+	reset(nes::Reset::Hard);
+
+	nes::cpu::debug_clear_breakpoint_hit();
+	nes::apu::debug_set_audio_muted(true);
+	nes::ppu::system_paused = true;
+
+	ClearControllerInput();
+
+	if (fAudioStream) {
+		fAudioStream->ClearBuffer();
+		fAudioStream->ResetPacing();
+		fAudioStream->SetMuted(true);
+		fAudioStream->Start();
+	}
+
+	if (fVideoMenu && fVideoMenu->ItemAt(video_framework::FULLSCREEN)) {
+		fVideoMenu->ItemAt(video_framework::FULLSCREEN)->SetEnabled(true);
+	}
+
+	fRunning = true;
+	fPaused = true;
+
+	fMutex->Unlock();
+}
 
 // -----------------------------------------------------------------------------
 // PretendoWindow::HighlightPaletteDebugger
@@ -3917,8 +4267,11 @@ PretendoWindow::InvalidateDebugViews()
 
 	InvalidateWindowContents(fCPUStatusWindow);
 
+	InvalidateWindowContents(fCPUStatusWindow);
+	InvalidateWindowContents(fCPUMemoryWindow);
+
 	// Do not invalidate fCPUDisasmWindow here.
-	// CPUDisasmView::KeyDown() updates and invalidates itself after stepping.
+	// CPUDisasmView::KeyDown() updates and invalidates itself after stepping.	
 }
 
 

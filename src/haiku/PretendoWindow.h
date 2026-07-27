@@ -18,6 +18,7 @@
 #include "Controller.h"
 #include "CPUDisasmView.h"
 #include "CPUDisasmWindow.h"
+#include "CPUMemoryWindow.h"
 #include "CPUStatusWindow.h"
 #include "InputWindow.h"
 #include "MenuBarIcon.h"
@@ -38,6 +39,7 @@
 
 #include "Apu.h"
 #include "Cart.h"
+#include "Cpu.h"
 #include "Input.h"
 #include "Mapper.h"
 #include "Nes.h"
@@ -50,6 +52,7 @@
 
 
 class CPUDisasmWindow;
+class CPUMemoryWindow;
 class CPUStatusWindow;
 class InputWindow;
 class NameTableWindow;
@@ -117,7 +120,8 @@ class PretendoWindow : public BWindow
 		VIEW_PPULOG =		'WLOG',
 		VIEW_PPUMEM = 		'PPUM',
 		VIEW_CPUSTAT = 		'CPUS',
-		VIEW_CPUDISASM = 	'CPUD'
+		VIEW_CPUDISASM = 	'CPUD',
+		VIEW_CPUMEM = 		'CPUM'
 	} messages;	
 	
 	private:
@@ -209,6 +213,7 @@ class PretendoWindow : public BWindow
 	void OnViewPPUMemoryWindow();
 	void OnViewCPUStatusWindow();
 	void OnViewCPUDisasmWindow();
+	void OnViewCPUMemoryWindow();
 
 	// video stuff
 	private:
@@ -331,6 +336,7 @@ class PretendoWindow : public BWindow
 	PPUMemoryWindow *fPPUMemoryWindow = nullptr;
 	CPUStatusWindow *fCPUStatusWindow = nullptr;
 	CPUDisasmWindow *fCPUDisasmWindow = nullptr;
+	CPUMemoryWindow* fCPUMemoryWindow = nullptr;
 	
 	private:
 	bool fPaused = false;
@@ -392,6 +398,12 @@ class PretendoWindow : public BWindow
 	void DebugStepFrame();
 	void InvalidateDebugViews();
 	
+	private:
+	void StartEmulatorForRunning();
+	void EnsureDebugSessionStarted();
+	void StartEmulatorForDebugging();
+	bool fDebuggerPausedEmulation = false;
+	
 	// close callbacks    
     public:
     void ROMInfoWindowClosed();
@@ -415,6 +427,8 @@ class PretendoWindow : public BWindow
 
 	void CPUStatusWindowClosed();
 	void CPUDisasmWindowClosed();
+	
+	void CPUMemoryWindowClosed();
     
     public:
 	void HighlightPaletteDebugger (bool sprites, int32 palette, int32 entry = -1);
@@ -449,28 +463,35 @@ class PretendoWindow : public BWindow
 	bool HideToolWindowForFullScreen (BWindow *window);
 	void ShowToolWindowAfterFullScreen (BWindow *window, bool wasVisible);
 	
+	// debug children things
 	private:
 	bool fWasROMInfoWindowVisibleBeforeFullScreen = false;
 	bool fWasPaletteWindowVisibleBeforeFullScreen = false;
 	bool fWasInputWindowVisibleBeforeFullScreen = false;
 
+	private:
 	bool fWasPatternTable1WindowVisibleBeforeFullScreen = false;
 	bool fWasPatternTable2WindowVisibleBeforeFullScreen = false;
 
+	private:
 	bool fWasNameTable1WindowVisibleBeforeFullScreen = false;
 	bool fWasNameTable2WindowVisibleBeforeFullScreen = false;
 	bool fWasNameTable3WindowVisibleBeforeFullScreen = false;
 	bool fWasNameTable4WindowVisibleBeforeFullScreen = false;
 
+	private:
 	bool fWasPaletteDebugWindowVisibleBeforeFullScreen = false;
 	bool fWasOAMDebugWindowVisibleBeforeFullScreen = false;
 
+	private:
 	bool fWasPPUStatusWindowVisibleBeforeFullScreen = false;
 	bool fWasPPUWriteLogWindowVisibleBeforeFullScreen = false;
 	bool fWasPPUMemoryWindowVisibleBeforeFullScreen = false;
-
+	
+	private:
 	bool fWasCPUStatusWindowVisibleBeforeFullScreen = false;
 	bool fWasCPUDisasmWindowVisibleBeforeFullScreen = false;
+	bool fWasCPUMemoryWindowVisibleBeforeFullScreen = false;
 	
     // keys
 	private:

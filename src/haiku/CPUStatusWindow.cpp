@@ -8,18 +8,20 @@
 // -----------------------------------------------------------------------------
 // CPUStatusWindow::CPUStatusWindow
 //
-// Creates the CPU status debugger window and installs the CPUStatusView child.
+// Creates the floating CPU status window and installs the CPU status view.  The
+// window is wide enough for decoded instruction text and stack preview values,
+// and tall enough for the instruction/timing panel to fit without clipping.
 //
 // Parameters:
-//   parent - Owning PretendoWindow.  Used for lifecycle notification.
+//   parent - Main emulator window that owns this tool window.
 //
 // Returns:
-//   Constructor; no return value.
+//   Nothing.
 // -----------------------------------------------------------------------------
-CPUStatusWindow::CPUStatusWindow (PretendoWindow *parent)
+CPUStatusWindow::CPUStatusWindow(PretendoWindow* parent)
 	:
 	BWindow(
-		BRect(280.0f, 280.0f, 660.0f, 720.0f),
+		BRect(280.0f, 280.0f, 800.0f, 770.0f),
 		"CPU Status",
 		B_FLOATING_WINDOW_LOOK,
 		B_NORMAL_WINDOW_FEEL,

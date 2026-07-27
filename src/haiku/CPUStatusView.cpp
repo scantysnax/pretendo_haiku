@@ -3,8 +3,12 @@
 
 #include "Cart.h"
 #include "Cpu.h"
+#include "CPUDisasm.h"
 #include "DebugHelpers.h"
+#include "Ppu.h"
 #include "PretendoWindow.h"
+
+#include <cmath>
 
 
 static void
@@ -142,7 +146,17 @@ CPUStatusView::DrawHeaderPanel()
 // -----------------------------------------------------------------------------
 // CPUStatusView::DrawRegisterPanel
 //
-// Draws the core 6502 public registers: PC, A, X, Y, S, and P.
+// Draws the core 6502 public registers: PC, A, X, Y, S, and P.  The stack
+// pointer is also shown as a full CPU address in page $0100 so it can be checked
+// directly against the CPU Memory window's stack page.
+//
+// The processor status byte is additionally decoded into a compact flag string
+// using the common 6502 order:
+//
+//   N V - B D I Z C
+//
+// Uppercase letters indicate set flags, lowercase letters indicate clear flags,
+// and '-' represents the unused/reserved status bit.
 //
 // Parameters:
 //   None.
@@ -171,7 +185,7 @@ CPUStatusView::DrawRegisterPanel()
 	BFont prevFont;
 	GetFont(&prevFont);
 
-	BFont mono(be_fixed_font);
+	BFont mono = *be_fixed_font;
 	mono.SetSize(11.0f);
 
 	const float leftLabelX = panel.left + 8.0f;
@@ -186,7 +200,7 @@ CPUStatusView::DrawRegisterPanel()
 	BString s;
 	nes::cpu::cpu_state_t state = nes::cpu::debug_cpu_state();
 
-	auto drawLeftKV = [&](const char *label, const char *value) {
+	auto drawLeftKV = [&](const char* label, const char* value) {
 		SetHighColor(80, 80, 80);
 		SetFont(&prevFont);
 		DrawString(label, BPoint(leftLabelX, leftY));
@@ -198,7 +212,7 @@ CPUStatusView::DrawRegisterPanel()
 		leftY += lineH;
 	};
 
-	auto drawRightKV = [&](const char *label, const char *value) {
+	auto drawRightKV = [&](const char* label, const char* value) {
 		SetHighColor(80, 80, 80);
 		SetFont(&prevFont);
 		DrawString(label, BPoint(rightLabelX, rightY));
@@ -219,6 +233,11 @@ CPUStatusView::DrawRegisterPanel()
 	s.SetToFormat("$%02X", state.x);
 	drawLeftKV("X:", s.String());
 
+	const uint16 stackAddress = static_cast<uint16>(0x0100 | state.s);
+
+	s.SetToFormat("$%04X", stackAddress);
+	drawLeftKV("Stack:", s.String());
+
 	s.SetToFormat("$%02X", state.y);
 	drawRightKV("Y:", s.String());
 
@@ -228,6 +247,22 @@ CPUStatusView::DrawRegisterPanel()
 	s.SetToFormat("$%02X", state.p);
 	drawRightKV("P:", s.String());
 
+	const uint8 p = state.p;
+
+	BString flags;
+	flags.SetToFormat(
+		"%c%c-%c%c%c%c%c",
+		(p & 0x80) ? 'N' : 'n',
+		(p & 0x40) ? 'V' : 'v',
+		(p & 0x10) ? 'B' : 'b',
+		(p & 0x08) ? 'D' : 'd',
+		(p & 0x04) ? 'I' : 'i',
+		(p & 0x02) ? 'Z' : 'z',
+		(p & 0x01) ? 'C' : 'c'
+	);
+
+	drawRightKV("Flags:", flags.String());
+
 	SetFont(&prevFont);
 }
 
@@ -236,7 +271,10 @@ CPUStatusView::DrawRegisterPanel()
 // CPUStatusView::DrawFlagsPanel
 //
 // Draws the decoded 6502 processor status flags.  Active flags are shown in
-// green; inactive flags are shown in gray.
+// green; inactive flags are shown in gray.  The unused/reserved status bit is
+// displayed as '-' to match common 6502 debugger notation:
+//
+//   N V - B D I Z C
 //
 // Parameters:
 //   None.
@@ -275,7 +313,7 @@ CPUStatusView::DrawFlagsPanel()
 
 	const float totalFlagW = (boxW * 8.0f) + (gap * 7.0f);
 	float x = panel.left + ((panel.Width() - totalFlagW) * 0.5f);
-	float y = panel.top + 36.0f;
+	const float y = panel.top + 36.0f;
 
 	DrawFlag(BRect(x, y, x + boxW, y + boxH), "N", n);
 	x += boxW + gap;
@@ -283,7 +321,7 @@ CPUStatusView::DrawFlagsPanel()
 	DrawFlag(BRect(x, y, x + boxW, y + boxH), "V", v);
 	x += boxW + gap;
 
-	DrawFlag(BRect(x, y, x + boxW, y + boxH), "R", r);
+	DrawFlag(BRect(x, y, x + boxW, y + boxH), "-", r);
 	x += boxW + gap;
 
 	DrawFlag(BRect(x, y, x + boxW, y + boxH), "B", b);
@@ -310,7 +348,8 @@ CPUStatusView::DrawFlagsPanel()
 	const float midX = panel.left + 196.0f;
 	float legendY = y + boxH + 22.0f;
 
-	auto drawLegend = [&](float labelX, float textX, const char *flag, const char *text, bool active) {
+	auto drawLegend = [&](float labelX, float textX, const char* flag,
+		const char* text, bool active) {
 		SetStateColor(this, active);
 		DrawString(flag, BPoint(labelX, legendY));
 
@@ -326,7 +365,7 @@ CPUStatusView::DrawFlagsPanel()
 	drawLegend(midX, midX + 18.0f, "I", "IRQ Disable", i);
 	legendY += lineH;
 
-	drawLegend(leftX, leftX + 18.0f, "R", "Reserved", r);
+	drawLegend(leftX, leftX + 18.0f, "-", "Reserved", r);
 	drawLegend(midX, midX + 18.0f, "Z", "Zero", z);
 	legendY += lineH;
 
@@ -338,8 +377,13 @@ CPUStatusView::DrawFlagsPanel()
 // -----------------------------------------------------------------------------
 // CPUStatusView::DrawTimingPanel
 //
-// Draws the current instruction latch, current instruction cycle, and total
-// executed CPU cycles.
+// Draws the current decoded instruction, emulator run/pause state, instruction
+// boundary state, stack preview, current instruction latch, current instruction
+// cycle, and total executed CPU cycles.
+//
+// The 6502 stack pointer points to the next free stack slot.  The byte most
+// recently pushed is normally at SP + 1 within page $0100, so the stack preview
+// shows the top stack address and nearby stack bytes above SP.
 //
 // Parameters:
 //   None.
@@ -368,18 +412,18 @@ CPUStatusView::DrawTimingPanel()
 	BFont prevFont;
 	GetFont(&prevFont);
 
-	BFont mono(be_fixed_font);
+	BFont mono = *be_fixed_font;
 	mono.SetSize(11.0f);
 
 	const float leftLabelX = panel.left + 8.0f;
-	const float leftValueX = leftLabelX + 110.0f;
+	const float leftValueX = leftLabelX + 108.0f;
 
 	float y = panel.top + 38.0f;
 
 	BString s;
 	nes::cpu::cpu_state_t state = nes::cpu::debug_cpu_state();
 
-	auto drawKV = [&](const char *label, const char *value) {
+	auto drawKV = [&](const char* label, const char* value) {
 		SetHighColor(80, 80, 80);
 		SetFont(&prevFont);
 		DrawString(label, BPoint(leftLabelX, y));
@@ -390,6 +434,75 @@ CPUStatusView::DrawTimingPanel()
 
 		y += lineH;
 	};
+
+	CPUDisasmLine line = DisassembleCPU(state.pc);
+
+	BString byteText;
+
+	if (line.length == 1) {
+		byteText.SetToFormat(
+			"%02X      ",
+			line.bytes[0]
+		);
+	} else if (line.length == 2) {
+		byteText.SetToFormat(
+			"%02X %02X   ",
+			line.bytes[0],
+			line.bytes[1]
+		);
+	} else {
+		byteText.SetToFormat(
+			"%02X %02X %02X",
+			line.bytes[0],
+			line.bytes[1],
+			line.bytes[2]
+		);
+	}
+
+	s.SetToFormat(
+		"$%04X  %-8s  %s",
+		line.address,
+		byteText.String(),
+		line.text.String()
+	);
+	drawKV("Decoded:", s.String());
+
+	if (nes::ppu::system_paused) {
+		drawKV("Emulator:", "Paused");
+	} else {
+		drawKV("Emulator:", "Running");
+	}
+
+	if (nes::cpu::debug_instruction_boundary()) {
+		drawKV("Boundary:", "Yes");
+	} else {
+		drawKV("Boundary:", "No");
+	}
+
+	const uint8 stackIndex0 = static_cast<uint8>(state.s + 1);
+	const uint8 stackIndex1 = static_cast<uint8>(state.s + 2);
+	const uint8 stackIndex2 = static_cast<uint8>(state.s + 3);
+	const uint8 stackIndex3 = static_cast<uint8>(state.s + 4);
+
+	const uint16 stackAddress0 = static_cast<uint16>(0x0100 | stackIndex0);
+	const uint16 stackAddress1 = static_cast<uint16>(0x0100 | stackIndex1);
+	const uint16 stackAddress2 = static_cast<uint16>(0x0100 | stackIndex2);
+	const uint16 stackAddress3 = static_cast<uint16>(0x0100 | stackIndex3);
+
+	const uint8 stackValue0 = nes::bus::debug_read_memory(stackAddress0);
+	const uint8 stackValue1 = nes::bus::debug_read_memory(stackAddress1);
+	const uint8 stackValue2 = nes::bus::debug_read_memory(stackAddress2);
+	const uint8 stackValue3 = nes::bus::debug_read_memory(stackAddress3);
+
+	s.SetToFormat(
+		"Top $%04X:$%02X  +1:$%02X  +2:$%02X  +3:$%02X",
+		stackAddress0,
+		stackValue0,
+		stackValue1,
+		stackValue2,
+		stackValue3
+	);
+	drawKV("Stack:", s.String());
 
 	s.SetToFormat("$%02X", state.instruction & 0xff);
 	drawKV("Instruction:", s.String());

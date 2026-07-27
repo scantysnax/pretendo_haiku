@@ -26,9 +26,11 @@ class CPUDisasmView : public BView
 			CPUDisasmView (BRect frame, PretendoWindow *parent);
 	virtual ~CPUDisasmView();
 
+	public:
 	virtual void AttachedToWindow();
 	virtual void Draw (BRect updateRect);
 	virtual void KeyDown (const char *bytes, int32 numBytes);
+	virtual void MouseDown (BPoint where);
 	virtual void Pulse();
 	virtual void FrameResized (float width, float height);
 	
@@ -58,12 +60,12 @@ class CPUDisasmView : public BView
 	bool IsUndocumentedInstruction (const CPUDisasmLine &line) const;
 	const char *HardwareLabelForOperand (const CPUDisasmLine &line) const;
 	const char *CPUIdiomCommentForLine (const CPUDisasmLine &line) const;
+	void BuildCommentForLine (const CPUDisasmLine &line, BString &comment) const;
+	bool BranchTakenForLine (const CPUDisasmLine &line) const;
+	bool AddressForPoint (BPoint where, uint16 &address);
 	
 	private:
 	bool ParseOperandAddress (const CPUDisasmLine &line, uint16& address) const;
-	const char *ControlFlowCommentForLine (const CPUDisasmLine &line) const;
-	
-	private:
 	uint16 FindInstructionBefore (uint16 address) const;
 	uint16 FindContextBase (uint16 pc, int32 linesBefore) const;
 	
@@ -77,6 +79,7 @@ class CPUDisasmView : public BView
 	void LayoutScrollBar();
 	void UpdateScrollBar();
 	void ScrollBarChanged (float value);
+	int32 VisibleDisasmRows() const;
 	
 	private:
 	friend class CPUDisasmScrollBar;
@@ -91,6 +94,9 @@ class CPUDisasmView : public BView
 	bool fFollowPC = true;
 	uint16 fBaseAddress = 0x0000;
 	uint16 fFrozenPC = 0x0000;
+
+	bool fHasSelectedAddress = false;
+	uint16 fSelectedAddress = 0x0000;
 };
 
 

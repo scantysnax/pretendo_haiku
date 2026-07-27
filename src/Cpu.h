@@ -81,7 +81,22 @@ bool debug_instruction_boundary();
 bool debug_instruction_was_executed(uint16_t address);
 void debug_clear_instruction_trace();
 
+void debug_add_execute_breakpoint(uint16_t address);
+void debug_remove_execute_breakpoint(uint16_t address);
+void debug_clear_execute_breakpoints();
+bool debug_has_execute_breakpoint(uint16_t address);
+
+bool debug_breakpoint_hit();
+uint16_t debug_breakpoint_hit_address();
+void debug_clear_breakpoint_hit();
+void debug_skip_breakpoint_once();
+void debug_resume_past_breakpoint();
+
+uint32_t debug_breakpoint_hit_count(uint16_t address);
+void debug_clear_breakpoint_hit_counts();
+
 
 }
 
 #endif
+

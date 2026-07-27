@@ -8,18 +8,20 @@
 // -----------------------------------------------------------------------------
 // CPUDisasmWindow::CPUDisasmWindow
 //
-// Creates the CPU disassembly debugger window and installs the CPUDisasmView
-// child.
+// Creates the floating CPU disassembly window and installs the disassembly view.
+// The window is wide enough for address, opcode/operand bytes, instruction text,
+// and expanded branch/call comments such as "branch forward -> $C012 not taken"
+// without crowding the instruction column.
 //
 // Parameters:
-//   parent - Owning PretendoWindow.  Used for lifecycle notification.
+//   parent - Main emulator window that owns this tool window.
 //
 // Returns:
-//   Constructor; no return value.
+//   Nothing.
 // -----------------------------------------------------------------------------
-CPUDisasmWindow::CPUDisasmWindow (PretendoWindow *parent)
+CPUDisasmWindow::CPUDisasmWindow(PretendoWindow *parent)
 	: BWindow(
-	BRect(260.0f, 260.0f, 780.0f, 720.0f),
+		BRect(160.0f, 160.0f, 980.0f, 720.0f),
 		"CPU Disassembly",
 		B_FLOATING_WINDOW_LOOK,
 		B_NORMAL_WINDOW_FEEL,
@@ -57,8 +59,9 @@ CPUDisasmWindow::~CPUDisasmWindow()
 // -----------------------------------------------------------------------------
 // CPUDisasmWindow::QuitRequested
 //
-// Handles close requests for the CPU disassembly debugger window.  The parent
-// PretendoWindow is notified so it can clear its stored window pointer.
+// Notifies the parent window that the CPU disassembly window is closing.  This
+// lets the parent resume normal emulation if the disassembler had bootstrapped
+// the emulator into debugger-paused mode.
 //
 // Parameters:
 //   None.
