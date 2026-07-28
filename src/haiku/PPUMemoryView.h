@@ -31,6 +31,9 @@ class PPUMemoryView : public BView
 	virtual void KeyDown (const char *bytes, int32 numBytes);
 	virtual void Pulse();
 	virtual void FrameResized (float width, float height);
+	virtual void MouseDown (BPoint where);
+	virtual void MouseMoved (BPoint where, uint32 transit, const BMessage *dragMessage);
+
 
 	private:
 	void DrawHeaderPanel();
@@ -40,25 +43,47 @@ class PPUMemoryView : public BView
 	bool HasROMLoaded() const;
 	void DrawNoROMMessage (BRect panel);
 
+	private:
 	void SetBaseAddress (uint16 address);
 	void ScrollRows (int32 rows);
 
+	private:
 	void LayoutScrollBar();
 	void UpdateScrollBar();
 	void ScrollBarChanged (float value);
-
-	const char* RegionName (uint16 address) const;
-
+	void ScrollLines (int32 lines);
 	friend class PPUMemoryScrollBar;
+	
+	private:
+	void DrawByteCell (float x, float y, uint16 address, uint8 value, bool hovered, bool locked);
+	void DrawASCIICharCell (float x, float y, uint16 address, char value, bool hovered, bool locked);
+	void DrawSelectedByteInfo (float x, float y);
+
+	private:
+	bool AddressForPoint (BPoint where, uint16& address) const;
+	bool HoverAddressForPoint (BPoint where);
+	bool ActiveInspectAddress (uint16& address) const;
+	
+	private:
+	const char* RegionName (uint16 address) const;
 
 	private:
 	PretendoWindow *fParent = nullptr;
 
+	private:
 	uint16 fBaseAddress = 0x0000;
 	bool fFreezeUpdates = false;
 
+	private:
 	BScrollBar *fScrollBar = nullptr;
 	bool fUpdatingScrollBar = false;
+	
+	private:
+	bool fHasHoveredAddress = false;
+	uint16 fHoveredAddress = 0x0000;
+	bool fHasLockedAddress = false;
+	uint16 fLockedAddress = 0x0000;
+
 };
 
 

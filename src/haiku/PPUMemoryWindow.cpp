@@ -9,16 +9,18 @@
 //
 // Creates the PPU memory debugger window and installs the PPUMemoryView child.
 //
+// The window is sized to show one full 256-byte PPU memory page: 16 rows of
+// 16 bytes, plus the ASCII column and bottom byte inspector.
+//
 // Parameters:
 //   parent - Owning PretendoWindow.  Used for lifecycle notification.
 //
 // Returns:
 //   Constructor; no return value.
 // -----------------------------------------------------------------------------
-PPUMemoryWindow::PPUMemoryWindow(PretendoWindow *parent)
-	:
-	BWindow(
-		BRect(240.0f, 240.0f, 840.0f, 720.0f),
+PPUMemoryWindow::PPUMemoryWindow(PretendoWindow* parent)
+	: BWindow(
+		BRect(240.0f, 240.0f, 840.0f, 750.0f),
 		"PPU Memory",
 		B_FLOATING_WINDOW_LOOK,
 		B_NORMAL_WINDOW_FEEL,
@@ -34,7 +36,6 @@ PPUMemoryWindow::PPUMemoryWindow(PretendoWindow *parent)
 
 	SetPulseRate(16667);
 }
-
 
 // -----------------------------------------------------------------------------
 // PPUMemoryWindow::~PPUMemoryWindow

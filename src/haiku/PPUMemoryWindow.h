@@ -17,14 +17,14 @@ class PPUMemoryView;
 class PPUMemoryWindow : public BWindow
 {
 	public:
-			PPUMemoryWindow(PretendoWindow* parent);
+			PPUMemoryWindow(PretendoWindow *parent);
 	virtual ~PPUMemoryWindow();
 
 	virtual bool QuitRequested();
 
 	private:
-	PretendoWindow* fParent = nullptr;
-	PPUMemoryView* fView = nullptr;
+	PretendoWindow *fParent = nullptr;
+	PPUMemoryView *fView = nullptr;
 };
 
 
