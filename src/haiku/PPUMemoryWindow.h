@@ -20,7 +20,7 @@ class PPUMemoryView;
 class PPUMemoryWindow : public BWindow
 {
 	public:
-			PPUMemoryWindow(PretendoWindow *parent);
+			PPUMemoryWindow (PretendoWindow *parent);
 	virtual ~PPUMemoryWindow();
 
 	virtual bool QuitRequested();

@@ -314,13 +314,15 @@ PretendoWindow::~PretendoWindow()
 	// note: calling  Quit() requires the window to be locked 
 	
 	if (fCPUDisasmWindow != nullptr) {
-		fCPUDisasmWindow->Lock();
-		fCPUDisasmWindow->Quit();
+		if (fCPUDisasmWindow->Lock()) {
+			fCPUDisasmWindow->Quit();
+		}
 	}
 	
 	if (fCPUStatusWindow != nullptr) {
-		fCPUStatusWindow->Lock();
-		fCPUStatusWindow->Quit();
+		if (fCPUStatusWindow->Lock()) {
+			fCPUStatusWindow->Quit();
+		}
 	}
 	
 	if (fInputWindow != nullptr) {
@@ -354,13 +356,15 @@ PretendoWindow::~PretendoWindow()
 	}
 	
 	if (fOAMDebugWindow != nullptr) {
-		fOAMDebugWindow->Lock();
-		fOAMDebugWindow->Quit();
+		if (fOAMDebugWindow->Lock()) {
+			fOAMDebugWindow->Quit();
+		}
 	}
 	
 	if (fPaletteDebugWindow != nullptr) {
-		fPaletteDebugWindow->Lock();
-		fPaletteDebugWindow->Quit();
+		if (fPaletteDebugWindow->Lock()) {
+			fPaletteDebugWindow->Quit();
+		}
 	}
 	
 	if (fPaletteWindow != nullptr) {
@@ -382,19 +386,22 @@ PretendoWindow::~PretendoWindow()
 	}
 	
 	if (fPPUMemoryWindow != nullptr) {
-		fPPUMemoryWindow->Lock();
-		fPPUMemoryWindow->Quit();
+		if (fPPUMemoryWindow->Lock()) {
+			fPPUMemoryWindow->Quit();
+		}
 	}
 	
 	
 	if (fPPUStatusWindow != nullptr) {
-		fPPUStatusWindow->Lock();
-		fPPUStatusWindow->Quit();
+		if (fPPUStatusWindow->Lock()) {
+			fPPUStatusWindow->Quit();
+		}
 	}
 	
 	if (fPPUWriteLogWindow != nullptr) {
-		fPPUWriteLogWindow->Lock();
-		fPPUWriteLogWindow->Quit();
+		if (fPPUWriteLogWindow->Lock()) {
+			fPPUWriteLogWindow->Quit();
+		}
 	}
 	
 	if (fROMInfoWindow != nullptr) {
@@ -404,10 +411,10 @@ PretendoWindow::~PretendoWindow()
 	}
 	
 	if (fCPUMemoryWindow != nullptr) {
-	if (fCPUMemoryWindow->Lock()) {
-		fCPUMemoryWindow->Quit();
+		if (fCPUMemoryWindow->Lock()) {
+			fCPUMemoryWindow->Quit();
+		}
 	}
-}
 	
 	// long day.
 	
@@ -1011,6 +1018,59 @@ void
 PretendoWindow::ForceFullBitmapRedraw()
 {
 	fForceFullBitmapRedraw = true;
+}
+
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::MuteAudioForDebugging
+//
+// Mutes emulator audio for debugger stepping, breakpoints, and debugger pause
+// states.  Both the emulated APU output and host audio stream are muted, and any
+// stale host samples are cleared so the last generated sound does not loop or
+// stick while the debugger is stopped.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::MuteAudioForDebugging()
+{
+	nes::apu::debug_set_audio_muted(true);
+
+	if (fAudioStream) {
+		fAudioStream->SetMuted(true);
+		fAudioStream->ClearBuffer();
+		fAudioStream->ResetPacing();
+	}
+}
+
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::ResumeAudioAfterDebugging
+//
+// Restores emulator audio after leaving debugger pause/step mode.  Any stale
+// host samples are cleared before unmuting so normal playback resumes cleanly
+// from the current emulation state.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::ResumeAudioAfterDebugging()
+{
+	nes::apu::debug_set_audio_muted(false);
+
+	if (fAudioStream) {
+		fAudioStream->ClearBuffer();
+		fAudioStream->ResetPacing();
+		fAudioStream->SetMuted(false);
+	}
 }
 
 
@@ -3168,11 +3228,8 @@ PretendoWindow::emulator_thread (void *data)
 			if (nes::cpu::debug_breakpoint_hit()) {
 				breakpointHit = true;
 				nes::ppu::system_paused = true;
-				nes::apu::debug_set_audio_muted(true);
-
-				if (window->fAudioStream) {
-					window->fAudioStream->SetMuted(true);
-				}
+				
+				window->MuteAudioForDebugging();
 			}
 
 			if (!breakpointHit && window->ShouldPollGlobalInput()) {
@@ -3827,11 +3884,7 @@ PretendoWindow::DebugStepInstruction()
 
 	const bool needsLock = fRunning && !fPaused;
 
-	nes::apu::debug_set_audio_muted(true);
-
-	if (fAudioStream) {
-		fAudioStream->SetMuted(true);
-	}
+	MuteAudioForDebugging();
 
 	nes::ppu::system_paused = true;
 	fPaused = true;
@@ -3876,7 +3929,7 @@ PretendoWindow::DebugStepInstruction()
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-PretendoWindow::LoadROMPath(const char* path)
+PretendoWindow::LoadROMPath (const char *path)
 {
 	if (!path) {
 		return;
@@ -3957,13 +4010,7 @@ PretendoWindow::DebugResumeExecution()
 		nes::cpu::debug_clear_breakpoint_hit();
 	}
 
-	nes::apu::debug_set_audio_muted(false);
-
-	if (fAudioStream) {
-		fAudioStream->ClearBuffer();
-		fAudioStream->ResetPacing();
-		fAudioStream->SetMuted(false);
-	}
+	ResumeAudioAfterDebugging();
 
 	fDebuggerPausedEmulation = false;
 	fPaused = false;
@@ -4006,11 +4053,7 @@ PretendoWindow::DebugStepFrame()
 
 	const bool needsLock = fRunning && !fPaused;
 
-	nes::apu::debug_set_audio_muted(true);
-
-	if (fAudioStream) {
-		fAudioStream->SetMuted(true);
-	}
+	MuteAudioForDebugging();
 
 	nes::ppu::system_paused = true;
 	fPaused = true;
@@ -4176,15 +4219,12 @@ PretendoWindow::StartEmulatorForDebugging()
 	reset(nes::Reset::Hard);
 
 	nes::cpu::debug_clear_breakpoint_hit();
-	nes::apu::debug_set_audio_muted(true);
 	nes::ppu::system_paused = true;
-
+	
+	MuteAudioForDebugging();
 	ClearControllerInput();
 
 	if (fAudioStream) {
-		fAudioStream->ClearBuffer();
-		fAudioStream->ResetPacing();
-		fAudioStream->SetMuted(true);
 		fAudioStream->Start();
 	}
 

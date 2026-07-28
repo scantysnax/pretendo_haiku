@@ -316,7 +316,10 @@ class PretendoWindow : public BWindow
 
 	// sound
 	private:
+	void MuteAudioForDebugging();
+	void ResumeAudioAfterDebugging();
 	AudioStream *fAudioStream = nullptr;
+	
 	
 	// children
 	private:
@@ -336,7 +339,7 @@ class PretendoWindow : public BWindow
 	PPUMemoryWindow *fPPUMemoryWindow = nullptr;
 	CPUStatusWindow *fCPUStatusWindow = nullptr;
 	CPUDisasmWindow *fCPUDisasmWindow = nullptr;
-	CPUMemoryWindow* fCPUMemoryWindow = nullptr;
+	CPUMemoryWindow *fCPUMemoryWindow = nullptr;
 	
 	private:
 	bool fPaused = false;

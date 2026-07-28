@@ -26,6 +26,7 @@ class PPUMemoryView : public BView
 			PPUMemoryView (BRect frame, PretendoWindow *parent);
 	virtual ~PPUMemoryView();
 
+	public:
 	virtual void AttachedToWindow();
 	virtual void Draw (BRect updateRect);
 	virtual void KeyDown (const char *bytes, int32 numBytes);
@@ -33,7 +34,7 @@ class PPUMemoryView : public BView
 	virtual void FrameResized (float width, float height);
 	virtual void MouseDown (BPoint where);
 	virtual void MouseMoved (BPoint where, uint32 transit, const BMessage *dragMessage);
-
+	virtual void MessageReceived (BMessage *message);
 
 	private:
 	void DrawHeaderPanel();

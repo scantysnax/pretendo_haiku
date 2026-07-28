@@ -247,13 +247,19 @@ CPUMemoryView::Draw (BRect updateRect)
 // -----------------------------------------------------------------------------
 // CPUMemoryView::Pulse
 //
-// Updates the hovered byte from the current mouse position.  This acts as a
-// fallback for systems where MouseMoved() is not delivered continuously without
-// a mouse button held down.
+// Refreshes the CPU memory view and keeps the hover byte synchronized with the
+// current mouse position.
 //
-// The view is invalidated only when the hover address changes or the mouse
-// leaves the view and an existing hover needs to be cleared.  Avoiding an
-// unconditional Invalidate() prevents visible header flashing.
+// Hover tracking is only active while the CPU Memory window is the active
+// window.  This prevents the byte inspector from updating as if the window still
+// had focus when another debugger or emulator window is active.
+//
+// Locked byte inspection is preserved across focus changes, but transient hover
+// state is cleared when the window is inactive.
+//
+// The view still invalidates on every pulse while a ROM is loaded so memory
+// contents, PC highlighting, stack pointer highlighting, and instruction operand
+// highlighting update live.
 //
 // Parameters:
 //   None.
@@ -264,6 +270,22 @@ CPUMemoryView::Draw (BRect updateRect)
 void
 CPUMemoryView::Pulse()
 {
+	if (!HasROMLoaded()) {
+		return;
+	}
+
+	BWindow* window = Window();
+
+	if (!window || !window->IsActive()) {
+		if (fHasHoveredAddress) {
+			fHasHoveredAddress = false;
+			fHoveredAddress = 0x0000;
+		}
+
+		Invalidate();
+		return;
+	}
+
 	BPoint where;
 	uint32 buttons = 0;
 
@@ -272,15 +294,16 @@ CPUMemoryView::Pulse()
 	if (!Bounds().Contains(where)) {
 		if (fHasHoveredAddress) {
 			fHasHoveredAddress = false;
-			Invalidate();
+			fHoveredAddress = 0x0000;
 		}
 
+		Invalidate();
 		return;
 	}
 
-	if (HoverAddressForPoint(where)) {
-		Invalidate();
-	}
+	HoverAddressForPoint(where);
+
+	Invalidate();
 }
 
 
@@ -319,33 +342,53 @@ CPUMemoryView::MouseDown (BPoint where)
 // -----------------------------------------------------------------------------
 // CPUMemoryView::MouseMoved
 //
-// Updates the hovered byte while the mouse moves over either the hex byte
-// columns or the ASCII column.  Hover remains separate from the locked byte;
-// clicking a byte freezes the inspected value while hover can still show a
-// secondary outline.
+// Updates the hovered CPU memory byte while the pointer moves over the memory
+// grid.  Leaving the view clears hover state but preserves any locked byte.
 //
-// When the mouse exits the view, the hover state is cleared.  A locked byte is
-// intentionally preserved.
+// Hover tracking is ignored while the CPU Memory window is inactive so the byte
+// inspector does not behave as though the window still has focus.
 //
 // Parameters:
-//   where       - Mouse position in this view.
-//   transit     - BeOS/Haiku mouse transit state.
-//   dragMessage - Optional drag message, unused.
+//   where       - Mouse position in view coordinates.
+//   transit     - BView mouse transit state.
+//   dragMessage - Optional drag message; currently unused.
 //
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-CPUMemoryView::MouseMoved (BPoint where, uint32 transit, const BMessage *dragMessage)
+CPUMemoryView::MouseMoved(BPoint where, uint32 transit,
+	const BMessage* dragMessage)
 {
 	(void)dragMessage;
 
-	if (transit == B_EXITED_VIEW || !Bounds().Contains(where)) {
+	BWindow* window = Window();
+
+	if (!window || !window->IsActive()) {
 		if (fHasHoveredAddress) {
 			fHasHoveredAddress = false;
+			fHoveredAddress = 0x0000;
 			Invalidate();
 		}
 
+		return;
+	}
+
+	if (transit == B_ENTERED_VIEW) {
+		MakeFocus(true);
+	}
+
+	if (transit == B_EXITED_VIEW) {
+		if (fHasHoveredAddress) {
+			fHasHoveredAddress = false;
+			fHoveredAddress = 0x0000;
+			Invalidate();
+		}
+
+		return;
+	}
+
+	if (!HasROMLoaded()) {
 		return;
 	}
 

@@ -14,16 +14,21 @@
 // PPUMemoryScrollBar
 //
 // Small scrollbar subclass that forwards value changes back to PPUMemoryView.
-// The scrollbar value represents a 16-byte row number, not a raw byte address.
+//
+// The scrollbar is intentionally not attached to PPUMemoryView as a normal
+// scrolling target.  The PPU memory viewer has fixed header/inspector panels,
+// so moving the scrollbar should change fBaseAddress only; it should not
+// physically scroll the BView contents.
 // -----------------------------------------------------------------------------
 class PPUMemoryScrollBar : public BScrollBar
 {
 	public:
-	PPUMemoryScrollBar(BRect frame, const char *name, PPUMemoryView *owner)
-		: BScrollBar(
+	PPUMemoryScrollBar (BRect frame, const char *name, PPUMemoryView *owner)
+		:
+		BScrollBar(
 			frame,
 			name,
-			owner,
+			nullptr,
 			0.0f,
 			0.0f,
 			B_VERTICAL
@@ -32,10 +37,8 @@ class PPUMemoryScrollBar : public BScrollBar
 	{
 	}
 
-	virtual void ValueChanged (float value)
+	virtual void ValueChanged(float value)
 	{
-		BScrollBar::ValueChanged (value);
-
 		if (fOwner) {
 			fOwner->ScrollBarChanged(value);
 		}
@@ -44,7 +47,6 @@ class PPUMemoryScrollBar : public BScrollBar
 	private:
 	PPUMemoryView *fOwner = nullptr;
 };
-
 // -----------------------------------------------------------------------------
 // PPUMemoryRegionLabel
 //
@@ -160,6 +162,9 @@ PPUMemoryView::AttachedToWindow()
 // Locks or unlocks the PPU memory byte under the mouse.  Clicking a byte locks
 // it for inspection.  Clicking the same locked byte again unlocks it.
 //
+// Mouse clicks are allowed to focus the PPU Memory view, but mouse movement
+// alone is not allowed to update hover state while the window is inactive.
+//
 // Parameters:
 //   where - Mouse position in view coordinates.
 //
@@ -167,7 +172,7 @@ PPUMemoryView::AttachedToWindow()
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-PPUMemoryView::MouseDown (BPoint where)
+PPUMemoryView::MouseDown(BPoint where)
 {
 	MakeFocus(true);
 
@@ -197,11 +202,17 @@ PPUMemoryView::MouseDown (BPoint where)
 	Invalidate();
 }
 
+
 // -----------------------------------------------------------------------------
 // PPUMemoryView::MouseMoved
 //
 // Updates the hovered PPU memory byte while the pointer moves over the memory
-// grid.  Leaving the view clears hover state but preserves any locked byte.
+// grid, but only while the PPU Memory window is active.
+//
+// This prevents the byte inspector from updating while another debugger or the
+// main emulator window has focus.  Leaving the view, or moving over the view
+// while the window is inactive, clears transient hover state but preserves any
+// locked byte.
 //
 // Parameters:
 //   where       - Mouse position in view coordinates.
@@ -212,17 +223,27 @@ PPUMemoryView::MouseDown (BPoint where)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-PPUMemoryView::MouseMoved (BPoint where, uint32 transit, const BMessage *dragMessage)
+PPUMemoryView::MouseMoved(BPoint where, uint32 transit, const BMessage *dragMessage)
 {
+	(void)where;
 	(void)dragMessage;
 
-	if (transit == B_ENTERED_VIEW) {
-		MakeFocus(true);
+	BWindow* window = Window();
+
+	if (!window || !window->IsActive()) {
+		if (fHasHoveredAddress) {
+			fHasHoveredAddress = false;
+			fHoveredAddress = 0x0000;
+			Invalidate();
+		}
+
+		return;
 	}
 
 	if (transit == B_EXITED_VIEW) {
 		if (fHasHoveredAddress) {
 			fHasHoveredAddress = false;
+			fHoveredAddress = 0x0000;
 			Invalidate();
 		}
 
@@ -240,10 +261,66 @@ PPUMemoryView::MouseMoved (BPoint where, uint32 transit, const BMessage *dragMes
 
 
 // -----------------------------------------------------------------------------
+// PPUMemoryView::MessageReceived
+//
+// Handles mouse-wheel scrolling for the PPU memory viewer.  Since the scrollbar
+// is not attached as a normal BView scrolling target, wheel events are converted
+// into row scrolling manually.
+//
+// One wheel notch scrolls one 16-byte row.  Larger wheel deltas scroll multiple
+// rows.
+//
+// Parameters:
+//   message - Incoming BeAPI message.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PPUMemoryView::MessageReceived(BMessage *message)
+{
+	switch (message->what) {
+		case B_MOUSE_WHEEL_CHANGED:
+		{
+			float deltaY = 0.0f;
+
+			if (message->FindFloat("be:wheel_delta_y", &deltaY) != B_OK) {
+				break;
+			}
+
+			if (deltaY == 0.0f) {
+				break;
+			}
+
+			int32 lines = static_cast<int32>(deltaY);
+
+			if (lines == 0) {
+				lines = deltaY > 0.0f ? 1 : -1;
+			}
+
+			ScrollLines(lines);
+			break;
+		}
+
+		default:
+			BView::MessageReceived(message);
+			break;
+	}
+}
+
+
+// -----------------------------------------------------------------------------
 // PPUMemoryView::Pulse
 //
-// Refreshes the PPU memory view while live updates are enabled and keeps the
-// hover byte synchronized with the current mouse position.
+// Refreshes the PPU memory view and keeps the hover byte synchronized with the
+// current mouse position.
+//
+// Hover polling is only active while the PPU Memory window is the active window.
+// This prevents the byte inspector from updating as if the window still had
+// focus when another debugger or emulator window is active.
+//
+// Locked byte inspection is preserved across focus changes, but transient hover
+// state is cleared when the window is inactive.
 //
 // Parameters:
 //   None.
@@ -258,6 +335,18 @@ PPUMemoryView::Pulse()
 		return;
 	}
 
+	BWindow* window = Window();
+
+	if (!window || !window->IsActive()) {
+		if (fHasHoveredAddress) {
+			fHasHoveredAddress = false;
+			fHoveredAddress = 0x0000;
+		}
+
+		Invalidate();
+		return;
+	}
+
 	BPoint where;
 	uint32 buttons = 0;
 
@@ -266,17 +355,16 @@ PPUMemoryView::Pulse()
 	if (!Bounds().Contains(where)) {
 		if (fHasHoveredAddress) {
 			fHasHoveredAddress = false;
-			Invalidate();
+			fHoveredAddress = 0x0000;
 		}
 
+		Invalidate();
 		return;
 	}
 
-	bool changed = HoverAddressForPoint(where);
+	HoverAddressForPoint(where);
 
-	if (!fFreezeUpdates || changed) {
-		Invalidate();
-	}
+	Invalidate();
 }
 
 

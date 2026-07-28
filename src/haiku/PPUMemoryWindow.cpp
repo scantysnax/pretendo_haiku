@@ -1,7 +1,5 @@
-#include "PPUMemoryWindow.h"
 
-#include "PPUMemoryView.h"
-#include "PretendoWindow.h"
+#include "PPUMemoryWindow.h"
 
 
 // -----------------------------------------------------------------------------
@@ -36,6 +34,7 @@ PPUMemoryWindow::PPUMemoryWindow(PretendoWindow *parent)
 
 	SetPulseRate(16667);
 }
+
 
 // -----------------------------------------------------------------------------
 // PPUMemoryWindow::~PPUMemoryWindow
