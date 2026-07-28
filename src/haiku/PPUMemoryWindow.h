@@ -3,6 +3,9 @@
 
 #include <Window.h>
 
+#include "PPUMemoryView.h"
+#include "PretendoWindow.h"
+
 
 class PretendoWindow;
 class PPUMemoryView;

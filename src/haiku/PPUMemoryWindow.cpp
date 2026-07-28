@@ -18,7 +18,7 @@
 // Returns:
 //   Constructor; no return value.
 // -----------------------------------------------------------------------------
-PPUMemoryWindow::PPUMemoryWindow(PretendoWindow* parent)
+PPUMemoryWindow::PPUMemoryWindow(PretendoWindow *parent)
 	: BWindow(
 		BRect(240.0f, 240.0f, 840.0f, 750.0f),
 		"PPU Memory",

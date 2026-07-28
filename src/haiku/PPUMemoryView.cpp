@@ -446,7 +446,7 @@ PPUMemoryView::Draw (BRect updateRect)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-PPUMemoryView::FrameResized(float width, float height)
+PPUMemoryView::FrameResized (float width, float height)
 {
 	(void)width;
 	(void)height;
