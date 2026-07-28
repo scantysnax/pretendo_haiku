@@ -19,9 +19,8 @@
 class PPUMemoryScrollBar : public BScrollBar
 {
 	public:
-	PPUMemoryScrollBar(BRect frame, const char* name, PPUMemoryView* owner)
-		:
-		BScrollBar(
+	PPUMemoryScrollBar(BRect frame, const char *name, PPUMemoryView *owner)
+		: BScrollBar(
 			frame,
 			name,
 			owner,
@@ -168,7 +167,7 @@ PPUMemoryView::AttachedToWindow()
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-PPUMemoryView::MouseDown(BPoint where)
+PPUMemoryView::MouseDown (BPoint where)
 {
 	MakeFocus(true);
 
@@ -213,7 +212,7 @@ PPUMemoryView::MouseDown(BPoint where)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-PPUMemoryView::MouseMoved(BPoint where, uint32 transit, const BMessage* dragMessage)
+PPUMemoryView::MouseMoved (BPoint where, uint32 transit, const BMessage *dragMessage)
 {
 	(void)dragMessage;
 
@@ -281,8 +280,22 @@ PPUMemoryView::Pulse()
 }
 
 
+// -----------------------------------------------------------------------------
+// PPUMemoryView::KeyDown
+//
+// Handles keyboard controls for the PPU memory viewer.  Arrow keys scroll by
+// one 16-byte row, Page Up/Page Down scroll by one 256-byte page, and any other
+// keys are passed to the base BView handler.
+//
+// Parameters:
+//   bytes    - Key bytes received from the keyboard event.
+//   numBytes - Number of bytes in the key event.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
-PPUMemoryView::KeyDown(const char* bytes, int32 numBytes)
+PPUMemoryView::KeyDown (const char *bytes, int32 numBytes)
 {
 	if (numBytes <= 0) {
 		return;
@@ -417,6 +430,21 @@ PPUMemoryView::Draw (BRect updateRect)
 }
 
 
+// -----------------------------------------------------------------------------
+// PPUMemoryView::FrameResized
+//
+// Updates the PPU memory viewer layout after the view size changes.  The
+// scrollbar is repositioned, its range/value are refreshed, and the view is
+// invalidated so the memory grid, ASCII column, and byte inspector redraw using
+// the new bounds.
+//
+// Parameters:
+//   width  - New view width.
+//   height - New view height.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PPUMemoryView::FrameResized(float width, float height)
 {
@@ -427,6 +455,7 @@ PPUMemoryView::FrameResized(float width, float height)
 
 	BView::FrameResized(width, height);
 }
+
 
 // -----------------------------------------------------------------------------
 // PPUMemoryView::LayoutScrollBar
@@ -1336,10 +1365,10 @@ PPUMemoryView::DrawSelectedByteInfo(float x, float y)
 
 	if (address >= 0x2000 && address <= 0x2fff) {
 		const uint16 nameTable = static_cast<uint16>(
-			(address - 0x2000) / 0x0400
+			(address - 0x2000) / 0x400
 		);
 		const uint16 offset = static_cast<uint16>(
-			(address - 0x2000) & 0x03ff
+			(address - 0x2000) & 0x3ff
 		);
 
 		drawNormal("NT:", labelX, y, rgb_color{0, 0, 0, 255});
@@ -1363,7 +1392,7 @@ PPUMemoryView::DrawSelectedByteInfo(float x, float y)
 		);
 	} else if (address >= 0x3f00 && address <= 0x3fff) {
 		const uint16 paletteIndex = static_cast<uint16>(
-			(address - 0x3f00) & 0x001f
+			(address - 0x3f00) & 0x1f
 		);
 
 		drawNormal("Palette:", labelX, y, rgb_color{0, 0, 0, 255});
@@ -1372,8 +1401,8 @@ PPUMemoryView::DrawSelectedByteInfo(float x, float y)
 		drawFixed(s.String(), valueX, y, rgb_color{0, 0, 0, 255});
 	} else if (address <= 0x1fff) {
 		const uint16 table = static_cast<uint16>(address / 0x1000);
-		const uint16 tile = static_cast<uint16>((address & 0x0fff) / 16);
-		const uint16 planeByte = static_cast<uint16>(address & 0x000f);
+		const uint16 tile = static_cast<uint16>((address & 0xfff) / 16);
+		const uint16 planeByte = static_cast<uint16>(address & 0xf);
 
 		drawNormal("CHR:", labelX, y, rgb_color{0, 0, 0, 255});
 
