@@ -340,10 +340,7 @@ class PretendoWindow : public BWindow
 	CPUStatusWindow *fCPUStatusWindow = nullptr;
 	CPUDisasmWindow *fCPUDisasmWindow = nullptr;
 	CPUMemoryWindow *fCPUMemoryWindow = nullptr;
-	
-	private:
-	bool fPaused = false;
-	
+
 	private:
 	BString fROMDirectory = nullptr;
 		
@@ -352,6 +349,7 @@ class PretendoWindow : public BWindow
 	thread_id fThread = B_BAD_THREAD_ID;
 	static status_t emulator_thread (void *data);
 	bool fRunning = false;
+	bool fPaused = false;
 	
 	// mutex
 	private:
