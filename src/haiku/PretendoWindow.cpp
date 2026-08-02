@@ -1,8 +1,6 @@
 
 #include "PretendoWindow.h"
 
-#include <cstdio>
-
 
 // -----------------------------------------------------------------------------
 // InvalidateWindowContents
@@ -416,6 +414,12 @@ PretendoWindow::~PretendoWindow()
 		}
 	}
 	
+	if (fCPUTraceWindow != nullptr) {
+		if (fCPUTraceWindow->Lock()) {
+			fCPUTraceWindow->Quit();
+		}
+	}
+	
 	// long day.
 	
 	fMutex->Unlock();
@@ -616,6 +620,10 @@ PretendoWindow::MessageReceived (BMessage *message)
 			
 		case messages::VIEW_CPUMEM:
 			OnViewCPUMemoryWindow();
+			break;
+			
+		case messages::VIEW_CPUTRACE:
+			OnViewCPUTraceWindow();
 			break;
 			
 		default:
@@ -863,6 +871,7 @@ PretendoWindow::AddMenu()
 	fCPUToolMenu->AddItem(new BMenuItem("View Status" B_UTF8_ELLIPSIS, new BMessage(messages::VIEW_CPUSTAT)));
 	fCPUToolMenu->AddItem(new BMenuItem("View Disassembly" B_UTF8_ELLIPSIS, new BMessage(messages::VIEW_CPUDISASM)));
 	fCPUToolMenu->AddItem(new BMenuItem("View Memory" B_UTF8_ELLIPSIS, new BMessage(messages::VIEW_CPUMEM)));
+	fCPUToolMenu->AddItem(new BMenuItem("View CPU Trace" B_UTF8_ELLIPSIS , new BMessage(messages::VIEW_CPUTRACE)));
 	
 	fPPUToolMenu = new BMenu("PPU");
 	fToolMenu->AddItem(fPPUToolMenu);
@@ -951,6 +960,7 @@ PretendoWindow::OnFreeROM()
 	ClearVideoView();
 
 	nes::cpu::debug_clear_instruction_trace();
+	nes::cpu::debug_clear_cpu_trace();
 
 	InvalidateDebugViews();
 	ResetCPUDisasmWindow(fCPUDisasmWindow);
@@ -2042,6 +2052,30 @@ PretendoWindow::OnViewCPUMemoryWindow()
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::ViewCPUTraceWindow
+//
+// Opens the CPU trace debugger window, or brings the existing one to the front
+// if it is already open.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::OnViewCPUTraceWindow()
+{
+	if (fCPUTraceWindow) {
+		fCPUTraceWindow->Activate(true);
+		return;
+	}
+
+	fCPUTraceWindow = new CPUTraceWindow(this);
+	fCPUTraceWindow->Show();
+}
+
 
 // -----------------------------------------------------------------------------
 // PretendoWindow::ROMInfoWindowClosed
@@ -2407,6 +2441,25 @@ PretendoWindow::CPUMemoryWindowClosed()
 	EndToolInput();
 	fCPUMemoryWindow = nullptr;
 }
+
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::CPUTraceWindowClosed
+//
+// Handles CPU trace window close notification.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::CPUTraceWindowClosed()
+{
+	fCPUTraceWindow = nullptr;
+}
+
 
 
 // -----------------------------------------------------------------------------
@@ -3965,6 +4018,7 @@ PretendoWindow::LoadROMPath (const char *path)
 	}
 
 	nes::cpu::debug_clear_instruction_trace();
+	nes::cpu::debug_clear_cpu_trace();
 
 	InvalidateDebugViews();
 	ResetCPUDisasmWindow(fCPUDisasmWindow);

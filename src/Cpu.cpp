@@ -104,6 +104,12 @@ uint16_t sDebugBreakpointHitAddress = 0x0000;
 bool sDebugSkipBreakpointOnce = false;
 uint32_t sExecuteBreakpointHitCount[0x10000] = {};
 
+// debug CPU execution trace
+cpu_trace_entry_t sCPUTraceEntries[CPU_TRACE_CAPACITY] = {};
+uint32_t sCPUTraceNext = 0;
+uint32_t sCPUTraceCount = 0;
+static void record_cpu_trace_entry(uint16_t address);
+
 // internal registers (which get trashed by instructions)
 register16 effective_address_ = {};
 register16 data16_            = {};
@@ -133,7 +139,7 @@ uint8_t dmc_dma_delay_                 = 0;
 // stats
 uint64_t executed_cycles_ = 1; // NOTE(eteran): 1 instead of 0 makes 4.irq_and_dma.nes pass...
 
-// eli - make this useful
+// eli - made this useful
 [[noreturn]] void jam_handler() {
 	std::cerr
 		<< "CPU JAM abort"
@@ -150,6 +156,52 @@ uint64_t executed_cycles_ = 1; // NOTE(eteran): 1 instead of 0 makes 4.irq_and_d
 
 	abort();
 }
+
+
+// -----------------------------------------------------------------------------
+// record_cpu_trace_entry
+//
+// Records the CPU state at the start of an instruction.  The entry stores the
+// instruction address, opcode bytes, current registers, and cycle count.  The
+// trace buffer is circular, keeping the most recent CPU_TRACE_CAPACITY entries.
+//
+// Parameters:
+//   address - CPU address of the instruction about to execute.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+static void
+record_cpu_trace_entry(uint16_t address)
+{
+	cpu_trace_entry_t& entry = sCPUTraceEntries[sCPUTraceNext];
+
+	entry.cycle = executed_cycles_;
+	entry.pc = address;
+
+	entry.bytes[0] = nes::bus::debug_read_memory(address);
+	entry.bytes[1] = nes::bus::debug_read_memory(
+		static_cast<uint16_t>(address + 1)
+	);
+	entry.bytes[2] = nes::bus::debug_read_memory(
+		static_cast<uint16_t>(address + 2)
+	);
+
+	entry.length = 1;
+
+	entry.a = A;
+	entry.x = X;
+	entry.y = Y;
+	entry.s = S;
+	entry.p = P;
+
+	sCPUTraceNext = (sCPUTraceNext + 1) % CPU_TRACE_CAPACITY;
+
+	if (sCPUTraceCount < CPU_TRACE_CAPACITY) {
+		sCPUTraceCount++;
+	}
+}
+
 
 /**
  * @brief sync_handler
@@ -581,21 +633,22 @@ void clock() {
  */
 void tick() {
 	if (cycle_ == 0) {
-		if (sDebugBreakpointHit) {
-			return;
-		}
-
-		if (sDebugSkipBreakpointOnce) {
-			sDebugSkipBreakpointOnce = false;
-		} else if (sExecuteBreakpointAddress[PC.raw]) {
-			sDebugBreakpointHit = true;
-			sDebugBreakpointHitAddress = PC.raw;
-			sExecuteBreakpointHitCount[PC.raw]++;
-			return;
-		}
-
-		sExecutedInstructionAddress[PC.raw] = true;
+	if (sDebugBreakpointHit) {
+		return;
 	}
+
+	if (sDebugSkipBreakpointOnce) {
+		sDebugSkipBreakpointOnce = false;
+	} else if (sExecuteBreakpointAddress[PC.raw]) {
+		sDebugBreakpointHit = true;
+		sDebugBreakpointHitAddress = PC.raw;
+		sExecuteBreakpointHitCount[PC.raw]++;
+		return;
+	}
+
+	sExecutedInstructionAddress[PC.raw] = true;
+	record_cpu_trace_entry(PC.raw);
+}
 
 	clock();
 	sync_handler();
@@ -805,6 +858,7 @@ debug_clear_instruction_trace()
 	);
 }
 
+
 // -----------------------------------------------------------------------------
 // nes::cpu::debug_add_execute_breakpoint
 //
@@ -1005,6 +1059,99 @@ debug_clear_breakpoint_hit_counts()
 		sExecuteBreakpointHitCount + 0x10000,
 		0
 	);
+}
+
+// -----------------------------------------------------------------------------
+// nes::cpu::debug_cpu_trace_count
+//
+// Returns the number of valid entries currently stored in the CPU execution
+// trace buffer.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Number of valid trace entries.
+// -----------------------------------------------------------------------------
+uint32_t
+debug_cpu_trace_count()
+{
+	return sCPUTraceCount;
+}
+
+
+// -----------------------------------------------------------------------------
+// nes::cpu::debug_cpu_trace_capacity
+//
+// Returns the maximum number of entries the CPU execution trace buffer can hold.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Trace buffer capacity.
+// -----------------------------------------------------------------------------
+uint32_t
+debug_cpu_trace_capacity()
+{
+	return CPU_TRACE_CAPACITY;
+}
+
+
+// -----------------------------------------------------------------------------
+// nes::cpu::debug_cpu_trace_entry
+//
+// Reads one CPU execution trace entry by chronological index.  Index 0 is the
+// oldest valid entry currently retained.  The newest entry is at
+// debug_cpu_trace_count() - 1.
+//
+// Parameters:
+//   index - Chronological trace index to read.
+//   entry - Receives the trace entry.
+//
+// Returns:
+//   true if the entry was read.
+// -----------------------------------------------------------------------------
+bool
+debug_cpu_trace_entry(uint32_t index, cpu_trace_entry_t& entry)
+{
+	if (index >= sCPUTraceCount) {
+		return false;
+	}
+
+	uint32_t physicalIndex = 0;
+
+	if (sCPUTraceCount < CPU_TRACE_CAPACITY) {
+		physicalIndex = index;
+	} else {
+		physicalIndex = (sCPUTraceNext + index) % CPU_TRACE_CAPACITY;
+	}
+
+	entry = sCPUTraceEntries[physicalIndex];
+	return true;
+}
+
+
+// -----------------------------------------------------------------------------
+// nes::cpu::debug_clear_cpu_trace
+//
+// Clears the CPU execution trace buffer.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+debug_clear_cpu_trace()
+{
+	sCPUTraceNext = 0;
+	sCPUTraceCount = 0;
+
+	for (uint32_t i = 0; i < CPU_TRACE_CAPACITY; i++) {
+		sCPUTraceEntries[i] = cpu_trace_entry_t();
+	}
 }
 
 

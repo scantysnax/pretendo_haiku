@@ -124,6 +124,8 @@ CPP_FILES := \
 	src/haiku/CPUMemoryWindow.cpp \
 	src/haiku/CPUStatusView.cpp \
 	src/haiku/CPUStatusWindow.cpp \
+	src/haiku/CPUTraceView.cpp \
+	src/haiku/CPUTraceWindow.cpp \
 	src/haiku/HaikuMain.cpp \
 	src/haiku/InputView.cpp \
 	src/haiku/InputWindow.cpp \

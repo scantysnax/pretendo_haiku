@@ -75,11 +75,34 @@ struct cpu_state_t {
 };
 
 
+struct cpu_trace_entry_t {
+	uint64_t cycle = 0;
+	uint16_t pc = 0;
+	uint8_t bytes[3] = {0, 0, 0};
+	uint8_t length = 1;
+
+	uint8_t a = 0;
+	uint8_t x = 0;
+	uint8_t y = 0;
+	uint8_t s = 0;
+	uint8_t p = 0;
+};
+
+enum : uint32_t {
+	CPU_TRACE_CAPACITY = 2048
+};
+
+
 cpu_state_t debug_cpu_state();
 
 bool debug_instruction_boundary();
 bool debug_instruction_was_executed(uint16_t address);
 void debug_clear_instruction_trace();
+
+uint32_t debug_cpu_trace_count();
+uint32_t debug_cpu_trace_capacity();
+bool debug_cpu_trace_entry(uint32_t index, cpu_trace_entry_t& entry);
+void debug_clear_cpu_trace();
 
 void debug_add_execute_breakpoint(uint16_t address);
 void debug_remove_execute_breakpoint(uint16_t address);
@@ -91,7 +114,6 @@ uint16_t debug_breakpoint_hit_address();
 void debug_clear_breakpoint_hit();
 void debug_skip_breakpoint_once();
 void debug_resume_past_breakpoint();
-
 uint32_t debug_breakpoint_hit_count(uint16_t address);
 void debug_clear_breakpoint_hit_counts();
 

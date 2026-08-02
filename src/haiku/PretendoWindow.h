@@ -2,6 +2,7 @@
 #ifndef _PRETENDO_WINDOW_H_
 #define _PRETENDO_WINDOW_H_
 
+
 #include <Alert.h>
 #include <Application.h>
 #include <Bitmap.h>
@@ -13,6 +14,7 @@
 #include <Window.h>
 
 #include <atomic>
+#include <cstdio>
 
 #include "AudioStream.h"
 #include "Controller.h"
@@ -20,6 +22,7 @@
 #include "CPUDisasmWindow.h"
 #include "CPUMemoryWindow.h"
 #include "CPUStatusWindow.h"
+#include "CPUTraceWindow.h"
 #include "InputWindow.h"
 #include "MenuBarIcon.h"
 #include "Mutex.h"
@@ -51,6 +54,7 @@
 #include "asm/copies.h"
 
 
+class CPUTraceWindow;
 class CPUDisasmWindow;
 class CPUMemoryWindow;
 class CPUStatusWindow;
@@ -75,7 +79,7 @@ struct latched_scroll_t {
 class PretendoWindow : public BWindow
 {
 	public:
-	typedef enum {
+	typedef enum : uint32 {
 		// file
 		ROM_LOADED = 	'LOAD',
 		SHOW_OPEN = 	'OPEN',
@@ -121,7 +125,8 @@ class PretendoWindow : public BWindow
 		VIEW_PPUMEM = 		'PPUM',
 		VIEW_CPUSTAT = 		'CPUS',
 		VIEW_CPUDISASM = 	'CPUD',
-		VIEW_CPUMEM = 		'CPUM'
+		VIEW_CPUMEM = 		'CPUM',
+		VIEW_CPUTRACE = 	'CPUT'
 	} messages;	
 	
 	private:
@@ -214,6 +219,7 @@ class PretendoWindow : public BWindow
 	void OnViewCPUStatusWindow();
 	void OnViewCPUDisasmWindow();
 	void OnViewCPUMemoryWindow();
+	void OnViewCPUTraceWindow();
 
 	// video stuff
 	private:
@@ -316,10 +322,9 @@ class PretendoWindow : public BWindow
 
 	// sound
 	private:
+	AudioStream *fAudioStream = nullptr;
 	void MuteAudioForDebugging();
 	void ResumeAudioAfterDebugging();
-	AudioStream *fAudioStream = nullptr;
-	
 	
 	// children
 	private:
@@ -340,6 +345,7 @@ class PretendoWindow : public BWindow
 	CPUStatusWindow *fCPUStatusWindow = nullptr;
 	CPUDisasmWindow *fCPUDisasmWindow = nullptr;
 	CPUMemoryWindow *fCPUMemoryWindow = nullptr;
+	CPUTraceWindow *fCPUTraceWindow = nullptr;
 
 	private:
 	BString fROMDirectory = nullptr;
@@ -410,33 +416,28 @@ class PretendoWindow : public BWindow
     void ROMInfoWindowClosed();
 	void PaletteWindowClosed();
 	void InputWindowClosed();
-
 	void PatternTable1WindowClosed();
 	void PatternTable2WindowClosed();
-
 	void NameTable1WindowClosed();
 	void NameTable2WindowClosed();
 	void NameTable3WindowClosed();
 	void NameTable4WindowClosed();
-
 	void PaletteDebugWindowClosed();
 	void OAMDebugWindowClosed();
-
 	void PPUStatusWindowClosed();
 	void PPUWriteLogWindowClosed();
 	void PPUMemoryWindowClosed();
-
 	void CPUStatusWindowClosed();
 	void CPUDisasmWindowClosed();
-	
 	void CPUMemoryWindowClosed();
+	void CPUTraceWindowClosed();
     
     public:
 	void HighlightPaletteDebugger (bool sprites, int32 palette, int32 entry = -1);
     void ClearPaletteDebuggerHighlight();
     void LoadROMPath (const char *path);
     
-    // keyboard
+    // keyboard/input
     public:
     void HandleEmulatorKey (int32 key, bool pressed);
 	void ClearControllerInput();
@@ -446,6 +447,7 @@ class PretendoWindow : public BWindow
     bool fToolInputActive = false;
     
     // tool things
+    private:
     void BeginToolInput();
 	void EndToolInput();
 	void ResetToolInput();
@@ -453,12 +455,10 @@ class PretendoWindow : public BWindow
 	bool ShouldPollGlobalInput() const;
 	int32 CountVisibleToolWindows() const;
 	int32 fToolInputDepth = 0;
-	
-	private:
 	bool fToolWindowsSuspendedForFullScreen = false;
 	
-	private:
 	// fullscreen things
+	private:
 	void SuspendToolWindowsForFullScreen();
 	void RestoreToolWindowsAfterFullScreen();
 	bool HideToolWindowForFullScreen (BWindow *window);
