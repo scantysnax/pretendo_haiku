@@ -411,6 +411,9 @@ class PretendoWindow : public BWindow
 	void StartEmulatorForDebugging();
 	bool fDebuggerPausedEmulation = false;
 	
+	public:
+	void JumpCPUDisasmToAddress (uint16 address);
+	
 	// close callbacks    
     public:
     void ROMInfoWindowClosed();

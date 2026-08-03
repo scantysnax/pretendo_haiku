@@ -22,6 +22,9 @@ class CPUDisasmWindow : public BWindow
 	virtual ~CPUDisasmWindow();
 
 	virtual bool QuitRequested();
+	
+	public:
+	void JumpToAddress (uint16 address);
 
 	private:
 	PretendoWindow *fParent = nullptr;

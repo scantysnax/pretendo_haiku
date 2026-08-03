@@ -38,7 +38,7 @@ OAMDebugWindow::OAMDebugWindow(PretendoWindow* parent)
 	const float kExplorerW = CHRExplorerView::PreferredWidth();
 
 	const float kWindowW = kOAMW + kExplorerW;
-	const float kWindowH = 590.0f;
+	const float kWindowH = 700.0f;
 
 	ResizeTo(kWindowW, kWindowH);
 	MoveTo(240.0f, 240.0f);

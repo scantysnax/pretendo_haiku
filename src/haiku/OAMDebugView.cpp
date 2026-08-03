@@ -14,12 +14,16 @@
 #include <cmath>
 
 
+static const int32 kOAMSpriteCount = 64;
+static const int32 kVisibleOAMRows = 16;
+static const int32 kMaxFirstOAMSprite = kOAMSpriteCount - kVisibleOAMRows;
+
+
 // -----------------------------------------------------------------------------
 // OAMSpriteScrollBar
 //
-// Private helper scroll bar used by OAMDebugView.  It snaps scrollbar movement
-// to 8-sprite pages so the visible OAM rows remain aligned to sprite groups
-// 00-07, 08-15, and so on.
+// Private helper scroll bar used by OAMDebugView.  It scrolls through the 64
+// OAM sprites using the first visible sprite index.
 // -----------------------------------------------------------------------------
 class OAMSpriteScrollBar : public BScrollBar
 {
@@ -27,29 +31,37 @@ class OAMSpriteScrollBar : public BScrollBar
 	// -------------------------------------------------------------------------
 	// OAMSpriteScrollBar::OAMSpriteScrollBar
 	//
-	// Creates the sprite-page scrollbar used by the OAM viewer.
+	// Creates the sprite scrollbar used by the OAM viewer.
 	//
 	// Parameters:
 	//   frame - Scrollbar frame in the OAMDebugView coordinate space.
-	//   owner - OAMDebugView that receives snapped page changes.
+	//   owner - OAMDebugView that receives first-sprite changes.
 	//
 	// Returns:
 	//   Constructor; no return value.
 	// -------------------------------------------------------------------------
-	OAMSpriteScrollBar (BRect frame, OAMDebugView *owner)
-		: BScrollBar(frame, "oam_sprite_scrollbar", nullptr, 0.0f, 56.0f, B_VERTICAL),
-			fOwner(owner)
+	OAMSpriteScrollBar(BRect frame, OAMDebugView *owner)
+		:
+		BScrollBar(
+			frame,
+			"oam_sprite_scrollbar",
+			nullptr,
+			0.0f,
+			kMaxFirstOAMSprite,
+			B_VERTICAL
+		),
+		fOwner(owner)
 	{
-		SetSteps(8.0f, 8.0f);
-		SetProportion(8.0f / 64.0f);
+		SetSteps(1.0f, kVisibleOAMRows);
+		SetProportion(static_cast<float>(kVisibleOAMRows)
+			/ static_cast<float>(kOAMSpriteCount));
 	}
 
 	// -------------------------------------------------------------------------
 	// OAMSpriteScrollBar::ValueChanged
 	//
-	// Handles scrollbar movement and forwards the selected OAM page to the
-	// owning OAMDebugView.  The value is snapped to 8-sprite boundaries so the
-	// list always shows complete OAM pages.
+	// Handles scrollbar movement and forwards the selected first visible OAM
+	// sprite to the owning OAMDebugView.
 	//
 	// Parameters:
 	//   value - New scrollbar value requested by the user.
@@ -57,32 +69,27 @@ class OAMSpriteScrollBar : public BScrollBar
 	// Returns:
 	//   Nothing.
 	// -------------------------------------------------------------------------
-	virtual void ValueChanged (float value)
+	virtual void ValueChanged(float value)
 	{
-		BScrollBar::ValueChanged(value);
-
 		if (!fOwner) {
 			return;
 		}
 
-		int32 firstSprite = static_cast<int32>(value);
-
-		// Snap to 8-sprite pages so the rows stay stable.
-		firstSprite = (firstSprite / 8) * 8;
+		int32 firstSprite = static_cast<int32>(value + 0.5f);
 
 		if (firstSprite < 0) {
 			firstSprite = 0;
 		}
-		
-		if (firstSprite > 56) {
-			firstSprite = 56;
+
+		if (firstSprite > kMaxFirstOAMSprite) {
+			firstSprite = kMaxFirstOAMSprite;
 		}
 
 		fOwner->SetFirstSpriteFromScrollBar(firstSprite);
 	}
 
 	private:
-	OAMDebugView *fOwner;
+	OAMDebugView *fOwner = nullptr;
 };
 
 
@@ -197,7 +204,7 @@ OAMDebugView::~OAMDebugView()
 // OAMDebugView::AttachedToWindow
 //
 // Performs setup that requires the view to be attached to a window.  This
-// enables keyboard focus, mouse-wheel tracking, creates the OAM page scrollbar,
+// enables keyboard focus, mouse-wheel tracking, creates the OAM sprite scrollbar,
 // captures the initial OAM snapshot, and starts the viewer in stable snapshot
 // mode.
 //
@@ -224,7 +231,7 @@ OAMDebugView::AttachedToWindow()
 			4.0f,
 			174.0f,
 			Bounds().right - 4.0f,
-			432.0f
+			526.0f
 		);
 
 		BRect scrollFrame(
@@ -261,7 +268,6 @@ OAMDebugView::AttachedToWindow()
 
 	Invalidate();
 }
-
 
 // -----------------------------------------------------------------------------
 // OAMDebugView::Draw
@@ -320,8 +326,7 @@ OAMDebugView::Draw(BRect updateRect)
 // -----------------------------------------------------------------------------
 // OAMDebugView::FrameResized
 //
-// Repositions and resizes the sprite-page scrollbar when the view frame
-// changes.
+// Repositions and resizes the sprite scrollbar when the view frame changes.
 //
 // Parameters:
 //   width  - New view width.
@@ -331,7 +336,7 @@ OAMDebugView::Draw(BRect updateRect)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-OAMDebugView::FrameResized (float width, float height)
+OAMDebugView::FrameResized(float width, float height)
 {
 	BView::FrameResized(width, height);
 
@@ -346,7 +351,7 @@ OAMDebugView::FrameResized (float width, float height)
 		4.0f,
 		174.0f,
 		Bounds().right - 4.0f,
-		432.0f
+		526.0f
 	);
 
 	BRect scrollFrame(
@@ -366,7 +371,7 @@ OAMDebugView::FrameResized (float width, float height)
 //
 // Handles OAM viewer keyboard shortcuts.  Space toggles live/snapshot mode, R
 // refreshes the current snapshot, arrow keys move the active sprite, and [/] or
-// ,/. page through the 64 OAM entries in groups of eight.
+// ,/. page through the 64 OAM entries.
 //
 // Parameters:
 //   bytes    - Key bytes provided by the BeAPI input system.
@@ -387,14 +392,18 @@ OAMDebugView::KeyDown(const char* bytes, int32 numBytes)
 		return;
 	}
 
-	auto syncAfterSelectionChange = [&]() {
+	auto clampFirstSprite = [&]() {
 		if (fFirstSprite < 0) {
 			fFirstSprite = 0;
 		}
 
-		if (fFirstSprite > 56) {
-			fFirstSprite = 56;
+		if (fFirstSprite > kMaxFirstOAMSprite) {
+			fFirstSprite = kMaxFirstOAMSprite;
 		}
+	};
+
+	auto syncAfterSelectionChange = [&]() {
+		clampFirstSprite();
 
 		if (fSpriteScrollBar) {
 			fSpriteScrollBar->SetValue(fFirstSprite);
@@ -410,7 +419,7 @@ OAMDebugView::KeyDown(const char* bytes, int32 numBytes)
 	auto moveActiveSprite = [&](int32 delta) {
 		int32 active = fSpriteLocked ? fLockedSprite : fHoverSprite;
 
-		if (active < 0 || active >= 64) {
+		if (active < 0 || active >= kOAMSpriteCount) {
 			active = fFirstSprite;
 		}
 
@@ -420,8 +429,8 @@ OAMDebugView::KeyDown(const char* bytes, int32 numBytes)
 			active = 0;
 		}
 
-		if (active > 63) {
-			active = 63;
+		if (active >= kOAMSpriteCount) {
+			active = kOAMSpriteCount - 1;
 		}
 
 		if (fSpriteLocked) {
@@ -431,9 +440,9 @@ OAMDebugView::KeyDown(const char* bytes, int32 numBytes)
 		fHoverSprite = active;
 
 		if (active < fFirstSprite) {
-			fFirstSprite = (active / 8) * 8;
-		} else if (active >= fFirstSprite + 8) {
-			fFirstSprite = (active / 8) * 8;
+			fFirstSprite = active;
+		} else if (active >= fFirstSprite + kVisibleOAMRows) {
+			fFirstSprite = active - kVisibleOAMRows + 1;
 		}
 
 		syncAfterSelectionChange();
@@ -462,7 +471,7 @@ OAMDebugView::KeyDown(const char* bytes, int32 numBytes)
 
 		case '[':
 		case ',':
-			fFirstSprite -= 8;
+			fFirstSprite -= kVisibleOAMRows;
 
 			if (fFirstSprite < 0) {
 				fFirstSprite = 0;
@@ -470,7 +479,7 @@ OAMDebugView::KeyDown(const char* bytes, int32 numBytes)
 
 			if (!fSpriteLocked) {
 				if (fHoverSprite < fFirstSprite
-					|| fHoverSprite >= fFirstSprite + 8) {
+					|| fHoverSprite >= fFirstSprite + kVisibleOAMRows) {
 					fHoverSprite = fFirstSprite;
 				}
 			}
@@ -480,15 +489,15 @@ OAMDebugView::KeyDown(const char* bytes, int32 numBytes)
 
 		case ']':
 		case '.':
-			fFirstSprite += 8;
+			fFirstSprite += kVisibleOAMRows;
 
-			if (fFirstSprite > 56) {
-				fFirstSprite = 56;
+			if (fFirstSprite > kMaxFirstOAMSprite) {
+				fFirstSprite = kMaxFirstOAMSprite;
 			}
 
 			if (!fSpriteLocked) {
 				if (fHoverSprite < fFirstSprite
-					|| fHoverSprite >= fFirstSprite + 8) {
+					|| fHoverSprite >= fFirstSprite + kVisibleOAMRows) {
 					fHoverSprite = fFirstSprite;
 				}
 			}
@@ -517,9 +526,9 @@ OAMDebugView::KeyDown(const char* bytes, int32 numBytes)
 // -----------------------------------------------------------------------------
 // OAMDebugView::MessageReceived
 //
-// Handles messages delivered to the view.  The OAM viewer currently handles
-// mouse-wheel messages to page through the sprite list and forwards all other
-// messages to BView.
+// Handles messages delivered to the view.  The OAM viewer handles mouse-wheel
+// messages to scroll through the sprite list and forwards all other messages to
+// BView.
 //
 // Parameters:
 //   message - Message delivered to the view.
@@ -528,7 +537,7 @@ OAMDebugView::KeyDown(const char* bytes, int32 numBytes)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-OAMDebugView::MessageReceived (BMessage *message)
+OAMDebugView::MessageReceived(BMessage *message)
 {
 	switch (message->what) {
 		case B_MOUSE_WHEEL_CHANGED:
@@ -548,26 +557,27 @@ OAMDebugView::MessageReceived (BMessage *message)
 			int32 oldFirstSprite = fFirstSprite;
 
 			if (deltaY > 0.0f) {
-				fFirstSprite += 8;
+				fFirstSprite += 1;
 			} else if (deltaY < 0.0f) {
-				fFirstSprite -= 8;
+				fFirstSprite -= 1;
 			}
 
 			if (fFirstSprite < 0) {
 				fFirstSprite = 0;
 			}
 
-			if (fFirstSprite > 56) {
-				fFirstSprite = 56;
+			if (fFirstSprite > kMaxFirstOAMSprite) {
+				fFirstSprite = kMaxFirstOAMSprite;
 			}
 
 			if (fFirstSprite != oldFirstSprite) {
-				if (fSpriteScrollBar)
+				if (fSpriteScrollBar) {
 					fSpriteScrollBar->SetValue(fFirstSprite);
+				}
 
 				if (!fSpriteLocked) {
 					if (fHoverSprite < fFirstSprite
-						|| fHoverSprite >= fFirstSprite + 8) {
+						|| fHoverSprite >= fFirstSprite + kVisibleOAMRows) {
 						fHoverSprite = fFirstSprite;
 					}
 				}
@@ -603,7 +613,7 @@ OAMDebugView::MessageReceived (BMessage *message)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-OAMDebugView::MouseDown (BPoint where)
+OAMDebugView::MouseDown(BPoint where)
 {
 	MakeFocus(true);
 
@@ -615,7 +625,7 @@ OAMDebugView::MouseDown (BPoint where)
 		4.0f,
 		174.0f,
 		Bounds().right - 4.0f,
-		432.0f
+		526.0f
 	);
 
 	if (!listPanel.Contains(where)) {
@@ -627,13 +637,13 @@ OAMDebugView::MouseDown (BPoint where)
 
 	int32 row = static_cast<int32>((where.y - firstRowY) / rowH);
 
-	if (row < 0 || row >= 8) {
+	if (row < 0 || row >= kVisibleOAMRows) {
 		return;
 	}
 
-	int32 spriteIndex = (fFirstSprite + row);
+	int32 spriteIndex = fFirstSprite + row;
 
-	if (spriteIndex < 0 || spriteIndex >= 64) {
+	if (spriteIndex < 0 || spriteIndex >= kOAMSpriteCount) {
 		return;
 	}
 
@@ -670,7 +680,8 @@ OAMDebugView::MouseDown (BPoint where)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-OAMDebugView::MouseMoved (BPoint where, uint32 transit, const BMessage *message)
+OAMDebugView::MouseMoved(BPoint where, uint32 transit,
+	const BMessage *message)
 {
 	(void)message;
 
@@ -710,7 +721,7 @@ OAMDebugView::MouseMoved (BPoint where, uint32 transit, const BMessage *message)
 		4.0f,
 		174.0f,
 		Bounds().right - 4.0f,
-		432.0f
+		526.0f
 	);
 
 	if (!listPanel.Contains(where)) {
@@ -722,13 +733,13 @@ OAMDebugView::MouseMoved (BPoint where, uint32 transit, const BMessage *message)
 
 	int32 row = static_cast<int32>((where.y - firstRowY) / rowH);
 
-	if (row < 0 || row >= 8) {
+	if (row < 0 || row >= kVisibleOAMRows) {
 		return;
 	}
 
-	int32 spriteIndex = (fFirstSprite + row);
+	int32 spriteIndex = fFirstSprite + row;
 
-	if (spriteIndex < 0 || spriteIndex >= 64) {
+	if (spriteIndex < 0 || spriteIndex >= kOAMSpriteCount) {
 		return;
 	}
 
@@ -837,11 +848,11 @@ OAMDebugView::DrawHeaderUI()
 
 	drawKV("Mouse:", "hover inspect / click lock");
 
-	drawKV("Space:", fFreezeUpdates
-		? "live OAM"
-		: "snapshot OAM");
+	drawKV("Keys:", "Up/Down sprite   Wheel scroll   [ ] page");
 
-	drawKV("[ ] R:", "prev/next page / refresh snapshot");
+	drawKV("Space:", fFreezeUpdates
+		? "live OAM   R refresh snapshot"
+		: "snapshot OAM   R refresh snapshot");
 }
 
 
@@ -952,9 +963,9 @@ OAMDebugView::DrawOAMSummaryPanel()
 // -----------------------------------------------------------------------------
 // OAMDebugView::DrawSpriteListPanel
 //
-// Draws the paged OAM sprite list.  Rows show raw OAM fields, decoded summary
-// flags, hidden/offscreen state, sprite-zero marking, current selection, and
-// same-tile highlighting for the active sprite.
+// Draws the scrollable OAM sprite list.  Rows show raw OAM fields, decoded
+// summary flags, hidden/offscreen state, sprite-zero marking, current selection,
+// and same-tile highlighting for the active sprite.
 //
 // Parameters:
 //   None.
@@ -969,7 +980,7 @@ OAMDebugView::DrawSpriteListPanel()
 		4.0f,
 		174.0f,
 		Bounds().right - 4.0f,
-		432.0f
+		526.0f
 	);
 
 	::DrawDebugPanel(this, panel, "Sprite List");
@@ -1015,7 +1026,7 @@ OAMDebugView::DrawSpriteListPanel()
 	bool haveActiveTile = false;
 	uint8 activeTile = 0;
 
-	if (active >= 0 && active < 64) {
+	if (active >= 0 && active < kOAMSpriteCount) {
 		uint32 activeBase = active * 4;
 		uint8 activeY = OAMByte(activeBase + 0);
 
@@ -1025,33 +1036,34 @@ OAMDebugView::DrawSpriteListPanel()
 		}
 	}
 
-	for (int32 row = 0; row < 8; row++) {
+	for (int32 row = 0; row < kVisibleOAMRows; row++) {
 		int32 spriteIndex = fFirstSprite + row;
 
-		if (spriteIndex < 0 || spriteIndex >= 64)
+		if (spriteIndex < 0 || spriteIndex >= kOAMSpriteCount) {
 			continue;
+		}
 
-		uint32 base = (spriteIndex * 4);
+		uint32 base = spriteIndex * 4;
 
 		uint8 spriteY = OAMByte(base + 0);
 		uint8 tile = OAMByte(base + 1);
 		uint8 attr = OAMByte(base + 2);
 		uint8 spriteX = OAMByte(base + 3);
 
-		bool spriteZero = (spriteIndex == 0);
-		bool hidden = (spriteY >= 0xef);
+		bool spriteZero = spriteIndex == 0;
+		bool hidden = spriteY >= 0xef;
 
-		uint8 pal = (attr & 0x3);
+		uint8 pal = attr & 0x3;
 		bool priority = (attr & 0x20) != 0;
 		bool flipH = (attr & 0x40) != 0;
 		bool flipV = (attr & 0x80) != 0;
 
 		bool sameTile = haveActiveTile
-			&& (spriteIndex != active)
+			&& spriteIndex != active
 			&& !hidden
-			&& (tile == activeTile);
+			&& tile == activeTile;
 
-		float rowY = firstRowY + (row * rowH);
+		float rowY = firstRowY + row * rowH;
 
 		BRect rowRect(
 			panel.left + 7.0f,
@@ -1091,7 +1103,7 @@ OAMDebugView::DrawSpriteListPanel()
 		}
 
 		SetFont(&mono);
-		
+
 		BString s;
 
 		s.SetToFormat("%02ld", static_cast<long>(spriteIndex));
@@ -1136,10 +1148,16 @@ OAMDebugView::DrawSpriteListPanel()
 
 	SetFont(&prevFont);
 
+	int32 lastSprite = fFirstSprite + kVisibleOAMRows - 1;
+
+	if (lastSprite >= kOAMSpriteCount) {
+		lastSprite = kOAMSpriteCount - 1;
+	}
+
 	BString footer;
 	footer.SetToFormat("Showing OAM sprites %02ld-%02ld of 64.",
 		static_cast<long>(fFirstSprite),
-		static_cast<long>((fFirstSprite + 7))
+		static_cast<long>(lastSprite)
 	);
 
 	SetHighColor(90, 90, 90);
@@ -1168,7 +1186,7 @@ OAMDebugView::DrawSelectedSpritePanel()
 {
 	BRect panel(
 		4.0f,
-		442.0f,
+		536.0f,
 		Bounds().right - 4.0f,
 		Bounds().bottom - 8.0f
 	);
@@ -1196,7 +1214,8 @@ OAMDebugView::DrawSelectedSpritePanel()
 	BFont mono(be_fixed_font);
 	mono.SetSize(11.0f);
 
-	auto drawLeftKV = [&](const char *label, const char *value, bool monoValue) {
+	auto drawLeftKV = [&](const char *label, const char *value,
+		bool monoValue) {
 		SetHighColor(80, 80, 80);
 		SetFont(&prevFont);
 		DrawString(label, BPoint(leftLabelX, leftY));
@@ -1208,7 +1227,8 @@ OAMDebugView::DrawSelectedSpritePanel()
 		leftY += lineH;
 	};
 
-	auto drawRightKV = [&](const char *label, const char *value, bool monoValue) {
+	auto drawRightKV = [&](const char *label, const char *value,
+		bool monoValue) {
 		SetHighColor(80, 80, 80);
 		SetFont(&prevFont);
 		DrawString(label, BPoint(rightLabelX, rightY));
@@ -1250,7 +1270,7 @@ OAMDebugView::DrawSelectedSpritePanel()
 		return;
 	}
 
-	uint32 base = (active * 4);
+	uint32 base = active * 4;
 
 	uint8 spriteY = OAMByte(base + 0);
 	uint8 tile = OAMByte(base + 1);
@@ -1270,16 +1290,16 @@ OAMDebugView::DrawSelectedSpritePanel()
 		uint32 whichPT = tile & 0x1;
 		uint32 topTile = tile & 0xfe;
 
-		chrAddr = (whichPT ? 0x1000 : 0x0000) + (topTile * 16);
-		chrAddrBottom = (chrAddr + 16);
+		chrAddr = (whichPT ? 0x1000 : 0x0000) + topTile * 16;
+		chrAddrBottom = chrAddr + 16;
 	} else {
 		uint32 spritePatternBase = (nes::ppu::ppuctrl() & 0x8)
 			? 0x1000
 			: 0x0000;
 
-		chrAddr = spritePatternBase + (tile * 16);
+		chrAddr = spritePatternBase + tile * 16;
 	}
-	
+
 	BString s;
 
 	s.SetToFormat("%02ld", static_cast<long>(active));
@@ -1354,8 +1374,8 @@ OAMDebugView::DrawSelectedSpritePanel()
 // OAMDebugView::SetFirstSpriteFromScrollBar
 //
 // Updates the first visible OAM sprite in response to scrollbar movement.  The
-// requested value is snapped to an 8-sprite page and linked debugger views are
-// synchronized with the new active row.
+// requested value is clamped to the valid first-sprite range and linked debugger
+// views are synchronized with the new active row.
 //
 // Parameters:
 //   firstSprite - Requested first visible sprite index.
@@ -1366,14 +1386,12 @@ OAMDebugView::DrawSelectedSpritePanel()
 void
 OAMDebugView::SetFirstSpriteFromScrollBar(int32 firstSprite)
 {
-	firstSprite = (firstSprite / 8) * 8;
-
 	if (firstSprite < 0) {
 		firstSprite = 0;
 	}
-	
-	if (firstSprite > 56) {
-		firstSprite = 56;
+
+	if (firstSprite > kMaxFirstOAMSprite) {
+		firstSprite = kMaxFirstOAMSprite;
 	}
 
 	if (fFirstSprite == firstSprite) {
@@ -1383,10 +1401,12 @@ OAMDebugView::SetFirstSpriteFromScrollBar(int32 firstSprite)
 	fFirstSprite = firstSprite;
 
 	if (!fSpriteLocked) {
-		if (fHoverSprite < fFirstSprite || fHoverSprite >= fFirstSprite + 8)
+		if (fHoverSprite < fFirstSprite
+			|| fHoverSprite >= fFirstSprite + kVisibleOAMRows) {
 			fHoverSprite = fFirstSprite;
+		}
 	}
-	
+
 	UpdatePaletteDebuggerHighlight();
 	UpdatePatternTableHighlight();
 	UpdateCHRExplorer();

@@ -19,9 +19,10 @@ class CPUTraceWindow : public BWindow
 {
 	public:
 	typedef enum : uint32 {
-		TOGGLE_FREEZE 	= 'TGLF',
-		CLEAR_TRACE		= 'CLTR',
-		FOLLOW_NEWEST	= 'CFLN'
+		TOGGLE_FREEZE 	= 	'TGLF',
+		CLEAR_TRACE		= 	'CLTR',
+		FOLLOW_NEWEST	= 	'CFLN',
+		TRACE_JUMP_DISASM = 'CTJD'
 	} messages;
 	
 	public:

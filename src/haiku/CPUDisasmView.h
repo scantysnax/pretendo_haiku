@@ -36,6 +36,7 @@ class CPUDisasmView : public BView
 	
 	public:
 	void ResetView();
+	void JumpToAddress (uint16 address);
 	
 	private:
 	void DrawHeaderPanel();
@@ -71,7 +72,6 @@ class CPUDisasmView : public BView
 	
 	private:
 	uint16 ReadVector (uint16 address) const;
-	void JumpToAddress (uint16 address);
 	void JumpToCurrentPC();
 	void JumpToVector (uint16 vectorAddress);
 	

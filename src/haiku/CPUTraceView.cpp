@@ -60,7 +60,7 @@ CPUTraceView::CPUTraceView(BRect frame, PretendoWindow *parent)
 		B_WILL_DRAW | B_PULSE_NEEDED | B_NAVIGABLE
 	)
 {
-	(void)parent;
+	fParent = parent;
 
 	fScrollBar = new CPUTraceScrollBar(
 		BRect(0.0f, 0.0f, 0.0f, 0.0f),
@@ -165,13 +165,11 @@ CPUTraceView::KeyDown(const char *bytes, int32 numBytes)
 // -----------------------------------------------------------------------------
 // CPUTraceView::HandleShortcut
 //
-// Handles CPU trace keyboard shortcuts.  This is separate from KeyDown() so the
-// owning CPUTraceWindow can forward key presses directly when the scrollbar or
-// another child handler has focus.
+// Handles keyboard shortcuts for the CPU trace view.
 //
 // Parameters:
-//   bytes    - Key bytes received from the keyboard event.
-//   numBytes - Number of bytes in the key event.
+//   bytes    - Key bytes from KeyDown.
+//   numBytes - Number of key bytes.
 //
 // Returns:
 //   true if the key was handled.
@@ -192,6 +190,23 @@ CPUTraceView::HandleShortcut(const char* bytes, int32 numBytes)
 		case 'C':
 			ClearTrace();
 			return true;
+
+		case 'd':
+		case 'D':
+		case B_ENTER:
+		{
+			if (!fParent) {
+				return true;
+			}
+
+			uint16 address = 0x0000;
+
+			if (SelectedTraceAddress(address)) {
+				fParent->JumpCPUDisasmToAddress(address);
+			}
+
+			return true;
+		}
 
 		case B_END:
 			FollowNewest();
@@ -588,7 +603,8 @@ CPUTraceView::DrawHeaderPanel()
 
 	SetHighColor(70, 70, 70);
 	DrawString(
-		"Space Freeze/Live   C Clear   End Newest   Arrows/Page/Wheel Scroll",
+		"Space Freeze/Live   C Clear   End Newest   D/Enter Disassmebly   "
+		"Arrows/Page Up/Page Down/Wheel Scroll",
 		BPoint(panel.left + 10.0f, panel.top + 64.0f)
 	);
 
@@ -1128,6 +1144,32 @@ CPUTraceView::SelectedTraceEntry(nes::cpu::cpu_trace_entry_t &entry, BString &in
 		instruction.SetTo("?");
 	}
 
+	return true;
+}
+
+
+// -----------------------------------------------------------------------------
+// CPUTraceView::SelectedTraceAddress
+//
+// Retrieves the CPU address for the currently selected trace row.
+//
+// Parameters:
+//   address - Receives the selected trace row PC.
+//
+// Returns:
+//   true if a selected trace row is available.
+// -----------------------------------------------------------------------------
+bool
+CPUTraceView::SelectedTraceAddress (uint16 &address) const
+{
+	nes::cpu::cpu_trace_entry_t entry;
+	BString instruction;
+
+	if (!SelectedTraceEntry(entry, instruction)) {
+		return false;
+	}
+
+	address = entry.pc;
 	return true;
 }
 

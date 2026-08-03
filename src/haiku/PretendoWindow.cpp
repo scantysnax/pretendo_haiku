@@ -4292,6 +4292,41 @@ PretendoWindow::StartEmulatorForDebugging()
 	fMutex->Unlock();
 }
 
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::JumpCPUDisasmToAddress
+//
+// Opens or activates the CPU disassembly window and jumps it to the requested
+// CPU address.  This may be called from another debugger window's looper, so the
+// CPU disassembly window must be locked before its view is modified.
+//
+// Parameters:
+//   address - CPU address to show in the disassembly view.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::JumpCPUDisasmToAddress (uint16 address)
+{
+	if (!fCPUDisasmWindow) {
+		fCPUDisasmWindow = new CPUDisasmWindow(this);
+		fCPUDisasmWindow->Show();
+	} else {
+		fCPUDisasmWindow->Activate(true);
+	}
+
+	if (!fCPUDisasmWindow) {
+		return;
+	}
+
+	if (fCPUDisasmWindow->Lock()) {
+		fCPUDisasmWindow->JumpToAddress(address);
+		fCPUDisasmWindow->Unlock();
+	}
+}
+
+
 // -----------------------------------------------------------------------------
 // PretendoWindow::HighlightPaletteDebugger
 //

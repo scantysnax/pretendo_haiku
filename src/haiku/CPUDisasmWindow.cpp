@@ -79,3 +79,23 @@ CPUDisasmWindow::QuitRequested()
 	return true;
 }
 
+
+// -----------------------------------------------------------------------------
+// CPUDisasmWindow::JumpToAddress
+//
+// Jumps the CPU disassembly view to a specific CPU address.
+//
+// Parameters:
+//   address - CPU address to show in the disassembly view.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+CPUDisasmWindow::JumpToAddress (uint16 address)
+{
+	if (fView) {
+		fView->JumpToAddress(address);
+	}
+}
+

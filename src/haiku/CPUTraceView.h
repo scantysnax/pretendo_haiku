@@ -1,7 +1,6 @@
 #ifndef _CPU_TRACE_VIEW_H_
 #define _CPU_TRACE_VIEW_H_
 
-
 #include "CPUTraceView.h"
 
 #include "Cart.h"
@@ -10,13 +9,9 @@
 #include "DebugHelpers.h"
 #include "PretendoWindow.h"
 
-#include <Font.h>
-#include <Message.h>
-#include <String.h>
-#include <Window.h>
-
 #include <cmath>
 #include <vector>
+
 
 class BScrollBar;
 class CPUTraceScrollBar;
@@ -65,6 +60,7 @@ class CPUTraceView : public BView
 	virtual void FrameResized (float width, float height);
 
 	bool HandleShortcut (const char *bytes, int32 numBytes);
+	bool SelectedTraceAddress (uint16 &address) const;
 
 	void ToggleFreeze();
 	void ClearTrace();
@@ -81,20 +77,20 @@ class CPUTraceView : public BView
 	bool HasROMLoaded() const;
 
 	private:
-	void ScrollLines(int32 lines);
+	void ScrollLines (int32 lines);
 	void JumpToNewest();
 
 	private:
 	uint32 TraceDisplayCount() const;
-	bool TraceDisplayEntry(uint32 index, nes::cpu::cpu_trace_entry_t &entry) const;
-	bool TraceDisplayInstruction(uint32 index, BString &instruction) const;
-	bool TraceIndexForPoint (BPoint where, uint32& index) const;
+	bool TraceDisplayEntry (uint32 index, nes::cpu::cpu_trace_entry_t &entry) const;
+	bool TraceDisplayInstruction (uint32 index, BString &instruction) const;
+	bool TraceIndexForPoint (BPoint where, uint32 &index) const;
 	void CaptureSnapshot();
 
 	private:
 	void LayoutScrollBar();
 	void UpdateScrollBar();
-	void ScrollBarChanged(float value);
+	void ScrollBarChanged (float value);
 	int32 VisibleTraceRows() const;
 
 	private:
@@ -106,10 +102,15 @@ class CPUTraceView : public BView
 	bool fFreezeUpdates = false;
 	bool fFollowNewest = true;
 
+	private:
 	uint32 fBaseTraceIndex = 0;
 	std::vector<CPUTraceFrozenEntry> fFrozenEntries;
 	bool fHasSelectedTraceIndex = false;
 	uint32 fSelectedTraceIndex = 0;
+	
+	private:
+	PretendoWindow *fParent = nullptr;
+	
 };
 
 #endif // _CPU_TRACE_VIEW_H_

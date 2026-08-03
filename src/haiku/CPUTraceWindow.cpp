@@ -33,6 +33,11 @@ CPUTraceWindow::CPUTraceWindow(PretendoWindow *parent)
 	AddShortcut('c', 0, new BMessage(messages::CLEAR_TRACE), this);
 	AddShortcut('C', 0, new BMessage(messages::CLEAR_TRACE), this);
 	AddShortcut(B_END, 0, new BMessage(messages::FOLLOW_NEWEST), this);
+	
+	AddShortcut(B_ENTER, 0, new BMessage(messages::TRACE_JUMP_DISASM), this);
+	AddShortcut('d', 0, new BMessage(messages::TRACE_JUMP_DISASM), this);
+	AddShortcut('D', 0, new BMessage(messages::TRACE_JUMP_DISASM), this);
+	
 
 	SetPulseRate(100000);
 }
@@ -87,7 +92,17 @@ CPUTraceWindow::MessageReceived (BMessage *message)
 				fView->FollowNewest();
 			}
 			break;
+			
+		case messages::TRACE_JUMP_DISASM:
+			if (fView && fParent) {
+				uint16 address = 0x0000;
 
+				if (fView->SelectedTraceAddress(address)) {
+					fParent->JumpCPUDisasmToAddress(address);
+				}
+			}
+			break;	
+			
 		default:
 			BWindow::MessageReceived(message);
 			break;
