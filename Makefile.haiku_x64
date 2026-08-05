@@ -156,7 +156,9 @@ CPP_FILES := \
 	src/haiku/ROMInfoWindow.cpp \
 	src/haiku/Settings.cpp \
 	src/haiku/Splitters.cpp \
-	src/haiku/VideoScreen.cpp
+	src/haiku/VideoScreen.cpp \
+	src/haiku/ZeroPageView.cpp \
+	src/haiku/ZeroPageWindow.cpp
 
 
 SOURCES 	:= $(CPP_FILES) $(ASM_FILES)

@@ -39,6 +39,7 @@
 #include "ROMFilePanel.h"
 #include "ROMInfoWindow.h"
 #include "VideoScreen.h"
+#include "ZeroPageWindow.h"
 
 #include "Apu.h"
 #include "Cart.h"
@@ -67,6 +68,7 @@ class PPUStatusWindow;
 class PPUMemoryWindow;
 class PPUWriteLogWindow;
 class PretendoView;
+class ZeroPageWindow;
 
 
 struct latched_scroll_t {
@@ -126,11 +128,12 @@ class PretendoWindow : public BWindow
 		VIEW_CPUSTAT = 		'CPUS',
 		VIEW_CPUDISASM = 	'CPUD',
 		VIEW_CPUMEM = 		'CPUM',
-		VIEW_CPUTRACE = 	'CPUT'
+		VIEW_CPUTRACE = 	'CPUT',
+		VIEW_ZERO_PAGE = 	'ZPAG'
 	} messages;	
 	
 	private:
-	typedef enum {
+	typedef enum : uint8 {
 		UP = 		0x57,
 		DOWN = 		0x62,
 		LEFT = 		0x61,
@@ -142,14 +145,14 @@ class PretendoWindow : public BWindow
 	} default_keys;
 	
 	private:
-	typedef enum {
+	typedef enum : int32 {
 		WIDTH = 		256,
 		HEIGHT = 		240,
 		MENU_HEIGHT = 	21
 	} screen_size;
 	
 	private:
-	typedef enum {
+	typedef enum : int32 {
 		NONE = 		 0,
 		BITMAP = 	 1,
 		OVERLAY = 	 2,
@@ -220,6 +223,7 @@ class PretendoWindow : public BWindow
 	void OnViewCPUDisasmWindow();
 	void OnViewCPUMemoryWindow();
 	void OnViewCPUTraceWindow();
+	void OnViewZeroPageWindow();
 
 	// video stuff
 	private:
@@ -346,6 +350,7 @@ class PretendoWindow : public BWindow
 	CPUDisasmWindow *fCPUDisasmWindow = nullptr;
 	CPUMemoryWindow *fCPUMemoryWindow = nullptr;
 	CPUTraceWindow *fCPUTraceWindow = nullptr;
+	ZeroPageWindow *fZeroPageWindow = nullptr;
 
 	private:
 	BString fROMDirectory = nullptr;
@@ -434,6 +439,7 @@ class PretendoWindow : public BWindow
 	void CPUDisasmWindowClosed();
 	void CPUMemoryWindowClosed();
 	void CPUTraceWindowClosed();
+	void ZeroPageWindowClosed();
     
     public:
 	void HighlightPaletteDebugger (bool sprites, int32 palette, int32 entry = -1);

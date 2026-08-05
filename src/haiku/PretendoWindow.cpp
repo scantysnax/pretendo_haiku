@@ -420,6 +420,12 @@ PretendoWindow::~PretendoWindow()
 		}
 	}
 	
+	if (fZeroPageWindow != nullptr) {
+		if (fZeroPageWindow->Lock()) {
+			fZeroPageWindow->Quit();
+		}
+	}
+	
 	// long day.
 	
 	fMutex->Unlock();
@@ -624,6 +630,10 @@ PretendoWindow::MessageReceived (BMessage *message)
 			
 		case messages::VIEW_CPUTRACE:
 			OnViewCPUTraceWindow();
+			break;
+			
+		case messages::VIEW_ZERO_PAGE:
+			OnViewZeroPageWindow();
 			break;
 			
 		default:
@@ -872,6 +882,7 @@ PretendoWindow::AddMenu()
 	fCPUToolMenu->AddItem(new BMenuItem("View Disassembly" B_UTF8_ELLIPSIS, new BMessage(messages::VIEW_CPUDISASM)));
 	fCPUToolMenu->AddItem(new BMenuItem("View Memory" B_UTF8_ELLIPSIS, new BMessage(messages::VIEW_CPUMEM)));
 	fCPUToolMenu->AddItem(new BMenuItem("View CPU Trace" B_UTF8_ELLIPSIS , new BMessage(messages::VIEW_CPUTRACE)));
+	fCPUToolMenu->AddItem(new BMenuItem("View Zero Page", new BMessage(messages::VIEW_ZERO_PAGE)));
 	
 	fPPUToolMenu = new BMenu("PPU");
 	fToolMenu->AddItem(fPPUToolMenu);
@@ -2076,6 +2087,29 @@ PretendoWindow::OnViewCPUTraceWindow()
 	fCPUTraceWindow->Show();
 }
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::OnViewZeroPageWindow
+//
+// Opens or activates the Zero Page debugger window.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::OnViewZeroPageWindow()
+{
+	if (fZeroPageWindow) {
+		fZeroPageWindow->Activate(true);
+		return;
+	}
+
+	fZeroPageWindow = new ZeroPageWindow(this);
+	fZeroPageWindow->Show();
+}
+
 
 // -----------------------------------------------------------------------------
 // PretendoWindow::ROMInfoWindowClosed
@@ -2460,6 +2494,23 @@ PretendoWindow::CPUTraceWindowClosed()
 	fCPUTraceWindow = nullptr;
 }
 
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::ZeroPageWindowClosed
+//
+// Clears the Zero Page debugger window pointer after the window closes.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::ZeroPageWindowClosed()
+{
+	fZeroPageWindow = nullptr;
+}
 
 
 // -----------------------------------------------------------------------------
