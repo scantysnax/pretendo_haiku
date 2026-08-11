@@ -1,6 +1,8 @@
 
 #include "PretendoWindow.h"
 
+#include "StackWindow.h"
+
 
 // -----------------------------------------------------------------------------
 // InvalidateWindowContents
@@ -420,6 +422,12 @@ PretendoWindow::~PretendoWindow()
 		}
 	}
 	
+	if (fStackWindow != nullptr) {
+		if (fStackWindow->Lock()) {
+			fStackWindow->Quit();
+		}
+	}
+	
 	if (fZeroPageWindow != nullptr) {
 		if (fZeroPageWindow->Lock()) {
 			fZeroPageWindow->Quit();
@@ -634,6 +642,10 @@ PretendoWindow::MessageReceived (BMessage *message)
 			
 		case messages::VIEW_ZERO_PAGE:
 			OnViewZeroPageWindow();
+			break;
+			
+		case messages::VIEW_STACK:
+			OnViewStackWindow();
 			break;
 			
 		default:
@@ -883,6 +895,7 @@ PretendoWindow::AddMenu()
 	fCPUToolMenu->AddItem(new BMenuItem("View Memory" B_UTF8_ELLIPSIS, new BMessage(messages::VIEW_CPUMEM)));
 	fCPUToolMenu->AddItem(new BMenuItem("View CPU Trace" B_UTF8_ELLIPSIS , new BMessage(messages::VIEW_CPUTRACE)));
 	fCPUToolMenu->AddItem(new BMenuItem("View Zero Page", new BMessage(messages::VIEW_ZERO_PAGE)));
+	fCPUToolMenu->AddItem(new BMenuItem("View Stack", new BMessage(messages::VIEW_STACK)));
 	
 	fPPUToolMenu = new BMenu("PPU");
 	fToolMenu->AddItem(fPPUToolMenu);
@@ -2087,6 +2100,31 @@ PretendoWindow::OnViewCPUTraceWindow()
 	fCPUTraceWindow->Show();
 }
 
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::OnViewStackWindow
+//
+// Opens or activates the Stack debugger window.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::OnViewStackWindow()
+{
+	if (fStackWindow) {
+		fStackWindow->Activate(true);
+		return;
+	}
+
+	fStackWindow = new StackWindow(this);
+	fStackWindow->Show();
+}
+
+
 // -----------------------------------------------------------------------------
 // PretendoWindow::OnViewZeroPageWindow
 //
@@ -2492,6 +2530,24 @@ void
 PretendoWindow::CPUTraceWindowClosed()
 {
 	fCPUTraceWindow = nullptr;
+}
+
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::StackWindowClosed
+//
+// Clears the Stack debugger window pointer after the window closes.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::StackWindowClosed()
+{
+	fStackWindow = nullptr;
 }
 
 
@@ -4409,12 +4465,11 @@ PretendoWindow::HighlightPaletteDebugger (bool sprites, int32 palette, int32 ent
 // -----------------------------------------------------------------------------
 // PretendoWindow::InvalidateDebugViews
 //
-// Refreshes open debugger/tool windows after a debugger-controlled state
-// change, such as single-stepping one CPU instruction.
+// Refreshes all open debugger/tool windows after a debugger-controlled state
+// change, such as single-stepping, hitting a breakpoint, or resuming execution.
 //
-// CPUDisasmWindow is intentionally not invalidated here because the disassembly
-// view is usually the caller during single-step and will invalidate itself after
-// updating its PC/follow state.
+// CPUDisasmWindow is intentionally not invalidated here because its view usually
+// manages its own follow-PC and redraw behavior after debugger operations.
 //
 // Parameters:
 //   None.
@@ -4446,12 +4501,18 @@ PretendoWindow::InvalidateDebugViews()
 	InvalidateWindowContents(fPPUMemoryWindow);
 
 	InvalidateWindowContents(fCPUStatusWindow);
-
-	InvalidateWindowContents(fCPUStatusWindow);
 	InvalidateWindowContents(fCPUMemoryWindow);
+	InvalidateWindowContents(fCPUTraceWindow);
 
-	// Do not invalidate fCPUDisasmWindow here.
-	// CPUDisasmView::KeyDown() updates and invalidates itself after stepping.	
+	InvalidateWindowContents(fStackWindow);
+	InvalidateWindowContents(fZeroPageWindow);
+
+	/*
+	 * Do not invalidate fCPUDisasmWindow here.
+	 *
+	 * CPUDisasmView normally manages its own PC/follow state and redraw
+	 * after debugger operations.
+	 */
 }
 
 

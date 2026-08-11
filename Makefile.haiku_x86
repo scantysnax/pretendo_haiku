@@ -156,6 +156,8 @@ CPP_FILES := \
 	src/haiku/ROMInfoWindow.cpp \
 	src/haiku/Settings.cpp \
 	src/haiku/Splitters.cpp \
+	src/haiku/StackView.cpp \
+	src/haiku/StackWindow.cpp \
 	src/haiku/VideoScreen.cpp \
 	src/haiku/ZeroPageView.cpp \
 	src/haiku/ZeroPageWindow.cpp

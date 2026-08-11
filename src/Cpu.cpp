@@ -96,19 +96,41 @@ uint8_t irq_sources_ = 0x00;
 uint16_t instruction_ = 0;
 int cycle_            = 0;
 
+
 // debug trace / breakpoint state
 bool sExecutedInstructionAddress[0x10000] = {};
 bool sExecuteBreakpointAddress[0x10000] = {};
+
 bool sDebugBreakpointHit = false;
 uint16_t sDebugBreakpointHitAddress = 0x0000;
+DebugBreakReason sDebugBreakReason = DEBUG_BREAK_NONE;
+
 bool sDebugSkipBreakpointOnce = false;
 uint32_t sExecuteBreakpointHitCount[0x10000] = {};
+
+
+// Stack break conditions.
+bool sDebugStackSPBreakEnabled = false;
+uint8_t sDebugStackSPBreakThreshold = 0x20;
+bool sDebugStackSPBreakArmed = true;
+bool sDebugStackSPBreakReady = false;
+bool sDebugStackWrapBreakEnabled = false;
+bool sDebugHavePreviousBoundaryS = false;
+uint8_t sDebugPreviousBoundaryS = 0xff;
+uint8_t sDebugPreviousBoundaryOpcode = 0x00;
+bool sDebugPreviousBoundaryWasInterrupt = false;
+/*
+ * SP values associated with the most recent stack breakpoint.
+ */
+uint8_t sDebugStackBreakOldS = 0xff;
+uint8_t sDebugStackBreakNewS = 0xff;
 
 // debug CPU execution trace
 cpu_trace_entry_t sCPUTraceEntries[CPU_TRACE_CAPACITY] = {};
 uint32_t sCPUTraceNext = 0;
 uint32_t sCPUTraceCount = 0;
 static void record_cpu_trace_entry(uint16_t address);
+
 
 // internal registers (which get trashed by instructions)
 register16 effective_address_ = {};
@@ -180,12 +202,8 @@ record_cpu_trace_entry(uint16_t address)
 	entry.pc = address;
 
 	entry.bytes[0] = nes::bus::debug_read_memory(address);
-	entry.bytes[1] = nes::bus::debug_read_memory(
-		static_cast<uint16_t>(address + 1)
-	);
-	entry.bytes[2] = nes::bus::debug_read_memory(
-		static_cast<uint16_t>(address + 2)
-	);
+	entry.bytes[1] = nes::bus::debug_read_memory(static_cast<uint16_t>(address + 1));
+	entry.bytes[2] = nes::bus::debug_read_memory(static_cast<uint16_t>(address + 2));
 
 	entry.length = 1;
 
@@ -200,6 +218,122 @@ record_cpu_trace_entry(uint16_t address)
 	if (sCPUTraceCount < CPU_TRACE_CAPACITY) {
 		sCPUTraceCount++;
 	}
+}
+
+
+// -----------------------------------------------------------------------------
+// check_debug_stack_break
+//
+// Checks debugger stack break conditions at a CPU instruction boundary.
+//
+// Stack-wrap detection compares S at consecutive instruction boundaries.
+// A large transition normally indicates modulo-256 stack wrapping.
+//
+// Direct assignments to S, such as TXS, are excluded from wrap detection
+// because they can legitimately move S by a large amount without performing
+// stack push/pop activity.
+//
+// Interrupt entry is not excluded because it legitimately modifies the stack
+// and may itself cause the hardware stack pointer to wrap.
+//
+// The SP-threshold breakpoint remains a one-shot downward-crossing condition.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   true if a stack break condition was triggered.
+// -----------------------------------------------------------------------------
+static bool
+check_debug_stack_break()
+{
+	if (sDebugStackWrapBreakEnabled
+		&& sDebugHavePreviousBoundaryS) {
+		const int32_t delta
+			= static_cast<int32_t>(S)
+			- static_cast<int32_t>(
+				sDebugPreviousBoundaryS
+			);
+
+		const bool largeTransition
+			= delta < -128 || delta > 128;
+
+		/*
+		 * TXS ($9A) directly loads S from X.  Such a change is not a
+		 * stack wrap even if the numerical SP difference is large.
+		 *
+		 * $9B (XAS/TAS) can also directly alter S on unofficial-opcode
+		 * code paths, so exclude it as well.
+		 *
+		 * Do not apply these opcode exclusions when the previous CPU
+		 * operation was actually interrupt entry.
+		 */
+		const bool directSPAssignment
+			= !sDebugPreviousBoundaryWasInterrupt
+				&& (
+					sDebugPreviousBoundaryOpcode == 0x9a
+					|| sDebugPreviousBoundaryOpcode == 0x9b
+				);
+
+		if (largeTransition
+			&& !directSPAssignment) {
+			sDebugStackBreakOldS
+				= sDebugPreviousBoundaryS;
+
+			sDebugStackBreakNewS
+				= S;
+
+			sDebugBreakpointHit = true;
+			sDebugBreakpointHitAddress = PC.raw;
+			sDebugBreakReason
+				= DEBUG_BREAK_STACK_WRAP;
+
+			return true;
+		}
+	}
+
+	/*
+	 * Wait until S has first moved above the SP-break threshold.
+	 */
+	if (sDebugStackSPBreakEnabled
+		&& sDebugStackSPBreakArmed
+		&& !sDebugStackSPBreakReady) {
+		if (S > sDebugStackSPBreakThreshold) {
+			sDebugStackSPBreakReady = true;
+		}
+
+		return false;
+	}
+
+	/*
+	 * Once ready, trigger only on a downward crossing through the
+	 * configured SP-break threshold.
+	 */
+	if (sDebugStackSPBreakEnabled
+		&& sDebugStackSPBreakArmed
+		&& sDebugStackSPBreakReady
+		&& sDebugHavePreviousBoundaryS
+		&& sDebugPreviousBoundaryS
+			> sDebugStackSPBreakThreshold
+		&& S <= sDebugStackSPBreakThreshold) {
+		sDebugStackBreakOldS
+			= sDebugPreviousBoundaryS;
+
+		sDebugStackBreakNewS
+			= S;
+
+		sDebugBreakpointHit = true;
+		sDebugBreakpointHitAddress = PC.raw;
+		sDebugBreakReason
+			= DEBUG_BREAK_STACK_SP;
+
+		sDebugStackSPBreakArmed = false;
+		sDebugStackSPBreakReady = false;
+
+		return true;
+	}
+
+	return false;
 }
 
 
@@ -628,27 +762,78 @@ void clock() {
 // Start Public Functions
 //------------------------------------------------------------------------------
 
-/**
- * @brief tick
- */
-void tick() {
+
+// -----------------------------------------------------------------------------
+// nes::cpu::tick
+//
+// Advances the CPU by one cycle.
+//
+// At instruction boundaries, debugger break conditions are checked before the
+// next CPU operation executes.
+//
+// After breakpoint checks pass, debugger state records the current stack
+// pointer and the operation that is about to execute.  On the next instruction
+// boundary, this information allows stack-wrap detection to determine whether a
+// large S transition came from ordinary stack activity or from a direct stack-
+// pointer assignment such as TXS.
+//
+// Interrupt-entry state is recorded separately so a coincidental opcode byte at
+// PC cannot cause an interrupt-induced stack wrap to be mistaken for TXS/XAS.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+tick()
+{
 	if (cycle_ == 0) {
-	if (sDebugBreakpointHit) {
-		return;
-	}
+		if (sDebugBreakpointHit) {
+			return;
+		}
 
-	if (sDebugSkipBreakpointOnce) {
-		sDebugSkipBreakpointOnce = false;
-	} else if (sExecuteBreakpointAddress[PC.raw]) {
-		sDebugBreakpointHit = true;
-		sDebugBreakpointHitAddress = PC.raw;
-		sExecuteBreakpointHitCount[PC.raw]++;
-		return;
-	}
+		bool skipBreakChecks = false;
 
-	sExecutedInstructionAddress[PC.raw] = true;
-	record_cpu_trace_entry(PC.raw);
-}
+		if (sDebugSkipBreakpointOnce) {
+			sDebugSkipBreakpointOnce = false;
+			skipBreakChecks = true;
+		}
+
+		if (!skipBreakChecks) {
+			if (check_debug_stack_break()) {
+				return;
+			}
+
+			if (sExecuteBreakpointAddress[PC.raw]) {
+				sDebugBreakpointHit = true;
+				sDebugBreakpointHitAddress = PC.raw;
+				sDebugBreakReason
+					= DEBUG_BREAK_EXECUTE;
+
+				sExecuteBreakpointHitCount[PC.raw]++;
+
+				return;
+			}
+		}
+
+		sDebugPreviousBoundaryS = S;
+
+		sDebugPreviousBoundaryWasInterrupt
+			= nmi_executing_
+				|| irq_executing_;
+
+		sDebugPreviousBoundaryOpcode
+			= nes::bus::debug_read_memory(
+				PC.raw
+			);
+
+		sDebugHavePreviousBoundaryS = true;
+
+		sExecutedInstructionAddress[PC.raw] = true;
+		record_cpu_trace_entry(PC.raw);
+	}
 
 	clock();
 	sync_handler();
@@ -663,19 +848,60 @@ void nmi() {
 	nmi_asserted_ = true;
 }
 
-/**
- * @brief reset
- */
-void reset() {
+
+// -----------------------------------------------------------------------------
+// nes::cpu::reset
+//
+// Requests a CPU reset and resets debugger state that depends on observing
+// consecutive instruction boundaries.
+//
+// Stack-break configuration itself is preserved across reset.  Boundary-history
+// state used by SP-threshold and stack-wrap detection is cleared so stale
+// pre-reset CPU state cannot participate in a later breakpoint decision.
+//
+// If the SP-threshold breakpoint is enabled, it is rearmed but starts in the
+// not-ready state.  The CPU must subsequently observe S above the threshold
+// before a later downward crossing may trigger it.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+reset()
+{
 	if (!rst_executing_) {
-		rst_asserted_    = true;
-		irq_asserted_    = false;
-		nmi_asserted_    = false;
+		rst_asserted_ = true;
+		irq_asserted_ = false;
+		nmi_asserted_ = false;
 		executed_cycles_ = 1;
 	}
-	
+
+	/*
+	 * Discard instruction-boundary history used by stack break detection.
+	 */
+	sDebugHavePreviousBoundaryS = false;
+	sDebugPreviousBoundaryS = 0xff;
+	sDebugPreviousBoundaryOpcode = 0x00;
+	sDebugPreviousBoundaryWasInterrupt = false;
+
+	/*
+	 * Preserve the user's configured SP breakpoint, but begin a fresh
+	 * one-shot detection cycle after reset.
+	 */
+	if (sDebugStackSPBreakEnabled) {
+		sDebugStackSPBreakArmed = true;
+		sDebugStackSPBreakReady = false;
+	} else {
+		sDebugStackSPBreakArmed = false;
+		sDebugStackSPBreakReady = false;
+	}
+
 	debug_clear_instruction_trace();
 }
+
 
 /**
  * @brief clear_nmi
@@ -960,9 +1186,30 @@ debug_breakpoint_hit_address()
 
 
 // -----------------------------------------------------------------------------
+// nes::cpu::debug_break_reason
+//
+// Returns the reason associated with the currently latched debugger breakpoint.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   DebugBreakReason describing why execution stopped.
+// -----------------------------------------------------------------------------
+DebugBreakReason
+debug_break_reason()
+{
+	return sDebugBreakReason;
+}
+
+
+// -----------------------------------------------------------------------------
 // nes::cpu::debug_clear_breakpoint_hit
 //
-// Clears the current breakpoint-hit latch.  This does not remove any breakpoints.
+// Clears the current debugger breakpoint-hit latch and its associated reason.
+//
+// This does not remove execute breakpoints or disable configured stack break
+// conditions.
 //
 // Parameters:
 //   None.
@@ -975,6 +1222,7 @@ debug_clear_breakpoint_hit()
 {
 	sDebugBreakpointHit = false;
 	sDebugBreakpointHitAddress = 0x0000;
+	sDebugBreakReason = DEBUG_BREAK_NONE;
 }
 
 
@@ -1155,6 +1403,181 @@ debug_clear_cpu_trace()
 }
 
 
+uint8_t debug_s() {
+	return S;
 }
 
- 
+
+// -----------------------------------------------------------------------------
+// nes::cpu::debug_stack_break_old_s
+//
+// Returns the stack-pointer value immediately before the most recent stack
+// breakpoint transition.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Previous stack-pointer value.
+// -----------------------------------------------------------------------------
+uint8_t
+debug_stack_break_old_s()
+{
+	return sDebugStackBreakOldS;
+}
+
+
+// -----------------------------------------------------------------------------
+// nes::cpu::debug_stack_break_new_s
+//
+// Returns the stack-pointer value at the instruction boundary where the most
+// recent stack breakpoint fired.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Stack-pointer value that caused the breakpoint.
+// -----------------------------------------------------------------------------
+uint8_t
+debug_stack_break_new_s()
+{
+	return sDebugStackBreakNewS;
+}
+
+
+// -----------------------------------------------------------------------------
+// nes::cpu::debug_set_stack_sp_break
+//
+// Enables or disables the stack-pointer threshold breakpoint and configures its
+// threshold.
+//
+// Enabling the breakpoint always starts a fresh armed cycle.  It is initially
+// not ready to fire; the CPU must subsequently observe S above the threshold
+// before a later downward crossing can trigger the breakpoint.
+//
+// Parameters:
+//   enabled   - true to enable SP-threshold breaking.
+//   threshold - Stack-pointer threshold to watch.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+debug_set_stack_sp_break(
+	bool enabled,
+	uint8_t threshold
+)
+{
+	sDebugStackSPBreakEnabled = enabled;
+	sDebugStackSPBreakThreshold = threshold;
+	sDebugStackSPBreakArmed = enabled;
+
+	/*
+	 * A newly enabled or reconfigured breakpoint must first observe
+	 * the stack above the threshold before it can trigger.
+	 */
+	sDebugStackSPBreakReady = false;
+
+	/*
+	 * Discard the previous SP boundary sample so stack state observed
+	 * before this configuration change cannot participate in the next
+	 * threshold-crossing test.
+	 */
+	sDebugHavePreviousBoundaryS = false;
+}
+
+
+// -----------------------------------------------------------------------------
+// nes::cpu::debug_stack_sp_break_enabled
+//
+// Returns whether stack-pointer threshold breaking is currently enabled.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   true if the SP-threshold break condition is enabled.
+// -----------------------------------------------------------------------------
+bool
+debug_stack_sp_break_enabled()
+{
+	return sDebugStackSPBreakEnabled;
+}
+
+
+// -----------------------------------------------------------------------------
+// nes::cpu::debug_stack_sp_break_threshold
+//
+// Returns the currently configured stack-pointer break threshold.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Current SP threshold.
+// -----------------------------------------------------------------------------
+uint8_t
+debug_stack_sp_break_threshold()
+{
+	return sDebugStackSPBreakThreshold;
+}
+
+
+// -----------------------------------------------------------------------------
+// nes::cpu::debug_set_stack_wrap_break
+//
+// Enables or disables debugger breaking when a large stack-pointer transition
+// indicates a possible stack wrap.
+//
+// Parameters:
+//   enabled - true to enable stack-wrap breaking.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+debug_set_stack_wrap_break(bool enabled)
+{
+	sDebugStackWrapBreakEnabled = enabled;
+}
+
+
+// -----------------------------------------------------------------------------
+// nes::cpu::debug_stack_wrap_break_enabled
+//
+// Returns whether stack-wrap debugger breaking is currently enabled.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   true if stack-wrap breaking is enabled.
+// -----------------------------------------------------------------------------
+bool
+debug_stack_wrap_break_enabled()
+{
+	return sDebugStackWrapBreakEnabled;
+}
+
+
+// -----------------------------------------------------------------------------
+// nes::cpu::debug_stack_sp_break_armed
+//
+// Returns whether the one-shot stack-pointer threshold breakpoint is currently
+// armed and waiting to fire.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   true if the SP-threshold breakpoint is armed.
+// -----------------------------------------------------------------------------
+bool
+debug_stack_sp_break_armed()
+{
+	return sDebugStackSPBreakArmed;
+}
+
+
+}

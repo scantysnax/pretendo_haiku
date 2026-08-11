@@ -93,6 +93,17 @@ enum : uint32_t {
 };
 
 
+enum DebugBreakReason : uint8_t {
+	DEBUG_BREAK_NONE = 0,
+	DEBUG_BREAK_EXECUTE,
+	DEBUG_BREAK_STACK_SP,
+	DEBUG_BREAK_STACK_WRAP
+};
+
+
+uint8_t debug_s();
+
+
 cpu_state_t debug_cpu_state();
 
 bool debug_instruction_boundary();
@@ -117,6 +128,17 @@ void debug_resume_past_breakpoint();
 uint32_t debug_breakpoint_hit_count(uint16_t address);
 void debug_clear_breakpoint_hit_counts();
 
+// stack stuff
+DebugBreakReason debug_break_reason();
+void debug_set_stack_sp_break(bool enabled, uint8_t threshold);
+bool debug_stack_sp_break_enabled();
+uint8_t debug_stack_sp_break_threshold();
+void debug_set_stack_wrap_break(bool enabled);
+bool debug_stack_wrap_break_enabled();
+bool debug_stack_sp_break_armed();
+
+uint8_t debug_stack_break_old_s();
+uint8_t debug_stack_break_new_s();
 
 }
 

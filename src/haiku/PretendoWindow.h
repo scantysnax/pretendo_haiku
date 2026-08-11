@@ -68,6 +68,7 @@ class PPUStatusWindow;
 class PPUMemoryWindow;
 class PPUWriteLogWindow;
 class PretendoView;
+class StackWindow;
 class ZeroPageWindow;
 
 
@@ -129,7 +130,8 @@ class PretendoWindow : public BWindow
 		VIEW_CPUDISASM = 	'CPUD',
 		VIEW_CPUMEM = 		'CPUM',
 		VIEW_CPUTRACE = 	'CPUT',
-		VIEW_ZERO_PAGE = 	'ZPAG'
+		VIEW_ZERO_PAGE = 	'ZPAG',
+		VIEW_STACK = 		'VSTK'
 	} messages;	
 	
 	private:
@@ -223,6 +225,7 @@ class PretendoWindow : public BWindow
 	void OnViewCPUDisasmWindow();
 	void OnViewCPUMemoryWindow();
 	void OnViewCPUTraceWindow();
+	void OnViewStackWindow();
 	void OnViewZeroPageWindow();
 
 	// video stuff
@@ -350,6 +353,7 @@ class PretendoWindow : public BWindow
 	CPUDisasmWindow *fCPUDisasmWindow = nullptr;
 	CPUMemoryWindow *fCPUMemoryWindow = nullptr;
 	CPUTraceWindow *fCPUTraceWindow = nullptr;
+	StackWindow *fStackWindow = nullptr;
 	ZeroPageWindow *fZeroPageWindow = nullptr;
 
 	private:
@@ -439,6 +443,7 @@ class PretendoWindow : public BWindow
 	void CPUDisasmWindowClosed();
 	void CPUMemoryWindowClosed();
 	void CPUTraceWindowClosed();
+	void StackWindowClosed();
 	void ZeroPageWindowClosed();
     
     public:
