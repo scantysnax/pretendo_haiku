@@ -23,13 +23,13 @@
 class StackView : public BView
 {
 	public:
-			StackView(BRect frame, PretendoWindow* parent);
+			StackView (BRect frame, PretendoWindow* parent);
 	virtual ~StackView();
 
 	virtual void AttachedToWindow();
-	virtual void Draw(BRect updateRect);
-	virtual void KeyDown(const char* bytes, int32 numBytes);
-	virtual void MouseDown(BPoint where);
+	virtual void Draw (BRect updateRect);
+	virtual void KeyDown (const char *bytes, int32 numBytes);
+	virtual void MouseDown (BPoint where);
 	virtual void Pulse();
 
 	private:
@@ -63,8 +63,8 @@ class StackView : public BView
 		uint8 oldSP = 0xff;
 		uint8 newSP = 0xff;
 
-		uint16 firstAddress = 0x0100;
-		uint16 lastAddress = 0x0100;
+		uint16 firstAddress = 0x100;
+		uint16 lastAddress = 0x100;
 
 		uint8 value = 0;
 		uint16 count = 0;
@@ -107,34 +107,33 @@ class StackView : public BView
 	void DrawSelectedBytePanel();
 	void DrawStackHistoryPanel();
 	void DrawPossibleCallStackPanel();
-	void DrawNoROMMessage(BRect panel);
+	void DrawNoROMMessage (BRect panel);
 
 	private:
 	void CaptureStackSnapshot();
-	void RecordStackActivity(uint8 oldSP, uint8 newSP);
 	void ClearStackHistory();
 	void UpdateStackHighWater (uint8 sp);
 	void CaptureInstructionStackHistory();
-	void RecordInstructionStackActivity(const nes::cpu::cpu_trace_entry_t& entry, 
-										const nes::cpu::cpu_trace_entry_t& nextEntry);
-	void RecordInterruptStackActivity(const nes::cpu::cpu_trace_entry_t& entry, const nes::cpu::cpu_trace_entry_t& nextEntry);
-	int32 BuildPossibleCallStack(CallStackCandidate* candidates, int32 capacity) const;
+	void RecordInstructionStackActivity(const nes::cpu::cpu_trace_entry_t &entry, 
+										const nes::cpu::cpu_trace_entry_t &nextEntry);
+	void RecordInterruptStackActivity (const nes::cpu::cpu_trace_entry_t &entry, const nes::cpu::cpu_trace_entry_t &nextEntry);
+	int32 BuildPossibleCallStack (CallStackCandidate *candidates, int32 capacity) const;
 	
 
 	bool HasROMLoaded() const;
-	bool AddressForPoint(BPoint where, uint16& address) const;
+	bool AddressForPoint (BPoint where, uint16 &address) const;
 
-	void MoveSelection(int32 delta);
+	void MoveSelection (int32 delta);
 
 	int32 ChangedByteCount() const;
 
 	uint8 StackPointer() const;
 	uint16 StackPointerAddress() const;
 
-	const char* StackWarningText() const;
+	const char *StackWarningText() const;
 
 	private:
-	PretendoWindow* fParent = nullptr;
+	PretendoWindow *fParent = nullptr;
 
 	private:
 	bool fFreezeUpdates = false;

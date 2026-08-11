@@ -15,14 +15,12 @@
 //   Constructor; no return value.
 // -----------------------------------------------------------------------------
 StackView::StackView (BRect frame, PretendoWindow *parent)
-	:
-	BView(
+	: BView(
 		frame,
 		"stack view",
 		B_FOLLOW_ALL,
-		B_WILL_DRAW | B_PULSE_NEEDED | B_NAVIGABLE
-	),
-	fParent(parent)
+		B_WILL_DRAW | B_PULSE_NEEDED | B_NAVIGABLE),
+		fParent(parent)
 {
 	(void)fParent;
 
@@ -150,10 +148,7 @@ StackView::Draw(BRect updateRect)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-StackView::KeyDown(
-	const char* bytes,
-	int32 numBytes
-)
+StackView::KeyDown (const char *bytes, int32 numBytes)
 {
 	if (!bytes || numBytes <= 0) {
 		return;
@@ -177,13 +172,11 @@ StackView::KeyDown(
 
 		case 'f':
 		case 'F':
-			fFollowStackPointer
-				= !fFollowStackPointer;
+			fFollowStackPointer = !fFollowStackPointer;
 
 			if (fFollowStackPointer) {
 				fHasSelectedAddress = true;
-				fSelectedAddress
-					= StackPointerAddress();
+				fSelectedAddress = StackPointerAddress();
 			} else {
 				fHasSelectedAddress = false;
 			}
@@ -202,9 +195,7 @@ StackView::KeyDown(
 
 		case 'h':
 		case 'H':
-			fShowStackHistory
-				= !fShowStackHistory;
-
+			fShowStackHistory = !fShowStackHistory;
 			fShowPossibleCallStack = false;
 
 			Invalidate();
@@ -212,9 +203,7 @@ StackView::KeyDown(
 
 		case 'k':
 		case 'K':
-			fShowPossibleCallStack
-				= !fShowPossibleCallStack;
-
+			fShowPossibleCallStack = !fShowPossibleCallStack;
 			fShowStackHistory = false;
 
 			Invalidate();
@@ -223,18 +212,10 @@ StackView::KeyDown(
 		case 'b':
 		case 'B':
 		{
-			const bool enabled
-				= !nes::cpu::
-					debug_stack_sp_break_enabled();
+			const bool enabled = !nes::cpu::debug_stack_sp_break_enabled();
+			const uint8 threshold = nes::cpu::debug_stack_sp_break_threshold();
 
-			const uint8 threshold
-				= nes::cpu::
-					debug_stack_sp_break_threshold();
-
-			nes::cpu::debug_set_stack_sp_break(
-				enabled,
-				threshold
-			);
+			nes::cpu::debug_set_stack_sp_break(enabled, threshold);
 
 			Invalidate();
 			break;
@@ -242,19 +223,13 @@ StackView::KeyDown(
 
 		case '[':
 		{
-			uint8 threshold
-				= nes::cpu::
-					debug_stack_sp_break_threshold();
+			uint8 threshold = nes::cpu::debug_stack_sp_break_threshold();
 
-			if (threshold > 0x00) {
+			if (threshold > 0x0) {
 				threshold--;
 			}
 
-			nes::cpu::debug_set_stack_sp_break(
-				nes::cpu::
-					debug_stack_sp_break_enabled(),
-				threshold
-			);
+			nes::cpu::debug_set_stack_sp_break(nes::cpu::debug_stack_sp_break_enabled(),threshold);
 
 			Invalidate();
 			break;
@@ -262,19 +237,13 @@ StackView::KeyDown(
 
 		case ']':
 		{
-			uint8 threshold
-				= nes::cpu::
-					debug_stack_sp_break_threshold();
+			uint8 threshold = nes::cpu::debug_stack_sp_break_threshold();
 
 			if (threshold < 0xff) {
 				threshold++;
 			}
 
-			nes::cpu::debug_set_stack_sp_break(
-				nes::cpu::
-					debug_stack_sp_break_enabled(),
-				threshold
-			);
+			nes::cpu::debug_set_stack_sp_break(nes::cpu::debug_stack_sp_break_enabled(), threshold);
 
 			Invalidate();
 			break;
@@ -282,10 +251,7 @@ StackView::KeyDown(
 
 		case 'w':
 		case 'W':
-			nes::cpu::debug_set_stack_wrap_break(
-				!nes::cpu::
-					debug_stack_wrap_break_enabled()
-			);
+			nes::cpu::debug_set_stack_wrap_break(!nes::cpu::debug_stack_wrap_break_enabled());
 
 			Invalidate();
 			break;
@@ -303,8 +269,7 @@ StackView::KeyDown(
 
 			if (fFollowStackPointer) {
 				fHasSelectedAddress = true;
-				fSelectedAddress
-					= StackPointerAddress();
+				fSelectedAddress = StackPointerAddress();
 			}
 
 			Invalidate();
@@ -343,10 +308,7 @@ StackView::KeyDown(
 			break;
 			
 		default:
-			BView::KeyDown(
-				bytes,
-				numBytes
-			);
+			BView::KeyDown(bytes, numBytes);
 			break;
 	}
 }
@@ -376,7 +338,7 @@ StackView::MouseDown(BPoint where)
 		return;
 	}
 
-	uint16 address = 0x0100;
+	uint16 address = 0x100;
 
 	if (!AddressForPoint(where, address)) {
 		return;
@@ -388,7 +350,7 @@ StackView::MouseDown(BPoint where)
 
 	if (fHasSelectedAddress && fSelectedAddress == address) {
 		fHasSelectedAddress = false;
-		fSelectedAddress = 0x01ff;
+		fSelectedAddress = 0x1ff;
 	} else {
 		fHasSelectedAddress = true;
 		fSelectedAddress = address;
@@ -477,19 +439,11 @@ StackView::DrawHeaderUI()
 	BFont mono(be_fixed_font);
 	mono.SetSize(11.0f);
 
-	const float labelX
-		= panel.left + 8.0f;
+	const float labelX = panel.left + 8.0f;
+	const float valueX = labelX + 64.0f;
+	float y = panel.top + 34.0f;
 
-	const float valueX
-		= labelX + 64.0f;
-
-	float y
-		= panel.top + 34.0f;
-
-	auto drawKV = [&](
-		const char* label,
-		const char* value
-	) {
+	auto drawKV = [&](const char *label, const char *value) {
 		SetFont(&normalFont);
 
 		SetHighColor(80, 80, 80);
@@ -531,20 +485,10 @@ StackView::DrawHeaderUI()
 		BPoint(labelX, y)
 	);
 
-	const bool spBreakEnabled
-		= nes::cpu::debug_stack_sp_break_enabled();
+	const bool spBreakEnabled = nes::cpu::debug_stack_sp_break_enabled();
+	const bool spBreakArmed = nes::cpu::debug_stack_sp_break_armed();
 
-	const bool spBreakArmed
-		= nes::cpu::debug_stack_sp_break_armed();
-
-	const char* spBreakState
-		= !spBreakEnabled
-			? "OFF"
-			: (
-				spBreakArmed
-					? "ARMED"
-					: "HIT"
-			);
+	const char *spBreakState = !spBreakEnabled ? "OFF" : (spBreakArmed ? "ARMED" : "HIT");
 
 	BString spText;
 	spText.SetToFormat(
@@ -560,9 +504,7 @@ StackView::DrawHeaderUI()
 		BPoint(valueX, y)
 	);
 
-	const float afterSP
-		= valueX
-		+ mono.StringWidth(spText.String());
+	const float afterSP = valueX + mono.StringWidth(spText.String());
 
 	/*
 	 * Return to the normal UI font for state and help text.
@@ -573,10 +515,7 @@ StackView::DrawHeaderUI()
 	remainder.SetToFormat(
 		" %s   [ ] threshold   W wrap %s",
 		spBreakState,
-		nes::cpu::debug_stack_wrap_break_enabled()
-			? "ON"
-			: "OFF"
-	);
+		nes::cpu::debug_stack_wrap_break_enabled() ? "ON" : "OFF");
 
 	DrawString(
 		remainder.String(),
@@ -647,43 +586,23 @@ StackView::DrawStackSummaryPanel()
 	BFont mono(be_fixed_font);
 	mono.SetSize(11.0f);
 
-	const uint8 sp
-		= StackPointer();
+	const uint8 sp = StackPointer();
+	const uint16 spAddress = StackPointerAddress();
+	const int32 usedBytes = 0xff - sp;
+	const int32 freeBytes = sp + 1;
 
-	const uint16 spAddress
-		= StackPointerAddress();
+	const float leftLabelX = panel.left + 8.0f;
+	const float leftValueX = leftLabelX + 72.0f;
+	const float rightLabelX = panel.left + 230.0f;
+	const float rightValueX = rightLabelX + 92.0f;
 
-	const int32 usedBytes
-		= 0xff - sp;
-
-	const int32 freeBytes
-		= sp + 1;
-
-	const float leftLabelX
-		= panel.left + 8.0f;
-
-	const float leftValueX
-		= leftLabelX + 72.0f;
-
-	const float rightLabelX
-		= panel.left + 230.0f;
-
-	const float rightValueX
-		= rightLabelX + 92.0f;
-
-	float leftY
-		= panel.top + 36.0f;
-
-	float rightY
-		= panel.top + 36.0f;
+	float leftY = panel.top + 36.0f;
+	float rightY = panel.top + 36.0f;
 
 	BString s;
 
 	auto drawLeftKV = [&](
-		const char* label,
-		const char* value,
-		bool monoValue
-	) {
+		const char *label, const char *value, bool monoValue) {
 		SetFont(&prevFont);
 		SetHighColor(80, 80, 80);
 
@@ -708,11 +627,7 @@ StackView::DrawStackSummaryPanel()
 		leftY += lineH;
 	};
 
-	auto drawRightKV = [&](
-		const char* label,
-		const char* value,
-		bool monoValue
-	) {
+	auto drawRightKV = [&](const char *label, const char *value, bool monoValue) {
 		SetFont(&prevFont);
 		SetHighColor(80, 80, 80);
 
@@ -799,8 +714,7 @@ StackView::DrawStackSummaryPanel()
 	 * The third right-column line is used for the most important current
 	 * stack status.
 	 */
-	const char* warning
-		= StackWarningText();
+	const char *warning = StackWarningText();
 
 	if (warning != nullptr) {
 		drawRightKV(
@@ -809,11 +723,9 @@ StackView::DrawStackSummaryPanel()
 			false
 		);
 	} else if (nes::cpu::debug_breakpoint_hit()) {
-		const nes::cpu::DebugBreakReason reason
-			= nes::cpu::debug_break_reason();
+		const nes::cpu::DebugBreakReason reason = nes::cpu::debug_break_reason();
 
-		if (reason
-			== nes::cpu::DEBUG_BREAK_STACK_SP) {
+		if (reason == nes::cpu::DEBUG_BREAK_STACK_SP) {
 			s.SetToFormat(
 				"$%02X -> $%02X",
 				nes::cpu::debug_stack_break_old_s(),
@@ -825,8 +737,7 @@ StackView::DrawStackSummaryPanel()
 				s.String(),
 				true
 			);
-		} else if (reason
-			== nes::cpu::DEBUG_BREAK_STACK_WRAP) {
+		} else if (reason == nes::cpu::DEBUG_BREAK_STACK_WRAP) {
 			s.SetToFormat(
 				"$%02X -> $%02X",
 				nes::cpu::debug_stack_break_old_s(),
@@ -841,9 +752,7 @@ StackView::DrawStackSummaryPanel()
 		} else {
 			s.SetToFormat(
 				"%u",
-				static_cast<unsigned>(
-					fPeakStackDepth
-				)
+				static_cast<unsigned>(fPeakStackDepth)
 			);
 
 			drawRightKV(
@@ -855,9 +764,7 @@ StackView::DrawStackSummaryPanel()
 	} else {
 		s.SetToFormat(
 			"%u",
-			static_cast<unsigned>(
-				fPeakStackDepth
-			)
+			static_cast<unsigned>(fPeakStackDepth)
 		);
 
 		drawRightKV(
@@ -932,10 +839,7 @@ StackView::DrawStackGrid()
 	const uint16 spAddress = StackPointerAddress();
 
 	for (int32 row = 0; row < 16; row++) {
-		const uint16 rowBase = static_cast<uint16>(
-			0x01f0 - row * 16
-		);
-
+		const uint16 rowBase = static_cast<uint16>(0x01f0 - row * 16);
 		const float rowY = firstCellY + row * cellH;
 
 		s.SetToFormat("$%04X", rowBase);
@@ -947,14 +851,8 @@ StackView::DrawStackGrid()
 		);
 
 		for (int32 col = 0; col < 16; col++) {
-			const uint16 address = static_cast<uint16>(
-				rowBase + col
-			);
-
-			const uint8 index = static_cast<uint8>(
-				address & 0x00ff
-			);
-
+			const uint16 address = static_cast<uint16>(rowBase + col);
+			const uint8 index = static_cast<uint8>(address & 0xff);
 			const uint8 value = fBytes[index];
 
 			const float x = firstCellX + col * cellW;
@@ -967,9 +865,7 @@ StackView::DrawStackGrid()
 				y + 3.0f
 			);
 
-			const bool selected = fHasSelectedAddress
-				&& fSelectedAddress == address;
-
+			const bool selected = (fHasSelectedAddress) && (fSelectedAddress == address);
 			const bool spCell = address == spAddress;
 			const bool usedStackArea = address > spAddress;
 
@@ -1010,8 +906,7 @@ StackView::DrawStackGrid()
 			DrawString(s.String(), BPoint(x, y));
 		}
 
-		if (spAddress >= rowBase
-			&& spAddress <= static_cast<uint16>(rowBase + 15)) {
+		if (spAddress >= rowBase && spAddress <= static_cast<uint16>(rowBase + 15)) {
 			SetHighColor(40, 130, 40);
 
 			DrawString(
@@ -1074,8 +969,7 @@ StackView::DrawSelectedBytePanel()
 
 	float y = panel.top + 36.0f;
 
-	auto drawKV = [&](const char* label, const char* value,
-		bool monoValue, float lx, float vx) {
+	auto drawKV = [&](const char *label, const char *value, bool monoValue, float lx, float vx) {
 		SetFont(&prevFont);
 		SetHighColor(80, 80, 80);
 		DrawString(label, BPoint(lx, y));
@@ -1098,7 +992,7 @@ StackView::DrawSelectedBytePanel()
 	}
 
 	const uint16 address = fSelectedAddress;
-	const uint8 index = static_cast<uint8>(address & 0x00ff);
+	const uint8 index = static_cast<uint8>(address & 0xff);
 	const uint8 value = fBytes[index];
 
 	BString s;
@@ -1132,9 +1026,7 @@ StackView::DrawSelectedBytePanel()
 		valueX
 	);
 
-	const int32 signedValue = static_cast<int32>(
-		static_cast<int8>(value)
-	);
+	const int32 signedValue = static_cast<int32>(static_cast<int8>(value));
 
 	s.SetToFormat("%ld", static_cast<long>(signedValue));
 	drawKV(
@@ -1282,14 +1174,12 @@ StackView::DrawStackHistoryPanel()
 		return;
 	}
 
-	const int32 linesToDraw
-		= fStackHistoryCount < kVisibleBottomPanelLines
+	const int32 linesToDraw = (fStackHistoryCount < kVisibleBottomPanelLines)
 			? fStackHistoryCount
 			: kVisibleBottomPanelLines;
 
 	for (int32 line = 0; line < linesToDraw; line++) {
-		int32 index
-			= fStackHistoryNext - 1 - line;
+		int32 index = (fStackHistoryNext - 1 - line);
 
 		while (index < 0) {
 			index += kStackHistoryCapacity;
@@ -1297,8 +1187,7 @@ StackView::DrawStackHistoryPanel()
 
 		index %= kStackHistoryCapacity;
 
-		const StackActivity& activity
-			= fStackHistory[index];
+		const StackActivity &activity = fStackHistory[index];
 
 		BString operation;
 		BString detail;
@@ -1588,14 +1477,9 @@ StackView::DrawPossibleCallStackPanel()
 	const float x = panel.left + 10.0f;
 	float y = panel.top + 35.0f;
 
-	CallStackCandidate candidates[
-		kCallStackCandidateCapacity
-	];
+	CallStackCandidate candidates[kCallStackCandidateCapacity];
 
-	const int32 candidateCount = BuildPossibleCallStack(
-		candidates,
-		kCallStackCandidateCapacity
-	);
+	const int32 candidateCount = BuildPossibleCallStack(candidates, kCallStackCandidateCapacity);
 
 	if (candidateCount <= 0) {
 		SetFont(&prevFont);
@@ -1626,23 +1510,18 @@ StackView::DrawPossibleCallStackPanel()
 		return;
 	}
 
-	const int32 linesToDraw
-		= candidateCount < kVisibleBottomPanelLines
+	const int32 linesToDraw = (candidateCount < kVisibleBottomPanelLines)
 		? candidateCount
 		: kVisibleBottomPanelLines;
 
 	for (int32 i = 0; i < linesToDraw; i++) {
-		const CallStackCandidate& candidate
-			= candidates[i];
+		const CallStackCandidate& candidate = candidates[i];
 
-		const char* confidenceText
-			= candidate.confidence
-				== CALL_STACK_CONFIDENCE_HIGH
+		const char *confidenceText = (candidate.confidence == CALL_STACK_CONFIDENCE_HIGH)
 			? "HIGH"
 			: "MED";
 
-		if (candidate.confidence
-			== CALL_STACK_CONFIDENCE_HIGH) {
+		if (candidate.confidence == CALL_STACK_CONFIDENCE_HIGH) {
 			SetHighColor(45, 120, 65);
 		} else {
 			SetHighColor(150, 105, 30);
@@ -1755,13 +1634,8 @@ StackView::CaptureStackSnapshot()
 	}
 
 	for (uint32 i = 0; i < 0x100; i++) {
-		const uint16 address = static_cast<uint16>(
-			0x0100 + i
-		);
-
-		const uint8 value = nes::bus::debug_read_memory(
-			address
-		);
+		const uint16 address = static_cast<uint16>(0x100 + i);
+		const uint8 value = nes::bus::debug_read_memory(address);
 
 		fBytes[i] = value;
 
@@ -1783,9 +1657,7 @@ StackView::CaptureStackSnapshot()
 	CaptureInstructionStackHistory();
 
 	if (fHasPreviousStackPointer) {
-		const int32 rawDelta
-			= static_cast<int32>(currentSP)
-			- static_cast<int32>(fPreviousStackPointer);
+		const int32 rawDelta = static_cast<int32>(currentSP) - static_cast<int32>(fPreviousStackPointer);
 
 		if (rawDelta < -128 || rawDelta > 128) {
 			fStackWrapDetected = true;
@@ -1802,116 +1674,6 @@ StackView::CaptureStackSnapshot()
 	fPreviousStackPointer = currentSP;
 	fHasPreviousStackPointer = true;
 	fHaveSnapshot = true;
-}
-
-
-// -----------------------------------------------------------------------------
-// StackView::RecordStackActivity
-//
-// Records net movement of the 6502 stack pointer between snapshots.
-//
-// A lower SP normally indicates one or more pushes. A higher SP normally
-// indicates one or more pops. Large movements across the $00/$FF boundary are
-// classified as wraparound warnings.
-//
-// Parameters:
-//   oldSP - Stack pointer from the previous snapshot.
-//   newSP - Current stack pointer.
-//
-// Returns:
-//   Nothing.
-// -----------------------------------------------------------------------------
-void
-StackView::RecordStackActivity(uint8 oldSP, uint8 newSP)
-{
-	if (oldSP == newSP) {
-		return;
-	}
-
-	StackActivity activity;
-
-	activity.oldSP = oldSP;
-	activity.newSP = newSP;
-	activity.sequence = ++fStackActivitySequence;
-
-	const int32 rawDelta
-		= static_cast<int32>(newSP)
-		- static_cast<int32>(oldSP);
-
-	if (rawDelta < -128) {
-		activity.type = STACK_ACTIVITY_WRAP_UP;
-		activity.count = static_cast<uint16>(
-			256 + rawDelta
-		);
-
-		fStackWrapDetected = true;
-	} else if (rawDelta > 128) {
-		activity.type = STACK_ACTIVITY_WRAP_DOWN;
-		activity.count = static_cast<uint16>(
-			256 - rawDelta
-		);
-
-		fStackWrapDetected = true;
-	} else if (newSP < oldSP) {
-		activity.type = STACK_ACTIVITY_PUSH;
-		activity.count = static_cast<uint16>(
-			oldSP - newSP
-		);
-
-		activity.firstAddress = static_cast<uint16>(
-			0x0100 + newSP + 1
-		);
-
-		activity.lastAddress = static_cast<uint16>(
-			0x0100 + oldSP
-		);
-
-		if (activity.count == 1) {
-			activity.firstAddress = static_cast<uint16>(
-				0x0100 + oldSP
-			);
-
-			activity.lastAddress = activity.firstAddress;
-
-			activity.value = fBytes[
-				static_cast<uint8>(oldSP)
-			];
-		}
-	} else {
-		activity.type = STACK_ACTIVITY_POP;
-		activity.count = static_cast<uint16>(
-			newSP - oldSP
-		);
-
-		activity.firstAddress = static_cast<uint16>(
-			0x0100 + oldSP + 1
-		);
-
-		activity.lastAddress = static_cast<uint16>(
-			0x0100 + newSP
-		);
-
-		if (activity.count == 1) {
-			activity.firstAddress = static_cast<uint16>(
-				0x0100 + newSP
-			);
-
-			activity.lastAddress = activity.firstAddress;
-
-			activity.value = fBytes[
-				static_cast<uint8>(newSP)
-			];
-		}
-	}
-
-	fStackHistory[fStackHistoryNext] = activity;
-
-	fStackHistoryNext++;
-	fStackHistoryNext %= kStackHistoryCapacity;
-
-	if (fStackHistoryCount < kStackHistoryCapacity) {
-		fStackHistoryCount++;
-	}
 }
 
 
@@ -1968,7 +1730,7 @@ StackView::ClearStackHistory()
 //   Number of candidates written.
 // -----------------------------------------------------------------------------
 int32
-StackView::BuildPossibleCallStack(CallStackCandidate* candidates, int32 capacity) const
+StackView::BuildPossibleCallStack(CallStackCandidate *candidates, int32 capacity) const
 {
 	if (!candidates || capacity <= 0) {
 		return 0;
@@ -1980,9 +1742,7 @@ StackView::BuildPossibleCallStack(CallStackCandidate* candidates, int32 capacity
 	 * Addresses above the current stack pointer are the currently used
 	 * portion of the downward-growing 6502 stack.
 	 */
-	const uint16 firstUsedAddress = static_cast<uint16>(
-		0x0100 + sp + 1
-	);
+	const uint16 firstUsedAddress = static_cast<uint16>(0x100 + sp + 1);
 
 	int32 candidateCount = 0;
 
@@ -1991,24 +1751,14 @@ StackView::BuildPossibleCallStack(CallStackCandidate* candidates, int32 capacity
 	 * no greater than $01FE.
 	 */
 	for (uint16 lowAddress = firstUsedAddress;
-		lowAddress <= 0x01fe && candidateCount < capacity;
+		lowAddress <= 0x1fe && candidateCount < capacity;
 		lowAddress++) {
-		const uint16 highAddress = static_cast<uint16>(
-			lowAddress + 1
-		);
+		const uint16 highAddress = static_cast<uint16>(lowAddress + 1);
+		const uint8 lowIndex = static_cast<uint8>(lowAddress & 0xff);
+		const uint8 highIndex = static_cast<uint8>(highAddress & 0xff);
 
-		const uint8 lowIndex = static_cast<uint8>(
-			lowAddress & 0x00ff
-		);
-
-		const uint8 highIndex = static_cast<uint8>(
-			highAddress & 0x00ff
-		);
-
-		const uint16 rawReturnAddress = static_cast<uint16>(
-			fBytes[lowIndex]
-			| (static_cast<uint16>(fBytes[highIndex]) << 8)
-		);
+		const uint16 rawReturnAddress = static_cast<uint16>(fBytes[lowIndex]
+			| (static_cast<uint16>(fBytes[highIndex]) << 8));
 
 		/*
 		 * raw $FFFF would wrap the resume address to $0000. It is not a
@@ -2026,33 +1776,21 @@ StackView::BuildPossibleCallStack(CallStackCandidate* candidates, int32 capacity
 			continue;
 		}
 
-		const uint16 callSiteAddress = static_cast<uint16>(
-			rawReturnAddress - 2
-		);
+		const uint16 callSiteAddress = static_cast<uint16>(rawReturnAddress - 2);
+		const uint8 opcode = nes::bus::debug_read_memory(callSiteAddress);
 
-		const uint8 opcode = nes::bus::debug_read_memory(
-			callSiteAddress
-		);
-
-		if (opcode != 0x20) {
+		if (opcode != 0x20) { // JSR
 			continue;
 		}
 
-		CallStackCandidate& candidate
-			= candidates[candidateCount];
-
+		CallStackCandidate &candidate = candidates[candidateCount];
 		candidate.lowByteAddress = lowAddress;
 		candidate.highByteAddress = highAddress;
 		candidate.rawReturnAddress = rawReturnAddress;
-		candidate.resumeAddress = static_cast<uint16>(
-			rawReturnAddress + 1
-		);
+		candidate.resumeAddress = static_cast<uint16>(rawReturnAddress + 1);
 		candidate.callSiteAddress = callSiteAddress;
 
-		candidate.confidence
-			= nes::cpu::debug_instruction_was_executed(
-				callSiteAddress
-			)
+		candidate.confidence = nes::cpu::debug_instruction_was_executed(callSiteAddress)
 			? CALL_STACK_CONFIDENCE_HIGH
 			: CALL_STACK_CONFIDENCE_MEDIUM;
 
@@ -2083,7 +1821,7 @@ StackView::StackWarningText() const
 		return "SP wrapped";
 	}
 
-	if (sp <= 0x07) {
+	if (sp <= 0x7) {
 		return "critical";
 	}
 
@@ -2156,23 +1894,16 @@ StackView::AddressForPoint(BPoint where, uint16& address) const
 		return false;
 	}
 
-	const int32 col = static_cast<int32>(
-		(where.x - gridLeft) / cellW
-	);
-
-	const int32 row = static_cast<int32>(
-		(where.y - gridTop) / cellH
-	);
+	const int32 col = static_cast<int32>((where.x - gridLeft) / cellW);
+	const int32 row = static_cast<int32>((where.y - gridTop) / cellH);
 
 	if (col < 0 || col >= 16 || row < 0 || row >= 16) {
 		return false;
 	}
 
-	const uint16 rowBase = static_cast<uint16>(
-		0x01f0 - row * 16
-	);
-
+	const uint16 rowBase = static_cast<uint16>(0x1f0 - row * 16);
 	address = static_cast<uint16>(rowBase + col);
+	
 	return true;
 }
 
@@ -2191,9 +1922,8 @@ StackView::AddressForPoint(BPoint where, uint16& address) const
 void
 StackView::MoveSelection(int32 delta)
 {
-	int32 address = fHasSelectedAddress
-		? static_cast<int32>(fSelectedAddress)
-		: static_cast<int32>(StackPointerAddress());
+	int32 address = fHasSelectedAddress ? static_cast<int32>(fSelectedAddress) 
+										: static_cast<int32>(StackPointerAddress());
 
 	address += delta;
 
@@ -2325,9 +2055,7 @@ StackView::UpdateStackHighWater(uint8 sp)
 		fLowestStackPointer = sp;
 	}
 
-	const uint16 depth = static_cast<uint16>(
-		fStackBaselinePointer - sp
-	);
+	const uint16 depth = static_cast<uint16>(fStackBaselinePointer - sp);
 
 	if (depth > fPeakStackDepth) {
 		fPeakStackDepth = depth;
@@ -2359,8 +2087,7 @@ StackView::UpdateStackHighWater(uint8 sp)
 void
 StackView::CaptureInstructionStackHistory()
 {
-	const uint32 traceCount
-		= nes::cpu::debug_cpu_trace_count();
+	const uint32 traceCount = nes::cpu::debug_cpu_trace_count();
 
 	if (traceCount < 2) {
 		return;
@@ -2370,41 +2097,28 @@ StackView::CaptureInstructionStackHistory()
 		nes::cpu::cpu_trace_entry_t entry;
 		nes::cpu::cpu_trace_entry_t nextEntry;
 
-		if (!nes::cpu::debug_cpu_trace_entry(
-				i,
-				entry
-			)) {
+		if (!nes::cpu::debug_cpu_trace_entry(i, entry)) {
 			continue;
 		}
 
-		if (!nes::cpu::debug_cpu_trace_entry(
-				i + 1,
-				nextEntry
-			)) {
+		if (!nes::cpu::debug_cpu_trace_entry(i + 1, nextEntry)) {
 			continue;
 		}
 
-		if (fHaveProcessedTraceCycle
-			&& entry.cycle <= fLastProcessedTraceCycle) {
+		if (fHaveProcessedTraceCycle && entry.cycle <= fLastProcessedTraceCycle) {
 			continue;
 		}
 
 		/*
 		 * First recognize normal opcode-driven stack operations.
 		 */
-		RecordInstructionStackActivity(
-			entry,
-			nextEntry
-		);
+		RecordInstructionStackActivity(entry, nextEntry);
 
 		/*
 		 * Then check whether the transition into the following traced
 		 * instruction represents BRK, IRQ, or NMI entry.
 		 */
-		RecordInterruptStackActivity(
-			entry,
-			nextEntry
-		);
+		RecordInterruptStackActivity(entry, nextEntry);
 
 		fLastProcessedTraceCycle = entry.cycle;
 		fHaveProcessedTraceCycle = true;
@@ -2442,38 +2156,23 @@ StackView::CaptureInstructionStackHistory()
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-StackView::RecordInterruptStackActivity(
-	const nes::cpu::cpu_trace_entry_t& entry,
-	const nes::cpu::cpu_trace_entry_t& nextEntry
-)
+StackView::RecordInterruptStackActivity(const nes::cpu::cpu_trace_entry_t &entry,
+	const nes::cpu::cpu_trace_entry_t &nextEntry)
 {
 	/*
 	 * All normal 6502 interrupt-entry frames consume three stack bytes.
 	 */
-	const uint8 expectedInterruptSP
-		= static_cast<uint8>(entry.s - 3);
+	const uint8 expectedInterruptSP = static_cast<uint8>(entry.s - 3);
 
 	if (nextEntry.s != expectedInterruptSP) {
 		return;
 	}
 
-	const uint16 nmiVector = static_cast<uint16>(
-		nes::bus::debug_read_memory(0xfffa)
-		| (
-			static_cast<uint16>(
-				nes::bus::debug_read_memory(0xfffb)
-			) << 8
-		)
-	);
+	const uint16 nmiVector = static_cast<uint16>(nes::bus::debug_read_memory(0xfffa) |
+		 					(static_cast<uint16>(nes::bus::debug_read_memory(0xfffb)) << 8));
 
-	const uint16 irqVector = static_cast<uint16>(
-		nes::bus::debug_read_memory(0xfffe)
-		| (
-			static_cast<uint16>(
-				nes::bus::debug_read_memory(0xffff)
-			) << 8
-		)
-	);
+	const uint16 irqVector = static_cast<uint16>(nes::bus::debug_read_memory(0xfffe) |
+							(static_cast<uint16>(nes::bus::debug_read_memory(0xffff)) << 8));
 
 	StackActivity activity;
 
@@ -2496,14 +2195,8 @@ StackView::RecordInterruptStackActivity(
 	 *
 	 * List them in ascending address order.
 	 */
-	activity.firstAddress = static_cast<uint16>(
-		0x0100
-		+ static_cast<uint8>(entry.s - 2)
-	);
-
-	activity.lastAddress = static_cast<uint16>(
-		0x0100 + entry.s
-	);
+	activity.firstAddress = static_cast<uint16>(0x100 + static_cast<uint8>(entry.s - 2));
+	activity.lastAddress = static_cast<uint16>(0x100 + entry.s);
 
 	/*
 	 * BRK is explicit and therefore takes priority over vector matching.
@@ -2514,10 +2207,7 @@ StackView::RecordInterruptStackActivity(
 	/*
 	 * Identical vectors make IRQ/NMI indistinguishable here.
 	 */
-	} else if (
-		nmiVector == irqVector
-		&& nextEntry.pc == nmiVector
-	) {
+	} else if (nmiVector == irqVector && nextEntry.pc == nmiVector) {
 		activity.type = STACK_ACTIVITY_INTERRUPT;
 
 	} else if (nextEntry.pc == nmiVector) {
@@ -2525,7 +2215,6 @@ StackView::RecordInterruptStackActivity(
 
 	} else if (nextEntry.pc == irqVector) {
 		activity.type = STACK_ACTIVITY_IRQ;
-
 	} else {
 		/*
 		 * A three-byte SP movement by itself is not enough evidence. TXS,
@@ -2536,12 +2225,9 @@ StackView::RecordInterruptStackActivity(
 
 	activity.sequence = ++fStackActivitySequence;
 
-	fStackHistory[fStackHistoryNext]
-		= activity;
+	fStackHistory[fStackHistoryNext] = activity;
 
-	fStackHistoryNext
-		= (fStackHistoryNext + 1)
-		% kStackHistoryCapacity;
+	fStackHistoryNext = (fStackHistoryNext + 1) % kStackHistoryCapacity;
 
 	if (fStackHistoryCount < kStackHistoryCapacity) {
 		fStackHistoryCount++;
@@ -2577,10 +2263,8 @@ StackView::RecordInterruptStackActivity(
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-StackView::RecordInstructionStackActivity(
-	const nes::cpu::cpu_trace_entry_t& entry,
-	const nes::cpu::cpu_trace_entry_t& nextEntry
-)
+StackView::RecordInstructionStackActivity(const nes::cpu::cpu_trace_entry_t &entry,
+											const nes::cpu::cpu_trace_entry_t &nextEntry)
 {
 	StackActivity activity;
 
@@ -2601,13 +2285,8 @@ StackView::RecordInstructionStackActivity(
 			activity.type = STACK_ACTIVITY_PHA;
 			activity.count = 1;
 
-			activity.firstAddress = static_cast<uint16>(
-				0x0100 + entry.s
-			);
-
-			activity.lastAddress
-				= activity.firstAddress;
-
+			activity.firstAddress = static_cast<uint16>(0x100 + entry.s);
+			activity.lastAddress = activity.firstAddress;
 			activity.value = entry.a;
 			break;
 
@@ -2615,13 +2294,8 @@ StackView::RecordInstructionStackActivity(
 			activity.type = STACK_ACTIVITY_PHP;
 			activity.count = 1;
 
-			activity.firstAddress = static_cast<uint16>(
-				0x0100 + entry.s
-			);
-
-			activity.lastAddress
-				= activity.firstAddress;
-
+			activity.firstAddress = static_cast<uint16>(0x100 + entry.s);
+			activity.lastAddress = activity.firstAddress;
 			activity.value = entry.p;
 			break;
 
@@ -2629,31 +2303,16 @@ StackView::RecordInstructionStackActivity(
 			activity.type = STACK_ACTIVITY_PLA;
 			activity.count = 1;
 
-			activity.firstAddress = static_cast<uint16>(
-				0x0100
-				+ static_cast<uint8>(
-					entry.s + 1
-				)
-			);
-
-			activity.lastAddress
-				= activity.firstAddress;
-
+			activity.firstAddress = static_cast<uint16>(0x100 + static_cast<uint8>(entry.s + 1));
+			activity.lastAddress = activity.firstAddress;
 			break;
 
 		case 0x28:	// PLP
 			activity.type = STACK_ACTIVITY_PLP;
 			activity.count = 1;
 
-			activity.firstAddress = static_cast<uint16>(
-				0x0100
-				+ static_cast<uint8>(
-					entry.s + 1
-				)
-			);
-
-			activity.lastAddress
-				= activity.firstAddress;
+			activity.firstAddress = static_cast<uint16>(0x100 + static_cast<uint8>(entry.s + 1));
+			activity.lastAddress = activity.firstAddress;
 
 			break;
 
@@ -2661,25 +2320,10 @@ StackView::RecordInstructionStackActivity(
 			activity.type = STACK_ACTIVITY_JSR;
 			activity.count = 2;
 
-			activity.firstAddress = static_cast<uint16>(
-				0x0100
-				+ static_cast<uint8>(
-					entry.s - 1
-				)
-			);
-
-			activity.lastAddress = static_cast<uint16>(
-				0x0100 + entry.s
-			);
-
-			activity.targetAddress = static_cast<uint16>(
-				entry.bytes[1]
-				| (
-					static_cast<uint16>(
-						entry.bytes[2]
-					) << 8
-				)
-			);
+			activity.firstAddress = static_cast<uint16>(0x100 + static_cast<uint8>(entry.s - 1));
+			activity.lastAddress = static_cast<uint16>(0x100 + entry.s);
+			activity.targetAddress = static_cast<uint16>(entry.bytes[1] | 
+									(static_cast<uint16>(entry.bytes[2]) << 8));
 
 			break;
 
@@ -2687,40 +2331,16 @@ StackView::RecordInstructionStackActivity(
 			activity.type = STACK_ACTIVITY_RTS;
 			activity.count = 2;
 
-			activity.firstAddress = static_cast<uint16>(
-				0x0100
-				+ static_cast<uint8>(
-					entry.s + 1
-				)
-			);
-
-			activity.lastAddress = static_cast<uint16>(
-				0x0100
-				+ static_cast<uint8>(
-					entry.s + 2
-				)
-			);
-
+			activity.firstAddress = static_cast<uint16>(0x100 + static_cast<uint8>(entry.s + 1));
+			activity.lastAddress = static_cast<uint16>(0x100 + static_cast<uint8>(entry.s + 2));
 			break;
 
 		case 0x40:	// RTI
 			activity.type = STACK_ACTIVITY_RTI;
 			activity.count = 3;
 
-			activity.firstAddress = static_cast<uint16>(
-				0x0100
-				+ static_cast<uint8>(
-					entry.s + 1
-				)
-			);
-
-			activity.lastAddress = static_cast<uint16>(
-				0x0100
-				+ static_cast<uint8>(
-					entry.s + 3
-				)
-			);
-
+			activity.firstAddress = static_cast<uint16>(0x100 + static_cast<uint8>(entry.s + 1));
+			activity.lastAddress = static_cast<uint16>(0x0100 + static_cast<uint8>(entry.s + 3));
 			break;
 
 		default:
@@ -2742,34 +2362,24 @@ StackView::RecordInstructionStackActivity(
 	switch (activity.type) {
 		case STACK_ACTIVITY_PHA:
 		case STACK_ACTIVITY_PHP:
-			expectedSP = static_cast<uint8>(
-				entry.s - 1
-			);
+			expectedSP = static_cast<uint8>(entry.s - 1);
 			break;
 
 		case STACK_ACTIVITY_PLA:
 		case STACK_ACTIVITY_PLP:
-			expectedSP = static_cast<uint8>(
-				entry.s + 1
-			);
+			expectedSP = static_cast<uint8>(entry.s + 1);
 			break;
 
 		case STACK_ACTIVITY_JSR:
-			expectedSP = static_cast<uint8>(
-				entry.s - 2
-			);
+			expectedSP = static_cast<uint8>(entry.s - 2);
 			break;
 
 		case STACK_ACTIVITY_RTS:
-			expectedSP = static_cast<uint8>(
-				entry.s + 2
-			);
+			expectedSP = static_cast<uint8>(entry.s + 2);
 			break;
 
 		case STACK_ACTIVITY_RTI:
-			expectedSP = static_cast<uint8>(
-				entry.s + 3
-			);
+			expectedSP = static_cast<uint8>(entry.s + 3);
 			break;
 
 		default:
@@ -2787,12 +2397,8 @@ StackView::RecordInstructionStackActivity(
 
 	activity.sequence = ++fStackActivitySequence;
 
-	fStackHistory[fStackHistoryNext]
-		= activity;
-
-	fStackHistoryNext
-		= (fStackHistoryNext + 1)
-		% kStackHistoryCapacity;
+	fStackHistory[fStackHistoryNext] = activity;
+	fStackHistoryNext = (fStackHistoryNext + 1) % kStackHistoryCapacity;
 
 	if (fStackHistoryCount < kStackHistoryCapacity) {
 		fStackHistoryCount++;
