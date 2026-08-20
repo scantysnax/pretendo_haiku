@@ -1278,11 +1278,17 @@ PretendoWindow::OnPause()
 	}
 }
 
-
 // -----------------------------------------------------------------------------
 // PretendoWindow::OnSoftReset
 //
-// Performs a soft reset of the loaded emulator state.
+// Performs a soft emulator reset and clears transient debugger state.
+//
+// Configured Execute BreakPoints, READ watchpoints, WRITE watchpoints, and stack
+// break conditions remain enabled, but the current debugger-hit latch and all
+// accumulated address-condition hit counters are reset.
+//
+// If the emulator was stopped by a debugger condition, reset also releases that
+// debugger pause so the CPU can execute the reset sequence.
 //
 // Parameters:
 //   None.
@@ -1293,14 +1299,53 @@ PretendoWindow::OnPause()
 void
 PretendoWindow::OnSoftReset()
 {
+	const bool debuggerHit = nes::cpu::debug_breakpoint_hit();
+
+	/*
+	 * A latched debugger hit prevents CPU execution at tick().
+	 * Clear it before starting the reset sequence.
+	 */
+	nes::cpu::debug_clear_breakpoint_hit();
+
+	/*
+	 * Reset accumulated debugger statistics without removing any
+	 * configured debugger conditions.
+	 */
+	nes::cpu::debug_clear_breakpoint_hit_counts();
+	nes::cpu::debug_clear_all_read_watchpoint_hit_counts();
+	nes::cpu::debug_clear_all_write_watchpoint_hit_counts();
+
 	reset(nes::Reset::Soft);
+
+	/*
+	 * A debugger hit pauses PPU execution and mutes debugger audio.
+	 * If reset was requested from that state, release the debugger pause
+	 * so the reset sequence can actually execute.
+	 */
+	if (debuggerHit) {
+		fDebuggerPausedEmulation = false;
+		fPaused = false;
+		nes::ppu::system_paused = false;
+
+		ResumeAudioAfterDebugging();
+	}
+
+	InvalidateDebugViews();
+	ResetCPUDisasmWindow(fCPUDisasmWindow);
 }
 
 
 // -----------------------------------------------------------------------------
 // PretendoWindow::OnHardReset
 //
-// Performs a hard reset of the loaded emulator state.
+// Performs a hard emulator reset and clears transient debugger state.
+//
+// Configured Execute BreakPoints, READ watchpoints, WRITE watchpoints, and stack
+// break conditions remain enabled, but the current debugger-hit latch and all
+// accumulated address-condition hit counters are reset.
+//
+// If the emulator was stopped by a debugger condition, reset also releases that
+// debugger pause so the CPU can execute the reset sequence.
 //
 // Parameters:
 //   None.
@@ -1311,7 +1356,39 @@ PretendoWindow::OnSoftReset()
 void
 PretendoWindow::OnHardReset()
 {
+	const bool debuggerHit = nes::cpu::debug_breakpoint_hit();
+
+	/*
+	 * A latched debugger hit prevents CPU execution at tick().
+	 * Clear it before starting the reset sequence.
+	 */
+	nes::cpu::debug_clear_breakpoint_hit();
+
+	/*
+	 * Reset accumulated debugger statistics without removing any
+	 * configured debugger conditions.
+	 */
+	nes::cpu::debug_clear_breakpoint_hit_counts();
+	nes::cpu::debug_clear_all_read_watchpoint_hit_counts();
+	nes::cpu::debug_clear_all_write_watchpoint_hit_counts();
+
 	reset(nes::Reset::Hard);
+
+	/*
+	 * A debugger hit pauses PPU execution and mutes debugger audio.
+	 * If reset was requested from that state, release the debugger pause
+	 * so the reset sequence can actually execute.
+	 */
+	if (debuggerHit) {
+		fDebuggerPausedEmulation = false;
+		fPaused = false;
+		nes::ppu::system_paused = false;
+
+		ResumeAudioAfterDebugging();
+	}
+
+	InvalidateDebugViews();
+	ResetCPUDisasmWindow(fCPUDisasmWindow);
 }
 
 
