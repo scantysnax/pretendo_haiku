@@ -17,15 +17,10 @@
 #include "PretendoWindow.h"
 
 
-class BScrollBar;
-class CPUMemoryScrollBar;
-class PretendoWindow;
-
-
 class CPUMemoryView : public BView
 {
 	public:
-			CPUMemoryView(BRect frame, PretendoWindow* parent);
+			CPUMemoryView (BRect frame, PretendoWindow *parent);
 	virtual ~CPUMemoryView();
 
 	public:
@@ -47,9 +42,9 @@ class CPUMemoryView : public BView
 	private:
 	void DrawHeaderPanel();
 	void DrawMemoryPanel();
-	void DrawNoROMMessage(BRect panel);
-	void DrawByteCell (float x, float y, uint16 address, uint8 value, bool isPC, 
-						bool isPCOperand, bool isSP);
+	void DrawNoROMMessage (BRect panel);
+	void DrawByteCell (float x, float y, uint16 address, uint8 value, bool isPC, bool isPCOperand, bool isSP);
+	
 	private:
 	void JumpToAddress (uint16 address);
 	void ScrollLines (int32 lines);

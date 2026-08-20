@@ -67,10 +67,9 @@ DrawDebugPanel (BView *view, BRect rect, const char *title)
 	view->DrawString(title, BPoint(x, titleY));
 
 	view->SetHighColor(120, 120, 120, 255);
-	view->StrokeLine(
-		BPoint(rect.left + 6.0f, dividerY),
-		BPoint(rect.right - 6.0f, dividerY)
-	);
+	view->StrokeLine(BPoint(rect.left + 6.0f, dividerY), BPoint(rect.right - 6.0f, dividerY));
 }
 
-#endif
+
+#endif // _DEBUG_HELPERS_H_
+

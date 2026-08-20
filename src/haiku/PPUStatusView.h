@@ -3,8 +3,12 @@
 
 #include <View.h>
 
+#include <cmath>
 
-class PretendoWindow;
+#include "Cart.h"
+#include "DebugHelpers.h"
+#include "Ppu.h"
+#include "PretendoWindow.h"
 
 
 // -----------------------------------------------------------------------------

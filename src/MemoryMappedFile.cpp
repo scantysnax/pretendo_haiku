@@ -6,9 +6,9 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #if defined(__linux__) || defined(__HAIKU__)
-#include <sys/mman.h>
-#include <unistd.h>
-#endif
+	#include <sys/mman.h>
+	#include <unistd.h>
+#endif // (__linux__ || __HAIKU__)
 
 MemoryMappedFile::MemoryMappedFile(const std::string &filename, size_t size) {
 	(void)filename;

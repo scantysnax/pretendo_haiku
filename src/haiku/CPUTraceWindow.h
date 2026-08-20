@@ -7,7 +7,6 @@
 #include "PretendoWindow.h"
 
 class CPUTraceView;
-class PretendoWindow;
 
 
 // -----------------------------------------------------------------------------
@@ -20,8 +19,8 @@ class CPUTraceWindow : public BWindow
 	public:
 	typedef enum : uint32 {
 		TOGGLE_FREEZE 	= 	'TGLF',
-		CLEAR_TRACE		= 	'CLTR',
-		FOLLOW_NEWEST	= 	'CFLN',
+		CLEAR_TRACE		= 	'CLRT',
+		FOLLOW_NEWEST	= 	'FOLN',
 		TRACE_JUMP_DISASM = 'CTJD'
 	} messages;
 	

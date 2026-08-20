@@ -3,8 +3,11 @@
 
 #include <Window.h>
 
-#include "PretendoWindow.h"
 #include "StackView.h"
+#include "PretendoWindow.h"
+
+
+class StackView;
 
 
 // -----------------------------------------------------------------------------

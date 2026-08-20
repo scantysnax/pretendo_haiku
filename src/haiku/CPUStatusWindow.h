@@ -3,8 +3,9 @@
 
 #include <Window.h>
 
+#include "CPUStatusView.h"
+#include "PretendoWindow.h"
 
-class PretendoWindow;
 class CPUStatusView;
 
 

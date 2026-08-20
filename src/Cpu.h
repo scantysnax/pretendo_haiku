@@ -96,6 +96,8 @@ enum : uint32_t {
 enum DebugBreakReason : uint8_t {
 	DEBUG_BREAK_NONE = 0,
 	DEBUG_BREAK_EXECUTE,
+	DEBUG_BREAK_MEMORY_READ,
+	DEBUG_BREAK_MEMORY_WRITE,
 	DEBUG_BREAK_STACK_SP,
 	DEBUG_BREAK_STACK_WRAP
 };
@@ -127,6 +129,33 @@ void debug_skip_breakpoint_once();
 void debug_resume_past_breakpoint();
 uint32_t debug_breakpoint_hit_count(uint16_t address);
 void debug_clear_breakpoint_hit_counts();
+
+void debug_add_read_watchpoint(uint16_t address);
+void debug_remove_read_watchpoint(uint16_t address);
+void debug_clear_read_watchpoints();
+bool debug_has_read_watchpoint(uint16_t address);
+
+void debug_add_write_watchpoint(uint16_t address);
+void debug_remove_write_watchpoint(uint16_t address);
+void debug_clear_write_watchpoints();
+bool debug_has_write_watchpoint(uint16_t address);
+
+uint32_t debug_read_watchpoint_hit_count(uint16_t address);
+uint32_t debug_write_watchpoint_hit_count(uint16_t address);
+
+void debug_clear_read_watchpoint_hit_count(uint16_t address);
+void debug_clear_write_watchpoint_hit_count(uint16_t address);
+
+void debug_clear_all_read_watchpoint_hit_counts();
+void debug_clear_all_write_watchpoint_hit_counts();
+
+
+void debug_check_memory_read(uint16_t address);
+void debug_check_memory_write(uint16_t address);
+
+uint16_t debug_memory_break_address();
+
+bool debug_reset_in_progress();
 
 // stack stuff
 DebugBreakReason debug_break_reason();

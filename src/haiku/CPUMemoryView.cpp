@@ -16,9 +16,7 @@
 static bool
 IsHexDigit (char c)
 {
-	return (c >= '0' && c <= '9')
-		|| (c >= 'a' && c <= 'f')
-		|| (c >= 'A' && c <= 'F');
+	return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
 }
 
 
@@ -78,15 +76,8 @@ StringContains (const char *text, const char *needle)
 class CPUMemoryScrollBar : public BScrollBar
 {
 	public:
-		CPUMemoryScrollBar (BRect frame, CPUMemoryView* owner)
-			: BScrollBar(
-			 frame,
-			"cpu_memory_scrollbar",
-			owner,
-			0.0f,
-			4095.0f,
-			B_VERTICAL
-		),
+		CPUMemoryScrollBar (BRect frame, CPUMemoryView *owner)
+			: BScrollBar (frame, "cpu_memory_scrollbar", owner, 0.0f, 4095.0f, B_VERTICAL),
 			fOwner(owner)
 		{
 		}
@@ -116,7 +107,7 @@ class CPUMemoryScrollBar : public BScrollBar
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-CPUMemoryView::CPUMemoryView(BRect frame, PretendoWindow *parent)
+CPUMemoryView::CPUMemoryView (BRect frame, PretendoWindow *parent)
 	: BView(frame, "cpu_memory_view", B_FOLLOW_ALL, B_WILL_DRAW | B_PULSE_NEEDED)
 {
 	fParent = parent;
@@ -160,12 +151,7 @@ CPUMemoryView::AttachedToWindow()
 	BView::AttachedToWindow();
 
 	if (!fScrollBar) {
-		BRect scrollFrame(
-			Bounds().right - B_V_SCROLL_BAR_WIDTH,
-			202.0f,
-			Bounds().right,
-			Bounds().bottom - 8.0f
-		);
+		BRect scrollFrame(Bounds().right - B_V_SCROLL_BAR_WIDTH, 202.0f, Bounds().right,Bounds().bottom - 8.0f);
 
 		fScrollBar = new CPUMemoryScrollBar(scrollFrame, this);
 		AddChild(fScrollBar);
@@ -357,12 +343,11 @@ CPUMemoryView::MouseDown (BPoint where)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-CPUMemoryView::MouseMoved(BPoint where, uint32 transit,
-	const BMessage* dragMessage)
+CPUMemoryView::MouseMoved(BPoint where, uint32 transit, const BMessage *dragMessage)
 {
 	(void)dragMessage;
 
-	BWindow* window = Window();
+	BWindow *window = Window();
 
 	if (!window || !window->IsActive()) {
 		if (fHasHoveredAddress) {
@@ -448,15 +433,8 @@ bool
 CPUMemoryView::AddressForPoint (BPoint where, uint16 &address) const
 {
 	const float rightEdge = (fScrollBar && !fScrollBar->IsHidden())
-		? fScrollBar->Frame().left - 4.0f
-		: Bounds().right - 4.0f;
-
-	BRect panel(
-		4.0f,
-		202.0f,
-		rightEdge,
-		Bounds().bottom - 8.0f
-	);
+							? fScrollBar->Frame().left - 4.0f : Bounds().right - 4.0f;
+	BRect panel(4.0f, 202.0f, rightEdge, Bounds().bottom - 8.0f);
 
 	if (!panel.Contains(where)) {
 		return false;
@@ -526,12 +504,7 @@ CPUMemoryView::AddressForPoint (BPoint where, uint16 &address) const
 			hexByteX += groupGap;
 		}
 
-		BRect hexRect(
-			hexByteX - 4.0f,
-			firstRowY + row * lineH - 13.0f,
-			hexByteX + 19.0f,
-			firstRowY + row * lineH + 4.0f
-		);
+		BRect hexRect(hexByteX - 4.0f, firstRowY + row * lineH - 13.0f, hexByteX + 19.0f, firstRowY + row * lineH + 4.0f);
 
 		if (hexRect.Contains(where)) {
 			byteIndex = i;
@@ -543,12 +516,8 @@ CPUMemoryView::AddressForPoint (BPoint where, uint16 &address) const
 		for (int32 i = 0; i < 16; i++) {
 			const float asciiCharX = asciiX + i * asciiStep;
 
-			BRect asciiRect(
-				asciiCharX - 2.0f,
-				firstRowY + row * lineH - 12.0f,
-				asciiCharX + asciiStep,
-				firstRowY + row * lineH + 3.0f
-			);
+			BRect asciiRect(asciiCharX - 2.0f, firstRowY + row * lineH - 12.0f, 
+							asciiCharX + asciiStep,firstRowY + row * lineH + 3.0f);
 
 			if (asciiRect.Contains(where)) {
 				byteIndex = i;
@@ -588,12 +557,7 @@ CPUMemoryView::AddressForPoint (BPoint where, uint16 &address) const
 void
 CPUMemoryView::DrawHeaderPanel()
 {
-	BRect panel(
-		4.0f,
-		4.0f,
-		Bounds().right - 4.0f,
-		194.0f
-	);
+	BRect panel(4.0f, 4.0f, Bounds().right - 4.0f, 194.0f);
 
 	::DrawDebugPanel(this, panel, "CPU Memory");
 
@@ -634,8 +598,7 @@ CPUMemoryView::DrawHeaderPanel()
 			instructionLength = 3;
 		}
 
-		s.SetToFormat(
-			"Base:$%04X  %-15s  PC:$%04X  Len:%u  SP:$%02X($%04X)  A:$%02X  X:$%02X  Y:$%02X  P:$%02X",
+		s.SetToFormat("Base:$%04X  %-15s  PC:$%04X  Len:%u  SP:$%02X($%04X)  A:$%02X  X:$%02X  Y:$%02X  P:$%02X",
 			fBaseAddress,
 			RegionLabel(fBaseAddress),
 			state.pc,
@@ -653,31 +616,14 @@ CPUMemoryView::DrawHeaderPanel()
 		BString byteText;
 
 		if (instructionLength == 1) {
-			byteText.SetToFormat(
-				"%02X      ",
-				pcLine.bytes[0]
-			);
+			byteText.SetToFormat("%02X      ", pcLine.bytes[0]);
 		} else if (instructionLength == 2) {
-			byteText.SetToFormat(
-				"%02X %02X   ",
-				pcLine.bytes[0],
-				pcLine.bytes[1]
-			);
+			byteText.SetToFormat("%02X %02X   ", pcLine.bytes[0], pcLine.bytes[1]);
 		} else {
-			byteText.SetToFormat(
-				"%02X %02X %02X",
-				pcLine.bytes[0],
-				pcLine.bytes[1],
-				pcLine.bytes[2]
-			);
+			byteText.SetToFormat("%02X %02X %02X", pcLine.bytes[0], pcLine.bytes[1], pcLine.bytes[2]);
 		}
 
-		s.SetToFormat(
-			"Instr:  $%04X  %-8s  %s",
-			pcLine.address,
-			byteText.String(),
-			pcLine.text.String()
-		);
+		s.SetToFormat("Instr:  $%04X  %-8s  %s", pcLine.address, byteText.String(), pcLine.text.String());
 
 		SetHighColor(40, 40, 40);
 		DrawString(s.String(), BPoint(textX, instrY));
@@ -688,12 +634,7 @@ CPUMemoryView::DrawHeaderPanel()
 		const uint16 resetVector = ReadVector(0xfffc);
 		const uint16 irqVector = ReadVector(0xfffe);
 
-		s.SetToFormat(
-			"Vectors: NMI:$%04X  RESET:$%04X  IRQ/BRK:$%04X",
-			nmiVector,
-			resetVector,
-			irqVector
-		);
+		s.SetToFormat("Vectors: NMI:$%04X  RESET:$%04X  IRQ/BRK:$%04X", nmiVector, resetVector, irqVector);
 
 		SetHighColor(60, 60, 60);
 		DrawString(s.String(), BPoint(textX, vectorY));
@@ -713,8 +654,7 @@ CPUMemoryView::DrawHeaderPanel()
 		const uint8 stackValue3 = nes::bus::debug_read_memory(stackAddress3);
 		const uint8 stackValue4 = nes::bus::debug_read_memory(stackAddress4);
 
-		s.SetToFormat(
-			"Stack:  Slot:$%04X  Top:$%04X  +1:$%02X  +2:$%02X  +3:$%02X  +4:$%02X",
+		s.SetToFormat("Stack:  Slot:$%04X  Top:$%04X  +1:$%02X  +2:$%02X  +3:$%02X  +4:$%02X",
 			stackSlotAddress,
 			stackAddress1,
 			stackValue1,
@@ -728,11 +668,7 @@ CPUMemoryView::DrawHeaderPanel()
 
 		DrawSelectedByteInfo(textX, selectedY);
 	} else {
-		s.SetToFormat(
-			"Base:$%04X  %-15s",
-			fBaseAddress,
-			RegionLabel(fBaseAddress)
-		);
+		s.SetToFormat("Base:$%04X  %-15s", fBaseAddress, RegionLabel(fBaseAddress));
 
 		DrawString(s.String(), BPoint(textX, statusY));
 		DrawInstructionTargetInfo(textX, targetY);
@@ -742,15 +678,11 @@ CPUMemoryView::DrawHeaderPanel()
 	SetFont(&uiFont);
 	SetHighColor(90, 90, 90);
 
-	DrawString(
-		"Arrows: scroll   PageUp/PageDown: page   C: PC   E: target   K: stack ptr   Z: zero   S: stack page   R: RAM   P: PPU   A: APU   V: vectors",
-		BPoint(textX, helpY)
-	);
+	DrawString("Arrows: scroll   PageUp/PageDown: page   C: PC   E: target   K:"
+				" stack ptr   Z: zero   S: stack page   R: RAM   P: PPU   A: APU   V: vectors", BPoint(textX, helpY));
 
-	DrawString(
-		"Legend: orange=PC/opcode   pale orange=operand   blue=SP   green=target   gray=hover   black=locked",
-		BPoint(textX, legendY)
-	);
+	DrawString("Legend: orange=PC/opcode   pale orange=operand   blue=SP   green=target   gray=hover   black=locked",
+				BPoint(textX, legendY));
 
 	SetFont(&prevFont);
 }
@@ -771,15 +703,8 @@ void
 CPUMemoryView::DrawNoROMMessage (BRect panel)
 {
 	SetHighColor(90, 90, 90);
-	DrawString(
-		"No ROM loaded.",
-		BPoint(panel.left + 12.0f, panel.top + 36.0f)
-	);
-
-	DrawString(
-		"Load a ROM to view CPU memory.",
-		BPoint(panel.left + 12.0f, panel.top + 56.0f)
-	);
+	DrawString("No ROM loaded.", BPoint(panel.left + 12.0f, panel.top + 36.0f));
+	DrawString("Load a ROM to view CPU memory.", BPoint(panel.left + 12.0f, panel.top + 56.0f));
 }
 
 
@@ -808,12 +733,7 @@ CPUMemoryView::DrawByteCell (float x, float y, uint16 address, uint8 value, bool
 {
 	(void)address;
 
-	const BRect cellRect(
-		x - 3.0f,
-		y - 12.0f,
-		x + 18.0f,
-		y + 3.0f
-	);
+	const BRect cellRect(x - 3.0f, y - 12.0f, x + 18.0f, y + 3.0f);
 
 	if (isPC || isPCOperand || isSP) {
 		if (isPC) {
@@ -888,22 +808,12 @@ CPUMemoryView::DrawMemoryPanel()
 		? fScrollBar->Frame().left - 4.0f
 		: Bounds().right - 4.0f;
 
-	BRect panel(
-		4.0f,
-		202.0f,
-		rightEdge,
-		Bounds().bottom - 8.0f
-	);
+	BRect panel(4.0f, 202.0f, rightEdge, Bounds().bottom - 8.0f);
 
 	::DrawDebugPanel(this, panel, "Memory");
 
 	SetHighColor(216, 216, 216);
-	FillRect(BRect(
-		panel.left + 6.0f,
-		panel.top + 24.0f,
-		panel.right - 6.0f,
-		panel.bottom - 6.0f
-	));
+	FillRect(BRect(panel.left + 6.0f, panel.top + 24.0f, panel.right - 6.0f, panel.bottom - 6.0f));
 
 	if (!HasROMLoaded()) {
 		DrawNoROMMessage(panel);
@@ -927,8 +837,7 @@ CPUMemoryView::DrawMemoryPanel()
 	const uint32 pcInstructionEnd = pcInstructionStart + pcInstructionLength - 1;
 
 	uint16 instructionTargetAddress = 0x0000;
-	const bool hasInstructionTarget =
-		CurrentInstructionTarget(instructionTargetAddress);
+	const bool hasInstructionTarget = CurrentInstructionTarget(instructionTargetAddress);
 
 	BFont prevFont;
 	GetFont(&prevFont);
@@ -960,15 +869,11 @@ CPUMemoryView::DrawMemoryPanel()
 	y += lineH + 6.0f;
 
 	SetHighColor(120, 120, 120);
-	StrokeLine(
-		BPoint(panel.left + 8.0f, y - 8.0f),
-		BPoint(panel.right - 8.0f, y - 8.0f)
-	);
+	StrokeLine(BPoint(panel.left + 8.0f, y - 8.0f), BPoint(panel.right - 8.0f, y - 8.0f));
 
 	y += 4.0f;
 
 	const int32 rows = static_cast<int32>((panel.bottom - y - 8.0f) / lineH);
-
 	int32 startRow = static_cast<int32>(fBaseAddress >> 4);
 
 	if (startRow < 0) {
@@ -988,10 +893,9 @@ CPUMemoryView::DrawMemoryPanel()
 		const uint16 rowStart = address;
 		const uint16 rowEnd = static_cast<uint16>(address + 15);
 
-		const bool pcInRow =
-			pcInstructionStart <= static_cast<uint32>(rowEnd)
-			&& pcInstructionEnd >= static_cast<uint32>(rowStart);
-		const bool spInRow = spAddress >= rowStart && spAddress <= rowEnd;
+		const bool pcInRow = pcInstructionStart <= static_cast<uint32>(rowEnd)
+							 && pcInstructionEnd >= static_cast<uint32>(rowStart);
+		const bool spInRow = (spAddress >= rowStart) && (spAddress <= rowEnd);
 
 		const bool stackRow = address >= 0x100 && address <= 0x1ff;
 		const bool ppuRegisterRow = address >= 0x2000 && address <= 0x3fff;
@@ -999,29 +903,14 @@ CPUMemoryView::DrawMemoryPanel()
 		const bool prgRow = address >= 0x8000;
 
 		SetRegionBackgroundColor(address);
-		FillRect(BRect(
-			panel.left + 6.0f,
-			y - lineH + 4.0f,
-			panel.right - 6.0f,
-			y + 3.0f
-		));
+		FillRect(BRect(panel.left + 6.0f, y - lineH + 4.0f, panel.right - 6.0f, y + 3.0f));
 
 		if (pcInRow) {
 			SetHighColor(255, 245, 220);
-			FillRect(BRect(
-				panel.left + 6.0f,
-				y - lineH + 4.0f,
-				panel.right - 6.0f,
-				y + 3.0f
-			));
+			FillRect(BRect(panel.left + 6.0f, y - lineH + 4.0f, panel.right - 6.0f, y + 3.0f));
 		} else if (spInRow) {
 			SetHighColor(230, 240, 255);
-			FillRect(BRect(
-				panel.left + 6.0f,
-				y - lineH + 4.0f,
-				panel.right - 6.0f,
-				y + 3.0f
-			));
+			FillRect(BRect(panel.left + 6.0f, y - lineH + 4.0f, panel.right - 6.0f, y + 3.0f));
 		}
 
 		BString s;
@@ -1043,11 +932,11 @@ CPUMemoryView::DrawMemoryPanel()
 			const uint8 value = nes::bus::debug_read_memory(byteAddress);
 
 			const bool isPC = byteAddress == pcAddress;
-			const bool isPCOperand = byteAddress32 > pcInstructionStart && byteAddress32 <= pcInstructionEnd;
-			const bool isSP = byteAddress == spAddress;
-			const bool isHovered = fHasHoveredAddress && byteAddress == fHoveredAddress;
-			const bool isLocked = fHasLockedAddress && byteAddress == fLockedAddress;
-			const bool isInstructionTarget = hasInstructionTarget && byteAddress == instructionTargetAddress;
+			const bool isPCOperand = (byteAddress32 > pcInstructionStart) && (byteAddress32 <= pcInstructionEnd);
+			const bool isSP = (byteAddress == spAddress);
+			const bool isHovered = fHasHoveredAddress && (byteAddress == fHoveredAddress);
+			const bool isLocked = fHasLockedAddress && (byteAddress == fLockedAddress);
+			const bool isInstructionTarget = hasInstructionTarget && (byteAddress == instructionTargetAddress);
 
 			float hexByteX = hexX + i * byteStep;
 
@@ -1055,39 +944,19 @@ CPUMemoryView::DrawMemoryPanel()
 				hexByteX += groupGap;
 			}
 
-			DrawByteCell(
-				hexByteX,
-				y,
-				byteAddress,
-				value,
-				isPC,
-				isPCOperand,
-				isSP
-			);
+			DrawByteCell(hexByteX, y, byteAddress, value, isPC, isPCOperand, isSP);
 
 			if (isInstructionTarget) {
 				SetHighColor(0, 130, 0);
 
-				BRect targetRect(
-					hexByteX - 3.0f,
-					y - 12.0f,
-					hexByteX + 18.0f,
-					y + 3.0f
-				);
-
+				BRect targetRect(hexByteX - 3.0f, y - 12.0f, hexByteX + 18.0f, y + 3.0f);
 				StrokeRect(targetRect);
 			}
 
 			if (isHovered) {
 				SetHighColor(90, 90, 90);
 
-				BRect hoverRect(
-					hexByteX - 4.0f,
-					y - 13.0f,
-					hexByteX + 19.0f,
-					y + 3.0f
-				);
-
+				BRect hoverRect(hexByteX - 4.0f, y - 13.0f, hexByteX + 19.0f, y + 3.0f);
 				StrokeRect(hoverRect);
 			}
 
@@ -1105,10 +974,7 @@ CPUMemoryView::DrawMemoryPanel()
 				StrokeLine(BPoint(left, bottom), BPoint(left, top));
 			}
 
-			const char asciiChar = (value >= 32 && value <= 126)
-				? static_cast<char>(value)
-				: '.';
-
+			const char asciiChar = (value >= 32 && value <= 126) ? static_cast<char>(value) : '.';
 			BString asciiText;
 			asciiText << asciiChar;
 
@@ -1116,31 +982,15 @@ CPUMemoryView::DrawMemoryPanel()
 
 			if (isInstructionTarget) {
 				SetHighColor(0, 130, 0);
-
-				StrokeRect(BRect(
-					asciiCharX - 2.0f,
-					y - 12.0f,
-					asciiCharX + asciiStep,
-					y + 3.0f
-				));
+				StrokeRect(BRect(asciiCharX - 2.0f, y - 12.0f, asciiCharX + asciiStep, y + 3.0f));
 			}
 
 			if (isHovered) {
 				SetHighColor(245, 245, 245);
-				FillRect(BRect(
-					asciiCharX - 2.0f,
-					y - 12.0f,
-					asciiCharX + asciiStep,
-					y + 3.0f
-				));
+				FillRect(BRect(asciiCharX - 2.0f, y - 12.0f, asciiCharX + asciiStep, y + 3.0f));
 
 				SetHighColor(90, 90, 90);
-				StrokeRect(BRect(
-					asciiCharX - 2.0f,
-					y - 12.0f,
-					asciiCharX + asciiStep,
-					y + 3.0f
-				));
+				StrokeRect(BRect(asciiCharX - 2.0f, y - 12.0f, asciiCharX + asciiStep, y + 3.0f));
 			}
 
 			if (isLocked) {
@@ -1190,7 +1040,7 @@ CPUMemoryView::DrawMemoryPanel()
 		if (address == 0xfff0) {
 			region << " / NMI RESET IRQ";
 		} else {
-			const char* vectorLabel = VectorLabel(address);
+			const char *vectorLabel = VectorLabel(address);
 
 			if (vectorLabel) {
 				region << " / ";
@@ -1274,13 +1124,13 @@ CPUMemoryView::RegionLabel (uint16 address) const
 void
 CPUMemoryView::SetRegionBackgroundColor (uint16 address)
 {
-	if (address <= 0x00ff) {
+	if (address <= 0xff) {
 		// Zero page - slightly stronger purple/blue so it stands out.
 		SetHighColor(218, 225, 250);
-	} else if (address <= 0x01ff) {
+	} else if (address <= 0x1ff) {
 		// Stack
 		SetHighColor(245, 235, 210);
-	} else if (address <= 0x07ff) {
+	} else if (address <= 0x7ff) {
 		// Internal RAM
 		SetHighColor(232, 240, 246);
 	} else if (address <= 0x1fff) {
@@ -1351,8 +1201,7 @@ uint16
 CPUMemoryView::ReadVector (uint16 address) const
 {
 	const uint8 low = nes::bus::debug_read_memory(address);
-	const uint8 high = nes::bus::debug_read_memory(static_cast<uint16>(address + 1)
-	);
+	const uint8 high = nes::bus::debug_read_memory(static_cast<uint16>(address + 1));
 
 	return static_cast<uint16>(low | (high << 8));
 }
@@ -1395,8 +1244,7 @@ uint16
 CPUMemoryView::Read6502IndirectVector (uint16 address) const
 {
 	const uint8 low = nes::bus::debug_read_memory(address);
-	const uint16 highAddress = static_cast<uint16>((address & 0xff00) | ((address + 1) & 0xff)
-	);
+	const uint16 highAddress = static_cast<uint16>((address & 0xff00) | ((address + 1) & 0xff));
 	const uint8 high = nes::bus::debug_read_memory(highAddress);
 
 	return static_cast<uint16>(low | (high << 8));
@@ -1493,12 +1341,9 @@ CPUMemoryView::CurrentInstructionTarget (uint16 &address) const
 	const char* mnemonic = line.mnemonic.String();
 	const char* operand = line.operand.String();
 
-	const bool hasX = StringContains(operand, ",X")
-		|| StringContains(operand, ",x");
-	const bool hasY = StringContains(operand, ",Y")
-		|| StringContains(operand, ",y");
-	const bool isIndirect = StringContains(operand, "(")
-		&& StringContains(operand, ")");
+	const bool hasX = StringContains(operand, ",X") || StringContains(operand, ",x");
+	const bool hasY = StringContains(operand, ",Y") || StringContains(operand, ",y");
+	const bool isIndirect = StringContains(operand, "(") && StringContains(operand, ")");
 
 	if (strcmp(mnemonic, "JMP") == 0 && isIndirect && digits > 2) {
 		address = Read6502IndirectVector(baseAddress);
@@ -1746,13 +1591,7 @@ CPUMemoryView::LayoutScrollBar()
 		return;
 	}
 
-	BRect frame(
-		Bounds().right - B_V_SCROLL_BAR_WIDTH,
-		202.0f,
-		Bounds().right,
-		Bounds().bottom - 8.0f
-	);
-
+	BRect frame(Bounds().right - B_V_SCROLL_BAR_WIDTH, 202.0f, Bounds().right, Bounds().bottom - 8.0f);
 	fScrollBar->MoveTo(frame.LeftTop());
 	fScrollBar->ResizeTo(frame.Width(), frame.Height());
 
@@ -1861,12 +1700,7 @@ CPUMemoryView::ScrollBarChanged (float value)
 int32
 CPUMemoryView::VisibleMemoryRows() const
 {
-	BRect panel(
-		4.0f,
-		202.0f,
-		Bounds().right - 4.0f,
-		Bounds().bottom - 8.0f
-	);
+	BRect panel(4.0f, 202.0f, Bounds().right - 4.0f, Bounds().bottom - 8.0f);
 
 	BFont prevFont;
 	const_cast<CPUMemoryView *>(this)->GetFont(&prevFont);
@@ -1877,7 +1711,6 @@ CPUMemoryView::VisibleMemoryRows() const
 
 	font_height fh;
 	const_cast<CPUMemoryView *>(this)->GetFontHeight(&fh);
-
 	const_cast<CPUMemoryView *>(this)->SetFont(&prevFont);
 
 	const float lineH = ceilf(fh.ascent + fh.descent + fh.leading) + 2.0f;
@@ -1940,8 +1773,7 @@ CPUMemoryView::DrawInstructionTargetInfo (float x, float y)
 		asciiText.SetTo(".");
 	}
 
-	s.SetToFormat(
-		"Target: $%04X  Hex:$%02X  Dec:%3u  ASCII:%-3s  %s",
+	s.SetToFormat("Target: $%04X  Hex:$%02X  Dec:%3u  ASCII:%-3s  %s",
 		address,
 		value,
 		value,
@@ -2028,8 +1860,7 @@ CPUMemoryView::DrawSelectedByteInfo (float x, float y)
 
 	const char *mode = fHasLockedAddress ? "Locked" : "Hover";
 
-	s.SetToFormat(
-		"%s:   $%04X  Hex:$%02X  Dec:%3u  ASCII:%-3s  %s",
+	s.SetToFormat("%s:   $%04X  Hex:$%02X  Dec:%3u  ASCII:%-3s  %s",
 		mode,
 		address,
 		value,

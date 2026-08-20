@@ -1,9 +1,6 @@
 
 #include "CPUDisasmWindow.h"
 
-#include "CPUDisasmView.h"
-#include "PretendoWindow.h"
-
 
 // -----------------------------------------------------------------------------
 // CPUDisasmWindow::CPUDisasmWindow
@@ -19,20 +16,14 @@
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-CPUDisasmWindow::CPUDisasmWindow(PretendoWindow *parent)
-	: BWindow(
-		BRect(160.0f, 160.0f, 980.0f, 720.0f),
-		"CPU Disassembly",
-		B_FLOATING_WINDOW_LOOK,
-		B_NORMAL_WINDOW_FEEL,
-		B_NOT_RESIZABLE | B_NOT_ZOOMABLE
-	)
+CPUDisasmWindow::CPUDisasmWindow (PretendoWindow *parent)
+	: BWindow(BRect(160.0f, 160.0f, 980.0f, 720.0f), 
+			"CPU Disassembly",
+			B_FLOATING_WINDOW_LOOK, B_NORMAL_WINDOW_FEEL, 
+			B_NOT_RESIZABLE | B_NOT_ZOOMABLE)
 {
 	fParent = parent;
-
-	BRect viewFrame = Bounds();
-
-	fView = new CPUDisasmView(viewFrame, parent);
+	fView = new CPUDisasmView(Bounds(), parent);
 	AddChild(fView);
 
 	SetPulseRate(16667);

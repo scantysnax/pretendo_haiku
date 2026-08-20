@@ -1,13 +1,6 @@
 
 #include "PPUStatusView.h"
 
-#include "Cart.h"
-#include "DebugHelpers.h"
-#include "Ppu.h"
-#include "PretendoWindow.h"
-
-#include <cmath>
-
 
 static void
 SetStateColor (BView *view, bool active)
@@ -77,13 +70,8 @@ PPUStatusView::Draw (BRect updateRect)
 	DrawHeaderPanel();
 
 	if (!HasROMLoaded()) {
-		BRect panel(
-			4.0f,
-			74.0f,
-			Bounds().right - 4.0f,
-			Bounds().bottom - 8.0f
-		);
-
+		BRect panel(4.0f, 74.0f, Bounds().right - 4.0f, Bounds().bottom - 8.0f);
+		
 		::DrawDebugPanel(this, panel, "PPU State");
 		DrawNoROMMessage(panel);
 		return;
@@ -111,22 +99,12 @@ PPUStatusView::Draw (BRect updateRect)
 void
 PPUStatusView::DrawHeaderPanel()
 {
-	BRect panel(
-		4.0f,
-		4.0f,
-		Bounds().right - 4.0f,
-		62.0f
-	);
-
+	BRect panel(4.0f, 4.0f, Bounds().right - 4.0f, 62.0f);
 	::DrawDebugPanel(this, panel, "PPU Status");
 
 	SetFontSize(11.0f);
-
 	SetHighColor(35, 35, 35);
-	DrawString(
-		"Live PPU register and render-state summary",
-		BPoint(panel.left + 8.0f, panel.top + 36.0f)
-	);
+	DrawString("Live PPU register and render-state summary", BPoint(panel.left + 8.0f, panel.top + 36.0f));
 }
 
 
@@ -144,13 +122,7 @@ PPUStatusView::DrawHeaderPanel()
 void
 PPUStatusView::DrawRegisterPanel()
 {
-	BRect panel(
-		4.0f,
-		74.0f,
-		Bounds().right - 4.0f,
-		178.0f
-	);
-
+	BRect panel(4.0f, 74.0f, Bounds().right - 4.0f, 178.0f);
 	::DrawDebugPanel(this, panel, "Registers");
 
 	SetFontSize(11.0f);
@@ -251,13 +223,7 @@ PPUStatusView::DrawRegisterPanel()
 void
 PPUStatusView::DrawControlPanel()
 {
-	BRect panel(
-		4.0f,
-		270.0f,
-		Bounds().right - 4.0f,
-		400.0f
-	);
-	
+	BRect panel(4.0f, 270.0f, Bounds().right - 4.0f, 400.0f);
 	::DrawDebugPanel(this, panel, "Control / Scroll Decode");
 
 	SetFontSize(11.0f);
@@ -307,7 +273,7 @@ PPUStatusView::DrawControlPanel()
 
 	uint32 v = (scroll.v & 0x7fff);
 
-	uint8 coarseX = v & 0x1f;
+	uint8 coarseX = (v & 0x1f);
 	uint8 coarseY = (v >> 5) & 0x1f;
 	uint8 ntX = (v >> 10) & 0x1;
 	uint8 ntY = (v >> 11) & 0x1;
@@ -337,12 +303,7 @@ PPUStatusView::DrawControlPanel()
 	s.SetToFormat("%u", static_cast<unsigned>(coarseY));
 	drawRightKV("Coarse Y:", s.String());
 
-	s.SetToFormat(
-		"%u / %u",
-		static_cast<unsigned>(ntX),
-		static_cast<unsigned>(ntY)
-	
-	);
+	s.SetToFormat("%u / %u", static_cast<unsigned>(ntX), static_cast<unsigned>(ntY));
 	drawRightKV("NT X/Y:", s.String());
 
 	s.SetToFormat("%u", static_cast<unsigned>(fineY));
@@ -365,13 +326,7 @@ PPUStatusView::DrawControlPanel()
 void
 PPUStatusView::DrawMaskPanel()
 {
-	BRect panel(
-		4.0f,
-		412.0f,
-		Bounds().right - 4.0f,
-		520.0f
-	);
-
+	BRect panel(4.0f, 412.0f, Bounds().right - 4.0f, 520.0f);
 	::DrawDebugPanel(this, panel, "Mask / Render State");
 
 	SetFontSize(11.0f);
@@ -471,13 +426,7 @@ PPUStatusView::DrawMaskPanel()
 void
 PPUStatusView::DrawStatusPanel()
 {
-	BRect panel(
-		4.0f,
-		532.0f,
-		Bounds().right - 4.0f,
-		Bounds().bottom - 8.0f
-	);
-
+	BRect panel(4.0f, 532.0f, Bounds().right - 4.0f, Bounds().bottom - 8.0f);
 	::DrawDebugPanel(this, panel, "Status Flags");
 
 	SetFontSize(11.0f);
@@ -557,13 +506,7 @@ PPUStatusView::DrawStatusPanel()
 void
 PPUStatusView::DrawTimingPanel()
 {
-	BRect panel(
-		4.0f,
-		190.0f,
-		Bounds().right - 4.0f,
-		258.0f
-	);
-
+	BRect panel(4.0f, 190.0f, Bounds().right - 4.0f, 258.0f);
 	::DrawDebugPanel(this, panel, "Timing / Position");
 
 	SetFontSize(11.0f);
@@ -603,7 +546,7 @@ PPUStatusView::DrawTimingPanel()
 		activeRender = true;
 	} else if (scanline == 240) {
 		region = "post-render";
-	} else if (scanline >= 241 && scanline <= 260) {
+	} else if ((scanline >= 241) && (scanline <= 260)) {
 		region = "vblank";
 		vblank = true;
 	} else if (scanline == 261) {
@@ -674,8 +617,8 @@ PPUStatusView::DrawNoROMMessage (BRect panel)
 	font.SetSize(12.0f);
 	SetFont(&font);
 
-	const char* title = "No ROM loaded";
-	const char* detail = "Load a cartridge to inspect PPU state.";
+	const char *title = "No ROM loaded";
+	const char *detail = "Load a cartridge to inspect PPU state.";
 
 	font_height fh;
 	GetFontHeight(&fh);
@@ -684,25 +627,11 @@ PPUStatusView::DrawNoROMMessage (BRect panel)
 	const float centerY = panel.top + (panel.Height() * 0.5f);
 
 	SetHighColor(80, 80, 80, 255);
-	DrawString(
-		title,
-		BPoint(
-			centerX - (StringWidth(title) * 0.5f),
-			centerY - 8.0f
-		)
-	);
+	DrawString(title, BPoint(centerX - (StringWidth(title) * 0.5f), centerY - 8.0f));
 
 	SetHighColor(120, 120, 120, 255);
-	DrawString(
-		detail,
-		BPoint(
-			centerX - (StringWidth(detail) * 0.5f),
-			centerY + fh.ascent + 8.0f
-		)
-	);
+	DrawString(detail, BPoint(centerX - (StringWidth(detail) * 0.5f), centerY + fh.ascent + 8.0f));
 
 	SetFont(&oldFont);
 }
-
-
 

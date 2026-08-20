@@ -1,9 +1,6 @@
 
 #include "CPUStatusWindow.h"
 
-#include "CPUStatusView.h"
-#include "PretendoWindow.h"
-
 
 // -----------------------------------------------------------------------------
 // CPUStatusWindow::CPUStatusWindow

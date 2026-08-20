@@ -166,7 +166,7 @@ class StackView : public BView
 
 	private:
 	bool fHasSelectedAddress = false;
-	uint16 fSelectedAddress = 0x01ff;
+	uint16 fSelectedAddress = 0x1ff;
 	
 	bool fHaveProcessedTraceCycle = false;
 	uint64 fLastProcessedTraceCycle = 0;

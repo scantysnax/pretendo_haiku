@@ -97,12 +97,13 @@ uint16_t instruction_ = 0;
 int cycle_            = 0;
 
 
-// debug trace / breakpoint state
+// Debug trace / breakpoint state.
 bool sExecutedInstructionAddress[0x10000] = {};
 bool sExecuteBreakpointAddress[0x10000] = {};
 
 bool sDebugBreakpointHit = false;
 uint16_t sDebugBreakpointHitAddress = 0x0000;
+uint16_t sDebugCurrentInstructionAddress = 0x0000;
 DebugBreakReason sDebugBreakReason = DEBUG_BREAK_NONE;
 
 bool sDebugSkipBreakpointOnce = false;
@@ -130,6 +131,15 @@ cpu_trace_entry_t sCPUTraceEntries[CPU_TRACE_CAPACITY] = {};
 uint32_t sCPUTraceNext = 0;
 uint32_t sCPUTraceCount = 0;
 static void record_cpu_trace_entry(uint16_t address);
+
+// watchpoints
+static bool sDebugReadWatchpointAddress[0x10000] = {};
+static bool sDebugWriteWatchpointAddress[0x10000] = {};
+
+static uint32_t sDebugReadWatchpointHitCount[0x10000] = {};
+static uint32_t sDebugWriteWatchpointHitCount[0x10000] = {};
+
+static uint16_t sDebugMemoryBreakAddress = 0x0000;
 
 
 // internal registers (which get trashed by instructions)
@@ -247,16 +257,9 @@ record_cpu_trace_entry(uint16_t address)
 static bool
 check_debug_stack_break()
 {
-	if (sDebugStackWrapBreakEnabled
-		&& sDebugHavePreviousBoundaryS) {
-		const int32_t delta
-			= static_cast<int32_t>(S)
-			- static_cast<int32_t>(
-				sDebugPreviousBoundaryS
-			);
-
-		const bool largeTransition
-			= delta < -128 || delta > 128;
+	if (sDebugStackWrapBreakEnabled && sDebugHavePreviousBoundaryS) {
+		const int32_t delta = static_cast<int32_t>(S) - static_cast<int32_t>(sDebugPreviousBoundaryS);
+		const bool largeTransition = delta < -128 || delta > 128;
 
 		/*
 		 * TXS ($9A) directly loads S from X.  Such a change is not a
@@ -268,25 +271,16 @@ check_debug_stack_break()
 		 * Do not apply these opcode exclusions when the previous CPU
 		 * operation was actually interrupt entry.
 		 */
-		const bool directSPAssignment
-			= !sDebugPreviousBoundaryWasInterrupt
-				&& (
-					sDebugPreviousBoundaryOpcode == 0x9a
-					|| sDebugPreviousBoundaryOpcode == 0x9b
-				);
+		const bool directSPAssignment = !sDebugPreviousBoundaryWasInterrupt
+				&& (sDebugPreviousBoundaryOpcode == 0x9a || sDebugPreviousBoundaryOpcode == 0x9b);
 
-		if (largeTransition
-			&& !directSPAssignment) {
-			sDebugStackBreakOldS
-				= sDebugPreviousBoundaryS;
-
-			sDebugStackBreakNewS
-				= S;
+		if (largeTransition && !directSPAssignment) {
+			sDebugStackBreakOldS = sDebugPreviousBoundaryS;
+			sDebugStackBreakNewS = S;
 
 			sDebugBreakpointHit = true;
 			sDebugBreakpointHitAddress = PC.raw;
-			sDebugBreakReason
-				= DEBUG_BREAK_STACK_WRAP;
+			sDebugBreakReason = DEBUG_BREAK_STACK_WRAP;
 
 			return true;
 		}
@@ -295,9 +289,7 @@ check_debug_stack_break()
 	/*
 	 * Wait until S has first moved above the SP-break threshold.
 	 */
-	if (sDebugStackSPBreakEnabled
-		&& sDebugStackSPBreakArmed
-		&& !sDebugStackSPBreakReady) {
+	if (sDebugStackSPBreakEnabled && sDebugStackSPBreakArmed && !sDebugStackSPBreakReady) {
 		if (S > sDebugStackSPBreakThreshold) {
 			sDebugStackSPBreakReady = true;
 		}
@@ -309,23 +301,15 @@ check_debug_stack_break()
 	 * Once ready, trigger only on a downward crossing through the
 	 * configured SP-break threshold.
 	 */
-	if (sDebugStackSPBreakEnabled
-		&& sDebugStackSPBreakArmed
-		&& sDebugStackSPBreakReady
-		&& sDebugHavePreviousBoundaryS
-		&& sDebugPreviousBoundaryS
-			> sDebugStackSPBreakThreshold
+	if (sDebugStackSPBreakEnabled && sDebugStackSPBreakArmed && sDebugStackSPBreakReady
+		&& sDebugHavePreviousBoundaryS && sDebugPreviousBoundaryS > sDebugStackSPBreakThreshold
 		&& S <= sDebugStackSPBreakThreshold) {
-		sDebugStackBreakOldS
-			= sDebugPreviousBoundaryS;
-
-		sDebugStackBreakNewS
-			= S;
+		sDebugStackBreakOldS = sDebugPreviousBoundaryS;
+		sDebugStackBreakNewS = S;
 
 		sDebugBreakpointHit = true;
 		sDebugBreakpointHitAddress = PC.raw;
-		sDebugBreakReason
-			= DEBUG_BREAK_STACK_SP;
+		sDebugBreakReason = DEBUG_BREAK_STACK_SP;
 
 		sDebugStackSPBreakArmed = false;
 		sDebugStackSPBreakReady = false;
@@ -416,6 +400,7 @@ void execute_opcode() {
 
 	using fptr_t = void (*)();
 
+	// instruction dispatch table
 	static const fptr_t table[] = {
 		opcode_brk::execute,
 		indexed_indirect<opcode_ora>::execute,
@@ -758,10 +743,6 @@ void clock() {
 
 }
 
-//------------------------------------------------------------------------------
-// Start Public Functions
-//------------------------------------------------------------------------------
-
 
 // -----------------------------------------------------------------------------
 // nes::cpu::tick
@@ -771,11 +752,17 @@ void clock() {
 // At instruction boundaries, debugger break conditions are checked before the
 // next CPU operation executes.
 //
-// After breakpoint checks pass, debugger state records the current stack
-// pointer and the operation that is about to execute.  On the next instruction
-// boundary, this information allows stack-wrap detection to determine whether a
-// large S transition came from ordinary stack activity or from a direct stack-
-// pointer assignment such as TXS.
+// After breakpoint checks pass, debugger state records the current instruction
+// address, stack pointer, and operation that is about to execute.
+//
+// The saved instruction address remains valid throughout the instruction and
+// allows memory READ/WRITE watchpoints to report the instruction responsible
+// for the access rather than the already-advanced PC.
+//
+// On the next instruction boundary, the saved stack information allows
+// stack-wrap detection to determine whether a large S transition came from
+// ordinary stack activity or from a direct stack-pointer assignment such as
+// TXS.
 //
 // Interrupt-entry state is recorded separately so a coincidental opcode byte at
 // PC cannot cause an interrupt-induced stack wrap to be mistaken for TXS/XAS.
@@ -809,14 +796,20 @@ tick()
 			if (sExecuteBreakpointAddress[PC.raw]) {
 				sDebugBreakpointHit = true;
 				sDebugBreakpointHitAddress = PC.raw;
-				sDebugBreakReason
-					= DEBUG_BREAK_EXECUTE;
+				sDebugBreakReason = DEBUG_BREAK_EXECUTE;
 
 				sExecuteBreakpointHitCount[PC.raw]++;
 
 				return;
 			}
 		}
+
+		/*
+		 * Preserve the starting address of the instruction that is about
+		 * to execute. PC may advance during opcode/address processing, but
+		 * memory watchpoints need the original instruction address.
+		 */
+		sDebugCurrentInstructionAddress = PC.raw;
 
 		sDebugPreviousBoundaryS = S;
 
@@ -910,11 +903,26 @@ void clear_nmi() {
 	nmi_asserted_ = false;
 }
 
-/**
- * @brief stop
- */
-void stop() {
-
+// -----------------------------------------------------------------------------
+// nes::cpu::stop
+//
+// Stops CPU execution and resets the processor's runtime state.
+//
+// CPU registers, interrupt state, DMA state, instruction-cycle state, and the
+// debugger's current-instruction address are returned to their initial values.
+//
+// The current debugger breakpoint-hit latch is also cleared so stale break
+// state cannot survive into a later CPU session.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+stop()
+{
 	A = 0;
 	X = 0;
 	Y = 0;
@@ -939,9 +947,12 @@ void stop() {
 	dmc_dma_source_address_ = 0;
 	dmc_dma_count_          = 0;
 	dmc_dma_delay_          = 0;
-	
-	debug_clear_breakpoint_hit();	
+
+	sDebugCurrentInstructionAddress = 0x0000;
+
+	debug_clear_breakpoint_hit();
 }
+
 
 /**
  * @brief reset
@@ -1077,11 +1088,7 @@ debug_instruction_was_executed(uint16_t address)
 void
 debug_clear_instruction_trace()
 {
-	std::fill(
-		sExecutedInstructionAddress,
-		sExecutedInstructionAddress + 0x10000,
-		false
-	);
+	std::fill(sExecutedInstructionAddress, (sExecutedInstructionAddress + 0x10000), false);
 }
 
 
@@ -1110,7 +1117,7 @@ debug_remove_execute_breakpoint(uint16_t address)
 	sExecuteBreakpointAddress[address] = false;
 	sExecuteBreakpointHitCount[address] = 0;
 
-	if (sDebugBreakpointHit && sDebugBreakpointHitAddress == address) {
+	if ((sDebugBreakpointHit && sDebugBreakpointHitAddress) == address) {
 		debug_clear_breakpoint_hit();
 	}
 }
@@ -1119,11 +1126,7 @@ debug_remove_execute_breakpoint(uint16_t address)
 void
 debug_clear_execute_breakpoints()
 {
-	std::fill(
-		sExecuteBreakpointAddress,
-		sExecuteBreakpointAddress + 0x10000,
-		false
-	);
+	std::fill(sExecuteBreakpointAddress, (sExecuteBreakpointAddress + 0x10000), false);
 
 	debug_clear_breakpoint_hit();
 	debug_clear_breakpoint_hit_counts();
@@ -1206,10 +1209,10 @@ debug_break_reason()
 // -----------------------------------------------------------------------------
 // nes::cpu::debug_clear_breakpoint_hit
 //
-// Clears the current debugger breakpoint-hit latch and its associated reason.
+// Clears the current debugger breakpoint-hit latch and its associated state.
 //
-// This does not remove execute breakpoints or disable configured stack break
-// conditions.
+// This does not remove execute BreakPoints, memory watchpoints, or configured
+// stack BreakPoint conditions.
 //
 // Parameters:
 //   None.
@@ -1222,6 +1225,7 @@ debug_clear_breakpoint_hit()
 {
 	sDebugBreakpointHit = false;
 	sDebugBreakpointHitAddress = 0x0000;
+	sDebugMemoryBreakAddress = 0x0000;
 	sDebugBreakReason = DEBUG_BREAK_NONE;
 }
 
@@ -1245,12 +1249,21 @@ debug_skip_breakpoint_once()
 	sDebugSkipBreakpointOnce = true;
 }
 
+
 // -----------------------------------------------------------------------------
 // nes::cpu::debug_resume_past_breakpoint
 //
-// Prepares execution to continue from a latched execute breakpoint.  The next
-// instruction-boundary breakpoint check is skipped once so the CPU can execute
-// the breakpoint instruction instead of immediately re-triggering the same hit.
+// Clears the currently latched debugger stop and prepares CPU execution to
+// continue.
+//
+// Execute and stack BreakPoints occur at an instruction boundary.  Resuming from
+// those conditions skips debugger break checks once so execution can move past
+// the condition without immediately re-triggering it.
+//
+// Memory READ/WRITE watchpoints occur during an instruction after execution has
+// already begun.  Their instruction has therefore already advanced far enough
+// to perform the watched access, so the following instruction boundary must not
+// be skipped.
 //
 // Parameters:
 //   None.
@@ -1265,9 +1278,37 @@ debug_resume_past_breakpoint()
 		return;
 	}
 
-	sDebugSkipBreakpointOnce = true;
+	switch (sDebugBreakReason) {
+		case DEBUG_BREAK_EXECUTE:
+		case DEBUG_BREAK_STACK_SP:
+		case DEBUG_BREAK_STACK_WRAP:
+			/*
+			 * These conditions stop at an instruction boundary.  Skip the
+			 * debugger checks once so execution can move beyond the condition
+			 * that caused the stop.
+			 */
+			sDebugSkipBreakpointOnce = true;
+			break;
+
+		case DEBUG_BREAK_MEMORY_READ:
+		case DEBUG_BREAK_MEMORY_WRITE:
+			/*
+			 * A memory watchpoint fired during an instruction.  Do not skip
+			 * the next instruction boundary; debugger instruction tracking
+			 * must immediately resume there.
+			 */
+			sDebugSkipBreakpointOnce = false;
+			break;
+
+		case DEBUG_BREAK_NONE:
+		default:
+			sDebugSkipBreakpointOnce = false;
+			break;
+	}
+
 	debug_clear_breakpoint_hit();
 }
+
 
 // -----------------------------------------------------------------------------
 // nes::cpu::debug_breakpoint_hit_count
@@ -1302,11 +1343,7 @@ debug_breakpoint_hit_count(uint16_t address)
 void
 debug_clear_breakpoint_hit_counts()
 {
-	std::fill(
-		sExecuteBreakpointHitCount,
-		sExecuteBreakpointHitCount + 0x10000,
-		0
-	);
+	std::fill(sExecuteBreakpointHitCount, (sExecuteBreakpointHitCount + 0x10000), 0);
 }
 
 // -----------------------------------------------------------------------------
@@ -1464,10 +1501,7 @@ debug_stack_break_new_s()
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-debug_set_stack_sp_break(
-	bool enabled,
-	uint8_t threshold
-)
+debug_set_stack_sp_break(bool enabled, uint8_t threshold)
 {
 	sDebugStackSPBreakEnabled = enabled;
 	sDebugStackSPBreakThreshold = threshold;
@@ -1579,5 +1613,376 @@ debug_stack_sp_break_armed()
 	return sDebugStackSPBreakArmed;
 }
 
+// -----------------------------------------------------------------------------
+// nes::cpu::debug_add_read_watchpoint
+//
+// Enables a CPU-memory read watchpoint at an address.
+//
+// Parameters:
+//   address - CPU address whose reads should stop execution.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+debug_add_read_watchpoint(uint16_t address)
+{
+	sDebugReadWatchpointAddress[address] = true;
+	sDebugReadWatchpointHitCount[address] = 0;
+}
+
+
+// -----------------------------------------------------------------------------
+// nes::cpu::debug_remove_read_watchpoint
+//
+// Removes a CPU-memory read watchpoint.
+//
+// Parameters:
+//   address - CPU address whose read watchpoint should be removed.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+debug_remove_read_watchpoint(uint16_t address)
+{
+	sDebugReadWatchpointAddress[address] = false;
+}
+
+
+// -----------------------------------------------------------------------------
+// nes::cpu::debug_clear_read_watchpoints
+//
+// Removes all CPU-memory read watchpoints.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+debug_clear_read_watchpoints()
+{
+	std::fill(sDebugReadWatchpointAddress, (sDebugReadWatchpointAddress + 0x10000), false);
+}
+
+
+// -----------------------------------------------------------------------------
+// nes::cpu::debug_has_read_watchpoint
+//
+// Returns whether a CPU-memory read watchpoint exists at an address.
+//
+// Parameters:
+//   address - CPU address to query.
+//
+// Returns:
+//   true if reads from the address should break execution.
+// -----------------------------------------------------------------------------
+bool
+debug_has_read_watchpoint(uint16_t address)
+{
+	return sDebugReadWatchpointAddress[address];
+}
+
+
+// -----------------------------------------------------------------------------
+// nes::cpu::debug_add_write_watchpoint
+//
+// Enables a CPU-memory write watchpoint at an address.
+//
+// Parameters:
+//   address - CPU address whose writes should stop execution.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+debug_add_write_watchpoint(uint16_t address)
+{
+	sDebugWriteWatchpointAddress[address] = true;
+	sDebugWriteWatchpointHitCount[address] = 0;
+}
+
+
+// -----------------------------------------------------------------------------
+// nes::cpu::debug_remove_write_watchpoint
+//
+// Removes a CPU-memory write watchpoint.
+//
+// Parameters:
+//   address - CPU address whose write watchpoint should be removed.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+debug_remove_write_watchpoint(uint16_t address)
+{
+	sDebugWriteWatchpointAddress[address] = false;
+}
+
+
+// -----------------------------------------------------------------------------
+// nes::cpu::debug_clear_write_watchpoints
+//
+// Removes all CPU-memory write watchpoints.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+debug_clear_write_watchpoints()
+{
+	std::fill(sDebugWriteWatchpointAddress, (sDebugWriteWatchpointAddress + 0x10000), false);
+}
+
+
+// -----------------------------------------------------------------------------
+// nes::cpu::debug_has_write_watchpoint
+//
+// Returns whether a CPU-memory write watchpoint exists at an address.
+//
+// Parameters:
+//   address - CPU address to query.
+//
+// Returns:
+//   true if writes to the address should break execution.
+// -----------------------------------------------------------------------------
+bool
+debug_has_write_watchpoint(uint16_t address)
+{
+	return sDebugWriteWatchpointAddress[address];
+}
+
+
+// -----------------------------------------------------------------------------
+// debug_read_watchpoint_hit_count
+//
+// Returns the number of times the specified READ watchpoint has been hit.
+//
+// Parameters:
+//   address - CPU memory address to query.
+//
+// Returns:
+//   Number of recorded READ-watchpoint hits for the address.
+// -----------------------------------------------------------------------------
+uint32_t
+debug_read_watchpoint_hit_count(uint16_t address)
+{
+	return sDebugReadWatchpointHitCount[address];
+}
+
+
+// -----------------------------------------------------------------------------
+// debug_write_watchpoint_hit_count
+//
+// Returns the number of times the specified WRITE watchpoint has been hit.
+//
+// Parameters:
+//   address - CPU memory address to query.
+//
+// Returns:
+//   Number of recorded WRITE-watchpoint hits for the address.
+// -----------------------------------------------------------------------------
+uint32_t
+debug_write_watchpoint_hit_count(uint16_t address)
+{
+	return sDebugWriteWatchpointHitCount[address];
+}
+
+
+// -----------------------------------------------------------------------------
+// debug_clear_read_watchpoint_hit_count
+//
+// Clears the accumulated READ-watchpoint hit count for one address.
+//
+// Parameters:
+//   address - CPU memory address whose counter should be cleared.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+debug_clear_read_watchpoint_hit_count(uint16_t address)
+{
+	sDebugReadWatchpointHitCount[address] = 0;
+}
+
+
+// -----------------------------------------------------------------------------
+// debug_clear_write_watchpoint_hit_count
+//
+// Clears the accumulated WRITE-watchpoint hit count for one address.
+//
+// Parameters:
+//   address - CPU memory address whose counter should be cleared.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+debug_clear_write_watchpoint_hit_count(uint16_t address)
+{
+	sDebugWriteWatchpointHitCount[address] = 0;
+}
+
+
+// -----------------------------------------------------------------------------
+// debug_clear_all_read_watchpoint_hit_counts
+//
+// Clears the accumulated hit counts for all CPU READ watchpoint addresses.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+debug_clear_all_read_watchpoint_hit_counts()
+{
+	for (uint32_t address = 0x0000;
+		address <= 0xffff;
+		address++) {
+
+		sDebugReadWatchpointHitCount[address] = 0;
+	}
+}
+
+
+// -----------------------------------------------------------------------------
+// debug_clear_all_write_watchpoint_hit_counts
+//
+// Clears the accumulated hit counts for all CPU WRITE watchpoint addresses.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+debug_clear_all_write_watchpoint_hit_counts()
+{
+	for (uint32_t address = 0x0000;
+		address <= 0xffff;
+		address++) {
+
+		sDebugWriteWatchpointHitCount[address] = 0;
+	}
+}
+
+
+// -----------------------------------------------------------------------------
+// debug_check_memory_read
+//
+// Checks whether a CPU memory READ should trigger a debugger watchpoint.
+//
+// If a READ watchpoint exists for the supplied address, its hit counter is
+// incremented and the debugger break state is updated.
+//
+// The breakpoint hit address records the starting PC of the instruction that
+// performed the memory access rather than the CPU's already-advanced PC.
+//
+// Parameters:
+//   address - CPU memory address being read.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+debug_check_memory_read(uint16_t address)
+{
+	if (!sDebugReadWatchpointAddress[address]) {
+		return;
+	}
+
+	sDebugReadWatchpointHitCount[address]++;
+
+	sDebugBreakpointHit = true;
+	sDebugBreakpointHitAddress = sDebugCurrentInstructionAddress;
+	sDebugMemoryBreakAddress = address;
+	sDebugBreakReason = DEBUG_BREAK_MEMORY_READ;
+}
+
+
+// -----------------------------------------------------------------------------
+// debug_check_memory_write
+//
+// Checks whether a CPU memory WRITE should trigger a debugger watchpoint.
+//
+// If a WRITE watchpoint exists for the supplied address, its hit counter is
+// incremented and the debugger break state is updated.
+//
+// The breakpoint hit address records the starting PC of the instruction that
+// performed the memory access rather than the CPU's already-advanced PC.
+//
+// Parameters:
+//   address - CPU memory address being written.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+debug_check_memory_write(uint16_t address)
+{
+	if (!sDebugWriteWatchpointAddress[address]) {
+		return;
+	}
+
+	sDebugWriteWatchpointHitCount[address]++;
+
+	sDebugBreakpointHit = true;
+	sDebugBreakpointHitAddress = sDebugCurrentInstructionAddress;
+	sDebugMemoryBreakAddress = address;
+	sDebugBreakReason = DEBUG_BREAK_MEMORY_WRITE;
+}
+
+
+// -----------------------------------------------------------------------------
+// nes::cpu::debug_memory_break_address
+//sf
+// Returns the CPU-memory address responsible for the current memory
+// read/write debugger break.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   CPU address associated with the most recent memory watchpoint hit.
+// -----------------------------------------------------------------------------
+uint16_t
+debug_memory_break_address()
+{
+	return sDebugMemoryBreakAddress;
+}
+
+
+// -----------------------------------------------------------------------------
+// nes::cpu::debug_reset_in_progress
+//
+// Returns whether the CPU is currently processing or waiting to process a
+// reset sequence.
+//
+// This allows debugger views to distinguish a valid runtime PC from the
+// temporary PC value present before the reset vector has been loaded.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   true if reset is asserted or currently executing.
+// -----------------------------------------------------------------------------
+bool
+debug_reset_in_progress()
+{
+	return rst_asserted_ || rst_executing_;
+}
+
 
 }
+

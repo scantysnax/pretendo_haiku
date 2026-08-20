@@ -4,8 +4,10 @@
 
 #include <Window.h>
 
+#include "CPUDisasmView.h"
+#include "PretendoWindow.h"
 
-class PretendoWindow;
+
 class CPUDisasmView;
 
 

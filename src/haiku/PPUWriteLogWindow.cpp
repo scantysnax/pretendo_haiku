@@ -1,9 +1,6 @@
 
 #include "PPUWriteLogWindow.h"
 
-#include "PPUWriteLogView.h"
-#include "PretendoWindow.h"
-
 
 // -----------------------------------------------------------------------------
 // PPUWriteLogWindow::PPUWriteLogWindow
@@ -25,10 +22,7 @@ PPUWriteLogWindow::PPUWriteLogWindow (PretendoWindow *parent)
 				B_NOT_RESIZABLE | B_NOT_ZOOMABLE)
 {
 	fParent = parent;
-
-	BRect viewFrame = Bounds();
-
-	fView = new PPUWriteLogView(viewFrame, parent);
+	fView = new PPUWriteLogView(Bounds(), parent);
 	AddChild(fView);
 
 	SetPulseRate(16667);

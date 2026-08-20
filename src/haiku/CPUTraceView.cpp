@@ -15,14 +15,7 @@ class CPUTraceScrollBar : public BScrollBar
 {
 	public:
 	CPUTraceScrollBar (BRect frame, const char *name, CPUTraceView *owner)
-		: BScrollBar(
-			frame,
-			name,
-			nullptr,
-			0.0f,
-			0.0f,
-			B_VERTICAL
-		),
+		: BScrollBar(frame, name, nullptr, 0.0f, 0.0f, B_VERTICAL),
 		fOwner(owner)
 	{
 	}
@@ -52,21 +45,12 @@ class CPUTraceScrollBar : public BScrollBar
 // Returns:
 //   Constructor; no return value.
 // -----------------------------------------------------------------------------
-CPUTraceView::CPUTraceView(BRect frame, PretendoWindow *parent)
+CPUTraceView::CPUTraceView (BRect frame, PretendoWindow *parent)
 	: BView(
-		frame,
-		"cpu trace view",
-		B_FOLLOW_ALL,
-		B_WILL_DRAW | B_PULSE_NEEDED | B_NAVIGABLE
-	)
+		frame, "cpu trace view", B_FOLLOW_ALL, B_WILL_DRAW | B_PULSE_NEEDED | B_NAVIGABLE)
 {
 	fParent = parent;
-
-	fScrollBar = new CPUTraceScrollBar(
-		BRect(0.0f, 0.0f, 0.0f, 0.0f),
-		"cpu trace scroll",
-		this
-	);
+	fScrollBar = new CPUTraceScrollBar(BRect(0.0f, 0.0f, 0.0f, 0.0f), "cpu trace scroll", this);
 
 	AddChild(fScrollBar);
 }
@@ -532,10 +516,7 @@ CPUTraceView::DrawHeaderPanel()
 	FillRect(panel);
 
 	SetHighColor(170, 170, 170);
-	StrokeLine(
-		BPoint(panel.left, panel.bottom),
-		BPoint(panel.right, panel.bottom)
-	);
+	StrokeLine(BPoint(panel.left, panel.bottom), BPoint(panel.right, panel.bottom));
 
 	BFont prevFont;
 	GetFont(&prevFont);
@@ -546,7 +527,6 @@ CPUTraceView::DrawHeaderPanel()
 	SetFont(&normal);
 
 	BString s;
-
 	const uint32 liveCount = nes::cpu::debug_cpu_trace_count();
 	const uint32 displayCount = TraceDisplayCount();
 	const uint32 capacity = nes::cpu::debug_cpu_trace_capacity();
@@ -554,17 +534,13 @@ CPUTraceView::DrawHeaderPanel()
 	SetHighColor(0, 0, 0);
 
 	if (fFreezeUpdates) {
-		s.SetToFormat(
-			"CPU Trace: frozen snapshot   entries %lu / %lu",
-			static_cast<unsigned long>(displayCount),
-			static_cast<unsigned long>(capacity)
-		);
+		s.SetToFormat("CPU Trace: frozen snapshot   entries %lu / %lu",
+						static_cast<unsigned long>(displayCount),
+						static_cast<unsigned long>(capacity));
 	} else {
-		s.SetToFormat(
-			"CPU Trace: live   entries %lu / %lu",
-			static_cast<unsigned long>(liveCount),
-			static_cast<unsigned long>(capacity)
-		);
+		s.SetToFormat("CPU Trace: live   entries %lu / %lu",
+						static_cast<unsigned long>(liveCount),
+						static_cast<unsigned long>(capacity));
 	}
 
 	DrawString(s.String(), BPoint(panel.left + 10.0f, panel.top + 20.0f));
@@ -594,19 +570,13 @@ CPUTraceView::DrawHeaderPanel()
 
 	if (fFreezeUpdates) {
 		SetHighColor(90, 90, 90);
-		s.SetToFormat(
-			"live buffer %lu",
-			static_cast<unsigned long>(liveCount)
-		);
+		s.SetToFormat("live buffer %lu", static_cast<unsigned long>(liveCount));
 		DrawString(s.String(), BPoint(x, y));
 	}
 
 	SetHighColor(70, 70, 70);
-	DrawString(
-		"Space Freeze/Live   C Clear   End Newest   D/Enter Disassmebly   "
-		"Arrows/Page Up/Page Down/Wheel Scroll",
-		BPoint(panel.left + 10.0f, panel.top + 64.0f)
-	);
+	DrawString("Space Freeze/Live   C Clear   End Newest   D/Enter Disassmebly   "
+				"Arrows/Page Up/Page Down/Wheel Scroll", BPoint(panel.left + 10.0f, panel.top + 64.0f));
 
 	SetFont(&prevFont);
 }
@@ -633,13 +603,7 @@ CPUTraceView::DrawTracePanel()
 		? fScrollBar->Frame().left - 4.0f
 		: Bounds().right - 4.0f;
 
-	BRect panel(
-		4.0f,
-		80.0f,
-		rightEdge,
-		Bounds().bottom - 8.0f
-	);
-
+	BRect panel(4.0f, 80.0f, rightEdge, Bounds().bottom - 8.0f);
 	::DrawDebugPanel(this, panel, "Executed Instructions");
 
 	if (!HasROMLoaded()) {
@@ -682,10 +646,7 @@ CPUTraceView::DrawTracePanel()
 	y += lineH + 8.0f;
 
 	SetHighColor(120, 120, 120);
-	StrokeLine(
-		BPoint(panel.left + 8.0f, y - 8.0f),
-		BPoint(panel.right - 8.0f, y - 8.0f)
-	);
+	StrokeLine(BPoint(panel.left + 8.0f, y - 8.0f), BPoint(panel.right - 8.0f, y - 8.0f));
 
 	y += 4.0f;
 
@@ -700,25 +661,15 @@ CPUTraceView::DrawTracePanel()
 		SetHighColor(90, 90, 90);
 
 		if (fFreezeUpdates) {
-			DrawString(
-				"Frozen snapshot is empty.",
-				BPoint(panel.left + 12.0f, y + lineH)
-			);
+			DrawString("Frozen snapshot is empty.", BPoint(panel.left + 12.0f, y + lineH));
 		} else {
-			DrawString(
-				"No CPU trace entries yet.",
-				BPoint(panel.left + 12.0f, y + lineH)
-			);
+			DrawString("No CPU trace entries yet.", BPoint(panel.left + 12.0f, y + lineH));
 		}
 
 		SetFont(&prevFont);
 
 		SetHighColor(170, 170, 170);
-		StrokeLine(
-			BPoint(panel.left + 8.0f, inspectorTop - 4.0f),
-			BPoint(panel.right - 8.0f, inspectorTop - 4.0f)
-		);
-
+		StrokeLine(BPoint(panel.left + 8.0f, inspectorTop - 4.0f), BPoint(panel.right - 8.0f, inspectorTop - 4.0f));
 		DrawSelectedTraceInfo(panel);
 		return;
 	}
@@ -765,15 +716,8 @@ CPUTraceView::DrawTracePanel()
 		}
 
 		const bool newest = traceIndex + 1 == count;
-		const bool selected = fHasSelectedTraceIndex
-			&& fSelectedTraceIndex == traceIndex;
-
-		BRect rowRect(
-			panel.left + 8.0f,
-			y - 11.0f,
-			panel.right - 8.0f,
-			y + 3.0f
-		);
+		const bool selected = fHasSelectedTraceIndex && (fSelectedTraceIndex == traceIndex);
+		BRect rowRect(panel.left + 8.0f, y - 11.0f, panel.right - 8.0f, y + 3.0f);
 
 		if (selected) {
 			SetHighColor(190, 215, 245);
@@ -787,10 +731,7 @@ CPUTraceView::DrawTracePanel()
 		}
 
 		SetHighColor(80, 80, 80);
-		s.SetToFormat(
-			"%llu",
-			static_cast<unsigned long long>(entry.cycle)
-		);
+		s.SetToFormat("%llu", static_cast<unsigned long long>(entry.cycle));
 		DrawString(s.String(), BPoint(cycleX, y));
 
 		s.SetToFormat("%lu", static_cast<unsigned long>(traceIndex));
@@ -819,14 +760,12 @@ CPUTraceView::DrawTracePanel()
 		DrawString(instr.String(), BPoint(instrX, y));
 
 		SetHighColor(50, 50, 50);
-		s.SetToFormat(
-			"%02X %02X %02X %02X %02X",
+		s.SetToFormat("%02X %02X %02X %02X %02X",
 			entry.a,
 			entry.x,
 			entry.y,
 			entry.s,
-			entry.p
-		);
+			entry.p);
 		DrawString(s.String(), BPoint(regX, y));
 
 		y += lineH;
@@ -835,10 +774,7 @@ CPUTraceView::DrawTracePanel()
 	SetFont(&prevFont);
 
 	SetHighColor(170, 170, 170);
-	StrokeLine(
-		BPoint(panel.left + 8.0f, inspectorTop - 4.0f),
-		BPoint(panel.right - 8.0f, inspectorTop - 4.0f)
-	);
+	StrokeLine(BPoint(panel.left + 8.0f, inspectorTop - 4.0f), BPoint(panel.right - 8.0f, inspectorTop - 4.0f));
 
 	DrawSelectedTraceInfo(panel);
 }
@@ -892,12 +828,7 @@ CPUTraceView::DrawSelectedTraceInfo (BRect panel)
 	BString instruction;
 
 	if (!SelectedTraceEntry(entry, instruction)) {
-		drawNormal(
-			"Click a trace row to inspect it.",
-			x,
-			y + 18.0f,
-			rgb_color{90, 90, 90, 255}
-		);
+		drawNormal("Click a trace row to inspect it.", x, y + 18.0f, rgb_color{90, 90, 90, 255});
 
 		SetFont(&prevFont);
 		return;
@@ -929,12 +860,8 @@ CPUTraceView::DrawSelectedTraceInfo (BRect panel)
 	y += 16.0f;
 
 	drawNormal("Cycle:", labelX, y, rgb_color{0, 0, 0, 255});
-	s.SetToFormat(
-		"%llu",
-		static_cast<unsigned long long>(entry.cycle)
-	);
+	s.SetToFormat("%llu", static_cast<unsigned long long>(entry.cycle));
 	drawFixed(s.String(), valueX, y, rgb_color{0, 0, 0, 255});
-
 	drawNormal("Bytes:", col2X, y, rgb_color{0, 0, 0, 255});
 
 	BString bytes;
@@ -954,12 +881,12 @@ CPUTraceView::DrawSelectedTraceInfo (BRect panel)
 	}
 
 	drawFixed(bytes.String(), col2ValueX, y, rgb_color{0, 0, 0, 255});
-
 	drawNormal("X:", col3X, y, rgb_color{0, 0, 0, 255});
+	
 	s.SetToFormat("$%02X", entry.x);
 	drawFixed(s.String(), col3ValueX, y, rgb_color{0, 0, 0, 255});
-
 	drawNormal("Y:", col3X + 76.0f, y, rgb_color{0, 0, 0, 255});
+	
 	s.SetToFormat("$%02X", entry.y);
 	drawFixed(s.String(), col3X + 102.0f, y, rgb_color{0, 0, 0, 255});
 
@@ -967,12 +894,12 @@ CPUTraceView::DrawSelectedTraceInfo (BRect panel)
 
 	drawNormal("Instruction:", labelX, y, rgb_color{0, 0, 0, 255});
 	drawFixed(instruction.String(), valueX, y, rgb_color{0, 0, 0, 255});
-
 	drawNormal("S:", col3X, y, rgb_color{0, 0, 0, 255});
+	
 	s.SetToFormat("$%02X", entry.s);
 	drawFixed(s.String(), col3ValueX, y, rgb_color{0, 0, 0, 255});
-
 	drawNormal("P:", col3X + 76.0f, y, rgb_color{0, 0, 0, 255});
+	
 	s.SetToFormat("$%02X", entry.p);
 	drawFixed(s.String(), col3X + 102.0f, y, rgb_color{0, 0, 0, 255});
 
@@ -995,10 +922,7 @@ void
 CPUTraceView::DrawNoROMMessage (BRect panel)
 {
 	SetHighColor(80, 80, 80);
-	DrawString(
-		"Load a ROM to view CPU execution trace.",
-		BPoint(panel.left + 12.0f, panel.top + 40.0f)
-	);
+	DrawString("Load a ROM to view CPU execution trace.", BPoint(panel.left + 12.0f, panel.top + 40.0f));
 }
 
 
@@ -1099,8 +1023,7 @@ CPUTraceView::TraceDisplayCount() const
 //   true if an entry was available.
 // -----------------------------------------------------------------------------
 bool
-CPUTraceView::TraceDisplayEntry(uint32 index,
-	nes::cpu::cpu_trace_entry_t& entry) const
+CPUTraceView::TraceDisplayEntry (uint32 index, nes::cpu::cpu_trace_entry_t& entry) const
 {
 	if (fFreezeUpdates) {
 		if (index >= fFrozenEntries.size()) {
@@ -1211,11 +1134,7 @@ CPUTraceView::TraceDisplayInstruction(uint32 index, BString& instruction) const
 	CPUDisasmLine line = DisassembleCPU(entry.pc);
 
 	if (line.operand.Length() > 0) {
-		instruction.SetToFormat(
-			"%s %s",
-			line.mnemonic.String(),
-			line.operand.String()
-		);
+		instruction.SetToFormat("%s %s", line.mnemonic.String(), line.operand.String());
 	} else {
 		instruction.SetTo(line.mnemonic);
 	}
@@ -1242,13 +1161,8 @@ CPUTraceView::TraceIndexForPoint(BPoint where, uint32 &index) const
 		? fScrollBar->Frame().left - 4.0f
 		: Bounds().right - 4.0f;
 
-	BRect panel(
-		4.0f,
-		80.0f,
-		rightEdge,
-		Bounds().bottom - 8.0f
-	);
-
+	BRect panel(4.0f, 80.0f, rightEdge, Bounds().bottom - 8.0f);
+	
 	if (!panel.Contains(where)) {
 		return false;
 	}
@@ -1296,7 +1210,7 @@ CPUTraceView::TraceIndexForPoint(BPoint where, uint32 &index) const
 		const float rowTop = y - 11.0f;
 		const float rowBottom = y + 3.0f;
 
-		if (where.y >= rowTop && where.y <= rowBottom) {
+		if (where.y >= rowTop && (where.y <= rowBottom)) {
 			index = traceIndex;
 			return true;
 		}
@@ -1348,11 +1262,7 @@ CPUTraceView::CaptureSnapshot()
 		frozenEntry.trace = entry;
 
 		if (line.operand.Length() > 0) {
-			frozenEntry.instruction.SetToFormat(
-				"%s %s",
-				line.mnemonic.String(),
-				line.operand.String()
-			);
+			frozenEntry.instruction.SetToFormat("%s %s", line.mnemonic.String(), line.operand.String());
 		} else {
 			frozenEntry.instruction.SetTo(line.mnemonic);
 		}
@@ -1411,13 +1321,7 @@ CPUTraceView::LayoutScrollBar()
 	}
 
 	const float scrollBarWidth = B_V_SCROLL_BAR_WIDTH;
-
-	BRect frame(
-		Bounds().right - scrollBarWidth,
-		80.0f,
-		Bounds().right,
-		Bounds().bottom - 8.0f
-	);
+	BRect frame(Bounds().right - scrollBarWidth, 80.0f, Bounds().right, Bounds().bottom - 8.0f);
 
 	fScrollBar->MoveTo(frame.LeftTop());
 	fScrollBar->ResizeTo(frame.Width(), frame.Height());
@@ -1462,9 +1366,7 @@ CPUTraceView::UpdateScrollBar()
 	fScrollBar->SetRange(0.0f, static_cast<float>(maxBase));
 	fScrollBar->SetSteps(1.0f, static_cast<float>(visibleRows));
 	fScrollBar->SetProportion(count > 0
-		? static_cast<float>(visibleRows) / static_cast<float>(count)
-		: 1.0f
-	);
+							? static_cast<float>(visibleRows) / static_cast<float>(count) : 1.0f);
 	fScrollBar->SetValue(static_cast<float>(fBaseTraceIndex));
 
 	fUpdatingScrollBar = false;
@@ -1545,13 +1447,7 @@ CPUTraceView::VisibleTraceRows() const
 		? fScrollBar->Frame().left - 4.0f
 		: Bounds().right - 4.0f;
 
-	BRect panel(
-		4.0f,
-		80.0f,
-		rightEdge,
-		Bounds().bottom - 8.0f
-	);
-
+	BRect panel(4.0f, 80.0f, rightEdge, Bounds().bottom - 8.0f);
 	const float inspectorHeight = 82.0f;
 	const float inspectorTop = panel.bottom - inspectorHeight;
 	const float tableBottom = inspectorTop - 8.0f;

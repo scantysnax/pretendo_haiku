@@ -5,6 +5,16 @@
 #include <String.h>
 #include <View.h>
 
+#include <cmath>
+
+#include "CPUDisasm.h"
+#include "DebugHelpers.h"
+#include "PretendoWindow.h"
+
+#include "Bus.h"
+#include "Cart.h"
+#include "Cpu.h"
+
 
 struct CPUDisasmLine;
 

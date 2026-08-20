@@ -116,6 +116,8 @@ CPP_FILES := \
 	\
 	src/haiku/AboutWindow.cpp \
 	src/haiku/AudioStream.cpp \
+	src/haiku/BreakPointView.cpp \
+	src/haiku/BreakPointWindow.cpp \
 	src/haiku/CHRExplorerView.cpp \
 	src/haiku/CPUDisasm.cpp \
 	src/haiku/CPUDisasmView.cpp \

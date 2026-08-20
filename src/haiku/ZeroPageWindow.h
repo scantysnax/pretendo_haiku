@@ -6,7 +6,6 @@
 #include "ZeroPageView.h"
 
 
-class PretendoWindow;
 class ZeroPageView;
 
 

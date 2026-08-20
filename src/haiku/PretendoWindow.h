@@ -17,6 +17,7 @@
 #include <cstdio>
 
 #include "AudioStream.h"
+#include "BreakPointWindow.h"
 #include "Controller.h"
 #include "CPUDisasmView.h"
 #include "CPUDisasmWindow.h"
@@ -39,6 +40,7 @@
 #include "ROMFilePanel.h"
 #include "ROMInfoWindow.h"
 #include "VideoScreen.h"
+#include "StackWindow.h"
 #include "ZeroPageWindow.h"
 
 #include "Apu.h"
@@ -54,7 +56,7 @@
 #include "asm/blitters.h"
 #include "asm/copies.h"
 
-
+class BreakPointWindow;
 class CPUTraceWindow;
 class CPUDisasmWindow;
 class CPUMemoryWindow;
@@ -131,7 +133,8 @@ class PretendoWindow : public BWindow
 		VIEW_CPUMEM = 		'CPUM',
 		VIEW_CPUTRACE = 	'CPUT',
 		VIEW_ZERO_PAGE = 	'ZPAG',
-		VIEW_STACK = 		'VSTK'
+		VIEW_STACK = 		'VSTK',
+		VIEW_BREAKPOINTS =	'BRPT'
 	} messages;	
 	
 	private:
@@ -227,6 +230,7 @@ class PretendoWindow : public BWindow
 	void OnViewCPUTraceWindow();
 	void OnViewStackWindow();
 	void OnViewZeroPageWindow();
+	void OnViewBreakPointWindow();
 
 	// video stuff
 	private:
@@ -355,6 +359,7 @@ class PretendoWindow : public BWindow
 	CPUTraceWindow *fCPUTraceWindow = nullptr;
 	StackWindow *fStackWindow = nullptr;
 	ZeroPageWindow *fZeroPageWindow = nullptr;
+	BreakPointWindow *fBreakPointWindow = nullptr;
 
 	private:
 	BString fROMDirectory = nullptr;
@@ -413,6 +418,7 @@ class PretendoWindow : public BWindow
 	void DebugResumeExecution();
 	void DebugStepFrame();
 	void InvalidateDebugViews();
+	void JumpCPUDisasmToAddress (uint16 address);
 	
 	private:
 	void StartEmulatorForRunning();
@@ -421,7 +427,8 @@ class PretendoWindow : public BWindow
 	bool fDebuggerPausedEmulation = false;
 	
 	public:
-	void JumpCPUDisasmToAddress (uint16 address);
+	bool IsEmulatorRunning() const;
+	bool IsEmulatorPaused() const;
 	
 	// close callbacks    
     public:
@@ -445,6 +452,7 @@ class PretendoWindow : public BWindow
 	void CPUTraceWindowClosed();
 	void StackWindowClosed();
 	void ZeroPageWindowClosed();
+	void BreakPointWindowClosed();
     
     public:
 	void HighlightPaletteDebugger (bool sprites, int32 palette, int32 entry = -1);

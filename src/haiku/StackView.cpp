@@ -15,11 +15,7 @@
 //   Constructor; no return value.
 // -----------------------------------------------------------------------------
 StackView::StackView (BRect frame, PretendoWindow *parent)
-	: BView(
-		frame,
-		"stack view",
-		B_FOLLOW_ALL,
-		B_WILL_DRAW | B_PULSE_NEEDED | B_NAVIGABLE),
+	: BView(frame, "stack view", B_FOLLOW_ALL, B_WILL_DRAW | B_PULSE_NEEDED | B_NAVIGABLE),
 		fParent(parent)
 {
 	(void)fParent;
@@ -93,13 +89,7 @@ StackView::Draw(BRect updateRect)
 	DrawHeaderUI();
 
 	if (!HasROMLoaded()) {
-		BRect panel(
-			4.0f,
-			88.0f,
-			Bounds().right - 4.0f,
-			Bounds().bottom - 8.0f
-		);
-
+		BRect panel(4.0f, 88.0f, Bounds().right - 4.0f, Bounds().bottom - 8.0f);
 		::DrawDebugPanel(this, panel, "CPU Stack");
 		DrawNoROMMessage(panel);
 		return;
@@ -132,7 +122,7 @@ StackView::Draw(BRect updateRect)
 //   K      - Toggle possible call stack.
 //   B      - Toggle SP-threshold break.
 //   [ / ]  - Adjust SP break threshold.
-//   W      - Toggle stack-wrap break.
+//   S      - Toggle stack-wrap break.
 //   R      - Refresh stack snapshot.
 //   C      - Clear stack history.
 //   Space  - Freeze/resume StackView snapshots.
@@ -148,7 +138,7 @@ StackView::Draw(BRect updateRect)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-StackView::KeyDown (const char *bytes, int32 numBytes)
+StackView::KeyDown(const char *bytes, int32 numBytes)
 {
 	if (!bytes || numBytes <= 0) {
 		return;
@@ -162,11 +152,46 @@ StackView::KeyDown (const char *bytes, int32 numBytes)
 	switch (bytes[0]) {
 		case ' ':
 			fFreezeUpdates = !fFreezeUpdates;
+			Invalidate();
+			break;
 
-			if (fFreezeUpdates) {
-				CaptureStackSnapshot();
+		case B_LEFT_ARROW:
+			if (fHasSelectedAddress) {
+				MoveSelection(-1);
 			}
+			fFollowStackPointer = false;
+			fShowStackHistory = false;
+			fShowPossibleCallStack = false;
+			Invalidate();
+			break;
 
+		case B_RIGHT_ARROW:
+			if (fHasSelectedAddress) {
+				MoveSelection(1);
+			}
+			fFollowStackPointer = false;
+			fShowStackHistory = false;
+			fShowPossibleCallStack = false;
+			Invalidate();
+			break;
+
+		case B_UP_ARROW:
+			if (fHasSelectedAddress) {
+				MoveSelection(-16);
+			}
+			fFollowStackPointer = false;
+			fShowStackHistory = false;
+			fShowPossibleCallStack = false;
+			Invalidate();
+			break;
+
+		case B_DOWN_ARROW:
+			if (fHasSelectedAddress) {
+				MoveSelection(16);
+			}
+			fFollowStackPointer = false;
+			fShowStackHistory = false;
+			fShowPossibleCallStack = false;
 			Invalidate();
 			break;
 
@@ -229,7 +254,10 @@ StackView::KeyDown (const char *bytes, int32 numBytes)
 				threshold--;
 			}
 
-			nes::cpu::debug_set_stack_sp_break(nes::cpu::debug_stack_sp_break_enabled(),threshold);
+			nes::cpu::debug_set_stack_sp_break(
+				nes::cpu::debug_stack_sp_break_enabled(),
+				threshold
+			);
 
 			Invalidate();
 			break;
@@ -243,22 +271,20 @@ StackView::KeyDown (const char *bytes, int32 numBytes)
 				threshold++;
 			}
 
-			nes::cpu::debug_set_stack_sp_break(nes::cpu::debug_stack_sp_break_enabled(), threshold);
+			nes::cpu::debug_set_stack_sp_break(
+				nes::cpu::debug_stack_sp_break_enabled(),
+				threshold
+			);
 
 			Invalidate();
 			break;
 		}
 
-		case 'w':
-		case 'W':
-			nes::cpu::debug_set_stack_wrap_break(!nes::cpu::debug_stack_wrap_break_enabled());
-
-			Invalidate();
-			break;
-
-		case 'c':
-		case 'C':
-			ClearStackHistory();
+		case 's':
+		case 'S':
+			nes::cpu::debug_set_stack_wrap_break(
+				!nes::cpu::debug_stack_wrap_break_enabled()
+			);
 
 			Invalidate();
 			break;
@@ -266,47 +292,15 @@ StackView::KeyDown (const char *bytes, int32 numBytes)
 		case 'r':
 		case 'R':
 			CaptureStackSnapshot();
-
-			if (fFollowStackPointer) {
-				fHasSelectedAddress = true;
-				fSelectedAddress = StackPointerAddress();
-			}
-
 			Invalidate();
 			break;
 
-		case B_LEFT_ARROW:
-			fShowStackHistory = false;
-			fShowPossibleCallStack = false;
-			fFollowStackPointer = false;
-
-			MoveSelection(-1);
+		case 'c':
+		case 'C':
+			ClearStackHistory();
+			Invalidate();
 			break;
 
-		case B_RIGHT_ARROW:
-			fShowStackHistory = false;
-			fShowPossibleCallStack = false;
-			fFollowStackPointer = false;
-
-			MoveSelection(1);
-			break;
-
-		case B_UP_ARROW:
-			fShowStackHistory = false;
-			fShowPossibleCallStack = false;
-			fFollowStackPointer = false;
-
-			MoveSelection(16);
-			break;
-
-		case B_DOWN_ARROW:
-			fShowStackHistory = false;
-			fShowPossibleCallStack = false;
-			fFollowStackPointer = false;
-
-			MoveSelection(-16);
-			break;
-			
 		default:
 			BView::KeyDown(bytes, numBytes);
 			break;
@@ -348,7 +342,7 @@ StackView::MouseDown(BPoint where)
 	fShowStackHistory = false;
 	fShowPossibleCallStack = false;
 
-	if (fHasSelectedAddress && fSelectedAddress == address) {
+	if (fHasSelectedAddress && (fSelectedAddress == address)) {
 		fHasSelectedAddress = false;
 		fSelectedAddress = 0x1ff;
 	} else {
@@ -395,10 +389,13 @@ StackView::Pulse()
 // -----------------------------------------------------------------------------
 // StackView::DrawHeaderUI
 //
-// Draws the controls/help panel.
+// Draws the Stack debugger controls panel.
 //
-// The breakpoint row uses a fixed-width font for the SP threshold indicator so
-// hexadecimal values remain visually aligned as the threshold changes.
+// The top rows summarize mouse and keyboard controls. The Break row shows the
+// current SP-threshold break configuration and stack-wrap break state.
+//
+// The SP threshold itself is rendered in a fixed-width font so the hexadecimal
+// value remains visually stable as it changes.
 //
 // Parameters:
 //   None.
@@ -413,7 +410,7 @@ StackView::DrawHeaderUI()
 		4.0f,
 		4.0f,
 		Bounds().right - 4.0f,
-		76.0f
+		84.0f
 	);
 
 	::DrawDebugPanel(
@@ -472,7 +469,7 @@ StackView::DrawHeaderUI()
 	);
 
 	/*
-	 * Breakpoint row.
+	 * Break row.
 	 *
 	 * Draw the label normally, then use the fixed-width font for the
 	 * SP threshold indicator itself.
@@ -488,7 +485,8 @@ StackView::DrawHeaderUI()
 	const bool spBreakEnabled = nes::cpu::debug_stack_sp_break_enabled();
 	const bool spBreakArmed = nes::cpu::debug_stack_sp_break_armed();
 
-	const char *spBreakState = !spBreakEnabled ? "OFF" : (spBreakArmed ? "ARMED" : "HIT");
+	const char *spBreakState
+		= !spBreakEnabled ? "OFF" : (spBreakArmed ? "ARMED" : "HIT");
 
 	BString spText;
 	spText.SetToFormat(
@@ -513,9 +511,10 @@ StackView::DrawHeaderUI()
 
 	BString remainder;
 	remainder.SetToFormat(
-		" %s   [ ] threshold   W wrap %s",
+		" %s   [ ] threshold   S wrap %s",
 		spBreakState,
-		nes::cpu::debug_stack_wrap_break_enabled() ? "ON" : "OFF");
+		nes::cpu::debug_stack_wrap_break_enabled() ? "ON" : "OFF"
+	);
 
 	DrawString(
 		remainder.String(),
@@ -556,29 +555,15 @@ StackView::DrawHeaderUI()
 void
 StackView::DrawStackSummaryPanel()
 {
-	BRect panel(
-		4.0f,
-		88.0f,
-		Bounds().right - 4.0f,
-		164.0f
-	);
-
-	::DrawDebugPanel(
-		this,
-		panel,
-		"Stack Summary"
-	);
+	BRect panel(4.0f, 88.0f, Bounds().right - 4.0f, 164.0f);
+	::DrawDebugPanel(this, panel, "Stack Summary");
 
 	SetFontSize(11.0f);
 
 	font_height fh;
 	GetFontHeight(&fh);
 
-	const float lineH = ceilf(
-		fh.ascent
-		+ fh.descent
-		+ fh.leading
-	) + 1.0f;
+	const float lineH = ceilf(fh.ascent + fh.descent + fh.leading) + 1.0f;
 
 	BFont prevFont;
 	GetFont(&prevFont);
@@ -588,8 +573,8 @@ StackView::DrawStackSummaryPanel()
 
 	const uint8 sp = StackPointer();
 	const uint16 spAddress = StackPointerAddress();
-	const int32 usedBytes = 0xff - sp;
-	const int32 freeBytes = sp + 1;
+	const int32 usedBytes = (0xff - sp);
+	const int32 freeBytes = (sp + 1);
 
 	const float leftLabelX = panel.left + 8.0f;
 	const float leftValueX = leftLabelX + 72.0f;
@@ -605,24 +590,11 @@ StackView::DrawStackSummaryPanel()
 		const char *label, const char *value, bool monoValue) {
 		SetFont(&prevFont);
 		SetHighColor(80, 80, 80);
+		DrawString(label, BPoint(leftLabelX, leftY));
 
-		DrawString(
-			label,
-			BPoint(leftLabelX, leftY)
-		);
-
-		SetFont(
-			monoValue
-				? &mono
-				: &prevFont
-		);
-
+		SetFont(monoValue ? &mono : &prevFont);
 		SetHighColor(0, 0, 0);
-
-		DrawString(
-			value,
-			BPoint(leftValueX, leftY)
-		);
+		DrawString(value, BPoint(leftValueX, leftY));
 
 		leftY += lineH;
 	};
@@ -630,24 +602,11 @@ StackView::DrawStackSummaryPanel()
 	auto drawRightKV = [&](const char *label, const char *value, bool monoValue) {
 		SetFont(&prevFont);
 		SetHighColor(80, 80, 80);
+		DrawString(label, BPoint(rightLabelX, rightY));
 
-		DrawString(
-			label,
-			BPoint(rightLabelX, rightY)
-		);
-
-		SetFont(
-			monoValue
-				? &mono
-				: &prevFont
-		);
-
+		SetFont(monoValue ? &mono : &prevFont);
 		SetHighColor(0, 0, 0);
-
-		DrawString(
-			value,
-			BPoint(rightValueX, rightY)
-		);
+		DrawString(value, BPoint(rightValueX, rightY));
 
 		rightY += lineH;
 	};
@@ -655,60 +614,21 @@ StackView::DrawStackSummaryPanel()
 	/*
 	 * Left column.
 	 */
-	s.SetToFormat(
-		"$%02X",
-		sp
-	);
+	s.SetToFormat("$%02X", sp);
+	drawLeftKV("SP:", s.String(), true);
 
-	drawLeftKV(
-		"SP:",
-		s.String(),
-		true
-	);
-
-	s.SetToFormat(
-		"$%04X",
-		spAddress
-	);
-
-	drawLeftKV(
-		"SP Addr:",
-		s.String(),
-		true
-	);
-
-	drawLeftKV(
-		"Follow:",
-		fFollowStackPointer
-			? "SP"
-			: "off",
-		false
-	);
+	s.SetToFormat("$%04X", spAddress);
+	drawLeftKV("SP Addr:", s.String(), true);
+	drawLeftKV("Follow:", (fFollowStackPointer ? "SP" : "off"), false);
 
 	/*
 	 * Right column.
 	 */
-	s.SetToFormat(
-		"%ld",
-		static_cast<long>(usedBytes)
-	);
+	s.SetToFormat("%ld", static_cast<long>(usedBytes));
+	drawRightKV("Used:", s.String(), false);
 
-	drawRightKV(
-		"Used:",
-		s.String(),
-		false
-	);
-
-	s.SetToFormat(
-		"%ld",
-		static_cast<long>(freeBytes)
-	);
-
-	drawRightKV(
-		"Free:",
-		s.String(),
-		false
-	);
+	s.SetToFormat("%ld", static_cast<long>(freeBytes));
+	drawRightKV("Free:", s.String(), false);
 
 	/*
 	 * The third right-column line is used for the most important current
@@ -717,61 +637,23 @@ StackView::DrawStackSummaryPanel()
 	const char *warning = StackWarningText();
 
 	if (warning != nullptr) {
-		drawRightKV(
-			"Warning:",
-			warning,
-			false
-		);
+		drawRightKV("Warning:", warning, false);
 	} else if (nes::cpu::debug_breakpoint_hit()) {
 		const nes::cpu::DebugBreakReason reason = nes::cpu::debug_break_reason();
 
 		if (reason == nes::cpu::DEBUG_BREAK_STACK_SP) {
-			s.SetToFormat(
-				"$%02X -> $%02X",
-				nes::cpu::debug_stack_break_old_s(),
-				nes::cpu::debug_stack_break_new_s()
-			);
-
-			drawRightKV(
-				"Break: SP",
-				s.String(),
-				true
-			);
+			s.SetToFormat("$%02X -> $%02X", nes::cpu::debug_stack_break_old_s(), nes::cpu::debug_stack_break_new_s());
+			drawRightKV("Break: SP", s.String(), true);
 		} else if (reason == nes::cpu::DEBUG_BREAK_STACK_WRAP) {
-			s.SetToFormat(
-				"$%02X -> $%02X",
-				nes::cpu::debug_stack_break_old_s(),
-				nes::cpu::debug_stack_break_new_s()
-			);
-
-			drawRightKV(
-				"Break: wrap",
-				s.String(),
-				true
-			);
+			s.SetToFormat("$%02X -> $%02X", nes::cpu::debug_stack_break_old_s(), nes::cpu::debug_stack_break_new_s());
+			drawRightKV("Break: wrap", s.String(), true);
 		} else {
-			s.SetToFormat(
-				"%u",
-				static_cast<unsigned>(fPeakStackDepth)
-			);
-
-			drawRightKV(
-				"Peak:",
-				s.String(),
-				false
-			);
+			s.SetToFormat("%u", static_cast<unsigned>(fPeakStackDepth));
+			drawRightKV("Peak:", s.String(), false);
 		}
 	} else {
-		s.SetToFormat(
-			"%u",
-			static_cast<unsigned>(fPeakStackDepth)
-		);
-
-		drawRightKV(
-			"Peak:",
-			s.String(),
-			false
-		);
+		s.SetToFormat("%u", static_cast<unsigned>(fPeakStackDepth));
+		drawRightKV("Peak:", s.String(), false);
 	}
 
 	SetFont(&prevFont);
@@ -797,13 +679,7 @@ StackView::DrawStackSummaryPanel()
 void
 StackView::DrawStackGrid()
 {
-	BRect panel(
-		4.0f,
-		174.0f,
-		Bounds().right - 4.0f,
-		448.0f
-	);
-
+	BRect panel(4.0f, 174.0f, Bounds().right - 4.0f, 448.0f);
 	::DrawDebugPanel(this, panel, "Stack Page $0100-$01FF");
 
 	BFont prevFont;
@@ -826,29 +702,19 @@ StackView::DrawStackGrid()
 
 	for (int32 col = 0; col < 16; col++) {
 		s.SetToFormat("%X", static_cast<unsigned>(col));
-
-		DrawString(
-			s.String(),
-			BPoint(
-				firstCellX + col * cellW + 6.0f,
-				panel.top + 36.0f
-			)
-		);
+		DrawString(s.String(), BPoint(firstCellX + col * cellW + 6.0f, panel.top + 36.0f));
 	}
 
 	const uint16 spAddress = StackPointerAddress();
 
 	for (int32 row = 0; row < 16; row++) {
-		const uint16 rowBase = static_cast<uint16>(0x01f0 - row * 16);
+		const uint16 rowBase = static_cast<uint16>(0x1f0 - row * 16);
 		const float rowY = firstCellY + row * cellH;
 
 		s.SetToFormat("$%04X", rowBase);
 
 		SetHighColor(80, 80, 80);
-		DrawString(
-			s.String(),
-			BPoint(rowLabelX - 4.0f, rowY)
-		);
+		DrawString(s.String(), BPoint(rowLabelX - 4.0f, rowY));
 
 		for (int32 col = 0; col < 16; col++) {
 			const uint16 address = static_cast<uint16>(rowBase + col);
@@ -858,16 +724,10 @@ StackView::DrawStackGrid()
 			const float x = firstCellX + col * cellW;
 			const float y = rowY;
 
-			BRect cellRect(
-				x - 2.0f,
-				y - 11.0f,
-				x + cellW - 4.0f,
-				y + 3.0f
-			);
-
+			BRect cellRect(x - 2.0f, y - 11.0f, x + cellW - 4.0f, y + 3.0f);
 			const bool selected = (fHasSelectedAddress) && (fSelectedAddress == address);
-			const bool spCell = address == spAddress;
-			const bool usedStackArea = address > spAddress;
+			const bool spCell = (address == spAddress);
+			const bool usedStackArea = (address > spAddress);
 
 			if (usedStackArea) {
 				SetHighColor(238, 238, 238);
@@ -908,14 +768,7 @@ StackView::DrawStackGrid()
 
 		if (spAddress >= rowBase && spAddress <= static_cast<uint16>(rowBase + 15)) {
 			SetHighColor(40, 130, 40);
-
-			DrawString(
-				"SP",
-				BPoint(
-					firstCellX + 16.0f * cellW + 4.0f,
-					rowY
-				)
-			);
+			DrawString("SP", BPoint(firstCellX + 16.0f * cellW + 4.0f,rowY));
 		}
 	}
 
@@ -937,13 +790,7 @@ StackView::DrawStackGrid()
 void
 StackView::DrawSelectedBytePanel()
 {
-	BRect panel(
-		4.0f,
-		458.0f,
-		Bounds().right - 4.0f,
-		Bounds().bottom - 8.0f
-	);
-
+	BRect panel(4.0f, 458.0f, Bounds().right - 4.0f, Bounds().bottom - 8.0f);
 	::DrawDebugPanel(this, panel, "Selected Stack Byte");
 
 	SetFontSize(11.0f);
@@ -951,9 +798,7 @@ StackView::DrawSelectedBytePanel()
 	font_height fh;
 	GetFontHeight(&fh);
 
-	const float lineH = ceilf(
-		fh.ascent + fh.descent + fh.leading
-	) + 3.0f;
+	const float lineH = ceilf(fh.ascent + fh.descent + fh.leading) + 3.0f;
 
 	BFont prevFont;
 	GetFont(&prevFont);
@@ -982,12 +827,7 @@ StackView::DrawSelectedBytePanel()
 	if (!fHasSelectedAddress) {
 		SetFont(&prevFont);
 		SetHighColor(90, 90, 90);
-
-		DrawString(
-			"Click a stack byte to inspect it.",
-			BPoint(labelX, y)
-		);
-
+		DrawString("Click a stack byte to inspect it.", BPoint(labelX, y));
 		return;
 	}
 
@@ -998,44 +838,19 @@ StackView::DrawSelectedBytePanel()
 	BString s;
 
 	s.SetToFormat("$%04X", address);
-	drawKV(
-		"Address:",
-		s.String(),
-		true,
-		labelX,
-		valueX
-	);
+	drawKV("Address:", s.String(), true, labelX, valueX);
 
 	s.SetToFormat("$%02X", value);
-	drawKV(
-		"Hex:",
-		s.String(),
-		true,
-		col2X,
-		col2ValueX
-	);
+	drawKV("Hex:", s.String(), true, col2X, col2ValueX);
 
 	y += lineH;
 
 	s.SetToFormat("%u", static_cast<unsigned>(value));
-	drawKV(
-		"Unsigned:",
-		s.String(),
-		false,
-		labelX,
-		valueX
-	);
+	drawKV("Unsigned:", s.String(), false, labelX, valueX);
 
 	const int32 signedValue = static_cast<int32>(static_cast<int8>(value));
-
 	s.SetToFormat("%ld", static_cast<long>(signedValue));
-	drawKV(
-		"Signed:",
-		s.String(),
-		false,
-		col2X,
-		col2ValueX
-	);
+	drawKV("Signed:", s.String(), false, col2X, col2ValueX);
 
 	y += lineH;
 
@@ -1049,57 +864,20 @@ StackView::DrawSelectedBytePanel()
 		}
 	}
 
-	drawKV(
-		"Binary:",
-		binary.String(),
-		true,
-		labelX,
-		valueX
-	);
-
-	drawKV(
-		"State:",
-		fChanged[index] ? "changed" : "unchanged",
-		false,
-		col2X,
-		col2ValueX
-	);
+	drawKV("Binary:", binary.String(), true, labelX, valueX);
+	drawKV("State:", (fChanged[index] ? "changed" : "unchanged"), false, col2X, col2ValueX);
 
 	y += lineH;
 
 	if (address == StackPointerAddress()) {
-		drawKV(
-			"SP:",
-			"current stack pointer",
-			false,
-			labelX,
-			valueX
-		);
+		drawKV("SP:", "current stack pointer", false, labelX, valueX);
 	} else if (address > StackPointerAddress()) {
-		drawKV(
-			"SP:",
-			"used stack area",
-			false,
-			labelX,
-			valueX
-		);
+		drawKV("SP:", "used stack area", false, labelX, valueX);
 	} else {
-		drawKV(
-			"SP:",
-			"free stack area",
-			false,
-			labelX,
-			valueX
-		);
+		drawKV("SP:", "free stack area", false, labelX, valueX);
 	}
 
-	drawKV(
-		"Mode:",
-		fFreezeUpdates ? "frozen" : "live",
-		false,
-		col2X,
-		col2ValueX
-	);
+	drawKV("Mode:", (fFreezeUpdates ? "frozen" : "live"), false, col2X, col2ValueX);
 
 	SetFont(&prevFont);
 }
@@ -1120,18 +898,8 @@ StackView::DrawSelectedBytePanel()
 void
 StackView::DrawStackHistoryPanel()
 {
-	BRect panel(
-		4.0f,
-		458.0f,
-		Bounds().right - 4.0f,
-		Bounds().bottom - 8.0f
-	);
-
-	::DrawDebugPanel(
-		this,
-		panel,
-		"Recent Stack Activity"
-	);
+	BRect panel(4.0f, 458.0f, Bounds().right - 4.0f, Bounds().bottom - 8.0f);
+	::DrawDebugPanel(this, panel, "Recent Stack Activity");
 
 	BFont previousFont;
 	GetFont(&previousFont);
@@ -1143,32 +911,17 @@ StackView::DrawStackHistoryPanel()
 	font_height fh;
 	GetFontHeight(&fh);
 
-	const float lineH = ceilf(
-		fh.ascent
-		+ fh.descent
-		+ fh.leading
-	) + 2.0f;
+	const float lineH = ceilf(fh.ascent + fh.descent + fh.leading) + 2.0f;
 
 	const float x = panel.left + 10.0f;
 	float y = panel.top + 35.0f;
 
 	if (fStackHistoryCount <= 0) {
 		SetHighColor(90, 90, 90);
-
-		DrawString(
-			"No stack activity captured yet.",
-			BPoint(x, y)
-		);
+		DrawString("No stack activity captured yet.", BPoint(x, y));
 
 		SetHighColor(100, 100, 100);
-
-		DrawString(
-			"H: selected-byte panel   C: clear history",
-			BPoint(
-				panel.left + 10.0f,
-				panel.bottom - 10.0f
-			)
-		);
+		DrawString("H: selected-byte panel   C: clear history", BPoint(panel.left + 10.0f, panel.bottom - 10.0f));
 
 		SetFont(&previousFont);
 		return;
@@ -1196,83 +949,49 @@ StackView::DrawStackHistoryPanel()
 		switch (activity.type) {
 			case STACK_ACTIVITY_PHA:
 				operation.SetTo("PHA");
-
-				detail.SetToFormat(
-					"A=$%02X -> $%04X",
-					activity.value,
-					activity.firstAddress
-				);
+				detail.SetToFormat("A=$%02X -> $%04X", activity.value, activity.firstAddress);
 
 				SetHighColor(45, 95, 150);
 				break;
 
 			case STACK_ACTIVITY_PHP:
 				operation.SetTo("PHP");
-
-				detail.SetToFormat(
-					"P=$%02X -> $%04X",
-					activity.value,
-					activity.firstAddress
-				);
+				detail.SetToFormat("P=$%02X -> $%04X", activity.value, activity.firstAddress);
 
 				SetHighColor(45, 95, 150);
 				break;
 
 			case STACK_ACTIVITY_PLA:
 				operation.SetTo("PLA");
-
-				detail.SetToFormat(
-					"$%04X -> A=$%02X",
-					activity.firstAddress,
-					activity.resultA
-				);
+				detail.SetToFormat("$%04X -> A=$%02X", activity.firstAddress, activity.resultA);
 
 				SetHighColor(55, 125, 65);
 				break;
 
 			case STACK_ACTIVITY_PLP:
 				operation.SetTo("PLP");
-
-				detail.SetToFormat(
-					"$%04X -> P=$%02X",
-					activity.firstAddress,
-					activity.resultP
-				);
+				detail.SetToFormat("$%04X -> P=$%02X", activity.firstAddress, activity.resultP);
 
 				SetHighColor(55, 125, 65);
 				break;
 
 			case STACK_ACTIVITY_JSR:
 				operation.SetTo("JSR");
-
-				detail.SetToFormat(
-					"$%04X -> $%04X",
-					activity.instructionAddress,
-					activity.targetAddress
-				);
+				detail.SetToFormat("$%04X -> $%04X", activity.instructionAddress, activity.targetAddress);
 
 				SetHighColor(55, 85, 155);
 				break;
 
 			case STACK_ACTIVITY_RTS:
 				operation.SetTo("RTS");
-
-				detail.SetToFormat(
-					"resume $%04X",
-					activity.resumeAddress
-				);
+				detail.SetToFormat("resume $%04X", activity.resumeAddress);
 
 				SetHighColor(55, 125, 65);
 				break;
 
 			case STACK_ACTIVITY_RTI:
 				operation.SetTo("RTI");
-
-				detail.SetToFormat(
-					"resume $%04X  P=$%02X",
-					activity.resumeAddress,
-					activity.resultP
-				);
+				detail.SetToFormat("resume $%04X  P=$%02X", activity.resumeAddress, activity.resultP);
 
 				SetHighColor(120, 80, 145);
 				break;
@@ -1280,12 +999,8 @@ StackView::DrawStackHistoryPanel()
 			case STACK_ACTIVITY_NMI:
 				operation.SetTo("NMI");
 
-				detail.SetToFormat(
-					"handler $%04X  stack $%04X-$%04X",
-					activity.resumeAddress,
-					activity.firstAddress,
-					activity.lastAddress
-				);
+				detail.SetToFormat("handler $%04X  stack $%04X-$%04X", activity.resumeAddress, 
+									activity.firstAddress, activity.lastAddress);
 
 				SetHighColor(145, 70, 145);
 				break;
@@ -1293,37 +1008,24 @@ StackView::DrawStackHistoryPanel()
 			case STACK_ACTIVITY_IRQ:
 				operation.SetTo("IRQ");
 
-				detail.SetToFormat(
-					"handler $%04X  stack $%04X-$%04X",
-					activity.resumeAddress,
-					activity.firstAddress,
-					activity.lastAddress
-				);
+				detail.SetToFormat("handler $%04X  stack $%04X-$%04X", activity.resumeAddress,
+									activity.firstAddress, activity.lastAddress);
 
 				SetHighColor(160, 85, 45);
 				break;
 
 			case STACK_ACTIVITY_BRK:
 				operation.SetTo("BRK");
-
-				detail.SetToFormat(
-					"$%04X -> handler $%04X",
-					activity.instructionAddress,
-					activity.resumeAddress
-				);
+				detail.SetToFormat("$%04X -> handler $%04X", activity.instructionAddress, activity.resumeAddress);
 
 				SetHighColor(180, 55, 45);
 				break;
 
 			case STACK_ACTIVITY_INTERRUPT:
 				operation.SetTo("INT");
-
-				detail.SetToFormat(
-					"handler $%04X  stack $%04X-$%04X",
-					activity.resumeAddress,
-					activity.firstAddress,
-					activity.lastAddress
-				);
+				detail.SetToFormat("handler $%04X  stack $%04X-$%04X", activity.resumeAddress,
+									activity.firstAddress,
+									activity.lastAddress);
 
 				SetHighColor(155, 80, 110);
 				break;
@@ -1331,25 +1033,10 @@ StackView::DrawStackHistoryPanel()
 			case STACK_ACTIVITY_PUSH:
 				if (activity.count == 1) {
 					operation.SetTo("PUSH");
-
-					detail.SetToFormat(
-						"$%04X = $%02X",
-						activity.firstAddress,
-						activity.value
-					);
+					detail.SetToFormat("$%04X = $%02X", activity.firstAddress, activity.value);
 				} else {
-					operation.SetToFormat(
-						"PUSH x%u",
-						static_cast<unsigned>(
-							activity.count
-						)
-					);
-
-					detail.SetToFormat(
-						"$%04X-$%04X",
-						activity.firstAddress,
-						activity.lastAddress
-					);
+					operation.SetToFormat("PUSH x%u", static_cast<unsigned>(activity.count));
+					detail.SetToFormat("$%04X-$%04X", activity.firstAddress, activity.lastAddress);
 				}
 
 				SetHighColor(45, 95, 150);
@@ -1358,24 +1045,10 @@ StackView::DrawStackHistoryPanel()
 			case STACK_ACTIVITY_POP:
 				if (activity.count == 1) {
 					operation.SetTo("POP");
-
-					detail.SetToFormat(
-						"$%04X",
-						activity.firstAddress
-					);
+					detail.SetToFormat("$%04X", activity.firstAddress);
 				} else {
-					operation.SetToFormat(
-						"POP x%u",
-						static_cast<unsigned>(
-							activity.count
-						)
-					);
-
-					detail.SetToFormat(
-						"$%04X-$%04X",
-						activity.firstAddress,
-						activity.lastAddress
-					);
+					operation.SetToFormat("POP x%u", static_cast<unsigned>(activity.count));
+					detail.SetToFormat("$%04X-$%04X", activity.firstAddress, activity.lastAddress);
 				}
 
 				SetHighColor(55, 125, 65);
@@ -1403,34 +1076,15 @@ StackView::DrawStackHistoryPanel()
 				break;
 		}
 
-		text.SetToFormat(
-			"#%5llu  %-8s  %-37s  SP $%02X->$%02X",
-			static_cast<unsigned long long>(
-				activity.sequence
-			),
-			operation.String(),
-			detail.String(),
-			activity.oldSP,
-			activity.newSP
-		);
-
-		DrawString(
-			text.String(),
-			BPoint(x, y)
-		);
+		text.SetToFormat("#%5llu  %-8s  %-37s  SP $%02X->$%02X", static_cast<unsigned long long>(activity.sequence),
+						operation.String(), detail.String(), activity.oldSP, activity.newSP);
+		DrawString(text.String(), BPoint(x, y));
 
 		y += lineH;
 	}
 
 	SetHighColor(100, 100, 100);
-
-	DrawString(
-		"H: selected-byte panel   C: clear history",
-		BPoint(
-			panel.left + 10.0f,
-			panel.bottom - 10.0f
-		)
-	);
+	DrawString("H: selected-byte panel   C: clear history", BPoint(panel.left + 10.0f, panel.bottom - 10.0f));
 
 	SetFont(&previousFont);
 }
@@ -1451,13 +1105,7 @@ StackView::DrawStackHistoryPanel()
 void
 StackView::DrawPossibleCallStackPanel()
 {
-	BRect panel(
-		4.0f,
-		458.0f,
-		Bounds().right - 4.0f,
-		Bounds().bottom - 8.0f
-	);
-
+	BRect panel(4.0f, 458.0f, Bounds().right - 4.0f, Bounds().bottom - 8.0f);
 	::DrawDebugPanel(this, panel, "Possible Call Stack");
 
 	BFont prevFont;
@@ -1470,10 +1118,7 @@ StackView::DrawPossibleCallStackPanel()
 	font_height fh;
 	GetFontHeight(&fh);
 
-	const float lineH = ceilf(
-		fh.ascent + fh.descent + fh.leading
-	) + 2.0f;
-
+	const float lineH = ceilf(fh.ascent + fh.descent + fh.leading) + 2.0f;
 	const float x = panel.left + 10.0f;
 	float y = panel.top + 35.0f;
 
@@ -1484,27 +1129,15 @@ StackView::DrawPossibleCallStackPanel()
 	if (candidateCount <= 0) {
 		SetFont(&prevFont);
 		SetHighColor(90, 90, 90);
-
-		DrawString(
-			"No plausible JSR return addresses found.",
-			BPoint(x, y)
-		);
+		DrawString("No plausible JSR return addresses found.", BPoint(x, y));
 
 		y += lineH;
 
 		SetHighColor(120, 120, 120);
-
-		DrawString(
-			"Results are heuristic and depend on the current stack snapshot.",
-			BPoint(x, y)
-		);
+		DrawString("Results are heuristic and depend on the current stack snapshot.", BPoint(x, y));
 
 		SetHighColor(100, 100, 100);
-
-		DrawString(
-			"K: selected-byte panel   H: stack history",
-			BPoint(panel.left + 10.0f, panel.bottom - 8.0f)
-		);
+		DrawString("K: selected-byte panel   H: stack history", BPoint(panel.left + 10.0f, panel.bottom - 8.0f));
 
 		SetFont(&prevFont);
 		return;
@@ -1516,10 +1149,7 @@ StackView::DrawPossibleCallStackPanel()
 
 	for (int32 i = 0; i < linesToDraw; i++) {
 		const CallStackCandidate& candidate = candidates[i];
-
-		const char *confidenceText = (candidate.confidence == CALL_STACK_CONFIDENCE_HIGH)
-			? "HIGH"
-			: "MED";
+		const char *confidenceText = (candidate.confidence == CALL_STACK_CONFIDENCE_HIGH) ? "HIGH" : "MED";
 
 		if (candidate.confidence == CALL_STACK_CONFIDENCE_HIGH) {
 			SetHighColor(45, 120, 65);
@@ -1529,28 +1159,21 @@ StackView::DrawPossibleCallStackPanel()
 
 		BString text;
 
-		text.SetToFormat(
-			"$%04X-$%04X  raw $%04X  resume $%04X  "
-			"JSR $%04X  %s",
-			candidate.lowByteAddress,
-			candidate.highByteAddress,
-			candidate.rawReturnAddress,
-			candidate.resumeAddress,
-			candidate.callSiteAddress,
-			confidenceText
-		);
-
+		text.SetToFormat("$%04X-$%04X  raw $%04X  resume $%04X   JSR $%04X  %s",
+						candidate.lowByteAddress,
+						candidate.highByteAddress,
+						candidate.rawReturnAddress,
+						candidate.resumeAddress,
+						candidate.callSiteAddress,
+						confidenceText);
 		DrawString(text.String(), BPoint(x, y));
+		
 		y += lineH;
 	}
 
 	SetFont(&prevFont);
 	SetHighColor(100, 100, 100);
-
-	DrawString(
-		"K: selected-byte panel   H: stack history",
-		BPoint(panel.left + 10.0f, panel.bottom - 8.0f)
-	);
+	DrawString("K: selected-byte panel   H: stack history", BPoint(panel.left + 10.0f, panel.bottom - 8.0f));
 }
 
 
@@ -1585,22 +1208,10 @@ StackView::DrawNoROMMessage (BRect panel)
 	const float centerY = panel.top + panel.Height() * 0.5f;
 
 	SetHighColor(80, 80, 80);
-	DrawString(
-		title,
-		BPoint(
-			centerX - StringWidth(title) * 0.5f,
-			centerY - 8.0f
-		)
-	);
+	DrawString(title, BPoint(centerX - StringWidth(title) * 0.5f, centerY - 8.0f));
 
 	SetHighColor(120, 120, 120);
-	DrawString(
-		detail,
-		BPoint(
-			centerX - StringWidth(detail) * 0.5f,
-			centerY + fh.ascent + 8.0f
-		)
-	);
+	DrawString(detail, BPoint(centerX - StringWidth(detail) * 0.5f, centerY + fh.ascent + 8.0f));
 
 	SetFont(&prevFont);
 }
@@ -1657,7 +1268,7 @@ StackView::CaptureStackSnapshot()
 	CaptureInstructionStackHistory();
 
 	if (fHasPreviousStackPointer) {
-		const int32 rawDelta = static_cast<int32>(currentSP) - static_cast<int32>(fPreviousStackPointer);
+		const int32 rawDelta = (static_cast<int32>(currentSP) - static_cast<int32>(fPreviousStackPointer));
 
 		if (rawDelta < -128 || rawDelta > 128) {
 			fStackWrapDetected = true;
@@ -1750,9 +1361,7 @@ StackView::BuildPossibleCallStack(CallStackCandidate *candidates, int32 capacity
 	 * A candidate requires two adjacent bytes, so the lower address may be
 	 * no greater than $01FE.
 	 */
-	for (uint16 lowAddress = firstUsedAddress;
-		lowAddress <= 0x1fe && candidateCount < capacity;
-		lowAddress++) {
+	for (uint16 lowAddress = firstUsedAddress; lowAddress <= 0x1fe && candidateCount < capacity; lowAddress++) {
 		const uint16 highAddress = static_cast<uint16>(lowAddress + 1);
 		const uint8 lowIndex = static_cast<uint8>(lowAddress & 0xff);
 		const uint8 highIndex = static_cast<uint8>(highAddress & 0xff);
@@ -1867,12 +1476,7 @@ StackView::HasROMLoaded() const
 bool
 StackView::AddressForPoint(BPoint where, uint16& address) const
 {
-	BRect panel(
-		4.0f,
-		174.0f,
-		Bounds().right - 4.0f,
-		448.0f
-	);
+	BRect panel(4.0f, 174.0f, Bounds().right - 4.0f, 448.0f);
 
 	if (!panel.Contains(where)) {
 		return false;
@@ -1889,8 +1493,7 @@ StackView::AddressForPoint(BPoint where, uint16& address) const
 	const float gridRight = gridLeft + 16.0f * cellW;
 	const float gridBottom = gridTop + 16.0f * cellH;
 
-	if (where.x < gridLeft || where.x >= gridRight
-		|| where.y < gridTop || where.y >= gridBottom) {
+	if (where.x < gridLeft || where.x >= gridRight || where.y < gridTop || where.y >= gridBottom) {
 		return false;
 	}
 
@@ -2078,6 +1681,11 @@ StackView::UpdateStackHighWater(uint8 sp)
 // This allows ordinary stack instructions and asynchronous IRQ/NMI entry to be
 // recognized from the same chronological trace.
 //
+// The CPU execution-cycle counter may restart when the CPU is reset. If the
+// retained trace now contains cycle values earlier than the last cycle processed
+// by StackView, the trace is treated as belonging to a new execution epoch and
+// the StackView processing cursor is restarted.
+//
 // Parameters:
 //   None.
 //
@@ -2093,6 +1701,27 @@ StackView::CaptureInstructionStackHistory()
 		return;
 	}
 
+	/*
+	 * Detect a CPU reset or other trace restart.
+	 *
+	 * The CPU cycle counter is reset when the CPU is reset. StackView's
+	 * fLastProcessedTraceCycle, however, survives for as long as the view
+	 * remains open. Without detecting the new trace epoch here, every new
+	 * post-reset entry could appear older than the last entry processed
+	 * before reset and would therefore be ignored.
+	 */
+	if (fHaveProcessedTraceCycle) {
+		nes::cpu::cpu_trace_entry_t newestEntry;
+
+		if (nes::cpu::debug_cpu_trace_entry(traceCount - 1, newestEntry)) {
+			if (newestEntry.cycle
+				< fLastProcessedTraceCycle) {
+				fHaveProcessedTraceCycle = false;
+				fLastProcessedTraceCycle = 0;
+			}
+		}
+	}
+
 	for (uint32 i = 0; i + 1 < traceCount; i++) {
 		nes::cpu::cpu_trace_entry_t entry;
 		nes::cpu::cpu_trace_entry_t nextEntry;
@@ -2105,7 +1734,10 @@ StackView::CaptureInstructionStackHistory()
 			continue;
 		}
 
-		if (fHaveProcessedTraceCycle && entry.cycle <= fLastProcessedTraceCycle) {
+		/*
+		 * Skip trace transitions StackView has already processed.
+		 */
+		if (fHaveProcessedTraceCycle && (entry.cycle <= fLastProcessedTraceCycle)) {
 			continue;
 		}
 
@@ -2119,7 +1751,7 @@ StackView::CaptureInstructionStackHistory()
 		 * instruction represents BRK, IRQ, or NMI entry.
 		 */
 		RecordInterruptStackActivity(entry, nextEntry);
-
+		
 		fLastProcessedTraceCycle = entry.cycle;
 		fHaveProcessedTraceCycle = true;
 	}
@@ -2264,7 +1896,7 @@ StackView::RecordInterruptStackActivity(const nes::cpu::cpu_trace_entry_t &entry
 // -----------------------------------------------------------------------------
 void
 StackView::RecordInstructionStackActivity(const nes::cpu::cpu_trace_entry_t &entry,
-											const nes::cpu::cpu_trace_entry_t &nextEntry)
+										 const nes::cpu::cpu_trace_entry_t &nextEntry)
 {
 	StackActivity activity;
 

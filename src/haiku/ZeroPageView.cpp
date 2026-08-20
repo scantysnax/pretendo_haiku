@@ -15,12 +15,7 @@
 //   Constructor; no return value.
 // -----------------------------------------------------------------------------
 ZeroPageView::ZeroPageView (BRect frame, PretendoWindow *parent)
-	: BView(
-		frame,
-		"zero page view",
-		B_FOLLOW_ALL,
-		B_WILL_DRAW | B_PULSE_NEEDED | B_NAVIGABLE
-	),
+	: BView(frame, "zero page view", B_FOLLOW_ALL, B_WILL_DRAW | B_PULSE_NEEDED | B_NAVIGABLE),
 	fParent(parent)
 {
 	(void)fParent;
@@ -94,13 +89,7 @@ ZeroPageView::Draw (BRect updateRect)
 	DrawHeaderUI();
 
 	if (!HasROMLoaded()) {
-		BRect panel(
-			4.0f,
-			88.0f,
-			Bounds().right - 4.0f,
-			Bounds().bottom - 8.0f
-		);
-
+		BRect panel(4.0f, 88.0f, Bounds().right - 4.0f, Bounds().bottom - 8.0f);
 		::DrawDebugPanel(this, panel, "Zero Page RAM");
 		DrawNoROMMessage(panel);
 		return;
@@ -255,13 +244,7 @@ ZeroPageView::Pulse()
 void
 ZeroPageView::DrawHeaderUI()
 {
-	BRect panel(
-		4.0f,
-		4.0f,
-		Bounds().right - 4.0f,
-		76.0f
-	);
-
+	BRect panel(4.0f, 4.0f, Bounds().right - 4.0f, 76.0f);
 	::DrawDebugPanel(this, panel, "Controls");
 
 	SetFontSize(11.0f);
@@ -286,12 +269,8 @@ ZeroPageView::DrawHeaderUI()
 	};
 
 	drawKV("Mouse:", "click select / same click clear");
-
 	drawKV("Keys:", "Arrows move selection   R refresh");
-
-	drawKV("Space:", fFreezeUpdates
-		? "live updates"
-		: "freeze snapshot");
+	drawKV("Space:", fFreezeUpdates ? "live updates" : "freeze snapshot");
 }
 
 
@@ -309,13 +288,7 @@ ZeroPageView::DrawHeaderUI()
 void
 ZeroPageView::DrawZeroPageGrid()
 {
-	BRect panel(
-		4.0f,
-		88.0f,
-		Bounds().right - 4.0f,
-		448.0f
-	);
-
+	BRect panel(4.0f, 88.0f, Bounds().right - 4.0f, 448.0f);
 	::DrawDebugPanel(this, panel, "Zero Page RAM");
 
 	BFont prevFont;
@@ -338,10 +311,7 @@ ZeroPageView::DrawZeroPageGrid()
 
 	for (int32 col = 0; col < 16; col++) {
 		s.SetToFormat("%X", static_cast<unsigned>(col));
-		DrawString(
-			s.String(),
-			BPoint(firstCellX + col * cellW + 6.0f, panel.top + 36.0f)
-		);
+		DrawString(s.String(), BPoint(firstCellX + col * cellW + 6.0f, panel.top + 36.0f));
 	}
 
 	for (int32 row = 0; row < 16; row++) {
@@ -356,15 +326,9 @@ ZeroPageView::DrawZeroPageGrid()
 			const float x = firstCellX + col * cellW;
 			const float y = firstCellY + row * cellH;
 
-			BRect cellRect(
-				x - 2.0f,
-				y - 12.0f,
-				x + cellW - 4.0f,
-				y + 4.0f
-			);
+			BRect cellRect(x - 2.0f, y - 12.0f, x + cellW - 4.0f, y + 4.0f);
 
-			const bool selected = fHasSelectedAddress
-				&& fSelectedAddress == address;
+			const bool selected = fHasSelectedAddress && (fSelectedAddress == address);
 
 			if (selected) {
 				SetHighColor(190, 215, 245);
@@ -389,16 +353,9 @@ ZeroPageView::DrawZeroPageGrid()
 
 	BString footer;
 
-	footer.SetToFormat(
-		"%s view. Yellow = recently changed. Changed bytes: %ld",
-		fFreezeUpdates ? "Frozen" : "Live",
-		static_cast<long>(ChangedByteCount())
-	);
-
-	DrawString(
-		footer.String(),
-		BPoint(panel.left + 10.0f, panel.bottom - 14.0f)
-	);
+	footer.SetToFormat("%s view. Yellow = recently changed. Changed bytes: %ld",
+						fFreezeUpdates ? "Frozen" : "Live", static_cast<long>(ChangedByteCount()));
+	DrawString(footer.String(), BPoint(panel.left + 10.0f, panel.bottom - 14.0f));
 }
 
 
@@ -416,13 +373,7 @@ ZeroPageView::DrawZeroPageGrid()
 void
 ZeroPageView::DrawSelectedBytePanel()
 {
-	BRect panel(
-		4.0f,
-		458.0f,
-		Bounds().right - 4.0f,
-		Bounds().bottom - 8.0f
-	);
-
+	BRect panel(4.0f, 458.0f, Bounds().right - 4.0f, Bounds().bottom - 8.0f);
 	::DrawDebugPanel(this, panel, "Selected Byte");
 
 	SetFontSize(11.0f);
@@ -444,8 +395,7 @@ ZeroPageView::DrawSelectedBytePanel()
 
 	float y = panel.top + 36.0f;
 
-	auto drawKV = [&](const char *label, const char *value,
-					 bool monoValue, float lx, float vx) {
+	auto drawKV = [&](const char *label, const char *value, bool monoValue, float lx, float vx) {
 		SetFont(&prevFont);
 		SetHighColor(80, 80, 80);
 		DrawString(label, BPoint(lx, y));
@@ -457,16 +407,13 @@ ZeroPageView::DrawSelectedBytePanel()
 
 	if (!fHasSelectedAddress) {
 		SetHighColor(90, 90, 90);
-		DrawString(
-			"Click a zero-page byte to inspect it.",
-			BPoint(labelX, y)
-		);
+		DrawString("Click a zero-page byte to inspect it.", BPoint(labelX, y));
 
 		SetFont(&prevFont);
 		return;
 	}
 
-	const uint16 address = fSelectedAddress & 0xff;
+	const uint16 address = (fSelectedAddress & 0xff);
 	const uint8 value = fBytes[address];
 
 	BString s;
@@ -482,9 +429,7 @@ ZeroPageView::DrawSelectedBytePanel()
 	s.SetToFormat("%u", static_cast<unsigned>(value));
 	drawKV("Unsigned:", s.String(), false, labelX, valueX);
 
-	int32 signedValue = static_cast<int32>(
-		static_cast<int8>(value)
-	);
+	int32 signedValue = static_cast<int32>(static_cast<int8>(value));
 	s.SetToFormat("%ld", static_cast<long>(signedValue));
 	drawKV("Signed:", s.String(), false, col2X, col2ValueX);
 
@@ -515,14 +460,9 @@ ZeroPageView::DrawSelectedBytePanel()
 
 	y += lineH;
 
-	s.SetToFormat(
-		"%s",
-		fChanged[address] ? "changed" : "unchanged"
-	);
+	s.SetToFormat("%s", (fChanged[address] ? "changed" : "unchanged"));
 	drawKV("State:", s.String(), false, labelX, valueX);
-
-	drawKV("Mode:", fFreezeUpdates ? "frozen" : "live", false,
-		col2X, col2ValueX);
+	drawKV("Mode:", (fFreezeUpdates ? "frozen" : "live"), false, col2X, col2ValueX);
 
 	SetFont(&prevFont);
 }
@@ -559,22 +499,10 @@ ZeroPageView::DrawNoROMMessage (BRect panel)
 	const float centerY = panel.top + panel.Height() * 0.5f;
 
 	SetHighColor(80, 80, 80);
-	DrawString(
-		title,
-		BPoint(
-			centerX - StringWidth(title) * 0.5f,
-			centerY - 8.0f
-		)
-	);
+	DrawString(title, BPoint(centerX - StringWidth(title) * 0.5f, centerY - 8.0f));
 
 	SetHighColor(120, 120, 120);
-	DrawString(
-		detail,
-		BPoint(
-			centerX - StringWidth(detail) * 0.5f,
-			centerY + fh.ascent + 8.0f
-		)
-	);
+	DrawString(detail, BPoint(centerX - StringWidth(detail) * 0.5f, centerY + fh.ascent + 8.0f));
 
 	SetFont(&prevFont);
 }
@@ -659,12 +587,7 @@ ZeroPageView::HasROMLoaded() const
 bool
 ZeroPageView::AddressForPoint (BPoint where, uint16 &address) const
 {
-	BRect panel(
-		4.0f,
-		88.0f,
-		Bounds().right - 4.0f,
-		418.0f
-	);
+	BRect panel(4.0f, 88.0f, Bounds().right - 4.0f, 418.0f);
 
 	if (!panel.Contains(where)) {
 		return false;
@@ -677,14 +600,14 @@ ZeroPageView::AddressForPoint (BPoint where, uint16 &address) const
 	const float cellH = 17.0f;
 
 	const int32 col = static_cast<int32>((where.x - firstCellX) / cellW);
-	const int32 row = static_cast<int32>((where.y - (firstCellY - 12.0f))
-		/ cellH);
+	const int32 row = static_cast<int32>((where.y - (firstCellY - 12.0f)) / cellH);
 
-	if (col < 0 || col >= 16 || row < 0 || row >= 16) {
+	if ((col < 0) || (col >= 16) || (row < 0) || (row >= 16)) {
 		return false;
 	}
 
 	address = static_cast<uint16>((row * 16) + col);
+	
 	return true;
 }
 
@@ -703,10 +626,7 @@ ZeroPageView::AddressForPoint (BPoint where, uint16 &address) const
 void
 ZeroPageView::MoveSelection (int32 delta)
 {
-	int32 address = fHasSelectedAddress
-		? static_cast<int32>(fSelectedAddress)
-		: 0;
-
+	int32 address = fHasSelectedAddress ? (static_cast<int32>(fSelectedAddress)) : 0;
 	address += delta;
 
 	if (address < 0) {

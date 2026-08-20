@@ -4,10 +4,13 @@
 #include <View.h>
 #include <ScrollBar.h>
 
+#include <cmath>
 
-class PretendoWindow;
-class BScrollBar;
-class PPUMemoryScrollBar;
+#include "Cart.h"
+#include "DebugHelpers.h"
+#include "PretendoWindow.h"
+
+#include "Ppu.h"
 
 
 // -----------------------------------------------------------------------------
@@ -61,12 +64,12 @@ class PPUMemoryView : public BView
 	void DrawSelectedByteInfo (float x, float y);
 
 	private:
-	bool AddressForPoint (BPoint where, uint16& address) const;
+	bool AddressForPoint (BPoint where, uint16 &address) const;
 	bool HoverAddressForPoint (BPoint where);
-	bool ActiveInspectAddress (uint16& address) const;
+	bool ActiveInspectAddress (uint16 &address) const;
 	
 	private:
-	const char* RegionName (uint16 address) const;
+	const char *RegionName (uint16 address) const;
 
 	private:
 	PretendoWindow *fParent = nullptr;

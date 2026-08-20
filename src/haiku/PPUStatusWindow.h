@@ -4,9 +4,11 @@
 
 #include <Window.h>
 
+#include "PPUStatusView.h"
+#include "PretendoWindow.h"
 
-class PretendoWindow;
 class PPUStatusView;
+class PretendoWindow;
 
 
 // -----------------------------------------------------------------------------

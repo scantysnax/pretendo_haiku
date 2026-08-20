@@ -1,4 +1,3 @@
-
 #ifndef RELATIVE_H_
 #define RELATIVE_H_
 
@@ -32,9 +31,11 @@ private:
 		switch (cycle_) {
 		case 1:
 			LAST_CYCLE;
+
 			// fetch operand, increment PC
 			data8_ = read_byte(PC.raw++);
 			break;
+
 		case 2: {
 			// Fetch opcode of next instruction,
 			// If branch is taken, add operand to PCL.
@@ -52,14 +53,31 @@ private:
 
 			if (Op::execute()) {
 				old_pc_.raw = PC.raw;
-				new_pc_.raw = (PC.raw + static_cast<int8_t>(data8_));
-				PC.lo       = new_pc_.lo;
+				new_pc_.raw = (
+					PC.raw
+					+ static_cast<int8_t>(data8_)
+				);
+
+				PC.lo = new_pc_.lo;
 			} else {
+				/*
+				 * The branch was not taken.  relative<> pipelines
+				 * the following instruction directly instead of
+				 * returning through tick() at cycle 0.
+				 *
+				 * Preserve that instruction's true starting address
+				 * for READ/WRITE watchpoints before cycle_0()
+				 * increments PC.
+				 */
+				sDebugCurrentInstructionAddress = PC.raw;
+
 				cycle_0(next_op);
 				cycle_ = 0;
 			}
+
 			break;
 		}
+
 		case 3: {
 			// Fetch opcode of next instruction.
 			// Fix PCH. If it did not change, increment PC.
@@ -68,14 +86,27 @@ private:
 
 			if (new_pc_.hi != old_pc_.hi) {
 				LAST_CYCLE_0;
+
 				PC.raw = new_pc_.raw;
 				OPCODE_COMPLETE;
 			} else {
+				/*
+				 * A taken branch that does not cross a page also
+				 * pipelines the target instruction directly.
+				 *
+				 * tick() therefore never sees cycle_ == 0 for that
+				 * instruction.  Save its starting address here,
+				 * before cycle_0() advances PC.
+				 */
+				sDebugCurrentInstructionAddress = PC.raw;
+
 				cycle_0(next_op);
 				cycle_ = 0;
 			}
+
 			break;
 		}
+
 		default:
 			abort();
 		}

@@ -1,7 +1,5 @@
-#include "PPUStatusWindow.h"
 
-#include "PPUStatusView.h"
-#include "PretendoWindow.h"
+#include "PPUStatusWindow.h"
 
 
 // -----------------------------------------------------------------------------
@@ -16,14 +14,10 @@
 //   Constructor; no return value.
 // -----------------------------------------------------------------------------
 PPUStatusWindow::PPUStatusWindow(PretendoWindow *parent)
-	:
-	BWindow(
+	: BWindow(
 		BRect(260.0f, 260.0f, 640.0f, 930.0f),
-		"PPU Status",
-		B_FLOATING_WINDOW_LOOK,
-		B_NORMAL_WINDOW_FEEL,
-		B_NOT_RESIZABLE | B_NOT_ZOOMABLE
-	)
+		"PPU Status", 
+		B_FLOATING_WINDOW_LOOK, B_NORMAL_WINDOW_FEEL,B_NOT_RESIZABLE | B_NOT_ZOOMABLE)
 {
 	fParent = parent;
 

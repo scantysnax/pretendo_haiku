@@ -1,15 +1,6 @@
 
 #include "CPUStatusView.h"
 
-#include "Cart.h"
-#include "Cpu.h"
-#include "CPUDisasm.h"
-#include "DebugHelpers.h"
-#include "Ppu.h"
-#include "PretendoWindow.h"
-
-#include <cmath>
-
 
 static void
 SetStateColor (BView *view, bool active)
@@ -92,13 +83,7 @@ CPUStatusView::Draw (BRect updateRect)
 	DrawHeaderPanel();
 
 	if (!HasROMLoaded()) {
-		BRect panel(
-			4.0f,
-			74.0f,
-			Bounds().right - 4.0f,
-			Bounds().bottom - 8.0f
-		);
-
+		BRect panel(4.0f, 74.0f, Bounds().right - 4.0f, Bounds().bottom - 8.0f);
 		::DrawDebugPanel(this, panel, "CPU State");
 		DrawNoROMMessage(panel);
 		return;
@@ -124,22 +109,13 @@ CPUStatusView::Draw (BRect updateRect)
 void
 CPUStatusView::DrawHeaderPanel()
 {
-	BRect panel(
-		4.0f,
-		4.0f,
-		Bounds().right - 4.0f,
-		62.0f
-	);
-
+	BRect panel(4.0f, 4.0f, Bounds().right - 4.0f, 62.0f);
 	::DrawDebugPanel(this, panel, "CPU Status");
 
 	SetFontSize(11.0f);
-
 	SetHighColor(35, 35, 35);
-	DrawString(
-		"Live 6502 register, flag, instruction, and cycle state.",
-		BPoint(panel.left + 8.0f, panel.top + 40.0f)
-	);
+	DrawString("Live 6502 register, flag, instruction, and cycle state.",
+		BPoint(panel.left + 8.0f, panel.top + 40.0f));
 }
 
 
@@ -167,13 +143,7 @@ CPUStatusView::DrawHeaderPanel()
 void
 CPUStatusView::DrawRegisterPanel()
 {
-	BRect panel(
-		4.0f,
-		74.0f,
-		Bounds().right - 4.0f,
-		168.0f
-	);
-
+	BRect panel(4.0f, 74.0f, Bounds().right - 4.0f, 168.0f);
 	::DrawDebugPanel(this, panel, "Registers");
 
 	SetFontSize(11.0f);
@@ -212,7 +182,7 @@ CPUStatusView::DrawRegisterPanel()
 		leftY += lineH;
 	};
 
-	auto drawRightKV = [&](const char* label, const char* value) {
+	auto drawRightKV = [&](const char *label, const char *value) {
 		SetHighColor(80, 80, 80);
 		SetFont(&prevFont);
 		DrawString(label, BPoint(rightLabelX, rightY));
@@ -233,8 +203,7 @@ CPUStatusView::DrawRegisterPanel()
 	s.SetToFormat("$%02X", state.x);
 	drawLeftKV("X:", s.String());
 
-	const uint16 stackAddress = static_cast<uint16>(0x0100 | state.s);
-
+	const uint16 stackAddress = static_cast<uint16>(0x100 | state.s);
 	s.SetToFormat("$%04X", stackAddress);
 	drawLeftKV("Stack:", s.String());
 
@@ -250,8 +219,7 @@ CPUStatusView::DrawRegisterPanel()
 	const uint8 p = state.p;
 
 	BString flags;
-	flags.SetToFormat(
-		"%c%c-%c%c%c%c%c",
+	flags.SetToFormat("%c%c-%c%c%c%c%c",
 		(p & 0x80) ? 'N' : 'n',
 		(p & 0x40) ? 'V' : 'v',
 		(p & 0x10) ? 'B' : 'b',
@@ -285,17 +253,10 @@ CPUStatusView::DrawRegisterPanel()
 void
 CPUStatusView::DrawFlagsPanel()
 {
-	BRect panel(
-		4.0f,
-		180.0f,
-		Bounds().right - 4.0f,
-		324.0f
-	);
-
+	BRect panel(4.0f, 180.0f, Bounds().right - 4.0f, 324.0f);
 	::DrawDebugPanel(this, panel, "Processor Flags");
 
 	nes::cpu::cpu_state_t state = nes::cpu::debug_cpu_state();
-
 	const uint8 p = state.p;
 
 	const bool n = (p & 0x80) != 0;
@@ -348,8 +309,7 @@ CPUStatusView::DrawFlagsPanel()
 	const float midX = panel.left + 196.0f;
 	float legendY = y + boxH + 22.0f;
 
-	auto drawLegend = [&](float labelX, float textX, const char* flag,
-		const char* text, bool active) {
+	auto drawLegend = [&](float labelX, float textX, const char *flag, const char *text, bool active) {
 		SetStateColor(this, active);
 		DrawString(flag, BPoint(labelX, legendY));
 
@@ -381,7 +341,15 @@ CPUStatusView::DrawFlagsPanel()
 // boundary state, stack preview, current instruction latch, current instruction
 // cycle, and total executed CPU cycles.
 //
-// The 6502 stack pointer points to the next free stack slot.  The byte most
+// The emulator state is taken from PretendoWindow so STOPPED, PAUSED, and
+// RUNNING reflect the application's actual run state rather than only the PPU
+// pause flag.
+//
+// Machine-oriented values such as decoded instructions, stack contents, and the
+// instruction latch are displayed in a fixed-width font. General status and
+// timing values are displayed in the regular UI font.
+//
+// The 6502 stack pointer points to the next free stack slot. The byte most
 // recently pushed is normally at SP + 1 within page $0100, so the stack preview
 // shows the top stack address and nearby stack bytes above SP.
 //
@@ -394,19 +362,14 @@ CPUStatusView::DrawFlagsPanel()
 void
 CPUStatusView::DrawTimingPanel()
 {
-	BRect panel(
-		4.0f,
-		336.0f,
-		Bounds().right - 4.0f,
-		Bounds().bottom - 8.0f
-	);
-
+	BRect panel(4.0f, 336.0f, Bounds().right - 4.0f, Bounds().bottom - 8.0f);
 	::DrawDebugPanel(this, panel, "Instruction / Timing");
 
 	SetFontSize(11.0f);
 
 	font_height fh;
 	GetFontHeight(&fh);
+
 	const float lineH = ceilf(fh.ascent + fh.descent + fh.leading) + 1.0f;
 
 	BFont prevFont;
@@ -417,13 +380,16 @@ CPUStatusView::DrawTimingPanel()
 
 	const float leftLabelX = panel.left + 8.0f;
 	const float leftValueX = leftLabelX + 108.0f;
-
 	float y = panel.top + 38.0f;
 
 	BString s;
+
 	nes::cpu::cpu_state_t state = nes::cpu::debug_cpu_state();
 
-	auto drawKV = [&](const char* label, const char* value) {
+	/*
+	 * Draw a label with its value in the fixed-width font.
+	 */
+	auto drawKV = [&](const char *label, const char *value) {
 		SetHighColor(80, 80, 80);
 		SetFont(&prevFont);
 		DrawString(label, BPoint(leftLabelX, y));
@@ -435,48 +401,52 @@ CPUStatusView::DrawTimingPanel()
 		y += lineH;
 	};
 
+	/*
+	 * Draw a label and value using the regular UI font.
+	 */
+	auto drawKVRegular = [&](const char *label, const char *value) {
+		SetHighColor(80, 80, 80);
+		SetFont(&prevFont);
+		DrawString(label, BPoint(leftLabelX, y));
+
+		SetHighColor(0, 0, 0);
+		SetFont(&prevFont);
+		DrawString(value, BPoint(leftValueX, y));
+
+		y += lineH;
+	};
+
 	CPUDisasmLine line = DisassembleCPU(state.pc);
 
 	BString byteText;
 
 	if (line.length == 1) {
-		byteText.SetToFormat(
-			"%02X      ",
-			line.bytes[0]
-		);
+		byteText.SetToFormat("%02X      ", line.bytes[0]);
 	} else if (line.length == 2) {
-		byteText.SetToFormat(
-			"%02X %02X   ",
-			line.bytes[0],
-			line.bytes[1]
-		);
+		byteText.SetToFormat("%02X %02X   ", line.bytes[0], line.bytes[1]);
 	} else {
-		byteText.SetToFormat(
-			"%02X %02X %02X",
-			line.bytes[0],
-			line.bytes[1],
-			line.bytes[2]
-		);
+		byteText.SetToFormat("%02X %02X %02X", line.bytes[0], line.bytes[1], line.bytes[2]);
 	}
 
-	s.SetToFormat(
-		"$%04X  %-8s  %s",
-		line.address,
-		byteText.String(),
-		line.text.String()
-	);
+	s.SetToFormat("$%04X  %-8s  %s", line.address, byteText.String(), line.text.String());
 	drawKV("Decoded:", s.String());
 
-	if (nes::ppu::system_paused) {
-		drawKV("Emulator:", "Paused");
-	} else {
-		drawKV("Emulator:", "Running");
+	/*
+	 * Use the application's actual run/pause state rather than only
+	 * nes::ppu::system_paused.
+	 */
+	const char *emulatorState = "Stopped";
+
+	if (fParent && fParent->IsEmulatorRunning()) {
+		emulatorState = fParent->IsEmulatorPaused() ? "Paused" : "Running";
 	}
 
+	drawKVRegular("Emulator:", emulatorState);
+
 	if (nes::cpu::debug_instruction_boundary()) {
-		drawKV("Boundary:", "Yes");
+		drawKVRegular("Boundary:", "Yes");
 	} else {
-		drawKV("Boundary:", "No");
+		drawKVRegular("Boundary:", "No");
 	}
 
 	const uint8 stackIndex0 = static_cast<uint8>(state.s + 1);
@@ -484,34 +454,32 @@ CPUStatusView::DrawTimingPanel()
 	const uint8 stackIndex2 = static_cast<uint8>(state.s + 3);
 	const uint8 stackIndex3 = static_cast<uint8>(state.s + 4);
 
-	const uint16 stackAddress0 = static_cast<uint16>(0x0100 | stackIndex0);
-	const uint16 stackAddress1 = static_cast<uint16>(0x0100 | stackIndex1);
-	const uint16 stackAddress2 = static_cast<uint16>(0x0100 | stackIndex2);
-	const uint16 stackAddress3 = static_cast<uint16>(0x0100 | stackIndex3);
+	const uint16 stackAddress0 = static_cast<uint16>(0x100 | stackIndex0);
+	const uint16 stackAddress1 = static_cast<uint16>(0x100 | stackIndex1);
+	const uint16 stackAddress2 = static_cast<uint16>(0x100 | stackIndex2);
+	const uint16 stackAddress3 = static_cast<uint16>(0x100 | stackIndex3);
 
 	const uint8 stackValue0 = nes::bus::debug_read_memory(stackAddress0);
 	const uint8 stackValue1 = nes::bus::debug_read_memory(stackAddress1);
 	const uint8 stackValue2 = nes::bus::debug_read_memory(stackAddress2);
 	const uint8 stackValue3 = nes::bus::debug_read_memory(stackAddress3);
 
-	s.SetToFormat(
-		"Top $%04X:$%02X  +1:$%02X  +2:$%02X  +3:$%02X",
-		stackAddress0,
-		stackValue0,
-		stackValue1,
-		stackValue2,
-		stackValue3
-	);
+	s.SetToFormat("Top $%04X:$%02X  +1:$%02X  +2:$%02X  +3:$%02X",
+					stackAddress0,
+					stackValue0,
+					stackValue1,
+					stackValue2,
+					stackValue3);
 	drawKV("Stack:", s.String());
 
-	s.SetToFormat("$%02X", state.instruction & 0xff);
+	s.SetToFormat("$%02X", (state.instruction & 0xff));
 	drawKV("Instruction:", s.String());
 
 	s.SetToFormat("%d", state.cycle);
-	drawKV("Cycle:", s.String());
+	drawKVRegular("Cycle:", s.String());
 
 	s.SetToFormat("%llu", static_cast<unsigned long long>(state.executed_cycles));
-	drawKV("Total Cycles:", s.String());
+	drawKVRegular("Total Cycles:", s.String());
 
 	SetFont(&prevFont);
 }
@@ -545,7 +513,6 @@ CPUStatusView::DrawFlag (BRect rect, const char *name, bool active)
 	float textW = StringWidth(name);
 	float x = rect.left + ((rect.Width() - textW) * 0.5f);
 	float y = rect.top + 22.0f;
-
 	DrawString(name, BPoint(x, y));
 
 	SetFontSize(9.0f);
@@ -604,22 +571,10 @@ CPUStatusView::DrawNoROMMessage (BRect panel)
 	const float centerY = panel.top + (panel.Height() * 0.5f);
 
 	SetHighColor(80, 80, 80);
-	DrawString(
-		title,
-		BPoint(
-			centerX - (StringWidth(title) * 0.5f),
-			centerY - 8.0f
-		)
-	);
+	DrawString(title, BPoint(centerX - (StringWidth(title) * 0.5f), centerY - 8.0f));
 
 	SetHighColor(120, 120, 120);
-	DrawString(
-		detail,
-		BPoint(
-			centerX - (StringWidth(detail) * 0.5f),
-			centerY + fh.ascent + 8.0f
-		)
-	);
+	DrawString(detail, BPoint(centerX - (StringWidth(detail) * 0.5f), centerY + fh.ascent + 8.0f));
 
 	SetFont(&prevFont);
 }

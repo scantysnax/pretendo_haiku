@@ -1,29 +1,12 @@
 
 #include "CPUDisasmView.h"
 
-#include "CPUDisasm.h"
-#include "DebugHelpers.h"
-#include "PretendoWindow.h"
-
-#include "Bus.h"
-#include "Cart.h"
-#include "Cpu.h"
-
-#include <cmath>
-
 
 class CPUDisasmScrollBar : public BScrollBar
 {
 	public:
 	CPUDisasmScrollBar (BRect frame, CPUDisasmView *owner)
-		: BScrollBar(
-			frame,
-			"cpu_disasm_scrollbar",
-			owner,
-			0.0f,
-			65535.0f,
-			B_VERTICAL
-			)
+		: BScrollBar(frame, "cpu_disasm_scrollbar", owner, 0x8000, 0xffff, B_VERTICAL)
 	{
 		fOwner = owner;
 
@@ -31,7 +14,7 @@ class CPUDisasmScrollBar : public BScrollBar
 	}
 
 	public:
-	virtual void ValueChanged(float value)
+	virtual void ValueChanged (float value)
 	{
 		if (fOwner) {
 			fOwner->ScrollBarChanged(value);
@@ -79,12 +62,7 @@ CPUDisasmView::AttachedToWindow()
 	BView::AttachedToWindow();
 
 	if (!fScrollBar) {
-		BRect scrollFrame(
-			Bounds().right - B_V_SCROLL_BAR_WIDTH,
-			124.0f,
-			Bounds().right,
-			Bounds().bottom - 8.0f
-		);
+		BRect scrollFrame(Bounds().right - B_V_SCROLL_BAR_WIDTH, 124.0f, Bounds().right, Bounds().bottom - 8.0f);
 
 		fScrollBar = new CPUDisasmScrollBar(scrollFrame, this);
 		AddChild(fScrollBar);
@@ -147,7 +125,7 @@ CPUDisasmView::Pulse()
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-CPUDisasmView::KeyDown(const char* bytes, int32 numBytes)
+CPUDisasmView::KeyDown (const char *bytes, int32 numBytes)
 {
 	if (numBytes <= 0) {
 		return;
@@ -426,9 +404,15 @@ CPUDisasmView::Draw (BRect updateRect)
 // -----------------------------------------------------------------------------
 // CPUDisasmView::ResetView
 //
-// Resets the disassembly view state after a ROM load or emulator reset.  The
-// view starts attached to the current CPU PC so the debugger is live immediately
-// when opened, without requiring G or P to reconnect it.
+// Resets the disassembly view state after a ROM load or emulator reset.
+//
+// When a ROM is loaded, the disassembler opens at the target of the 6502 RESET
+// vector at $FFFC/$FFFD.  The view starts in manual mode so the reset entry
+// point remains visible even if the CPU has not yet begun execution or its live
+// PC currently points somewhere else.
+//
+// Pressing P or enabling Follow-PC later reconnects the disassembly view to the
+// live CPU program counter.
 //
 // Parameters:
 //   None.
@@ -440,14 +424,14 @@ void
 CPUDisasmView::ResetView()
 {
 	fFreezeUpdates = false;
-	fFollowPC = true;
+	fFollowPC = false;
 	fFrozenPC = 0x0000;
 
 	fHasSelectedAddress = false;
 	fSelectedAddress = 0x0000;
 
 	if (HasROMLoaded()) {
-		JumpToCurrentPC();
+		JumpToVector(0xfffc);
 		return;
 	}
 
@@ -457,13 +441,25 @@ CPUDisasmView::ResetView()
 	Invalidate();
 }
 
+
 // -----------------------------------------------------------------------------
 // CPUDisasmView::DrawHeaderPanel
 //
-// Draws the CPU disassembly header panel.  The header shows the current display
-// PC, breakpoint-hit status, breakpoint hit count, running/frozen/follow state,
-// selected row state, register summary, current instruction, and debugger
-// controls.
+// Draws the CPU disassembly header panel.
+//
+// The header shows the current display PC, debugger-hit status, accumulated hit
+// count for the condition responsible for the current stop, running/frozen/
+// follow state, selected row state, register summary, current instruction, and
+// debugger controls.
+//
+// Execute BreakPoints, READ watchpoints, and WRITE watchpoints maintain separate
+// hit counters.  The current debugger break reason therefore determines which
+// counter is displayed.
+//
+// For memory watchpoints, debug_breakpoint_hit_address() identifies the CPU
+// instruction responsible for the stop, while debug_memory_break_address()
+// identifies the watched memory address whose READ/WRITE hit counter must be
+// queried.
 //
 // The instruction color legend is intentionally not drawn here.  It belongs in
 // the instruction panel below the header so the top area stays readable.
@@ -484,46 +480,50 @@ CPUDisasmView::DrawHeaderPanel()
 	FillRect(panel);
 
 	SetHighColor(170, 170, 170);
-	StrokeLine(
-		BPoint(panel.left, panel.bottom),
-		BPoint(panel.right, panel.bottom)
-	);
+	StrokeLine(BPoint(panel.left, panel.bottom), BPoint(panel.right, panel.bottom));
 
 	if (!HasROMLoaded()) {
 		SetHighColor(80, 80, 80);
-		DrawString(
-			"CPU Disassembly: no ROM loaded",
-			BPoint(panel.left + 10.0f, panel.top + 20.0f)
-		);
+		DrawString("CPU Disassembly: no ROM loaded", BPoint(panel.left + 10.0f, panel.top + 20.0f));
+
 		return;
 	}
 
 	nes::cpu::cpu_state_t state = nes::cpu::debug_cpu_state();
 
-	const uint16 displayPC = fFreezeUpdates ? fFrozenPC : state.pc;
+	uint16 displayPC = state.pc;
+
+	if (nes::cpu::debug_breakpoint_hit()) {
+		displayPC = nes::cpu::debug_breakpoint_hit_address();
+	}
+
+	if (fFreezeUpdates) {
+		displayPC = fFrozenPC;
+	}
+
 	const bool breakpointHit = nes::cpu::debug_breakpoint_hit();
 	const uint16 breakpointHitAddress = nes::cpu::debug_breakpoint_hit_address();
 
-	BFont fixed;
-	GetFont(&fixed);
-	fixed.SetFamilyAndStyle("DejaVu Sans Mono", "Book");
+	BFont fixed(be_fixed_font);
 	fixed.SetSize(11.0f);
 
 	BFont normal;
 	GetFont(&normal);
 	normal.SetSize(11.0f);
 
-	auto drawText = [&](const char* text, float& x, float y, rgb_color color) {
+	auto drawText = [&](const char *text, float &x, float y, rgb_color color) {
 		SetFont(&normal);
 		SetHighColor(color);
 		DrawString(text, BPoint(x, y));
+
 		x += normal.StringWidth(text);
 	};
 
-	auto drawFixed = [&](const char* text, float& x, float y, rgb_color color) {
+	auto drawFixed = [&](const char *text, float &x, float y, rgb_color color) {
 		SetFont(&fixed);
 		SetHighColor(color);
 		DrawString(text, BPoint(x, y));
+
 		x += fixed.StringWidth(text);
 	};
 
@@ -533,23 +533,60 @@ CPUDisasmView::DrawHeaderPanel()
 	float y = panel.top + 20.0f;
 
 	drawText("PC: ", x, y, rgb_color{35, 35, 35, 255});
-
+	
 	value.SetToFormat("$%04X", displayPC);
+
 	drawFixed(value.String(), x, y, rgb_color{0, 0, 0, 255});
 
 	if (breakpointHit) {
-		const uint32 hitCount =
-			nes::cpu::debug_breakpoint_hit_count(breakpointHitAddress);
+		uint32 hitCount = 0;
+
+		const auto breakReason = nes::cpu::debug_break_reason();
+
+		/*
+		 * Execute BreakPoints count hits by instruction address.
+		 *
+		 * Memory watchpoints count hits by the READ/WRITE memory address,
+		 * not by the instruction address responsible for the access.
+		 */
+		switch (breakReason) {
+			case nes::cpu::DEBUG_BREAK_EXECUTE:
+				hitCount = nes::cpu::debug_breakpoint_hit_count(breakpointHitAddress);
+				break;
+
+			case nes::cpu::DEBUG_BREAK_MEMORY_READ:
+				hitCount = nes::cpu::debug_read_watchpoint_hit_count(nes::cpu::debug_memory_break_address());
+				break;
+
+			case nes::cpu::DEBUG_BREAK_MEMORY_WRITE:
+				hitCount = nes::cpu::debug_write_watchpoint_hit_count(nes::cpu::debug_memory_break_address());
+				break;
+
+			case nes::cpu::DEBUG_BREAK_STACK_SP:
+			case nes::cpu::DEBUG_BREAK_STACK_WRAP:
+			case nes::cpu::DEBUG_BREAK_NONE:
+			default:
+				break;
+		}
 
 		drawText("   BREAK HIT: ", x, y, rgb_color{170, 0, 0, 255});
 
 		value.SetToFormat("$%04X", breakpointHitAddress);
 		drawFixed(value.String(), x, y, rgb_color{170, 0, 0, 255});
 
-		drawText("  hits: ", x, y, rgb_color{170, 0, 0, 255});
+		/*
+		 * Execute BreakPoints and memory watchpoints have accumulated
+		 * hit counters.  Stack conditions currently do not.
+		 */
+		if (breakReason == nes::cpu::DEBUG_BREAK_EXECUTE
+			|| breakReason == nes::cpu::DEBUG_BREAK_MEMORY_READ
+			|| breakReason == nes::cpu::DEBUG_BREAK_MEMORY_WRITE) {
 
-		value.SetToFormat("%lu", static_cast<unsigned long>(hitCount));
-		drawFixed(value.String(), x, y, rgb_color{170, 0, 0, 255});
+			drawText("  hits: ", x, y, rgb_color{170, 0, 0, 255});
+
+			value.SetToFormat("%lu", static_cast<unsigned long>(hitCount));
+			drawFixed(value.String(), x, y, rgb_color{170, 0, 0, 255});
+		}
 	}
 
 	drawText("   ", x, y, rgb_color{35, 35, 35, 255});
@@ -579,14 +616,7 @@ CPUDisasmView::DrawHeaderPanel()
 
 	y = panel.top + 44.0f;
 
-	DrawRegisterSummary(
-		BPoint(panel.left + 10.0f, y),
-		state.a,
-		state.x,
-		state.y,
-		state.s,
-		state.p
-	);
+	DrawRegisterSummary(BPoint(panel.left + 10.0f, y), state.a, state.x, state.y, state.s, state.p);
 
 	y = panel.top + 68.0f;
 
@@ -595,18 +625,9 @@ CPUDisasmView::DrawHeaderPanel()
 	BString instructionText;
 
 	if (line.operand.Length() > 0) {
-		instructionText.SetToFormat(
-			"$%04X: %s %s",
-			line.address,
-			line.mnemonic.String(),
-			line.operand.String()
-		);
+		instructionText.SetToFormat("$%04X: %s %s", line.address, line.mnemonic.String(), line.operand.String());
 	} else {
-		instructionText.SetToFormat(
-			"$%04X: %s",
-			line.address,
-			line.mnemonic.String()
-		);
+		instructionText.SetToFormat("$%04X: %s", line.address, line.mnemonic.String());
 	}
 
 	SetFont(&fixed);
@@ -617,9 +638,8 @@ CPUDisasmView::DrawHeaderPanel()
 	SetHighColor(70, 70, 70);
 	DrawString(
 		"Space: freeze   S: step   V: frame   G: run   F: follow   P: PC   B: breakpoint"
-		"   C: clear BP   Enter: center   Esc: clear   R: reset N: NMI I: IRQ vectors",
-		BPoint(panel.left + 10.0f, panel.top + 98.0f)
-	);
+		"   C: clear BP   Enter: center   Esc: clear   R: reset N: NMI I: IRQ vectors", 
+		BPoint(panel.left + 10.0f, panel.top + 98.0f));
 
 	SetFont(&normal);
 }
@@ -628,10 +648,19 @@ CPUDisasmView::DrawHeaderPanel()
 // -----------------------------------------------------------------------------
 // CPUDisasmView::DrawDisasmPanel
 //
-// Draws disassembled CPU instructions starting near the current PC.  When
-// follow-PC mode is active, the base address is refreshed from the current PC.
-// A compact color legend and separate comment column are included to make the
-// disassembly easier to scan.
+// Draws disassembled CPU instructions.
+//
+// During normal execution, the current CPU PC is marked with the instruction
+// arrow.  When execution is stopped by a debugger condition, the arrow instead
+// marks the instruction responsible for that stop.  This is important for
+// memory READ/WRITE watchpoints because the CPU PC may already have advanced
+// beyond the instruction that performed the memory access.
+//
+// A frozen disassembly view takes precedence over both live-PC and debugger-hit
+// positioning.
+//
+// When follow-PC mode is active, the visible disassembly range follows the
+// effective display PC.
 //
 // Parameters:
 //   None.
@@ -643,16 +672,9 @@ void
 CPUDisasmView::DrawDisasmPanel()
 {
 	const float rightEdge = (fScrollBar && !fScrollBar->IsHidden())
-		? fScrollBar->Frame().left - 4.0f
-		: Bounds().right - 4.0f;
+		? fScrollBar->Frame().left - 4.0f : Bounds().right - 4.0f;
 
-	BRect panel(
-		4.0f,
-		124.0f,
-		rightEdge,
-		Bounds().bottom - 8.0f
-	);
-	
+	BRect panel(4.0f, 124.0f, rightEdge, Bounds().bottom - 8.0f);
 	::DrawDebugPanel(this, panel, "Instructions");
 
 	if (!HasROMLoaded()) {
@@ -671,17 +693,38 @@ CPUDisasmView::DrawDisasmPanel()
 
 	font_height fh;
 	GetFontHeight(&fh);
+
 	const float lineH = ceilf(fh.ascent + fh.descent + fh.leading) + 1.0f;
 
 	nes::cpu::cpu_state_t state = nes::cpu::debug_cpu_state();
-	const uint16 displayPC = fFreezeUpdates ? fFrozenPC : state.pc;
+
+	/*
+	 * Normally the instruction marker follows the CPU's live PC.
+	 *
+	 * A debugger hit is different: for memory watchpoints the CPU PC may
+	 * already have advanced, while debug_breakpoint_hit_address() preserves
+	 * the starting address of the instruction responsible for the stop.
+	 */
+	uint16 displayPC = state.pc;
+
+	if (nes::cpu::debug_breakpoint_hit()) {
+		displayPC = nes::cpu::debug_breakpoint_hit_address();
+	}
+
+	/*
+	 * A frozen view intentionally preserves its captured PC regardless of
+	 * subsequent CPU or debugger state.
+	 */
+	if (fFreezeUpdates) {
+		displayPC = fFrozenPC;
+	}
 
 	if (fFollowPC && !fFreezeUpdates) {
 		fBaseAddress = FindContextBase(displayPC, 5);
 		UpdateScrollBar();
 	}
-		
-	const float pcX = panel.left + 8.0f;
+
+	const float pcX = 12.0f;
 	const float addrX = pcX + 42.0f;
 	const float bytesX = addrX + 76.0f;
 	const float instrX = bytesX + 92.0f;
@@ -690,7 +733,7 @@ CPUDisasmView::DrawDisasmPanel()
 	float y = panel.top + 58.0f;
 
 	SetHighColor(80, 80, 80);
-	DrawString("Trace", BPoint(pcX, y));
+	DrawString("PC", BPoint(pcX, y));
 	DrawString("Address", BPoint(addrX, y));
 	DrawString("Bytes", BPoint(bytesX, y));
 	DrawString("Instruction", BPoint(instrX, y));
@@ -699,10 +742,7 @@ CPUDisasmView::DrawDisasmPanel()
 	y += lineH + 8.0f;
 
 	SetHighColor(120, 120, 120);
-	StrokeLine(
-		BPoint(panel.left + 8.0f, y - 8.0f),
-		BPoint(panel.right - 8.0f, y - 8.0f)
-	);
+	StrokeLine(BPoint(panel.left + 8.0f, y - 8.0f), BPoint(panel.right - 8.0f, y - 8.0f));
 
 	y += 4.0f;
 
@@ -710,10 +750,9 @@ CPUDisasmView::DrawDisasmPanel()
 	uint16 address = fBaseAddress;
 
 	for (uint32 row = 0; row < rows; row++) {
-		const bool active = address == displayPC;
+		const bool active = (address == displayPC);
 
 		DrawDisasmLine(y, address, active);
-
 		CPUDisasmLine line = DisassembleCPU(address);
 
 		if (line.length == 0) {
@@ -724,7 +763,7 @@ CPUDisasmView::DrawDisasmPanel()
 
 		y += lineH;
 	}
-	
+
 	SetFont(&prevFont);
 }
 
@@ -746,18 +785,12 @@ CPUDisasmView::DrawDisasmPanel()
 //   true if the point maps to a visible disassembly row.
 // -----------------------------------------------------------------------------
 bool
-CPUDisasmView::AddressForPoint(BPoint where, uint16& address)
+CPUDisasmView::AddressForPoint (BPoint where, uint16 &address)
 {
 	const float rightEdge = (fScrollBar && !fScrollBar->IsHidden())
-		? fScrollBar->Frame().left - 4.0f
-		: Bounds().right - 4.0f;
+		? fScrollBar->Frame().left - 4.0f : Bounds().right - 4.0f;
 
-	BRect panel(
-		4.0f,
-		124.0f,
-		rightEdge,
-		Bounds().bottom - 8.0f
-	);
+	BRect panel(4.0f, 124.0f, rightEdge, Bounds().bottom - 8.0);
 
 	if (!panel.Contains(where)) {
 		return false;
@@ -785,7 +818,6 @@ CPUDisasmView::AddressForPoint(BPoint where, uint16& address)
 	y += 4.0f;
 
 	const uint32 rows = static_cast<uint32>((panel.bottom - y - 8.0f) / lineH);
-
 	uint16 rowAddress = fBaseAddress;
 
 	for (uint32 row = 0; row < rows; row++) {
@@ -828,30 +860,22 @@ int32
 CPUDisasmView::VisibleDisasmRows() const
 {
 	const float rightEdge = (fScrollBar && !fScrollBar->IsHidden())
-		? fScrollBar->Frame().left - 4.0f
-		: Bounds().right - 4.0f;
+		? fScrollBar->Frame().left - 4.0f : Bounds().right - 4.0f;
 
-	(void)rightEdge;
-
-	BRect panel(
-		4.0f,
-		124.0f,
-		rightEdge,
-		Bounds().bottom - 8.0f
-	);
+	BRect panel(4.0f, 124.0f, rightEdge, Bounds().bottom - 8.0f);
 
 	BFont prevFont;
-	const_cast<CPUDisasmView*>(this)->GetFont(&prevFont);
+	const_cast<CPUDisasmView *>(this)->GetFont(&prevFont);
 
 	BFont mono(be_fixed_font);
 	mono.SetSize(10.0f);
-	const_cast<CPUDisasmView*>(this)->SetFont(&mono);
+	const_cast<CPUDisasmView *>(this)->SetFont(&mono);
 
 	font_height fh;
-	const_cast<CPUDisasmView*>(this)->GetFontHeight(&fh);
+	const_cast<CPUDisasmView *>(this)->GetFontHeight(&fh);
 	const float lineH = ceilf(fh.ascent + fh.descent + fh.leading) + 1.0f;
 
-	const_cast<CPUDisasmView*>(this)->SetFont(&prevFont);
+	const_cast<CPUDisasmView *>(this)->SetFont(&prevFont);
 
 	float y = panel.top + 58.0f;
 	y += lineH + 8.0f;
@@ -891,7 +915,7 @@ CPUDisasmView::DrawInstructionLegend (BRect panel)
 	float x = panel.left + 8.0f;
 	const float y = panel.top + 34.0f;
 
-	auto drawItem = [&](const char* label, rgb_color color) {
+	auto drawItem = [&](const char *label, rgb_color color) {
 		SetHighColor(color);
 		FillRect(BRect(x, y - 8.0f, x + 8.0f, y));
 
@@ -970,17 +994,10 @@ CPUDisasmView::DrawNoROMMessage (BRect panel)
 	const float centerX = panel.left + (panel.Width() * 0.5f);
 	const float centerY = panel.top + (panel.Height() * 0.5f);
 
-	DrawString(
-		title,
-		BPoint(centerX - (titleWidth * 0.5f), centerY - 8.0f)
-	);
+	DrawString(title, BPoint(centerX - (titleWidth * 0.5f), centerY - 8.0f));
 
 	SetHighColor(120, 120, 120);
-
-	DrawString(
-		detail,
-		BPoint(centerX - (detailWidth * 0.5f), centerY + fh.ascent + 8.0f)
-	);
+	DrawString(detail, BPoint(centerX - (detailWidth * 0.5f), centerY + fh.ascent + 8.0f));
 
 	SetFont(&prevFont);
 }
@@ -1043,25 +1060,29 @@ CPUDisasmView::DrawRegisterSummary (BPoint origin, uint8 a, uint8 x, uint8 y, ui
 // -----------------------------------------------------------------------------
 // CPUDisasmView::DrawDisasmLine
 //
-// Draws a single disassembled CPU instruction row.  The current PC row is
-// highlighted.  Instructions that touch PPU registers, OAM DMA,
+// Draws a single disassembled CPU instruction row. The current PC row is
+// highlighted. Instructions that touch PPU registers, OAM DMA,
 // APU/controller registers, control-flow instructions, load/store instructions,
-// and undocumented opcodes get distinct colors.  Hardware labels,
+// and undocumented opcodes get distinct colors. Hardware labels,
 // control-flow comments, and common CPU idiom comments are drawn in a separate
 // aligned comment column.
+//
+// Hardware accesses are indicated by the row background while instruction text
+// color describes the instruction itself. This allows a store to remain
+// store-colored even when writing to a PPU, OAM, or APU register.
 //
 // The marker column shows instruction/debug trace state:
 //
 //   orange badge = current PC
-//   red dot      = execute breakpoint
+//   red dot      = execute BreakPoint
 //   filled dot   = previously executed instruction
 //   hollow dot   = not yet executed / possible data
 //
-// A selected row gets a blue outline.  Selection is independent of the current
-// PC and is used as the preferred target for breakpoint toggling.
+// A selected row gets a blue outline. Selection is independent of the current
+// PC and is used as the preferred target for BreakPoint toggling.
 //
 // Opcode and operand bytes are drawn separately so the opcode stands out from
-// the instruction operands.  Conditional branch comments are colored by their
+// the instruction operands. Conditional branch comments are colored by their
 // live branch state: green when the branch would be taken, gray when it would
 // not be taken.
 //
@@ -1074,7 +1095,7 @@ CPUDisasmView::DrawRegisterSummary (BPoint origin, uint8 a, uint8 x, uint8 y, ui
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-CPUDisasmView::DrawDisasmLine(float y, uint16 address, bool active)
+CPUDisasmView::DrawDisasmLine (float y, uint16 address, bool active)
 {
 	CPUDisasmLine line = DisassembleCPU(address);
 
@@ -1087,13 +1108,14 @@ CPUDisasmView::DrawDisasmLine(float y, uint16 address, bool active)
 	const float byteStep = 24.0f;
 
 	const float rowLeft = 8.0f;
-	const float rowRight = (fScrollBar && !fScrollBar->IsHidden())
-		? fScrollBar->Frame().left - 12.0f
-		: Bounds().right - 12.0f;
+
+	const float rowRight
+		= (fScrollBar && !fScrollBar->IsHidden())
+			? fScrollBar->Frame().left - 12.0f : Bounds().right - 12.0f;
 
 	const bool executed = nes::cpu::debug_instruction_was_executed(line.address);
 	const bool breakpoint = nes::cpu::debug_has_execute_breakpoint(line.address);
-	const bool selected = fHasSelectedAddress && line.address == fSelectedAddress;
+	const bool selected = fHasSelectedAddress && (line.address == fSelectedAddress);
 
 	const bool ppuWrite = IsPPURegisterWrite(line);
 	const bool oamDMA = IsOAMDMAWrite(line);
@@ -1105,14 +1127,17 @@ CPUDisasmView::DrawDisasmLine(float y, uint16 address, bool active)
 	const bool jam = line.mnemonic == "jam";
 
 	const bool conditionalBranch = line.mnemonic == "bpl"
-		|| line.mnemonic == "bmi"
-		|| line.mnemonic == "bvc"
-		|| line.mnemonic == "bvs"
-		|| line.mnemonic == "bcc"
-		|| line.mnemonic == "bcs"
-		|| line.mnemonic == "bne"
-		|| line.mnemonic == "beq";
+			|| line.mnemonic == "bmi"
+			|| line.mnemonic == "bvc"
+			|| line.mnemonic == "bvs"
+			|| line.mnemonic == "bcc"
+			|| line.mnemonic == "bcs"
+			|| line.mnemonic == "bne"
+			|| line.mnemonic == "beq";
 
+	/*
+	 * Row background describes special debugger/hardware context.
+	 */
 	if (active) {
 		SetHighColor(255, 245, 170);
 		FillRect(BRect(rowLeft, y - 11.0f, rowRight, y + 3.0f));
@@ -1138,29 +1163,22 @@ CPUDisasmView::DrawDisasmLine(float y, uint16 address, bool active)
 		StrokeRect(BRect(rowLeft, y - 11.0f, rowRight, y + 3.0f));
 	}
 
+	/*
+	 * Draw instruction/debug marker.
+	 */
 	if (active) {
 		const float markerX = pcX + 1.0f;
 		const float markerY = y - 9.0f;
 
 		SetHighColor(160, 95, 0);
-		FillRect(BRect(
-			markerX,
-			markerY,
-			markerX + 14.0f,
-			markerY + 12.0f
-		));
+		FillRect(BRect(markerX, markerY, markerX + 14.0f, markerY + 12.0f));
 
 		SetHighColor(255, 255, 255);
 		DrawString(">", BPoint(markerX + 4.0f, y));
 
 		if (breakpoint) {
 			SetHighColor(170, 0, 0);
-			FillEllipse(BRect(
-				markerX + 10.0f,
-				markerY - 2.0f,
-				markerX + 16.0f,
-				markerY + 4.0f
-			));
+			FillEllipse(BRect(markerX + 10.0f, markerY - 2.0f, markerX + 16.0f, markerY + 4.0f));
 		}
 	} else {
 		const float markerX = pcX + 4.0f;
@@ -1168,60 +1186,65 @@ CPUDisasmView::DrawDisasmLine(float y, uint16 address, bool active)
 
 		if (breakpoint) {
 			SetHighColor(170, 0, 0);
-			FillEllipse(BRect(
-				markerX - 1.0f,
-				markerY - 1.0f,
-				markerX + 7.0f,
-				markerY + 7.0f
-			));
+			FillEllipse(BRect(markerX - 1.0f, markerY - 1.0f, markerX + 7.0f, markerY + 7.0f));
 		} else if (executed) {
 			SetHighColor(0, 135, 0);
-			FillEllipse(BRect(
-				markerX,
-				markerY,
-				markerX + 6.0f,
-				markerY + 6.0f
-			));
+			FillEllipse(BRect(markerX, markerY, markerX + 6.0f, markerY + 6.0f));
 		} else {
 			SetHighColor(145, 145, 145);
-			StrokeEllipse(BRect(
-				markerX + 1.0f,
-				markerY + 1.0f,
-				markerX + 5.0f,
-				markerY + 5.0f
-			));
+			StrokeEllipse(BRect(markerX + 1.0f, markerY + 1.0f, markerX + 5.0f, markerY + 5.0f));
 		}
 	}
 
 	BString s;
 
+	/*
+	 * Address text uses the same semantic instruction color.
+	 *
+	 * Store/load classification takes priority over special hardware
+	 * destinations. Hardware access is already represented by the row
+	 * background.
+	 */
 	if (jam) {
 		SetHighColor(130, 130, 130);
-	} else if (oamDMA) {
-		SetHighColor(120, 0, 120);
-	} else if (ppuWrite) {
-		SetHighColor(0, 80, 160);
-	} else if (apuOrController) {
-		SetHighColor(0, 110, 0);
-	} else if (controlFlow) {
-		SetHighColor(170, 85, 0);
+
 	} else if (storeInstruction && undocumented) {
 		SetHighColor(155, 45, 125);
+
 	} else if (loadInstruction && undocumented) {
 		SetHighColor(45, 70, 175);
+
 	} else if (storeInstruction) {
 		SetHighColor(150, 60, 30);
+
 	} else if (loadInstruction) {
 		SetHighColor(40, 80, 170);
+
+	} else if (controlFlow) {
+		SetHighColor(170, 85, 0);
+
+	} else if (oamDMA) {
+		SetHighColor(120, 0, 120);
+
+	} else if (ppuWrite) {
+		SetHighColor(0, 80, 160);
+
+	} else if (apuOrController) {
+		SetHighColor(0, 110, 0);
+
 	} else if (undocumented) {
 		SetHighColor(95, 65, 145);
+
 	} else {
-		SetHighColor(active ? 0 : 80, active ? 0 : 80, active ? 0 : 80);
+		SetHighColor((active ? 0 : 80), (active ? 0 : 80), (active ? 0 : 80));
 	}
 
 	s.SetToFormat("$%04X", line.address);
 	DrawString(s.String(), BPoint(addrX, y));
 
+	/*
+	 * Draw opcode and operand bytes.
+	 */
 	for (uint8 i = 0; i < 3; i++) {
 		if (i >= line.length) {
 			continue;
@@ -1242,44 +1265,62 @@ CPUDisasmView::DrawDisasmLine(float y, uint16 address, bool active)
 		DrawString(s.String(), BPoint(bytesX + byteStep * i, y));
 	}
 
+	/*
+	 * Instruction text uses the same semantic priority as the address:
+	 *
+	 *   store -> store color
+	 *   load  -> load color
+	 *
+	 * Special hardware destinations remain visible through their row
+	 * background.
+	 */
 	if (jam) {
 		SetHighColor(130, 130, 130);
-	} else if (oamDMA) {
-		SetHighColor(120, 0, 120);
-	} else if (ppuWrite) {
-		SetHighColor(0, 80, 160);
-	} else if (apuOrController) {
-		SetHighColor(0, 110, 0);
-	} else if (controlFlow) {
-		SetHighColor(170, 85, 0);
+
 	} else if (storeInstruction && undocumented) {
 		SetHighColor(155, 45, 125);
+
 	} else if (loadInstruction && undocumented) {
 		SetHighColor(45, 70, 175);
+
 	} else if (storeInstruction) {
 		SetHighColor(150, 60, 30);
+
 	} else if (loadInstruction) {
 		SetHighColor(40, 80, 170);
+
+	} else if (controlFlow) {
+		SetHighColor(170, 85, 0);
+
+	} else if (oamDMA) {
+		SetHighColor(120, 0, 120);
+
+	} else if (ppuWrite) {
+		SetHighColor(0, 80, 160);
+
+	} else if (apuOrController) {
+		SetHighColor(0, 110, 0);
+
 	} else if (undocumented) {
 		SetHighColor(95, 65, 145);
+
 	} else {
-		SetHighColor(active ? 0 : 80, active ? 0 : 80, active ? 0 : 80);
+		SetHighColor((active ? 0 : 80), (active ? 0 : 80), (active ? 0 : 80));
 	}
 
 	BString instr;
 
 	if (line.operand.Length() > 0) {
-		instr.SetToFormat(
-			"%s %s",
-			line.mnemonic.String(),
-			line.operand.String()
-		);
+		instr.SetToFormat("%s %s", line.mnemonic.String(), line.operand.String());
 	} else {
 		instr.SetTo(line.mnemonic);
 	}
 
 	DrawString(instr.String(), BPoint(instrX, y));
 
+	/*
+	 * Draw aligned explanatory comment.
+	 */
 	BString comment;
 	BuildCommentForLine(line, comment);
 
@@ -1334,6 +1375,11 @@ CPUDisasmView::SetFollowPC (bool follow)
 // Moves the disassembly base address by a signed number of disassembled
 // instruction rows.  Manual scrolling disables follow-PC mode.
 //
+// Backward disassembly is inherently ambiguous on the 6502 because instructions
+// have variable lengths.  When viewing cartridge PRG-ROM, scrolling upward from
+// $8000 stops at $8000 instead of interpreting bytes below the cartridge ROM
+// region as an instruction that happens to cross the $8000 boundary.
+//
 // Parameters:
 //   lines - Number of instruction rows to scroll.  Negative values move upward;
 //           positive values move downward.
@@ -1342,7 +1388,7 @@ CPUDisasmView::SetFollowPC (bool follow)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-CPUDisasmView::ScrollLines(int32 lines)
+CPUDisasmView::ScrollLines (int32 lines)
 {
 	if (lines == 0) {
 		return;
@@ -1354,27 +1400,38 @@ CPUDisasmView::ScrollLines(int32 lines)
 		for (int32 i = 0; i < lines; i++) {
 			CPUDisasmLine line = DisassembleCPU(fBaseAddress);
 
-			if (line.length == 0)
-				fBaseAddress++;
-			else
-				fBaseAddress += line.length;
+			const uint32 length = (line.length == 0) ? 1 : line.length;
+			const uint32 nextAddress = static_cast<uint32>(fBaseAddress) + length;
+
+			if (nextAddress > 0xffff) {
+				break;
+			}
+
+			fBaseAddress = static_cast<uint16>(nextAddress);
 		}
 	} else {
-		// Backward disassembly is ambiguous because 6502 instructions are
-		// variable-length.  Use a small search window and choose the closest
-		// instruction boundary that lands exactly on the current base address.
 		for (int32 i = 0; i < -lines; i++) {
-			uint16 best = fBaseAddress - 1;
+			/*
+			 * $8000 is the beginning of cartridge PRG-ROM.
+			 *
+			 * Do not manufacture a previous instruction from bytes below
+			 * $8000 whose decoded length merely happens to cross into the
+			 * cartridge code region.
+			 */
+			if (fBaseAddress == 0x8000) {
+				break;
+			}
 
-			for (int32 back = 1; back <= 3; back++) {
-				uint16 candidate = fBaseAddress - back;
-				CPUDisasmLine line = DisassembleCPU(candidate);
+			uint16 best = FindInstructionBefore(fBaseAddress);
 
-				if (static_cast<uint16>(candidate + line.length)
-					== fBaseAddress) {
-					best = candidate;
-					break;
-				}
+			/*
+			 * If the current address is in PRG-ROM, do not allow the
+			 * backward search to cross below $8000.
+			 */
+			if (fBaseAddress >= 0x8000
+				&& best < 0x8000) {
+				fBaseAddress = 0x8000;
+				break;
 			}
 
 			fBaseAddress = best;
@@ -1436,7 +1493,7 @@ CPUDisasmView::IsStoreInstruction (const CPUDisasmLine &line) const
 //   true if the mnemonic represents a memory load.
 // -----------------------------------------------------------------------------
 bool
-CPUDisasmView::IsLoadInstruction(const CPUDisasmLine& line) const
+CPUDisasmView::IsLoadInstruction (const CPUDisasmLine &line) const
 {
 	return line.mnemonic == "lda"
 		|| line.mnemonic == "ldx"
@@ -1463,7 +1520,7 @@ CPUDisasmView::IsLoadInstruction(const CPUDisasmLine& line) const
 //   true if the mnemonic is an undocumented opcode mnemonic.
 // -----------------------------------------------------------------------------
 bool
-CPUDisasmView::IsUndocumentedInstruction(const CPUDisasmLine& line) const
+CPUDisasmView::IsUndocumentedInstruction (const CPUDisasmLine &line) const
 {
 	return line.mnemonic == "aac"
 		|| line.mnemonic == "aax"
@@ -1515,7 +1572,7 @@ CPUDisasmView::IsUndocumentedInstruction(const CPUDisasmLine& line) const
 //   true if this instruction writes to $2000-$2007.
 // -----------------------------------------------------------------------------
 bool
-CPUDisasmView::IsPPURegisterWrite(const CPUDisasmLine& line) const
+CPUDisasmView::IsPPURegisterWrite (const CPUDisasmLine &line) const
 {
 	if (!IsStoreInstruction(line)) {
 		return false;
@@ -1543,7 +1600,7 @@ CPUDisasmView::IsPPURegisterWrite(const CPUDisasmLine& line) const
 //   true if this instruction writes to $4014.
 // -----------------------------------------------------------------------------
 bool
-CPUDisasmView::IsOAMDMAWrite(const CPUDisasmLine& line) const
+CPUDisasmView::IsOAMDMAWrite (const CPUDisasmLine &line) const
 {
 	if (!IsStoreInstruction(line)) {
 		return false;
@@ -1555,7 +1612,7 @@ CPUDisasmView::IsOAMDMAWrite(const CPUDisasmLine& line) const
 		return false;
 	}
 
-	return address == 0x4014;
+	return (address == 0x4014);
 }
 
 
@@ -1572,7 +1629,7 @@ CPUDisasmView::IsOAMDMAWrite(const CPUDisasmLine& line) const
 //   true if this instruction references $4000-$4017, excluding OAM DMA $4014.
 // -----------------------------------------------------------------------------
 bool
-CPUDisasmView::IsAPUOrControllerRegister(const CPUDisasmLine& line) const
+CPUDisasmView::IsAPUOrControllerRegister (const CPUDisasmLine &line) const
 {
 	uint16 address = 0;
 
@@ -1584,7 +1641,7 @@ CPUDisasmView::IsAPUOrControllerRegister(const CPUDisasmLine& line) const
 		return false;
 	}
 
-	return address >= 0x4000 && address <= 0x4017;
+	return (address >= 0x4000) && (address <= 0x4017);
 }
 
 
@@ -1633,7 +1690,7 @@ CPUDisasmView::IsControlFlowInstruction (const CPUDisasmLine &line) const
 //   true if an address was parsed.
 // -----------------------------------------------------------------------------
 bool
-CPUDisasmView::ParseOperandAddress (const CPUDisasmLine& line, uint16 &address) const
+CPUDisasmView::ParseOperandAddress (const CPUDisasmLine &line, uint16 &address) const
 {
 	address = 0;
 
@@ -1928,8 +1985,7 @@ CPUDisasmView::CPUIdiomCommentForLine (const CPUDisasmLine &line) const
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-CPUDisasmView::BuildCommentForLine(const CPUDisasmLine& line,
-	BString& comment) const
+CPUDisasmView::BuildCommentForLine (const CPUDisasmLine &line, BString &comment) const
 {
 	comment.SetTo("");
 
@@ -1953,29 +2009,15 @@ CPUDisasmView::BuildCommentForLine(const CPUDisasmLine& line,
 		|| line.mnemonic == "beq";
 
 	if (branch) {
-		const char* takenText = BranchTakenForLine(line)
-			? "taken"
-			: "not taken";
+		const char *takenText = BranchTakenForLine(line) ? "taken" : "not taken";
 
 		if (hasTarget) {
 			if (target < line.address) {
-				comment.SetToFormat(
-					"branch back -> $%04X  %s",
-					target,
-					takenText
-				);
+				comment.SetToFormat("branch back -> $%04X  %s", target, takenText);
 			} else if (target > line.address) {
-				comment.SetToFormat(
-					"branch forward -> $%04X  %s",
-					target,
-					takenText
-				);
+				comment.SetToFormat("branch forward -> $%04X  %s", target, takenText);
 			} else {
-				comment.SetToFormat(
-					"branch -> $%04X  %s",
-					target,
-					takenText
-				);
+				comment.SetToFormat("branch -> $%04X  %s", target, takenText);
 			}
 		} else {
 			comment.SetToFormat("branch  %s", takenText);
@@ -2014,7 +2056,7 @@ CPUDisasmView::BuildCommentForLine(const CPUDisasmLine& line,
 		return;
 	}
 
-	const char* idiomComment = CPUIdiomCommentForLine(line);
+	const char *idiomComment = CPUIdiomCommentForLine(line);
 
 	if (idiomComment) {
 		comment.SetTo(idiomComment);
@@ -2035,7 +2077,7 @@ CPUDisasmView::BuildCommentForLine(const CPUDisasmLine& line,
 //   true if the branch condition is currently satisfied.
 // -----------------------------------------------------------------------------
 bool
-CPUDisasmView::BranchTakenForLine(const CPUDisasmLine& line) const
+CPUDisasmView::BranchTakenForLine (const CPUDisasmLine& line) const
 {
 	nes::cpu::cpu_state_t state = nes::cpu::debug_cpu_state();
 	const uint8 p = state.p;
@@ -2170,11 +2212,16 @@ CPUDisasmView::ReadVector (uint16 address) const
 // -----------------------------------------------------------------------------
 // CPUDisasmView::JumpToAddress
 //
-// Switches to manual disassembly mode and jumps the base address to the supplied
-// CPU address.
+// Switches to manual disassembly mode, jumps the view to the supplied CPU
+// address, and selects that instruction so the destination is visually
+// highlighted.
+//
+// This is used by debugger tools such as the BreakPoint Manager when navigating
+// to an execute BreakPoint, to the instruction responsible for a memory
+// watchpoint hit, or to the current CPU PC.
 //
 // Parameters:
-//   address - CPU address to show at the top of the disassembly panel.
+//   address - CPU instruction address to display and select.
 //
 // Returns:
 //   Nothing.
@@ -2185,10 +2232,12 @@ CPUDisasmView::JumpToAddress (uint16 address)
 	fFollowPC = false;
 	fBaseAddress = address;
 
+	fHasSelectedAddress = true;
+	fSelectedAddress = address;
+
 	UpdateScrollBar();
 	Invalidate();
 }
-
 
 // -----------------------------------------------------------------------------
 // CPUDisasmView::JumpToCurrentPC
@@ -2291,8 +2340,15 @@ CPUDisasmView::UpdateScrollBar()
 // -----------------------------------------------------------------------------
 // CPUDisasmView::ScrollBarChanged
 //
-// Handles vertical scrollbar movement.  Each scrollbar unit maps directly to a
-// CPU address.
+// Handles vertical scrollbar movement.
+//
+// The scrollbar is intentionally limited to cartridge PRG-ROM space,
+// $8000-$FFFF.  This prevents ordinary scrollbar navigation from wandering
+// through CPU RAM, mirrored registers, and other non-code regions where the
+// disassembler would otherwise decode arbitrary data as instructions.
+//
+// Explicit jumps performed by other debugger tools are still allowed to target
+// addresses below $8000; this restriction applies only to scrollbar navigation.
 //
 // Parameters:
 //   value - CPU address selected by the scrollbar.
@@ -2313,8 +2369,8 @@ CPUDisasmView::ScrollBarChanged (float value)
 
 	int32 address = static_cast<int32>(value + 0.5f);
 
-	if (address < 0) {
-		address = 0;
+	if (address < 0x8000) {
+		address = 0x8000;
 	}
 
 	if (address > 0xffff) {
@@ -2322,6 +2378,7 @@ CPUDisasmView::ScrollBarChanged (float value)
 	}
 
 	fFollowPC = false;
+
 	fBaseAddress = static_cast<uint16>(address);
 
 	Invalidate();

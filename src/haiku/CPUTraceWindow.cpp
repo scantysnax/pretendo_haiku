@@ -15,13 +15,9 @@
 // -----------------------------------------------------------------------------
 CPUTraceWindow::CPUTraceWindow(PretendoWindow *parent)
 	:
-	BWindow(
-		BRect(180.0f, 180.0f, 900.0f, 720.0f),
-		"CPU Trace",
-		B_FLOATING_WINDOW_LOOK,
-		B_NORMAL_WINDOW_FEEL,
-		B_NOT_RESIZABLE | B_NOT_ZOOMABLE
-	),
+	BWindow(BRect(180.0f, 180.0f, 900.0f, 720.0f),
+			"CPU Trace", B_FLOATING_WINDOW_LOOK, B_NORMAL_WINDOW_FEEL,
+			B_NOT_RESIZABLE | B_NOT_ZOOMABLE),
 	fParent(parent)
 {
 	BRect viewFrame = Bounds();

@@ -3,9 +3,6 @@
 #include "PretendoView.h"
 
 
-class PretendoWindow;
-
-
 // -----------------------------------------------------------------------------
 // KeyCodeFromCurrentMessage
 //
@@ -221,10 +218,7 @@ PretendoView::CaptureLastFrame (BBitmap *source)
 		|| fLastFrameBitmap->ColorSpace() != source->ColorSpace()) {
 		delete fLastFrameBitmap;
 
-		fLastFrameBitmap = new BBitmap(
-			bounds,
-			source->ColorSpace()
-		);
+		fLastFrameBitmap = new BBitmap(bounds, source->ColorSpace());
 	}
 
 	if (!fLastFrameBitmap || !fLastFrameBitmap->IsValid()) {
@@ -236,10 +230,7 @@ PretendoView::CaptureLastFrame (BBitmap *source)
 
 	const size_t srcRowBytes = source->BytesPerRow();
 	const size_t dstRowBytes = fLastFrameBitmap->BytesPerRow();
-	const size_t copyBytes = srcRowBytes < dstRowBytes
-		? srcRowBytes
-		: dstRowBytes;
-
+	const size_t copyBytes = (srcRowBytes < dstRowBytes) ? srcRowBytes : dstRowBytes;
 	const int32 rows = static_cast<int32>(bounds.IntegerHeight()) + 1;
 
 	for (int32 y = 0; y < rows; y++) {

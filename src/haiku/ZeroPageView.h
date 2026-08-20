@@ -23,7 +23,7 @@ class PretendoWindow;
 class ZeroPageView : public BView
 {
 	public:
-			ZeroPageView (BRect frame, PretendoWindow* parent);
+			ZeroPageView (BRect frame, PretendoWindow *parent);
 	virtual ~ZeroPageView();
 
 	virtual void AttachedToWindow();

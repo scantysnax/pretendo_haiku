@@ -14,14 +14,9 @@
 //   Constructor; no return value.
 // -----------------------------------------------------------------------------
 ZeroPageWindow::ZeroPageWindow(PretendoWindow* parent)
-	:
-	BWindow(
-		BRect(220.0f, 220.0f, 760.0f, 810.0f),
-		"Zero Page",
-		B_FLOATING_WINDOW_LOOK,
-		B_NORMAL_WINDOW_FEEL,
-		B_NOT_RESIZABLE | B_NOT_ZOOMABLE
-	),
+	: BWindow(BRect(220.0f, 220.0f, 760.0f, 810.0f),
+		"Zero Page", B_FLOATING_WINDOW_LOOK, B_NORMAL_WINDOW_FEEL,
+		B_NOT_RESIZABLE | B_NOT_ZOOMABLE),
 	fParent(parent)
 {
 	fView = new ZeroPageView(Bounds(), parent);

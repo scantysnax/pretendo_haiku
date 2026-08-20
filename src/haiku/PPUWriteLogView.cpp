@@ -1,14 +1,6 @@
 
 #include "PPUWriteLogView.h"
 
-#include "Cart.h"
-#include "DebugHelpers.h"
-#include "PretendoWindow.h"
-
-#include "Ppu.h"
-
-#include <cmath>
-
 
 PPUWriteLogView::PPUWriteLogView (BRect frame, PretendoWindow *parent)
 	: BView (frame, "ppu_write_log_view", B_FOLLOW_ALL_SIDES,
@@ -96,13 +88,7 @@ PPUWriteLogView::Draw (BRect updateRect)
 	DrawHeaderPanel();
 
 	if (!HasROMLoaded()) {
-		BRect panel(
-			4.0f,
-			70.0f,
-			Bounds().right - 4.0f,
-			Bounds().bottom - 8.0f
-		);
-
+		BRect panel(4.0f, 70.0f, Bounds().right - 4.0f, Bounds().bottom - 8.0f);
 		::DrawDebugPanel(this, panel, "Recent Writes");
 		DrawNoROMMessage(panel);
 		return;
@@ -126,23 +112,15 @@ PPUWriteLogView::Draw (BRect updateRect)
 void
 PPUWriteLogView::DrawHeaderPanel()
 {
-	BRect panel(
-		4.0f,
-		4.0f,
-		Bounds().right - 4.0f,
-		58.0f
-	);
-
+	BRect panel(4.0f, 4.0f, Bounds().right - 4.0f, 58.0f);
 	::DrawDebugPanel(this, panel, "PPU Write Log");
 
 	SetFontSize(11.0f);
 
 	BString line;
-	line.SetToFormat(
-		"Space: %s   C: clear log   State: %s",
-		fFreezeUpdates ? "resume" : "freeze",
-		fFreezeUpdates ? "frozen" : "live"
-	);
+	line.SetToFormat("Space: %s   C: clear log   State: %s",
+					(fFreezeUpdates ? "resume" : "freeze"),
+					(fFreezeUpdates ? "frozen" : "live"));
 
 	if (fFreezeUpdates) {
 		SetHighColor(160, 80, 0);
@@ -169,13 +147,7 @@ PPUWriteLogView::DrawHeaderPanel()
 void
 PPUWriteLogView::DrawLogPanel()
 {
-	BRect panel(
-		4.0f,
-		70.0f,
-		Bounds().right - 4.0f,
-		Bounds().bottom - 8.0f
-	);
-	
+	BRect panel(4.0f, 70.0f, Bounds().right - 4.0f, Bounds().bottom - 8.0f);
 	::DrawDebugPanel(this, panel, "Recent Writes");
 
 	BFont prevFont;
@@ -209,10 +181,7 @@ PPUWriteLogView::DrawLogPanel()
 	y += lineH + 8.0f;
 
 	SetHighColor(120, 120, 120);
-	StrokeLine(
-		BPoint(panel.left + 8.0f, y - 8.0f),
-		BPoint(panel.right - 8.0f, y - 8.0f)
-	);
+	StrokeLine(BPoint(panel.left + 8.0f, y - 8.0f), BPoint(panel.right - 8.0f, y - 8.0f));
 
 	y += 6.0f;
 	
@@ -238,9 +207,7 @@ PPUWriteLogView::DrawLogPanel()
 
 	for (uint32 row = 0; row < rows; row++) {
 		uint32 index = count - 1 - row;
-		nes::ppu::ppu_write_log_entry_t entry =
-			nes::ppu::ppu_write_log_entry(index);
-
+		nes::ppu::ppu_write_log_entry_t entry = nes::ppu::ppu_write_log_entry(index);
 		DescribeWrite(entry.address, entry.value, desc);
 
 		if (entry.address == 0x2005 || entry.address == 0x2006) {
@@ -350,13 +317,11 @@ PPUWriteLogView::DescribeWrite (uint16 address, uint8 value, BString &text) cons
 			const bool sprite8x16 = (value & 0x20) != 0;
 			const bool nmi = (value & 0x80) != 0;
 
-			text.SetToFormat(
-				"NT $%04X, BG $%04X, SPR %s, NMI %s",
-				ntBase,
-				bgPT,
-				sprite8x16 ? "8x16" : "8x8",
-				nmi ? "on" : "off"
-			);
+			text.SetToFormat("NT $%04X, BG $%04X, SPR %s, NMI %s",
+								ntBase,
+								bgPT,
+								sprite8x16 ? "8x16" : "8x8",
+								nmi ? "on" : "off");
 		} break;
 
 		case 0x2001:
@@ -365,12 +330,10 @@ PPUWriteLogView::DescribeWrite (uint16 address, uint8 value, BString &text) cons
 			const bool sprites = (value & 0x10) != 0;
 			const bool mono = (value & 0x1) != 0;
 
-			text.SetToFormat(
-				"BG %s, SPR %s, mono %s",
-				bg ? "on" : "off",
-				sprites ? "on" : "off",
-				mono ? "on" : "off"
-			);
+			text.SetToFormat("BG %s, SPR %s, mono %s",
+							bg ? "on" : "off",
+							sprites ? "on" : "off",
+							mono ? "on" : "off");
 		} break;
 
 		case 0x2002:
@@ -447,8 +410,8 @@ PPUWriteLogView::DrawNoROMMessage (BRect panel)
 	font.SetSize(12.0f);
 	SetFont(&font);
 
-	const char* title = "No ROM loaded";
-	const char* detail = "Load a cartridge to inspect PPU writes.";
+	const char *title = "No ROM loaded";
+	const char *detail = "Load a cartridge to inspect PPU writes.";
 
 	font_height fh;
 	GetFontHeight(&fh);
@@ -457,22 +420,10 @@ PPUWriteLogView::DrawNoROMMessage (BRect panel)
 	const float centerY = panel.top + (panel.Height() * 0.5f);
 
 	SetHighColor(80, 80, 80, 255);
-	DrawString(
-		title,
-		BPoint(
-			centerX - (StringWidth(title) * 0.5f),
-			centerY - 8.0f
-		)
-	);
+	DrawString(title, BPoint(centerX - (StringWidth(title) * 0.5f), centerY - 8.0f));
 
 	SetHighColor(120, 120, 120, 255);
-	DrawString(
-		detail,
-		BPoint(
-			centerX - (StringWidth(detail) * 0.5f),
-			centerY + fh.ascent + 8.0f
-		)
-	);
+	DrawString(detail, BPoint(centerX - (StringWidth(detail) * 0.5f), centerY + fh.ascent + 8.0f));
 
 	SetFont(&prevFont);
 }

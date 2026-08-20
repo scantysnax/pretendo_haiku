@@ -3,10 +3,10 @@
 
 #include <Window.h>
 
+#include "PPUWriteLogView.h"
+#include "PretendoWindow.h"
 
-class PretendoWindow;
 class PPUWriteLogView;
-
 
 // -----------------------------------------------------------------------------
 // PPUWriteLogWindow

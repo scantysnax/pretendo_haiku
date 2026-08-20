@@ -22,23 +22,14 @@
 // -----------------------------------------------------------------------------
 CPUMemoryWindow::CPUMemoryWindow(PretendoWindow *parent)
 	:
-	BWindow(
-		BRect(80.0f, 80.0f, 960.0f, 628.0f),
-		"CPU Memory",
-		B_FLOATING_WINDOW_LOOK,
-		B_NORMAL_WINDOW_FEEL,
-		B_NOT_RESIZABLE | B_NOT_ZOOMABLE
-	),
+	BWindow(BRect(80.0f, 80.0f, 960.0f, 628.0f),
+			"CPU Memory",
+			B_FLOATING_WINDOW_LOOK, B_NORMAL_WINDOW_FEEL,
+			B_NOT_RESIZABLE | B_NOT_ZOOMABLE),
 	fParent(parent)
 {
 	SetPulseRate(100000);
-
-	SetSizeLimits(
-		760.0f,
-		32767.0f,
-		540.0f,
-		32767.0f
-	);
+	SetSizeLimits(760.0f, 32767.0f, 540.0f, 32767.0f);
 
 	fView = new CPUMemoryView(Bounds(), parent);
 	AddChild(fView);

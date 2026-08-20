@@ -6,7 +6,6 @@
 #include <Entry.h>
 #include <Path.h>
 
-
 #include "PretendoWindow.h"
 
 

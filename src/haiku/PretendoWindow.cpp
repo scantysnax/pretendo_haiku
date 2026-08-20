@@ -1,8 +1,6 @@
 
 #include "PretendoWindow.h"
 
-#include "StackWindow.h"
-
 
 // -----------------------------------------------------------------------------
 // InvalidateWindowContents
@@ -648,6 +646,10 @@ PretendoWindow::MessageReceived (BMessage *message)
 			OnViewStackWindow();
 			break;
 			
+		case messages::VIEW_BREAKPOINTS:
+			OnViewBreakPointWindow();
+			break;
+			
 		default:
 			break;
 	}
@@ -896,6 +898,7 @@ PretendoWindow::AddMenu()
 	fCPUToolMenu->AddItem(new BMenuItem("View CPU Trace" B_UTF8_ELLIPSIS , new BMessage(messages::VIEW_CPUTRACE)));
 	fCPUToolMenu->AddItem(new BMenuItem("View Zero Page", new BMessage(messages::VIEW_ZERO_PAGE)));
 	fCPUToolMenu->AddItem(new BMenuItem("View Stack", new BMessage(messages::VIEW_STACK)));
+	fCPUToolMenu->AddItem(new BMenuItem("View Breakpoints", new BMessage(messages::VIEW_BREAKPOINTS)));
 	
 	fPPUToolMenu = new BMenu("PPU");
 	fToolMenu->AddItem(fPPUToolMenu);
@@ -2148,6 +2151,35 @@ PretendoWindow::OnViewZeroPageWindow()
 	fZeroPageWindow->Show();
 }
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::ShowBreakPointWindow
+//
+// Opens the BreakPoint Manager window.  If the window already exists, it is
+// brought to the front instead of creating a duplicate instance.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::OnViewBreakPointWindow()
+{
+	if (fBreakPointWindow) {
+		if (fBreakPointWindow->Lock()) {
+			fBreakPointWindow->Show();
+			fBreakPointWindow->Activate(true);
+			fBreakPointWindow->Unlock();
+		}
+
+		return;
+	}
+
+	fBreakPointWindow = new BreakPointWindow(this);
+	fBreakPointWindow->Show();
+}
+
 
 // -----------------------------------------------------------------------------
 // PretendoWindow::ROMInfoWindowClosed
@@ -2566,6 +2598,34 @@ void
 PretendoWindow::ZeroPageWindowClosed()
 {
 	fZeroPageWindow = nullptr;
+}
+
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::BreakPointWindowClosed
+//
+// Clears the main-window pointer to the BreakPoint Manager after that debugger
+// window has been closed.
+//
+// BreakPointWindow is owned by the application windowing system once created.
+// When the user closes it, the BreakPointWindow object is destroyed.  This
+// callback prevents PretendoWindow from retaining a stale pointer to that
+// destroyed window.
+//
+// Without this reset, a later attempt to reopen the BreakPoint Manager could
+// try to call methods such as Lock(), Show(), or Activate() through an invalid
+// pointer.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::BreakPointWindowClosed()
+{
+	fBreakPointWindow = nullptr;
 }
 
 
@@ -3349,18 +3409,23 @@ PretendoWindow::end_frame()
 // -----------------------------------------------------------------------------
 // PretendoWindow::emulator_thread
 //
-// Main emulator thread.  In windowed mode, controller input is handled by
-// PretendoView key events.  In fullscreen mode, global key polling is used
+// Main emulator thread. In windowed mode, controller input is handled by
+// PretendoView key events. In fullscreen mode, global key polling is used
 // because normal BView keyboard focus may not be reliable.
 //
 // Global polling is disabled while debugger input is active or while the
 // emulator is debugger-paused, preventing debugger shortcuts from leaking into
 // NES controller input.
 //
-// Execute breakpoints are detected by the CPU core at instruction boundaries.
-// When a breakpoint hit is latched, the emulator enters debugger pause mode
-// after the current frame finishes.  The hit latch is intentionally left set so
-// debugger views can report the hit address.
+// Execute BreakPoints are detected by the CPU core at instruction boundaries.
+// When a BreakPoint hit is latched, the emulator enters debugger pause mode
+// after the current frame finishes.
+//
+// A debugger BreakPoint pause is tracked with fDebuggerPausedEmulation rather
+// than fPaused. fPaused is reserved for the emulator's normal Pause command.
+//
+// The BreakPoint hit latch is intentionally left set so debugger views can
+// report the hit address and break reason.
 //
 // Parameters:
 //   data - PretendoWindow pointer.
@@ -3369,12 +3434,13 @@ PretendoWindow::end_frame()
 //   B_OK when the thread exits.
 // -----------------------------------------------------------------------------
 status_t
-PretendoWindow::emulator_thread (void *data)
+PretendoWindow::emulator_thread(void *data)
 {
-	PretendoWindow *window = reinterpret_cast<PretendoWindow *>(data);	
+	PretendoWindow *window
+		= reinterpret_cast<PretendoWindow *>(data);
 
 	while (1) {
-		if (window->LockMutex() == false) { 
+		if (window->LockMutex() == false) {
 			break;
 		}
 
@@ -3382,17 +3448,26 @@ PretendoWindow::emulator_thread (void *data)
 
 		if (!nes::ppu::system_paused) {
 			window->start_frame();
+
 			nes::run_frame(window);
+
 			window->end_frame();
 
 			if (nes::cpu::debug_breakpoint_hit()) {
 				breakpointHit = true;
+
+				/*
+				 * This is a debugger-controlled pause, not the
+				 * emulator's normal Pause state.
+				 */
 				nes::ppu::system_paused = true;
-				
+				window->fDebuggerPausedEmulation = true;
+
 				window->MuteAudioForDebugging();
 			}
 
-			if (!breakpointHit && window->ShouldPollGlobalInput()) {
+			if (!breakpointHit
+				&& window->ShouldPollGlobalInput()) {
 				window->ReadKeyStates();
 			}
 		}
@@ -3402,7 +3477,10 @@ PretendoWindow::emulator_thread (void *data)
 		if (breakpointHit) {
 			window->RedrawLastFrame();
 			window->InvalidateDebugViews();
-			InvalidateWindowContents(window->fCPUDisasmWindow);
+
+			InvalidateWindowContents(
+				window->fCPUDisasmWindow
+			);
 		}
 
 		if (nes::ppu::system_paused) {
@@ -4513,6 +4591,50 @@ PretendoWindow::InvalidateDebugViews()
 	 * CPUDisasmView normally manages its own PC/follow state and redraw
 	 * after debugger operations.
 	 */
+	 
+	InvalidateWindowContents(fBreakPointWindow);
+}
+
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::IsEmulatorRunning
+//
+// Returns whether the emulator session has been started.
+//
+// A loaded ROM does not necessarily mean the emulator is running.  Before the
+// user starts execution, or after Stop, fRunning is false.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   true if the emulator session is active; false otherwise.
+// -----------------------------------------------------------------------------
+bool
+PretendoWindow::IsEmulatorRunning() const
+{
+	return fRunning;
+}
+
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::IsEmulatorPaused
+//
+// Returns whether emulator execution is currently paused.
+//
+// This includes both the normal emulator Pause state and a debugger-controlled
+// pause caused by stepping or hitting a BreakPoint.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   true if emulator execution is paused; false otherwise.
+// -----------------------------------------------------------------------------
+bool
+PretendoWindow::IsEmulatorPaused() const
+{
+	return fPaused || fDebuggerPausedEmulation;
 }
 
 

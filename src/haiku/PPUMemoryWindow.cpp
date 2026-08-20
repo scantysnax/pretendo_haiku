@@ -17,19 +17,15 @@
 //   Constructor; no return value.
 // -----------------------------------------------------------------------------
 PPUMemoryWindow::PPUMemoryWindow(PretendoWindow *parent)
-	: BWindow(
-		BRect(240.0f, 240.0f, 840.0f, 750.0f),
-		"PPU Memory",
-		B_FLOATING_WINDOW_LOOK,
-		B_NORMAL_WINDOW_FEEL,
-		B_NOT_RESIZABLE | B_NOT_ZOOMABLE
-	)
+	: BWindow(BRect(240.0f, 240.0f, 840.0f, 750.0f),
+				"PPU Memory",
+				B_FLOATING_WINDOW_LOOK,
+				B_NORMAL_WINDOW_FEEL,
+				B_NOT_RESIZABLE | B_NOT_ZOOMABLE)
 {
 	fParent = parent;
 
-	BRect viewFrame = Bounds();
-
-	fView = new PPUMemoryView(viewFrame, parent);
+	fView = new PPUMemoryView(Bounds(), parent);
 	AddChild(fView);
 
 	SetPulseRate(16667);
