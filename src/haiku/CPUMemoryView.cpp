@@ -233,19 +233,17 @@ CPUMemoryView::Draw (BRect updateRect)
 // -----------------------------------------------------------------------------
 // CPUMemoryView::Pulse
 //
-// Refreshes the CPU memory view and keeps the hover byte synchronized with the
-// current mouse position.
+// Refreshes the live CPU memory display and keeps transient hover inspection
+// synchronized with the mouse position.
 //
-// Hover tracking is only active while the CPU Memory window is the active
-// window.  This prevents the byte inspector from updating as if the window still
-// had focus when another debugger or emulator window is active.
+// Hover tracking is active only while the CPU Memory window is active.  When
+// focus moves to another window, or when the pointer leaves this view, transient
+// hover state is cleared.  A locked byte is preserved across ordinary focus and
+// pointer changes.
 //
-// Locked byte inspection is preserved across focus changes, but transient hover
-// state is cleared when the window is inactive.
-//
-// The view still invalidates on every pulse while a ROM is loaded so memory
-// contents, PC highlighting, stack pointer highlighting, and instruction operand
-// highlighting update live.
+// While the active window is displaying a loaded ROM, the view is invalidated
+// on each pulse so memory contents, PC/opcode highlighting, operand highlighting,
+// stack pointer state, and instruction-target information remain live.
 //
 // Parameters:
 //   None.
@@ -260,35 +258,40 @@ CPUMemoryView::Pulse()
 		return;
 	}
 
-	BWindow* window = Window();
+	BWindow *window = Window();
 
 	if (!window || !window->IsActive()) {
 		if (fHasHoveredAddress) {
 			fHasHoveredAddress = false;
 			fHoveredAddress = 0x0000;
+
+			Invalidate();
 		}
 
-		Invalidate();
 		return;
 	}
 
 	BPoint where;
 	uint32 buttons = 0;
-
 	GetMouse(&where, &buttons, false);
 
 	if (!Bounds().Contains(where)) {
 		if (fHasHoveredAddress) {
 			fHasHoveredAddress = false;
 			fHoveredAddress = 0x0000;
+
+			Invalidate();
 		}
 
-		Invalidate();
 		return;
 	}
 
 	HoverAddressForPoint(where);
 
+	/*
+	 * Always refresh while this is the active CPU Memory window so live
+	 * memory, PC/SP state, operands, and instruction targets remain current.
+	 */
 	Invalidate();
 }
 
@@ -343,7 +346,7 @@ CPUMemoryView::MouseDown (BPoint where)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-CPUMemoryView::MouseMoved(BPoint where, uint32 transit, const BMessage *dragMessage)
+CPUMemoryView::MouseMoved (BPoint where, uint32 transit, const BMessage *dragMessage)
 {
 	(void)dragMessage;
 
@@ -451,7 +454,6 @@ CPUMemoryView::AddressForPoint (BPoint where, uint16 &address) const
 	const_cast<CPUMemoryView *>(this)->GetFontHeight(&fh);
 
 	const float lineH = ceilf(fh.ascent + fh.descent + fh.leading) + 2.0f;
-
 	const float addrX = panel.left + 10.0f;
 	const float hexX = addrX + 74.0f;
 	const float byteStep = 27.0f;
@@ -516,7 +518,7 @@ CPUMemoryView::AddressForPoint (BPoint where, uint16 &address) const
 		for (int32 i = 0; i < 16; i++) {
 			const float asciiCharX = asciiX + i * asciiStep;
 
-			BRect asciiRect(asciiCharX - 2.0f, firstRowY + row * lineH - 12.0f, 
+			BRect asciiRect(asciiCharX - 2.0f, firstRowY + row * lineH - 12.0f,  
 							asciiCharX + asciiStep,firstRowY + row * lineH + 3.0f);
 
 			if (asciiRect.Contains(where)) {
@@ -558,7 +560,6 @@ void
 CPUMemoryView::DrawHeaderPanel()
 {
 	BRect panel(4.0f, 4.0f, Bounds().right - 4.0f, 194.0f);
-
 	::DrawDebugPanel(this, panel, "CPU Memory");
 
 	BFont prevFont;
@@ -589,7 +590,7 @@ CPUMemoryView::DrawHeaderPanel()
 		nes::cpu::cpu_state_t state = nes::cpu::debug_cpu_state();
 		const uint16 stackSlotAddress = static_cast<uint16>(0x100 | state.s);
 
-		CPUDisasmLine pcLine = DisassembleCPU(state.pc);
+		cpu_disasm_line_t pcLine = DisassembleCPU(state.pc);
 		uint16 instructionLength = pcLine.length;
 
 		if (instructionLength == 0) {
@@ -599,18 +600,8 @@ CPUMemoryView::DrawHeaderPanel()
 		}
 
 		s.SetToFormat("Base:$%04X  %-15s  PC:$%04X  Len:%u  SP:$%02X($%04X)  A:$%02X  X:$%02X  Y:$%02X  P:$%02X",
-			fBaseAddress,
-			RegionLabel(fBaseAddress),
-			state.pc,
-			instructionLength,
-			state.s,
-			stackSlotAddress,
-			state.a,
-			state.x,
-			state.y,
-			state.p
-		);
-
+					  	fBaseAddress, RegionLabel(fBaseAddress), state.pc, instructionLength, state.s, stackSlotAddress,
+						state.a, state.x, state.y, state.p);
 		DrawString(s.String(), BPoint(textX, statusY));
 
 		BString byteText;
@@ -655,13 +646,7 @@ CPUMemoryView::DrawHeaderPanel()
 		const uint8 stackValue4 = nes::bus::debug_read_memory(stackAddress4);
 
 		s.SetToFormat("Stack:  Slot:$%04X  Top:$%04X  +1:$%02X  +2:$%02X  +3:$%02X  +4:$%02X",
-			stackSlotAddress,
-			stackAddress1,
-			stackValue1,
-			stackValue2,
-			stackValue3,
-			stackValue4
-		);
+						stackSlotAddress, stackAddress1, stackValue1, stackValue2, stackValue3, stackValue4);
 
 		SetHighColor(70, 60, 40);
 		DrawString(s.String(), BPoint(textX, stackY));
@@ -809,7 +794,6 @@ CPUMemoryView::DrawMemoryPanel()
 		: Bounds().right - 4.0f;
 
 	BRect panel(4.0f, 202.0f, rightEdge, Bounds().bottom - 8.0f);
-
 	::DrawDebugPanel(this, panel, "Memory");
 
 	SetHighColor(216, 216, 216);
@@ -824,7 +808,7 @@ CPUMemoryView::DrawMemoryPanel()
 	const uint16 pcAddress = state.pc;
 	const uint16 spAddress = static_cast<uint16>(0x100 | state.s);
 
-	CPUDisasmLine pcLine = DisassembleCPU(pcAddress);
+	cpu_disasm_line_t pcLine = DisassembleCPU(pcAddress);
 	uint16 pcInstructionLength = pcLine.length;
 
 	if (pcInstructionLength == 0) {
@@ -857,7 +841,6 @@ CPUMemoryView::DrawMemoryPanel()
 	const float asciiX = hexX + byteStep * 16.0f + groupGap + 10.0f;
 	const float asciiStep = mono.StringWidth("M");
 	const float regionX = asciiX + asciiStep * 16.0f + 20.0f;
-
 	float y = panel.top + 34.0f;
 
 	SetHighColor(80, 80, 80);
@@ -896,11 +879,10 @@ CPUMemoryView::DrawMemoryPanel()
 		const bool pcInRow = pcInstructionStart <= static_cast<uint32>(rowEnd)
 							 && pcInstructionEnd >= static_cast<uint32>(rowStart);
 		const bool spInRow = (spAddress >= rowStart) && (spAddress <= rowEnd);
-
-		const bool stackRow = address >= 0x100 && address <= 0x1ff;
-		const bool ppuRegisterRow = address >= 0x2000 && address <= 0x3fff;
-		const bool apuRegisterRow = address >= 0x4000 && address <= 0x401f;
-		const bool prgRow = address >= 0x8000;
+		const bool stackRow = (address >= 0x100) && (address <= 0x1ff);
+		const bool ppuRegisterRow = (address >= 0x2000) && (address <= 0x3fff);
+		const bool apuRegisterRow = (address >= 0x4000) && (address <= 0x401f);
+		const bool prgRow = (address >= 0x8000);
 
 		SetRegionBackgroundColor(address);
 		FillRect(BRect(panel.left + 6.0f, y - lineH + 4.0f, panel.right - 6.0f, y + 3.0f));
@@ -937,7 +919,6 @@ CPUMemoryView::DrawMemoryPanel()
 			const bool isHovered = fHasHoveredAddress && (byteAddress == fHoveredAddress);
 			const bool isLocked = fHasLockedAddress && (byteAddress == fLockedAddress);
 			const bool isInstructionTarget = hasInstructionTarget && (byteAddress == instructionTargetAddress);
-
 			float hexByteX = hexX + i * byteStep;
 
 			if (i >= 8) {
@@ -948,14 +929,12 @@ CPUMemoryView::DrawMemoryPanel()
 
 			if (isInstructionTarget) {
 				SetHighColor(0, 130, 0);
-
 				BRect targetRect(hexByteX - 3.0f, y - 12.0f, hexByteX + 18.0f, y + 3.0f);
 				StrokeRect(targetRect);
 			}
 
 			if (isHovered) {
 				SetHighColor(90, 90, 90);
-
 				BRect hoverRect(hexByteX - 4.0f, y - 13.0f, hexByteX + 19.0f, y + 3.0f);
 				StrokeRect(hoverRect);
 			}
@@ -1250,6 +1229,34 @@ CPUMemoryView::Read6502IndirectVector (uint16 address) const
 	return static_cast<uint16>(low | (high << 8));
 }
 
+// -----------------------------------------------------------------------------
+// CPUMemoryView::Clear
+//
+// Clears ROM-specific CPU memory inspection state.
+//
+// Hovered and locked addresses are discarded so a selection made while viewing
+// one ROM does not remain active after that ROM is unloaded.  The current base
+// address is intentionally preserved so the user's memory-view position remains
+// unchanged.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+CPUMemoryView::Clear()
+{
+	fHasHoveredAddress = false;
+	fHoveredAddress = 0x0000;
+
+	fHasLockedAddress = false;
+	fLockedAddress = 0x0000;
+
+	Invalidate();
+}
+
 
 // -----------------------------------------------------------------------------
 // CPUMemoryView::ParseOperandAddress
@@ -1265,7 +1272,7 @@ CPUMemoryView::Read6502IndirectVector (uint16 address) const
 //   "#$10"      -> false
 //
 // Parameters:
-//   operand - Operand text from CPUDisasmLine.
+//   operand - Operand text from cpu_disasm_line_t.
 //   value   - Receives the parsed address value.
 //   digits  - Receives the number of hex digits parsed.
 //
@@ -1309,14 +1316,18 @@ CPUMemoryView::ParseOperandAddress (const BString &operand, uint16 &value, int32
 // -----------------------------------------------------------------------------
 // CPUMemoryView::CurrentInstructionTarget
 //
-// Attempts to compute the memory/control-flow target referenced by the current
-// CPU instruction.  This covers the common 6502 addressing modes used by the
-// memory viewer: zero-page, zero-page indexed, absolute, absolute indexed,
-// indirect indexed, indexed indirect, JSR/JMP absolute, relative branch targets,
-// and JMP absolute indirect.
+// Attempts to compute the effective memory or control-flow target referenced by
+// the current CPU instruction.
+//
+// This handles zero-page, zero-page indexed, absolute, absolute indexed,
+// indexed-indirect, indirect-indexed, JSR/JMP absolute, relative branch targets
+// as emitted by the disassembler, and JMP absolute-indirect addressing.
+//
+// Original 6502 JMP indirect page-wrap behavior is handled by
+// Read6502IndirectVector().
 //
 // Parameters:
-//   address - Receives the target/effective address.
+//   address - Receives the resolved target/effective CPU address.
 //
 // Returns:
 //   true if the current instruction has a useful target address.
@@ -1329,7 +1340,7 @@ CPUMemoryView::CurrentInstructionTarget (uint16 &address) const
 	}
 
 	nes::cpu::cpu_state_t state = nes::cpu::debug_cpu_state();
-	CPUDisasmLine line = DisassembleCPU(state.pc);
+	cpu_disasm_line_t line = DisassembleCPU(state.pc);
 
 	uint16 baseAddress = 0x0000;
 	int32 digits = 0;
@@ -1338,24 +1349,43 @@ CPUMemoryView::CurrentInstructionTarget (uint16 &address) const
 		return false;
 	}
 
-	const char* mnemonic = line.mnemonic.String();
-	const char* operand = line.operand.String();
+	const char *mnemonic = line.mnemonic.String();
+	const char *operand = line.operand.String();
 
 	const bool hasX = StringContains(operand, ",X") || StringContains(operand, ",x");
 	const bool hasY = StringContains(operand, ",Y") || StringContains(operand, ",y");
 	const bool isIndirect = StringContains(operand, "(") && StringContains(operand, ")");
 
-	if (strcmp(mnemonic, "JMP") == 0 && isIndirect && digits > 2) {
+	/*
+	 * Absolute-indirect JMP:
+	 *
+	 *     JMP ($1234)
+	 *
+	 * The emulator's disassembler normally uses lowercase mnemonics, but
+	 * accept either case here so target resolution is not dependent on
+	 * presentation formatting.
+	 */
+	const bool isJMP = strcmp(mnemonic, "jmp") == 0 || strcmp(mnemonic, "JMP") == 0;
+
+	if (isJMP && isIndirect && digits > 2) {
 		address = Read6502IndirectVector(baseAddress);
+
 		return true;
 	}
 
+	/*
+	 * Zero-page indirect addressing:
+	 *
+	 *     ($20,X)
+	 *     ($20),Y
+	 */
 	if (isIndirect && digits <= 2) {
 		uint8 pointer = static_cast<uint8>(baseAddress);
 
 		if (hasX) {
 			pointer = static_cast<uint8>(pointer + state.x);
 			address = ReadZeroPageVector(pointer);
+
 			return true;
 		}
 
@@ -1368,6 +1398,11 @@ CPUMemoryView::CurrentInstructionTarget (uint16 &address) const
 		return true;
 	}
 
+	/*
+	 * Zero-page and zero-page indexed addressing.
+	 *
+	 * uint8 arithmetic intentionally provides 6502 zero-page wrapping.
+	 */
 	if (digits <= 2) {
 		uint8 target = static_cast<uint8>(baseAddress);
 
@@ -1378,9 +1413,14 @@ CPUMemoryView::CurrentInstructionTarget (uint16 &address) const
 		}
 
 		address = target;
+
 		return true;
 	}
 
+	/*
+	 * Absolute addressing, absolute indexing, JSR/JMP absolute, and
+	 * absolute branch targets already resolved by the disassembler.
+	 */
 	address = baseAddress;
 
 	if (hasX) {
@@ -1714,8 +1754,8 @@ CPUMemoryView::VisibleMemoryRows() const
 	const_cast<CPUMemoryView *>(this)->SetFont(&prevFont);
 
 	const float lineH = ceilf(fh.ascent + fh.descent + fh.leading) + 2.0f;
-
 	float y = panel.top + 34.0f;
+	
 	y += lineH + 6.0f;
 	y += 4.0f;
 
@@ -1774,12 +1814,7 @@ CPUMemoryView::DrawInstructionTargetInfo (float x, float y)
 	}
 
 	s.SetToFormat("Target: $%04X  Hex:$%02X  Dec:%3u  ASCII:%-3s  %s",
-		address,
-		value,
-		value,
-		asciiText.String(),
-		RegionLabel(address)
-	);
+					address, value, value, asciiText.String(), RegionLabel(address));
 
 	SetHighColor(0, 100, 0);
 	DrawString(s.String(), BPoint(x, y));
@@ -1861,13 +1896,7 @@ CPUMemoryView::DrawSelectedByteInfo (float x, float y)
 	const char *mode = fHasLockedAddress ? "Locked" : "Hover";
 
 	s.SetToFormat("%s:   $%04X  Hex:$%02X  Dec:%3u  ASCII:%-3s  %s",
-		mode,
-		address,
-		value,
-		value,
-		asciiText.String(),
-		RegionLabel(address)
-	);
+		mode, address, value, value, asciiText.String(), RegionLabel(address));
 
 	if (fHasLockedAddress) {
 		SetHighColor(0, 0, 0);

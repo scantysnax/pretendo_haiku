@@ -177,6 +177,74 @@ ClearPatternTableWindow (PatternTableWindow *window)
 
 
 // -----------------------------------------------------------------------------
+// ClearCPUMemoryWindow
+//
+// Clears ROM-specific inspection state from an open CPU Memory debugger window.
+//
+// The window remains open and its current memory-view position is preserved,
+// while transient hover and locked-byte state belonging to the unloaded ROM are
+// discarded.
+//
+// Parameters:
+//   window - CPU Memory debugger window to clear.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+static void
+ClearCPUMemoryWindow (CPUMemoryWindow *window)
+{
+	if (!window) {
+		return;
+	}
+
+	if (!window->Lock()) {
+		return;
+	}
+
+	CPUMemoryView *view = window->View();
+
+	if (view) {
+		view->Clear();
+	}
+
+	window->Unlock();
+}
+
+// -----------------------------------------------------------------------------
+// ClearOAMWindow
+//
+// Clears ROM-specific state from an open OAM debugger window without closing
+// the window.
+//
+// Parameters:
+//   window - OAM debugger window to clear.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+static void
+ClearOAMWindow(OAMDebugWindow *window)
+{
+	if (!window) {
+		return;
+	}
+
+	if (!window->Lock()) {
+		return;
+	}
+
+	OAMDebugView *view = window->View();
+
+	if (view) {
+		view->Clear();
+	}
+
+	window->Unlock();
+}
+
+
+// -----------------------------------------------------------------------------
 // PretendoWindow::PretendoWindow
 //
 // Creates the main emulator window, initializes menus, video buffers, audio
@@ -1074,7 +1142,9 @@ PretendoWindow::OnFreeROM()
 	 */
 	ClearPatternTableWindow(fPatternTable1Window);
 	ClearPatternTableWindow(fPatternTable2Window);
-
+	
+	ClearCPUMemoryWindow(fCPUMemoryWindow);
+	ClearOAMWindow(fOAMDebugWindow);
 	ClearVideoView();
 
 	nes::cpu::debug_clear_instruction_trace();

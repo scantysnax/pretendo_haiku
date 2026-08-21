@@ -23,6 +23,7 @@ class OAMDebugWindow : public BWindow
 
 	public:
 	void SetPatternTables (PatternTableWindow *pt0, PatternTableWindow *pt1);
+	OAMDebugView *View() const;
 
 	private:
 	PretendoWindow *fParent = nullptr;

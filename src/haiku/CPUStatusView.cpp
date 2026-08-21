@@ -170,7 +170,7 @@ CPUStatusView::DrawRegisterPanel()
 	BString s;
 	nes::cpu::cpu_state_t state = nes::cpu::debug_cpu_state();
 
-	auto drawLeftKV = [&](const char* label, const char* value) {
+	auto drawLeftKV = [&](const char *label, const char *value) {
 		SetHighColor(80, 80, 80);
 		SetFont(&prevFont);
 		DrawString(label, BPoint(leftLabelX, leftY));
@@ -416,7 +416,7 @@ CPUStatusView::DrawTimingPanel()
 		y += lineH;
 	};
 
-	CPUDisasmLine line = DisassembleCPU(state.pc);
+	cpu_disasm_line_t line = DisassembleCPU(state.pc);
 
 	BString byteText;
 
@@ -465,11 +465,7 @@ CPUStatusView::DrawTimingPanel()
 	const uint8 stackValue3 = nes::bus::debug_read_memory(stackAddress3);
 
 	s.SetToFormat("Top $%04X:$%02X  +1:$%02X  +2:$%02X  +3:$%02X",
-					stackAddress0,
-					stackValue0,
-					stackValue1,
-					stackValue2,
-					stackValue3);
+					stackAddress0, stackValue0, stackValue1, stackValue2, stackValue3);
 	drawKV("Stack:", s.String());
 
 	s.SetToFormat("$%02X", (state.instruction & 0xff));

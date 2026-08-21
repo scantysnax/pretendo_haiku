@@ -18,12 +18,9 @@
 CPUStatusWindow::CPUStatusWindow(PretendoWindow* parent)
 	:
 	BWindow(
-		BRect(280.0f, 280.0f, 800.0f, 770.0f),
-		"CPU Status",
-		B_FLOATING_WINDOW_LOOK,
-		B_NORMAL_WINDOW_FEEL,
-		B_NOT_RESIZABLE | B_NOT_ZOOMABLE
-	)
+		BRect(280.0f, 280.0f, 800.0f, 770.0f), "CPU Status", 
+				B_FLOATING_WINDOW_LOOK, B_NORMAL_WINDOW_FEEL,
+				B_NOT_RESIZABLE | B_NOT_ZOOMABLE)
 {
 	fParent = parent;
 

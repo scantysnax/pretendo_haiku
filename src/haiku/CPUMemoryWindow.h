@@ -15,6 +15,9 @@ class CPUMemoryWindow : public BWindow
 
 	virtual bool QuitRequested();
 
+	public:
+	CPUMemoryView *View() const;
+	
 	private:
 	PretendoWindow *fParent = nullptr;
 	CPUMemoryView *fView = nullptr;

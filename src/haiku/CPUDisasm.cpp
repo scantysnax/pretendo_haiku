@@ -2,7 +2,7 @@
 #include "CPUDisasm.h"
 
 
-enum AddressMode {
+enum address_mode {
 	AM_IMP,
 	AM_ACC,
 	AM_REL,
@@ -19,13 +19,13 @@ enum AddressMode {
 };
 
 
-struct OpcodeInfo {
+struct opcode_info_t {
 	const char *mnemonic;
-	AddressMode mode;
+	address_mode mode;
 };
 
 
-static const OpcodeInfo kOpcodeTable[256] = {
+static const opcode_info_t kOpcodeTable[256] = {
 	{ "brk", AM_IMP },    { "ora", AM_IND_X },  { "jam", AM_IMP },    { "slo", AM_IND_X },
 	{ "nop", AM_ZERO },   { "ora", AM_ZERO },   { "asl", AM_ZERO },   { "slo", AM_ZERO },
 	{ "php", AM_IMP },    { "ora", AM_IMM },    { "asl", AM_ACC },    { "anc", AM_IMM },
@@ -126,7 +126,7 @@ ReadOp16 (uint16 address)
 
 
 static uint8
-InstructionLength (AddressMode mode)
+InstructionLength (address_mode mode)
 {
 	switch (mode) {
 		case AM_IMP:
@@ -154,7 +154,7 @@ InstructionLength (AddressMode mode)
 
 
 static void
-FormatOperand (uint16 address, AddressMode mode, BString &operand)
+FormatOperand (uint16 address, address_mode mode, BString &operand)
 {
 	operand.SetTo("");
 
@@ -223,7 +223,7 @@ FormatOperand (uint16 address, AddressMode mode, BString &operand)
 
 
 static void
-FormatBytes (const CPUDisasmLine &line, BString &bytes)
+FormatBytes (const cpu_disasm_line_t &line, BString &bytes)
 {
 	bytes.SetTo("");
 
@@ -245,15 +245,15 @@ FormatBytes (const CPUDisasmLine &line, BString &bytes)
 }
 
 
-CPUDisasmLine
+cpu_disasm_line_t
 DisassembleCPU (uint16 address)
 {
-	CPUDisasmLine line;
+	cpu_disasm_line_t line;
 
 	line.address = address;
 
 	uint8 opcode = DebugRead(address);
-	const OpcodeInfo &info = kOpcodeTable[opcode];
+	const opcode_info_t &info = kOpcodeTable[opcode];
 
 	line.length = InstructionLength(info.mode);
 	line.bytes[0] = opcode;

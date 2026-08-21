@@ -60,6 +60,8 @@ class CPUMemoryView : public BView
 	uint16 ReadZeroPageVector (uint8 address) const;
 	uint16 Read6502IndirectVector (uint16 address) const;
 	
+	public:
+	void Clear();
 	
 	private:
 	PretendoWindow *fParent = nullptr;

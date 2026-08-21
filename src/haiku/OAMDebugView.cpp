@@ -42,19 +42,11 @@ class OAMSpriteScrollBar : public BScrollBar
 	// -------------------------------------------------------------------------
 	OAMSpriteScrollBar(BRect frame, OAMDebugView *owner)
 		:
-		BScrollBar(
-			frame,
-			"oam_sprite_scrollbar",
-			nullptr,
-			0.0f,
-			kMaxFirstOAMSprite,
-			B_VERTICAL
-		),
+		BScrollBar(frame, "oam_sprite_scrollbar", nullptr, 0.0f, kMaxFirstOAMSprite, B_VERTICAL),
 		fOwner(owner)
 	{
 		SetSteps(1.0f, kVisibleOAMRows);
-		SetProportion(static_cast<float>(kVisibleOAMRows)
-			/ static_cast<float>(kOAMSpriteCount));
+		SetProportion(static_cast<float>(kVisibleOAMRows) / static_cast<float>(kOAMSpriteCount));
 	}
 
 	// -------------------------------------------------------------------------
@@ -220,26 +212,12 @@ OAMDebugView::AttachedToWindow()
 	BView::AttachedToWindow();
 
 	MakeFocus(true);
-
-	SetMouseEventMask(
-		B_POINTER_EVENTS | B_MOUSE_WHEEL_CHANGED,
-		B_NO_POINTER_HISTORY
-	);
+	SetMouseEventMask(B_POINTER_EVENTS | B_MOUSE_WHEEL_CHANGED, B_NO_POINTER_HISTORY);
 
 	if (!fSpriteScrollBar) {
-		BRect listPanel(
-			4.0f,
-			174.0f,
-			Bounds().right - 4.0f,
-			526.0f
-		);
-
-		BRect scrollFrame(
-			listPanel.right - 18.0f,
-			listPanel.top + 26.0f,
-			listPanel.right - 4.0f,
-			listPanel.bottom - 22.0f
-		);
+		BRect listPanel(4.0f, 174.0f, Bounds().right - 4.0f, 526.0f);
+		BRect scrollFrame(listPanel.right - 18.0f, listPanel.top + 26.0f,
+						  listPanel.right - 4.0f, listPanel.bottom - 22.0f);
 
 		fSpriteScrollBar = new OAMSpriteScrollBar(scrollFrame, this);
 		AddChild(fSpriteScrollBar);
@@ -269,6 +247,7 @@ OAMDebugView::AttachedToWindow()
 	Invalidate();
 }
 
+
 // -----------------------------------------------------------------------------
 // OAMDebugView::Draw
 //
@@ -292,26 +271,20 @@ OAMDebugView::Draw(BRect updateRect)
 	const bool hasROM = HasROMLoaded();
 
 	if (fSpriteScrollBar) {
-		if (hasROM && fSpriteScrollBar->IsHidden())
+		if (hasROM && fSpriteScrollBar->IsHidden()) {
 			fSpriteScrollBar->Show();
-		else if (!hasROM && !fSpriteScrollBar->IsHidden())
+		} else if (!hasROM && !fSpriteScrollBar->IsHidden()) {
 			fSpriteScrollBar->Hide();
+		}
 	}
 
 	DrawHeaderUI();
 
 	const float rightEdge = (fSpriteScrollBar && !fSpriteScrollBar->IsHidden())
-		? fSpriteScrollBar->Frame().left - 4.0f
-		: Bounds().right - 4.0f;
+		? fSpriteScrollBar->Frame().left - 4.0f : Bounds().right - 4.0f;
 
 	if (!hasROM) {
-		BRect panel(
-			4.0f,
-			88.0f,
-			rightEdge,
-			Bounds().bottom - 8.0f
-		);
-
+		BRect panel(4.0f, 88.0f, rightEdge, Bounds().bottom - 8.0f);
 		::DrawDebugPanel(this, panel, "OAM Sprites");
 		DrawNoROMMessage(panel);
 		return;
@@ -347,19 +320,9 @@ OAMDebugView::FrameResized(float width, float height)
 		return;
 	}
 
-	BRect listPanel(
-		4.0f,
-		174.0f,
-		Bounds().right - 4.0f,
-		526.0f
-	);
-
-	BRect scrollFrame(
-		listPanel.right - 18.0f,
-		listPanel.top + 26.0f,
-		listPanel.right - 4.0f,
-		listPanel.bottom - 22.0f
-	);
+	BRect listPanel(4.0f, 174.0f, Bounds().right - 4.0f, 526.0f);
+	BRect scrollFrame(listPanel.right - 18.0f, listPanel.top + 26.0f,
+					  listPanel.right - 4.0f, listPanel.bottom - 22.0f);
 
 	fSpriteScrollBar->MoveTo(scrollFrame.LeftTop());
 	fSpriteScrollBar->ResizeTo(scrollFrame.Width(), scrollFrame.Height());
@@ -381,7 +344,7 @@ OAMDebugView::FrameResized(float width, float height)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-OAMDebugView::KeyDown(const char* bytes, int32 numBytes)
+OAMDebugView::KeyDown(const char *bytes, int32 numBytes)
 {
 	if (numBytes <= 0) {
 		return;
@@ -496,8 +459,7 @@ OAMDebugView::KeyDown(const char* bytes, int32 numBytes)
 			}
 
 			if (!fSpriteLocked) {
-				if (fHoverSprite < fFirstSprite
-					|| fHoverSprite >= fFirstSprite + kVisibleOAMRows) {
+				if (fHoverSprite < fFirstSprite || fHoverSprite >= fFirstSprite + kVisibleOAMRows) {
 					fHoverSprite = fFirstSprite;
 				}
 			}
@@ -621,12 +583,7 @@ OAMDebugView::MouseDown(BPoint where)
 		return;
 	}
 
-	BRect listPanel(
-		4.0f,
-		174.0f,
-		Bounds().right - 4.0f,
-		526.0f
-	);
+	BRect listPanel(4.0f, 174.0f, Bounds().right - 4.0f, 526.0f);
 
 	if (!listPanel.Contains(where)) {
 		return;
@@ -634,7 +591,6 @@ OAMDebugView::MouseDown(BPoint where)
 
 	const float firstRowY = listPanel.top + 58.0f;
 	const float rowH = 17.0f;
-
 	int32 row = static_cast<int32>((where.y - firstRowY) / rowH);
 
 	if (row < 0 || row >= kVisibleOAMRows) {
@@ -680,8 +636,7 @@ OAMDebugView::MouseDown(BPoint where)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-OAMDebugView::MouseMoved(BPoint where, uint32 transit,
-	const BMessage *message)
+OAMDebugView::MouseMoved (BPoint where, uint32 transit, const BMessage *message)
 {
 	(void)message;
 
@@ -717,12 +672,7 @@ OAMDebugView::MouseMoved(BPoint where, uint32 transit,
 		return;
 	}
 
-	BRect listPanel(
-		4.0f,
-		174.0f,
-		Bounds().right - 4.0f,
-		526.0f
-	);
+	BRect listPanel(4.0f, 174.0f, Bounds().right - 4.0f, 526.0f);
 
 	if (!listPanel.Contains(where)) {
 		return;
@@ -730,7 +680,6 @@ OAMDebugView::MouseMoved(BPoint where, uint32 transit,
 
 	const float firstRowY = listPanel.top + 58.0f;
 	const float rowH = 17.0f;
-
 	int32 row = static_cast<int32>((where.y - firstRowY) / rowH);
 
 	if (row < 0 || row >= kVisibleOAMRows) {
@@ -758,9 +707,18 @@ OAMDebugView::MouseMoved(BPoint where, uint32 transit,
 // -----------------------------------------------------------------------------
 // OAMDebugView::Pulse
 //
-// Periodic update hook for live OAM mode.  In live mode, this captures one
-// coherent OAM snapshot, updates linked debugger views, and redraws the OAM
-// view.  In snapshot/frozen mode, no automatic refresh is performed.
+// Periodically refreshes the OAM debugger.
+//
+// If no ROM is loaded, stale cartridge-specific OAM state and linked debugger
+// highlights are cleared regardless of whether the viewer is frozen.
+//
+// When a ROM is loaded but no valid OAM snapshot exists, one initial snapshot
+// is captured even in frozen mode.  This allows an OAM window that remained
+// open across ROM unload/reload, or was opened before a ROM was loaded, to
+// initialize correctly.
+//
+// Once a valid snapshot exists, frozen mode preserves it.  Live mode captures a
+// new coherent 256-byte OAM snapshot on each pulse.
 //
 // Parameters:
 //   None.
@@ -771,27 +729,46 @@ OAMDebugView::MouseMoved(BPoint where, uint32 transit,
 void
 OAMDebugView::Pulse()
 {
+	/*
+	 * ROM removal must be handled before freeze mode.  Otherwise a frozen
+	 * debugger can retain the preceding cartridge's OAM snapshot and linked
+	 * highlights indefinitely.
+	 */
+	if (!HasROMLoaded()) {
+		if (fHaveFrozenOAM || fSpriteLocked || fLockedSprite >= 0 || fHoverSprite >= 0) {
+			Clear();
+		}
+
+		return;
+	}
+
+	/*
+	 * A newly loaded ROM needs one valid snapshot even when the user has
+	 * chosen frozen mode.
+	 */
+	if (!fHaveFrozenOAM) {
+		CaptureOAMSnapshot();
+
+		UpdatePaletteDebuggerHighlight();
+		UpdatePatternTableHighlight();
+		UpdateCHRExplorer();
+
+		Invalidate();
+		return;
+	}
+
+	/*
+	 * A valid frozen snapshot already exists.  Preserve it until the user
+	 * explicitly refreshes it or switches back to live mode.
+	 */
 	if (fFreezeUpdates) {
 		return;
 	}
 
-	if (!HasROMLoaded()) {
-		if (fParent) {
-			fParent->ClearPaletteDebuggerHighlight();
-		}
-
-		ClearPatternTableHighlight();
-
-		if (fCHRExplorer) {
-			fCHRExplorer->Clear();
-		}
-
-		return;
-	}
-
-	// Take one coherent OAM snapshot for this debugger refresh.
-	// All drawing and linked inspectors should read from this snapshot,
-	// not directly from live OAM.
+	/*
+	 * Live mode: take one coherent OAM snapshot for this debugger refresh.
+	 * All drawing and linked inspectors read from the same snapshot.
+	 */
 	CaptureOAMSnapshot();
 
 	UpdatePaletteDebuggerHighlight();
@@ -816,13 +793,7 @@ OAMDebugView::Pulse()
 void
 OAMDebugView::DrawHeaderUI()
 {
-	BRect panel(
-		4.0f,
-		4.0f,
-		Bounds().right - 4.0f,
-		76.0f
-	);
-
+	BRect panel(4.0f, 4.0f, Bounds().right - 4.0f, 76.0f);
 	::DrawDebugPanel(this, panel, "Controls");
 
 	SetFontSize(11.0f);
@@ -833,7 +804,6 @@ OAMDebugView::DrawHeaderUI()
 
 	const float labelX = panel.left + 8.0f;
 	const float valueX = labelX + 58.0f;
-
 	float y = panel.top + 34.0f;
 
 	auto drawKV = [&](const char *label, const char *value) {
@@ -847,12 +817,8 @@ OAMDebugView::DrawHeaderUI()
 	};
 
 	drawKV("Mouse:", "hover inspect / click lock");
-
 	drawKV("Keys:", "Up/Down sprite   Wheel scroll   [ ] page");
-
-	drawKV("Space:", fFreezeUpdates
-		? "live OAM   R refresh snapshot"
-		: "snapshot OAM   R refresh snapshot");
+	drawKV("Space:", fFreezeUpdates ? "live OAM   R refresh snapshot" : "snapshot OAM   R refresh snapshot");
 }
 
 
@@ -872,13 +838,7 @@ OAMDebugView::DrawHeaderUI()
 void
 OAMDebugView::DrawOAMSummaryPanel()
 {
-	BRect panel(
-		4.0f,
-		88.0f,
-		Bounds().right - 4.0f,
-		164.0f
-	);
-
+	BRect panel(4.0f, 88.0f, Bounds().right - 4.0f, 164.0f);
 	::DrawDebugPanel(this, panel, "OAM Summary");
 
 	SetFontSize(11.0f);
@@ -946,12 +906,8 @@ OAMDebugView::DrawOAMSummaryPanel()
 
 	s.SetToFormat("%ld", (long)hiddenSprites);
 	drawLeftKV("Hidden:", s.String(), false);
-
 	drawRightKV("State:", fFreezeUpdates ? "FROZEN" : "LIVE", false);
-
-	drawRightKV("Mode:", (nes::ppu::ppuctrl() & 0x20)
-		? "8x16 sprites"
-		: "8x8 sprites", false);
+	drawRightKV("Mode:", (nes::ppu::ppuctrl() & 0x20) ? "8x16 sprites" : "8x8 sprites", false);
 
 	s.SetToFormat("$%02X", nes::ppu::ppuctrl());
 	drawRightKV("PPUCTRL:", s.String(), true);
@@ -976,13 +932,7 @@ OAMDebugView::DrawOAMSummaryPanel()
 void
 OAMDebugView::DrawSpriteListPanel()
 {
-	BRect panel(
-		4.0f,
-		174.0f,
-		Bounds().right - 4.0f,
-		526.0f
-	);
-
+	BRect panel(4.0f, 174.0f, Bounds().right - 4.0f, 526.0f);
 	::DrawDebugPanel(this, panel, "Sprite List");
 
 	SetFontSize(11.0f);
@@ -1007,10 +957,7 @@ OAMDebugView::DrawSpriteListPanel()
 	y += 22.0f;
 
 	SetHighColor(150, 150, 150);
-	StrokeLine(
-		BPoint(panel.left + 8.0f, y - 13.0f),
-		BPoint(panel.right - 24.0f, y - 13.0f)
-	);
+	StrokeLine(BPoint(panel.left + 8.0f, y - 13.0f), BPoint(panel.right - 24.0f, y - 13.0f));
 
 	const float firstRowY = y;
 	const float rowH = 17.0f;
@@ -1050,7 +997,7 @@ OAMDebugView::DrawSpriteListPanel()
 		uint8 attr = OAMByte(base + 2);
 		uint8 spriteX = OAMByte(base + 3);
 
-		bool spriteZero = spriteIndex == 0;
+		bool spriteZero = (spriteIndex == 0);
 		bool hidden = spriteY >= 0xef;
 
 		uint8 pal = attr & 0x3;
@@ -1058,19 +1005,9 @@ OAMDebugView::DrawSpriteListPanel()
 		bool flipH = (attr & 0x40) != 0;
 		bool flipV = (attr & 0x80) != 0;
 
-		bool sameTile = haveActiveTile
-			&& spriteIndex != active
-			&& !hidden
-			&& tile == activeTile;
-
+		bool sameTile = haveActiveTile && (spriteIndex != active) && !hidden && (tile == activeTile);
 		float rowY = firstRowY + row * rowH;
-
-		BRect rowRect(
-			panel.left + 7.0f,
-			rowY - 12.0f,
-			panel.right - 24.0f,
-			rowY + 4.0f
-		);
+		BRect rowRect(panel.left + 7.0f, rowY - 12.0f, panel.right - 24.0f, rowY + 4.0);
 
 		if (sameTile) {
 			SetHighColor(220, 232, 244);
@@ -1134,13 +1071,9 @@ OAMDebugView::DrawSpriteListPanel()
 		} else {
 			SetHighColor(0, 0, 0);
 
-			s.SetToFormat("%s%sP%u %s%s%s",
-				spriteZero ? "Sprite 0 " : "",
-				sameTile ? "same " : "",
-				static_cast<unsigned>(pal),
-				priority ? "B" : "F",
-				flipH ? " H" : "",
-				flipV ? " V" : "");
+			s.SetToFormat("%s%sP%u %s%s%s", spriteZero ? "Sprite 0 " : "", sameTile ? "same " : "",
+							static_cast<unsigned>(pal), priority ? "B" : "F", 
+							flipH ? " H" : "", flipV ? " V" : "");
 
 			DrawString(s.String(), BPoint(xInfo, rowY));
 		}
@@ -1155,16 +1088,11 @@ OAMDebugView::DrawSpriteListPanel()
 	}
 
 	BString footer;
-	footer.SetToFormat("Showing OAM sprites %02ld-%02ld of 64.",
-		static_cast<long>(fFirstSprite),
-		static_cast<long>(lastSprite)
-	);
+	footer.SetToFormat("Showing OAM sprites %02ld-%02ld of 64.", static_cast<long>(fFirstSprite),
+						static_cast<long>(lastSprite));
 
 	SetHighColor(90, 90, 90);
-	DrawString(
-		footer.String(),
-		BPoint(panel.left + 10.0f, panel.bottom - 14.0f)
-	);
+	DrawString(footer.String(), BPoint(panel.left + 10.0f, panel.bottom - 14.0f));
 }
 
 
@@ -1184,13 +1112,7 @@ OAMDebugView::DrawSpriteListPanel()
 void
 OAMDebugView::DrawSelectedSpritePanel()
 {
-	BRect panel(
-		4.0f,
-		536.0f,
-		Bounds().right - 4.0f,
-		Bounds().bottom - 8.0f
-	);
-
+	BRect panel(4.0f, 536.0f, Bounds().right - 4.0f, Bounds().bottom - 8.0f);
 	::DrawDebugPanel(this, panel, "Selected Sprite");
 
 	SetFontSize(11.0f);
@@ -1214,8 +1136,7 @@ OAMDebugView::DrawSelectedSpritePanel()
 	BFont mono(be_fixed_font);
 	mono.SetSize(11.0f);
 
-	auto drawLeftKV = [&](const char *label, const char *value,
-		bool monoValue) {
+	auto drawLeftKV = [&](const char *label, const char *value, bool monoValue) {
 		SetHighColor(80, 80, 80);
 		SetFont(&prevFont);
 		DrawString(label, BPoint(leftLabelX, leftY));
@@ -1227,8 +1148,7 @@ OAMDebugView::DrawSelectedSpritePanel()
 		leftY += lineH;
 	};
 
-	auto drawRightKV = [&](const char *label, const char *value,
-		bool monoValue) {
+	auto drawRightKV = [&](const char *label, const char *value, bool monoValue) {
 		SetHighColor(80, 80, 80);
 		SetFont(&prevFont);
 		DrawString(label, BPoint(rightLabelX, rightY));
@@ -1241,14 +1161,7 @@ OAMDebugView::DrawSelectedSpritePanel()
 	};
 
 	int32 active = fSpriteLocked ? fLockedSprite : fHoverSprite;
-
-	BRect previewRect(
-		panel.right - 58.0f,
-		panel.top + 34.0f,
-		panel.right - 12.0f,
-		panel.bottom - 12.0f
-	);
-
+	BRect previewRect(panel.right - 58.0f, panel.top + 34.0f, panel.right - 12.0f, panel.bottom - 12.0f);
 	DrawSpritePreview(previewRect, active);
 
 	if (active < 0) {
@@ -1293,10 +1206,7 @@ OAMDebugView::DrawSelectedSpritePanel()
 		chrAddr = (whichPT ? 0x1000 : 0x0000) + topTile * 16;
 		chrAddrBottom = chrAddr + 16;
 	} else {
-		uint32 spritePatternBase = (nes::ppu::ppuctrl() & 0x8)
-			? 0x1000
-			: 0x0000;
-
+		uint32 spritePatternBase = (nes::ppu::ppuctrl() & 0x8) ? 0x1000 : 0x0000;
 		chrAddr = spritePatternBase + tile * 16;
 	}
 
@@ -1318,40 +1228,29 @@ OAMDebugView::DrawSelectedSpritePanel()
 	drawLeftKV("X:", s.String(), true);
 
 	if (largeSprites) {
-		s.SetToFormat("$%02X/$%02X",
-			tile & 0xfe,
-			(tile & 0xfe) + 1);
+		s.SetToFormat("$%02X/$%02X", tile & 0xfe, (tile & 0xfe) + 1);
 		drawLeftKV("Tiles:", s.String(), true);
 	} else {
 		s.SetToFormat("$%02X", tile);
 		drawLeftKV("Tile:", s.String(), true);
 	}
 
-	s.SetToFormat("$%02lX-$%02lX",
-		static_cast<unsigned long>(base),
-		static_cast<unsigned long>(base + 3));
+	s.SetToFormat("$%02lX-$%02lX", static_cast<unsigned long>(base), static_cast<unsigned long>(base + 3));
 	drawRightKV("OAM:", s.String(), true);
 
-	s.SetToFormat("%02X %02X %02X %02X",
-		spriteY,
-		tile,
-		attr,
-		spriteX);
+	s.SetToFormat("%02X %02X %02X %02X", spriteY, tile, attr, spriteX);
 	drawRightKV("Bytes:", s.String(), true);
 
 	if (largeSprites) {
-		s.SetToFormat("$%04lX/$%04lX",
-			static_cast<unsigned long>(chrAddr),
-			static_cast<unsigned long>(chrAddrBottom));
+		s.SetToFormat("$%04lX/$%04lX", static_cast<unsigned long>(chrAddr), 
+										static_cast<unsigned long>(chrAddrBottom));
 		drawRightKV("CHR:", s.String(), true);
 	} else {
 		s.SetToFormat("$%04lX", static_cast<unsigned long>(chrAddr));
 		drawRightKV("CHR:", s.String(), true);
 	}
 
-	s.SetToFormat("%u / %s",
-		static_cast<unsigned>(pal),
-		priority ? "behind" : "front");
+	s.SetToFormat("%u / %s", static_cast<unsigned>(pal), priority ? "behind" : "front");
 	drawRightKV("Pal/P:", s.String(), false);
 
 	if (flipH && flipV) {
@@ -1384,7 +1283,7 @@ OAMDebugView::DrawSelectedSpritePanel()
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-OAMDebugView::SetFirstSpriteFromScrollBar(int32 firstSprite)
+OAMDebugView::SetFirstSpriteFromScrollBar  (int32 firstSprite)
 {
 	if (firstSprite < 0) {
 		firstSprite = 0;
@@ -1401,8 +1300,7 @@ OAMDebugView::SetFirstSpriteFromScrollBar(int32 firstSprite)
 	fFirstSprite = firstSprite;
 
 	if (!fSpriteLocked) {
-		if (fHoverSprite < fFirstSprite
-			|| fHoverSprite >= fFirstSprite + kVisibleOAMRows) {
+		if (fHoverSprite < fFirstSprite || fHoverSprite >= fFirstSprite + kVisibleOAMRows) {
 			fHoverSprite = fFirstSprite;
 		}
 	}
@@ -1429,7 +1327,7 @@ OAMDebugView::SetFirstSpriteFromScrollBar(int32 firstSprite)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-OAMDebugView::SetHostPalette(uint8 *palette)
+OAMDebugView::SetHostPalette (uint8 *palette)
 {
 	fHostPalette = palette;
 
@@ -1456,7 +1354,7 @@ OAMDebugView::SetHostPalette(uint8 *palette)
 //   rgb_color for the requested sprite pixel.
 // -----------------------------------------------------------------------------
 rgb_color
-OAMDebugView::SpritePreviewColor(uint8 spritePalette, uint8 pixel) const
+OAMDebugView::SpritePreviewColor (uint8 spritePalette, uint8 pixel) const
 {
 	uint32 paletteAddress;
 
@@ -1517,19 +1415,14 @@ OAMDebugView::DrawSpritePreview(BRect previewRect, int32 spriteIndex)
 
 	// Inner highlight edge.
 	SetHighColor(255, 255, 255);
-	StrokeLine(
-		BPoint(previewRect.left + 1.0f, previewRect.top + 1.0f),
-		BPoint(previewRect.right - 1.0f, previewRect.top + 1.0f)
-	);
-	StrokeLine(
-		BPoint(previewRect.left + 1.0f, previewRect.top + 1.0f),
-		BPoint(previewRect.left + 1.0f, previewRect.bottom - 1.0f)
-	);
+	StrokeLine(BPoint(previewRect.left + 1.0f, previewRect.top + 1.0f),
+				BPoint(previewRect.right - 1.0f, previewRect.top + 1.0f));
+	StrokeLine(BPoint(previewRect.left + 1.0f, previewRect.top + 1.0f),
+				BPoint(previewRect.left + 1.0f, previewRect.bottom - 1.0f));
 
 	if (spriteIndex < 0 || spriteIndex >= 64 || !nes::cart.mapper()) {
 		SetHighColor(90, 90, 90);
-		DrawString("--", BPoint(previewRect.left + 12.0f,
-			previewRect.top + 24.0f));
+		DrawString("--", BPoint(previewRect.left + 12.0f, previewRect.top + 24.0f));
 		return;
 	}
 
@@ -1543,10 +1436,8 @@ OAMDebugView::DrawSpritePreview(BRect previewRect, int32 spriteIndex)
 
 	if (spriteY >= 0xef) {
 		SetHighColor(90, 90, 90);
-		DrawString("OFF", BPoint(previewRect.left + 11.0f,
-			previewRect.top + 27.0f));
-		DrawString("SCR", BPoint(previewRect.left + 11.0f,
-			previewRect.top + 42.0f));
+		DrawString("OFF", BPoint(previewRect.left + 11.0f, previewRect.top + 27.0f));
+		DrawString("SCR", BPoint(previewRect.left + 11.0f, previewRect.top + 42.0f));
 		return;
 	}
 
@@ -1562,17 +1453,10 @@ OAMDebugView::DrawSpritePreview(BRect previewRect, int32 spriteIndex)
 	const float drawW = spriteW * scale;
 	const float drawH = spriteH * scale;
 
-	const float startX = previewRect.left
-		+ floorf((previewRect.Width() + 1.0f - drawW) / 2.0f);
-	const float startY = previewRect.top
-		+ floorf((previewRect.Height() + 1.0f - drawH) / 2.0f);
+	const float startX = previewRect.left + floorf((previewRect.Width() + 1.0f - drawW) / 2.0f);
+	const float startY = previewRect.top + floorf((previewRect.Height() + 1.0f - drawH) / 2.0f);
 
-	BRect spriteRect(
-		startX,
-		startY,
-		startX + drawW - 1.0f,
-		startY + drawH - 1.0f
-	);
+	BRect spriteRect(startX, startY, startX + drawW - 1.0f, startY + drawH - 1.0f);
 
 	// Inner sprite area: live universal background color from $3F00.
 	// Transparent sprite pixels show through this color.
@@ -1588,15 +1472,10 @@ OAMDebugView::DrawSpritePreview(BRect previewRect, int32 spriteIndex)
 			uint32 whichPT = (tile & 0x1);
 			uint32 topTile = (tile & 0xfe);
 
-			chrAddr = (whichPT ? 0x1000 : 0x0000)
-				+ (topTile * 16)
-				+ ((srcY / 8) * 16)
-				+ (srcY & 0x7);
+			chrAddr = (whichPT ? 0x1000 : 0x0000) + (topTile * 16) + ((srcY / 8) * 16) + (srcY & 0x7);
 		} else {
-			uint32 spritePatternBase = (nes::ppu::ppuctrl() & 0x8)
-				? 0x1000
-				: 0x0000;
-
+			uint32 spritePatternBase = (nes::ppu::ppuctrl() & 0x8) ? 0x1000 : 0x0000;
+			
 			chrAddr = spritePatternBase + (tile * 16) + srcY;
 		}
 
@@ -1613,12 +1492,9 @@ OAMDebugView::DrawSpritePreview(BRect previewRect, int32 spriteIndex)
 				continue;
 			}
 
-			BRect r(
-				startX + (px * scale),
-				startY + (py * scale),
-				startX + ((px + 1) * scale) - 1.0f,
-				startY + ((py + 1) * scale) - 1.0f
-			);
+			BRect r(startX + (px * scale), startY + (py * scale), 
+					startX + ((px + 1) * scale) - 1.0f,
+					startY + ((py + 1) * scale) - 1.0f);
 
 			SetHighColor(SpritePreviewColor(palette, pixel));
 			FillRect(r);
@@ -1630,14 +1506,10 @@ OAMDebugView::DrawSpritePreview(BRect previewRect, int32 spriteIndex)
 	StrokeRect(spriteRect);
 
 	SetHighColor(255, 255, 255);
-	StrokeLine(
-		BPoint(spriteRect.left + 1.0f, spriteRect.top + 1.0f),
-		BPoint(spriteRect.right - 1.0f, spriteRect.top + 1.0f)
-	);
-	StrokeLine(
-		BPoint(spriteRect.left + 1.0f, spriteRect.top + 1.0f),
-		BPoint(spriteRect.left + 1.0f, spriteRect.bottom - 1.0f)
-	);
+	StrokeLine(BPoint(spriteRect.left + 1.0f, spriteRect.top + 1.0f),
+				BPoint(spriteRect.right - 1.0f, spriteRect.top + 1.0f));
+	StrokeLine(BPoint(spriteRect.left + 1.0f, spriteRect.top + 1.0f),
+				BPoint(spriteRect.left + 1.0f, spriteRect.bottom - 1.0f));
 
 	// Outer preview border, redrawn after all contents.
 	SetHighColor(135, 135, 135);
@@ -1683,9 +1555,14 @@ OAMDebugView::UpdatePaletteDebuggerHighlight()
 // -----------------------------------------------------------------------------
 // OAMDebugView::UpdateCHRExplorer
 //
-// Synchronizes the embedded CHR explorer with the active OAM sprite.  This
-// decodes the sprite pattern table, CHR address, sprite palette, 8x8/8x16 mode,
-// and OAM flip flags, then sends the corresponding CHR bytes to the explorer.
+// Synchronizes the CHR Explorer with the active OAM sprite.
+//
+// The function resolves sprite pattern-table selection, CHR address, sprite
+// palette, 8x8/8x16 mode, and horizontal/vertical flip state from the current
+// coherent OAM snapshot.
+//
+// Hidden/offscreen OAM entries are still sent to the CHR Explorer because their
+// tile, palette, and transform data remain valid and useful for debugging.
 //
 // Parameters:
 //   None.
@@ -1709,33 +1586,25 @@ OAMDebugView::UpdateCHRExplorer()
 
 	int32 active = fSpriteLocked ? fLockedSprite : fHoverSprite;
 
-	if (active < 0 || active >= 64) {
+	if (active < 0 || active >= kOAMSpriteCount) {
 		fCHRExplorer->Clear();
 		return;
 	}
 
-	uint32 base = (active * 4);
-
-	uint8 spriteY = OAMByte(base + 0);
+	uint32 base = active * 4;
 	uint8 tile = OAMByte(base + 1);
 	uint8 attr = OAMByte(base + 2);
+	uint8 spritePalette = attr & 0x3;
 
-	if (spriteY >= 0xef) {
-		fCHRExplorer->Clear();
-		return;
-	}
-
-	uint8 spritePalette = (attr & 0x3);
 	bool flipH = (attr & 0x40) != 0;
 	bool flipV = (attr & 0x80) != 0;
 	bool largeSprites = (nes::ppu::ppuctrl() & 0x20) != 0;
 
 	if (largeSprites) {
-		int32 whichPT = (tile & 0x1);
-		int32 topTile = (tile & 0xfe);
+		int32 whichPT = tile & 0x1;
+		int32 topTile = tile & 0xfe;
 
-		uint32 chrAddrTop = (whichPT ? 0x1000 : 0x0000)
-			+ (topTile * 16);
+		uint32 chrAddrTop = (whichPT ? 0x1000 : 0x0000) + (topTile * 16);
 		uint32 chrAddrBottom = chrAddrTop + 16;
 
 		uint8 chrTop[16];
@@ -1746,47 +1615,30 @@ OAMDebugView::UpdateCHRExplorer()
 			chrBottom[i] = mapper->read_vram(chrAddrBottom + i);
 		}
 
-		fCHRExplorer->SetTile8x16(
-			whichPT,
-			topTile,
-			fSpriteLocked,
-			chrAddrTop,
-			chrTop,
-			chrAddrBottom,
-			chrBottom,
-			spritePalette
-		);
+		fCHRExplorer->SetTile8x16(whichPT, topTile, fSpriteLocked, chrAddrTop,
+									chrTop, chrAddrBottom, chrBottom, spritePalette);
 
 		fCHRExplorer->SetUseSpritePalette(true);
 		fCHRExplorer->SetSelectedPalette(spritePalette);
 		fCHRExplorer->SetTileTransform(flipH, flipV);
-	} else {
-		int32 whichPT = (nes::ppu::ppuctrl() & 0x8) ? 1 : 0;
-		uint32 chrAddr = (whichPT ? 0x1000 : 0x0000) + (tile * 16);
-		uint8 chrBytes[16];
 
-		for (int32 i = 0; i < 16; i++) {
-			chrBytes[i] = mapper->read_vram(chrAddr + i);
-		}
-
-		fCHRExplorer->SetTile8x8(
-			whichPT,
-			tile,
-			fSpriteLocked,
-			chrAddr,
-			chrBytes,
-			spritePalette,
-			-1,
-			0,
-			0,
-			0,
-			0
-		);
-
-		fCHRExplorer->SetUseSpritePalette(true);
-		fCHRExplorer->SetSelectedPalette(spritePalette);
-		fCHRExplorer->SetTileTransform(flipH, flipV);
+		return;
 	}
+
+	int32 whichPT = (nes::ppu::ppuctrl() & 0x08) ? 1 : 0;
+	uint32 chrAddr = (whichPT ? 0x1000 : 0x0000) + (tile * 16);
+
+	uint8 chrBytes[16];
+
+	for (int32 i = 0; i < 16; i++) {
+		chrBytes[i] = mapper->read_vram(chrAddr + i);
+	}
+
+	fCHRExplorer->SetTile8x8(whichPT, tile, fSpriteLocked, chrAddr, chrBytes, spritePalette, 
+								-1, 0, 0, 0, 0);
+	fCHRExplorer->SetUseSpritePalette(true);
+	fCHRExplorer->SetSelectedPalette(spritePalette);
+	fCHRExplorer->SetTileTransform(flipH, flipV);
 }
 
 
@@ -1858,7 +1710,6 @@ OAMDebugView::UpdatePatternTableHighlight()
 	}
 
 	uint32 base = (active * 4);
-
 	uint8 tile = OAMByte(base + 1);
 	bool largeSprites = (nes::ppu::ppuctrl() & 0x20) != 0;
 
@@ -1886,8 +1737,12 @@ OAMDebugView::UpdatePatternTableHighlight()
 // -----------------------------------------------------------------------------
 // OAMDebugView::SetExplorer
 //
-// Connects the embedded CHR explorer used by the OAM debugger.  The host
-// palette is forwarded immediately if it is already available.
+// Connects the CHR Explorer used by the OAM debugger and immediately
+// synchronizes it with the current OAM state.
+//
+// The host palette is forwarded first.  If a ROM is loaded but no OAM snapshot
+// has yet been established, an initial snapshot is captured so the explorer and
+// OAM debugger use the same coherent sprite data.
 //
 // Parameters:
 //   explorer - CHRExplorerView used to inspect the active sprite tile.
@@ -1900,12 +1755,73 @@ OAMDebugView::SetExplorer(CHRExplorerView *explorer)
 {
 	fCHRExplorer = explorer;
 
-	if (fCHRExplorer && fHostPalette) {
+	if (!fCHRExplorer) {
+		return;
+	}
+
+	if (fHostPalette) {
 		fCHRExplorer->SetHostPalette(fHostPalette);
+	}
+
+	if (!HasROMLoaded()) {
+		fCHRExplorer->Clear();
+		return;
+	}
+
+	if (!fHaveFrozenOAM) {
+		CaptureOAMSnapshot();
 	}
 
 	UpdateCHRExplorer();
 }
+
+
+// -----------------------------------------------------------------------------
+// OAMDebugView::Clear
+//
+// Clears all ROM-specific OAM debugger state while preserving user-selected
+// viewer state.
+//
+// The current OAM snapshot, hover/lock selection, and linked debugger
+// highlights are discarded so data from an unloaded ROM cannot remain visible
+// after another ROM is loaded.
+//
+// The first visible sprite and live/frozen mode are intentionally preserved.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+OAMDebugView::Clear()
+{
+	fHaveFrozenOAM = false;
+
+	for (int32 i = 0; i < 0x100; i++) {
+		fFrozenOAM[i] = 0;
+	}
+
+	fSpriteLocked = false;
+	fLockedSprite = -1;
+	fHoverSprite = -1;
+
+	fMouseInside = false;
+
+	if (fParent) {
+		fParent->ClearPaletteDebuggerHighlight();
+	}
+
+	ClearPatternTableHighlight();
+
+	if (fCHRExplorer) {
+		fCHRExplorer->Clear();
+	}
+
+	Invalidate();
+}
+
 
 // -----------------------------------------------------------------------------
 // OAMDebugView::CaptureOAMSnapshot
@@ -2004,22 +1920,10 @@ OAMDebugView::DrawNoROMMessage (BRect panel)
 	const float centerY = panel.top + (panel.Height() * 0.5f);
 
 	SetHighColor(80, 80, 80);
-	DrawString(
-		title,
-		BPoint(
-			centerX - (StringWidth(title) * 0.5f),
-			centerY - 8.0f
-		)
-	);
+	DrawString(title, BPoint(centerX - (StringWidth(title) * 0.5f), centerY - 8.0f));
 
 	SetHighColor(120, 120, 120);
-	DrawString(
-		detail,
-		BPoint(
-			centerX - (StringWidth(detail) * 0.5f),
-			centerY + fh.ascent + 8.0f
-		)
-	);
+	DrawString(detail, BPoint(centerX - (StringWidth(detail) * 0.5f), centerY + fh.ascent + 8.0f));
 
 	SetFont(&prevFont);
 }

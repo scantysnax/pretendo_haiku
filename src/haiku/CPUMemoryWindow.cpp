@@ -23,8 +23,7 @@
 CPUMemoryWindow::CPUMemoryWindow(PretendoWindow *parent)
 	:
 	BWindow(BRect(80.0f, 80.0f, 960.0f, 628.0f),
-			"CPU Memory",
-			B_FLOATING_WINDOW_LOOK, B_NORMAL_WINDOW_FEEL,
+			"CPU Memory", B_FLOATING_WINDOW_LOOK, B_NORMAL_WINDOW_FEEL,
 			B_NOT_RESIZABLE | B_NOT_ZOOMABLE),
 	fParent(parent)
 {
@@ -48,6 +47,24 @@ CPUMemoryWindow::CPUMemoryWindow(PretendoWindow *parent)
 // -----------------------------------------------------------------------------
 CPUMemoryWindow::~CPUMemoryWindow()
 {
+}
+
+
+// -----------------------------------------------------------------------------
+// CPUMemoryWindow::View
+//
+// Returns the CPU memory view owned by this tool window.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Pointer to the CPUMemoryView contained in this window.
+// -----------------------------------------------------------------------------
+CPUMemoryView*
+CPUMemoryWindow::View() const
+{
+	return fView;
 }
 
 

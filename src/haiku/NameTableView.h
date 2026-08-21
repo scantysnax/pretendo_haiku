@@ -89,7 +89,6 @@ class NameTableView : public BView
 	bool fShowAttributeMap = false;
 	bool fShowMatchingTiles = false;
 	bool fShowViewportBox = true;
-	bool fFollowViewport = true;
 	bool fFreezeUpdates = false;
 
     // mouse/hover
@@ -133,9 +132,6 @@ class NameTableView : public BView
 
 	// Sends active tile data to CHRExplorerView.
 	void NotifyCHRExplorer();
-
-	// Updates the CHR explorer when one is attached.
-	void MaybeUpdateCHRExplorer();
 
 	// Returns the active world tile, respecting hover/lock modes.
 	bool ActiveTile (int32 &outTX, int32 &outTY) const;

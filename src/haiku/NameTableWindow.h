@@ -25,7 +25,7 @@ class NameTableWindow : public BWindow
 	
 	public:
 			NameTableWindow(PretendoWindow *parent, int32 which,
-	PatternTableWindow* pt0, PatternTableWindow* pt1);
+							PatternTableWindow* pt0, PatternTableWindow* pt1);
 	virtual ~NameTableWindow();
 	
 	public:
@@ -33,13 +33,13 @@ class NameTableWindow : public BWindow
 	virtual void MessageReceived (BMessage *message);
 	
 	 public:
-	 NameTableView* View() const
+	 NameTableView *View() const
 	 { 
 	 	return fView;
 	 }
 	 
 	 public:
-	 void SetPatternTables(PatternTableWindow* pt0, PatternTableWindow* pt1);
+	 void SetPatternTables(PatternTableWindow *pt0, PatternTableWindow *pt1);
 	  
 	private:
 	void LoadSettings();

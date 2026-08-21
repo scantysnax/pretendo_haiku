@@ -16,13 +16,6 @@
 #include "Cpu.h"
 
 
-struct CPUDisasmLine;
-
-class BScrollBar;
-class CPUDisasmScrollBar;
-class PretendoWindow;
-
-
 // -----------------------------------------------------------------------------
 // CPUDisasmView
 //
@@ -62,21 +55,21 @@ class CPUDisasmView : public BView
 	
 	private:
 	void ScrollLines (int32 lines);
-	bool IsPPURegisterWrite (const CPUDisasmLine &line) const;
-	bool IsOAMDMAWrite (const CPUDisasmLine &line) const;
-	bool IsStoreInstruction (const CPUDisasmLine &line) const;
-	bool IsAPUOrControllerRegister (const CPUDisasmLine &line) const;
-	bool IsControlFlowInstruction (const CPUDisasmLine &line) const;
-	bool IsLoadInstruction (const CPUDisasmLine &line) const;
-	bool IsUndocumentedInstruction (const CPUDisasmLine &line) const;
-	const char *HardwareLabelForOperand (const CPUDisasmLine &line) const;
-	const char *CPUIdiomCommentForLine (const CPUDisasmLine &line) const;
-	void BuildCommentForLine (const CPUDisasmLine &line, BString &comment) const;
-	bool BranchTakenForLine (const CPUDisasmLine &line) const;
+	bool IsPPURegisterWrite (const cpu_disasm_line_t &line) const;
+	bool IsOAMDMAWrite (const cpu_disasm_line_t &line) const;
+	bool IsStoreInstruction (const cpu_disasm_line_t &line) const;
+	bool IsAPUOrControllerRegister (const cpu_disasm_line_t &line) const;
+	bool IsControlFlowInstruction (const cpu_disasm_line_t &line) const;
+	bool IsLoadInstruction (const cpu_disasm_line_t &line) const;
+	bool IsUndocumentedInstruction (const cpu_disasm_line_t &line) const;
+	const char *HardwareLabelForOperand (const cpu_disasm_line_t &line) const;
+	const char *CPUIdiomCommentForLine (const cpu_disasm_line_t &line) const;
+	void BuildCommentForLine (const cpu_disasm_line_t &line, BString &comment) const;
+	bool BranchTakenForLine (const cpu_disasm_line_t &line) const;
 	bool AddressForPoint (BPoint where, uint16 &address);
 	
 	private:
-	bool ParseOperandAddress (const CPUDisasmLine &line, uint16& address) const;
+	bool ParseOperandAddress (const cpu_disasm_line_t &line, uint16& address) const;
 	uint16 FindInstructionBefore (uint16 address) const;
 	uint16 FindContextBase (uint16 pc, int32 linesBefore) const;
 	

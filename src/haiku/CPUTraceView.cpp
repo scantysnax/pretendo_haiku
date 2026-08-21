@@ -357,7 +357,7 @@ CPUTraceView::FollowNewest()
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-CPUTraceView::MessageReceived(BMessage* message)
+CPUTraceView::MessageReceived(BMessage *message)
 {
 	switch (message->what) {
 		case B_MOUSE_WHEEL_CHANGED:
@@ -632,7 +632,6 @@ CPUTraceView::DrawTracePanel()
 	const float bytesX = pcX + 58.0f;
 	const float instrX = bytesX + 92.0f;
 	const float regX = instrX + 172.0f;
-
 	float y = panel.top + 42.0f;
 
 	SetHighColor(80, 80, 80);
@@ -696,7 +695,7 @@ CPUTraceView::DrawTracePanel()
 		uint8 instructionLength = entry.length;
 
 		if (!fFreezeUpdates) {
-			CPUDisasmLine line = DisassembleCPU(entry.pc);
+			cpu_disasm_line_t line = DisassembleCPU(entry.pc);
 
 			if (line.length == 0 || line.length > 3) {
 				instructionLength = 1;
@@ -761,11 +760,7 @@ CPUTraceView::DrawTracePanel()
 
 		SetHighColor(50, 50, 50);
 		s.SetToFormat("%02X %02X %02X %02X %02X",
-			entry.a,
-			entry.x,
-			entry.y,
-			entry.s,
-			entry.p);
+						entry.a, entry.x, entry.y, entry.s, entry.p);
 		DrawString(s.String(), BPoint(regX, y));
 
 		y += lineH;
@@ -1112,7 +1107,7 @@ CPUTraceView::SelectedTraceAddress (uint16 &address) const
 //   true if instruction text was available.
 // -----------------------------------------------------------------------------
 bool
-CPUTraceView::TraceDisplayInstruction(uint32 index, BString& instruction) const
+CPUTraceView::TraceDisplayInstruction (uint32 index, BString &instruction) const
 {
 	instruction.SetTo("");
 
@@ -1131,7 +1126,7 @@ CPUTraceView::TraceDisplayInstruction(uint32 index, BString& instruction) const
 		return false;
 	}
 
-	CPUDisasmLine line = DisassembleCPU(entry.pc);
+	cpu_disasm_line_t line = DisassembleCPU(entry.pc);
 
 	if (line.operand.Length() > 0) {
 		instruction.SetToFormat("%s %s", line.mnemonic.String(), line.operand.String());
@@ -1250,7 +1245,7 @@ CPUTraceView::CaptureSnapshot()
 			continue;
 		}
 
-		CPUDisasmLine line = DisassembleCPU(entry.pc);
+		cpu_disasm_line_t line = DisassembleCPU(entry.pc);
 
 		if (line.length == 0 || line.length > 3) {
 			entry.length = 1;

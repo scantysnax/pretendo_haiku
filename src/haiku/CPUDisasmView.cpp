@@ -620,7 +620,7 @@ CPUDisasmView::DrawHeaderPanel()
 
 	y = panel.top + 68.0f;
 
-	CPUDisasmLine line = DisassembleCPU(displayPC);
+	cpu_disasm_line_t line = DisassembleCPU(displayPC);
 
 	BString instructionText;
 
@@ -753,7 +753,7 @@ CPUDisasmView::DrawDisasmPanel()
 		const bool active = (address == displayPC);
 
 		DrawDisasmLine(y, address, active);
-		CPUDisasmLine line = DisassembleCPU(address);
+		cpu_disasm_line_t line = DisassembleCPU(address);
 
 		if (line.length == 0) {
 			address++;
@@ -829,7 +829,7 @@ CPUDisasmView::AddressForPoint (BPoint where, uint16 &address)
 			return true;
 		}
 
-		CPUDisasmLine line = DisassembleCPU(rowAddress);
+		cpu_disasm_line_t line = DisassembleCPU(rowAddress);
 
 		if (line.length == 0) {
 			rowAddress++;
@@ -1097,7 +1097,7 @@ CPUDisasmView::DrawRegisterSummary (BPoint origin, uint8 a, uint8 x, uint8 y, ui
 void
 CPUDisasmView::DrawDisasmLine (float y, uint16 address, bool active)
 {
-	CPUDisasmLine line = DisassembleCPU(address);
+	cpu_disasm_line_t line = DisassembleCPU(address);
 
 	const float pcX = 12.0f;
 	const float addrX = pcX + 42.0f;
@@ -1398,7 +1398,7 @@ CPUDisasmView::ScrollLines (int32 lines)
 
 	if (lines > 0) {
 		for (int32 i = 0; i < lines; i++) {
-			CPUDisasmLine line = DisassembleCPU(fBaseAddress);
+			cpu_disasm_line_t line = DisassembleCPU(fBaseAddress);
 
 			const uint32 length = (line.length == 0) ? 1 : line.length;
 			const uint32 nextAddress = static_cast<uint32>(fBaseAddress) + length;
@@ -1428,8 +1428,7 @@ CPUDisasmView::ScrollLines (int32 lines)
 			 * If the current address is in PRG-ROM, do not allow the
 			 * backward search to cross below $8000.
 			 */
-			if (fBaseAddress >= 0x8000
-				&& best < 0x8000) {
+			if ((fBaseAddress >= 0x8000) && (best < 0x8000)) {
 				fBaseAddress = 0x8000;
 				break;
 			}
@@ -1457,7 +1456,7 @@ CPUDisasmView::ScrollLines (int32 lines)
 //   true if the mnemonic represents a memory store.
 // -----------------------------------------------------------------------------
 bool
-CPUDisasmView::IsStoreInstruction (const CPUDisasmLine &line) const
+CPUDisasmView::IsStoreInstruction (const cpu_disasm_line_t &line) const
 {
 	return line.mnemonic == "sta"
 		|| line.mnemonic == "stx"
@@ -1493,7 +1492,7 @@ CPUDisasmView::IsStoreInstruction (const CPUDisasmLine &line) const
 //   true if the mnemonic represents a memory load.
 // -----------------------------------------------------------------------------
 bool
-CPUDisasmView::IsLoadInstruction (const CPUDisasmLine &line) const
+CPUDisasmView::IsLoadInstruction (const cpu_disasm_line_t &line) const
 {
 	return line.mnemonic == "lda"
 		|| line.mnemonic == "ldx"
@@ -1520,7 +1519,7 @@ CPUDisasmView::IsLoadInstruction (const CPUDisasmLine &line) const
 //   true if the mnemonic is an undocumented opcode mnemonic.
 // -----------------------------------------------------------------------------
 bool
-CPUDisasmView::IsUndocumentedInstruction (const CPUDisasmLine &line) const
+CPUDisasmView::IsUndocumentedInstruction (const cpu_disasm_line_t &line) const
 {
 	return line.mnemonic == "aac"
 		|| line.mnemonic == "aax"
@@ -1572,7 +1571,7 @@ CPUDisasmView::IsUndocumentedInstruction (const CPUDisasmLine &line) const
 //   true if this instruction writes to $2000-$2007.
 // -----------------------------------------------------------------------------
 bool
-CPUDisasmView::IsPPURegisterWrite (const CPUDisasmLine &line) const
+CPUDisasmView::IsPPURegisterWrite (const cpu_disasm_line_t &line) const
 {
 	if (!IsStoreInstruction(line)) {
 		return false;
@@ -1584,7 +1583,7 @@ CPUDisasmView::IsPPURegisterWrite (const CPUDisasmLine &line) const
 		return false;
 	}
 
-	return address >= 0x2000 && address <= 0x2007;
+	return ((address >= 0x2000) && (address <= 0x2007));
 }
 
 // -----------------------------------------------------------------------------
@@ -1600,7 +1599,7 @@ CPUDisasmView::IsPPURegisterWrite (const CPUDisasmLine &line) const
 //   true if this instruction writes to $4014.
 // -----------------------------------------------------------------------------
 bool
-CPUDisasmView::IsOAMDMAWrite (const CPUDisasmLine &line) const
+CPUDisasmView::IsOAMDMAWrite (const cpu_disasm_line_t &line) const
 {
 	if (!IsStoreInstruction(line)) {
 		return false;
@@ -1629,7 +1628,7 @@ CPUDisasmView::IsOAMDMAWrite (const CPUDisasmLine &line) const
 //   true if this instruction references $4000-$4017, excluding OAM DMA $4014.
 // -----------------------------------------------------------------------------
 bool
-CPUDisasmView::IsAPUOrControllerRegister (const CPUDisasmLine &line) const
+CPUDisasmView::IsAPUOrControllerRegister (const cpu_disasm_line_t &line) const
 {
 	uint16 address = 0;
 
@@ -1641,7 +1640,7 @@ CPUDisasmView::IsAPUOrControllerRegister (const CPUDisasmLine &line) const
 		return false;
 	}
 
-	return (address >= 0x4000) && (address <= 0x4017);
+	return ((address >= 0x4000) && (address <= 0x4017));
 }
 
 
@@ -1659,7 +1658,7 @@ CPUDisasmView::IsAPUOrControllerRegister (const CPUDisasmLine &line) const
 //   true if the instruction is branch/jump/call/return-like.
 // -----------------------------------------------------------------------------
 bool
-CPUDisasmView::IsControlFlowInstruction (const CPUDisasmLine &line) const
+CPUDisasmView::IsControlFlowInstruction (const cpu_disasm_line_t &line) const
 {
 	return line.mnemonic == "bpl"
 		|| line.mnemonic == "bmi"
@@ -1690,7 +1689,7 @@ CPUDisasmView::IsControlFlowInstruction (const CPUDisasmLine &line) const
 //   true if an address was parsed.
 // -----------------------------------------------------------------------------
 bool
-CPUDisasmView::ParseOperandAddress (const CPUDisasmLine &line, uint16 &address) const
+CPUDisasmView::ParseOperandAddress (const cpu_disasm_line_t &line, uint16 &address) const
 {
 	address = 0;
 
@@ -1743,7 +1742,7 @@ CPUDisasmView::ParseOperandAddress (const CPUDisasmLine &line, uint16 &address) 
 //   hardware register.
 // -----------------------------------------------------------------------------
 const char*
-CPUDisasmView::HardwareLabelForOperand (const CPUDisasmLine &line) const
+CPUDisasmView::HardwareLabelForOperand (const cpu_disasm_line_t &line) const
 {
 	uint16 address = 0;
 
@@ -1870,7 +1869,7 @@ CPUDisasmView::HardwareLabelForOperand (const CPUDisasmLine &line) const
 //   Static comment string, or nullptr if no CPU idiom comment applies.
 // -----------------------------------------------------------------------------
 const char*
-CPUDisasmView::CPUIdiomCommentForLine (const CPUDisasmLine &line) const
+CPUDisasmView::CPUIdiomCommentForLine (const cpu_disasm_line_t &line) const
 {
 	if (line.mnemonic == "sei") {
 		return "disable IRQ";
@@ -1985,11 +1984,11 @@ CPUDisasmView::CPUIdiomCommentForLine (const CPUDisasmLine &line) const
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-CPUDisasmView::BuildCommentForLine (const CPUDisasmLine &line, BString &comment) const
+CPUDisasmView::BuildCommentForLine (const cpu_disasm_line_t &line, BString &comment) const
 {
 	comment.SetTo("");
 
-	const char* hardwareLabel = HardwareLabelForOperand(line);
+	const char *hardwareLabel = HardwareLabelForOperand(line);
 
 	if (hardwareLabel) {
 		comment.SetTo(hardwareLabel);
@@ -2077,7 +2076,7 @@ CPUDisasmView::BuildCommentForLine (const CPUDisasmLine &line, BString &comment)
 //   true if the branch condition is currently satisfied.
 // -----------------------------------------------------------------------------
 bool
-CPUDisasmView::BranchTakenForLine (const CPUDisasmLine& line) const
+CPUDisasmView::BranchTakenForLine (const cpu_disasm_line_t& line) const
 {
 	nes::cpu::cpu_state_t state = nes::cpu::debug_cpu_state();
 	const uint8 p = state.p;
@@ -2144,7 +2143,7 @@ CPUDisasmView::FindInstructionBefore (uint16 address) const
 
 	for (int32 back = 1; back <= 3; back++) {
 		uint16 candidate = address - back;
-		CPUDisasmLine line = DisassembleCPU(candidate);
+		cpu_disasm_line_t line = DisassembleCPU(candidate);
 
 		if (line.length == 0) {
 			continue;

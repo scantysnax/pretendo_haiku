@@ -39,9 +39,10 @@ class OAMDebugView : public BView
 
 	public:
 	void SetFirstSpriteFromScrollBar (int32 firstSprite);
-	void SetHostPalette (uint8* palette);
+	void SetHostPalette (uint8 *palette);
 	void SetPatternTables (PatternTableWindow *pt0, PatternTableWindow *pt1);
 	void SetExplorer (CHRExplorerView *explorer);
+	void Clear();
 
 	private:
 	void DrawHeaderUI();
@@ -65,8 +66,6 @@ class OAMDebugView : public BView
 
 	private:
 	PretendoWindow *fParent = nullptr;
-
-	private:
 	BScrollBar *fSpriteScrollBar = nullptr;
 
 	private:

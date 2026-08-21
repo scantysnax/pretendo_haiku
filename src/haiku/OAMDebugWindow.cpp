@@ -26,11 +26,8 @@
 // -----------------------------------------------------------------------------
 OAMDebugWindow::OAMDebugWindow(PretendoWindow* parent)
 	: BWindow(BRect(240.0f, 240.0f, 240.0f, 240.0f),
-				"OAM Viewer",
-				B_FLOATING_WINDOW_LOOK,
-				B_NORMAL_WINDOW_FEEL,
-				B_NOT_RESIZABLE | B_NOT_ZOOMABLE
-			)
+				"OAM Viewer", B_FLOATING_WINDOW_LOOK, B_NORMAL_WINDOW_FEEL,
+				B_NOT_RESIZABLE | B_NOT_ZOOMABLE)
 {
 	fParent = parent;
 
@@ -43,19 +40,8 @@ OAMDebugWindow::OAMDebugWindow(PretendoWindow* parent)
 	ResizeTo(kWindowW, kWindowH);
 	MoveTo(240.0f, 240.0f);
 
-	BRect oamFrame(
-		0.0f,
-		0.0f,
-		kOAMW - 1.0f,
-		kWindowH - 1.0f
-	);
-
-	BRect explorerFrame(
-		kOAMW,
-		0.0f,
-		kOAMW + kExplorerW - 1.0f,
-		kWindowH - 1.0f
-	);
+	BRect oamFrame(0.0f, 0.0f, kOAMW - 1.0f, kWindowH - 1.0f);
+	BRect explorerFrame(kOAMW, 0.0f, kOAMW + kExplorerW - 1.0f, kWindowH - 1.0f);
 
 	fView = new OAMDebugView(oamFrame, parent);
 
@@ -72,7 +58,6 @@ OAMDebugWindow::OAMDebugWindow(PretendoWindow* parent)
 	}
 
 	AddChild(fExplorer);
-
 	fView->SetExplorer(fExplorer);
 
 	SetPulseRate(16667);
@@ -140,5 +125,26 @@ OAMDebugWindow::SetPatternTables(PatternTableWindow *pt0, PatternTableWindow *pt
 	if (fView) {
 		fView->SetPatternTables(pt0, pt1);
 	}
+}
+
+
+// -----------------------------------------------------------------------------
+// OAMDebugWindow::View
+//
+// Returns the contained OAM debugger view.
+//
+// This accessor is used by the parent Pretendo window when it needs to clear
+// ROM-specific OAM debugger state while leaving the OAM debugger window open.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Pointer to the contained OAMDebugView.
+// -----------------------------------------------------------------------------
+OAMDebugView*
+OAMDebugWindow::View() const
+{
+	return fView;
 }
 
