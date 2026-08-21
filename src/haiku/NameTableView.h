@@ -178,6 +178,7 @@ class NameTableView : public BView
 	public:
 	void SetExplorer (CHRExplorerView *explorer);
 	BPoint BitmapOrigin() const;
+	void Clear();
 	
 	private:
 	// Draws optional 16x16 attribute block tint overlays.

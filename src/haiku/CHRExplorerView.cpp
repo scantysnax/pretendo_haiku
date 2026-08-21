@@ -56,8 +56,7 @@ ByteToBinary (uint8 value, char out[9])
 //   A CHRExplorerView instance.
 // -----------------------------------------------------------------------------
 CHRExplorerView::CHRExplorerView (BRect frame)
-	: BView(frame, "chr_explorer", B_FOLLOW_ALL,
-					B_WILL_DRAW | B_FRAME_EVENTS | B_NAVIGABLE)
+	: BView(frame, "chr_explorer", B_FOLLOW_ALL, B_WILL_DRAW | B_FRAME_EVENTS | B_NAVIGABLE)
 {
 	// Start invalid; the source views will populate the explorer with a tile.
 	fTileIndex = 0;
@@ -357,26 +356,9 @@ CHRExplorerView::Draw(BRect updateRect)
 	// Panel backgrounds
 	// -------------------------------------------------
 
-	BRect tilePanel(
-		4.0f,
-		8.0f,
-		rightColumnX - 16.0f,
-		Bounds().bottom - 8.0f
-	);
-
-	BRect palettePanel(
-		rightColumnX - 8.0f,
-		8.0f,
-		Bounds().right - 8.0f,
-		gridBottom + 8.0f
-	);
-
-	BRect pixelPanel(
-		rightColumnX - 8.0f,
-		gridBottom + 16.0f,
-		Bounds().right - 8.0f,
-		Bounds().bottom - 8.0f
-	);
+	BRect tilePanel(4.0f, 8.0f, rightColumnX - 16.0f, Bounds().bottom - 8.0f);
+	BRect palettePanel(rightColumnX - 8.0f, 8.0f, Bounds().right - 8.0f, gridBottom + 8.0f);
+	BRect pixelPanel(rightColumnX - 8.0f, gridBottom + 16.0f, Bounds().right - 8.0f, Bounds().bottom - 8.0f);
 
 	::DrawDebugPanel(this, tilePanel, "Tile");
 	::DrawDebugPanel(this, palettePanel, "Palettes");
@@ -392,20 +374,10 @@ CHRExplorerView::Draw(BRect updateRect)
 		DrawDecodedZoomed(fDecodedPixels, zoomOrigin, zoomScale, 0);
 	} else if (fFlipV) {
 		DrawDecodedZoomed(fDecodedPixelsBottom, zoomOrigin, zoomScale, 0);
-		DrawDecodedZoomed(
-			fDecodedPixels,
-			BPoint(zoomOrigin.x, zoomOrigin.y + 8.0f * zoomScale),
-			zoomScale,
-			8
-		);
+		DrawDecodedZoomed(fDecodedPixels, BPoint(zoomOrigin.x, zoomOrigin.y + 8.0f * zoomScale), zoomScale, 8);
 	} else {
 		DrawDecodedZoomed(fDecodedPixels, zoomOrigin, zoomScale, 0);
-		DrawDecodedZoomed(
-			fDecodedPixelsBottom,
-			BPoint(zoomOrigin.x, zoomOrigin.y + 8.0f * zoomScale),
-			zoomScale,
-			8
-		);
+		DrawDecodedZoomed(fDecodedPixelsBottom, BPoint(zoomOrigin.x, zoomOrigin.y + 8.0f * zoomScale), zoomScale,8);
 	}
 
 	DrawInfo(BPoint(leftColumnX, infoY));
@@ -507,23 +479,14 @@ CHRExplorerView::Draw(BRect updateRect)
 		}
 
 		BString pix;
-		pix.SetToFormat(
-			"(%ld,%ld) = %u",
-			static_cast<long>(px),
-			static_cast<long>(py),
-			static_cast<unsigned>(value)
-		);
+		pix.SetToFormat("(%ld,%ld) = %u", static_cast<long>(px), static_cast<long>(py), static_cast<unsigned>(value));
 		drawPixelKV("Pixel:", pix.String());
 
 		uint8 plane0 = value & 0x1;
 		uint8 plane1 = (value >> 1) & 0x1;
 
 		BString bits;
-		bits.SetToFormat(
-			"P0=%u  P1=%u",
-			static_cast<unsigned>(plane0),
-			static_cast<unsigned>(plane1)
-		);
+		bits.SetToFormat("P0=%u  P1=%u", static_cast<unsigned>(plane0), static_cast<unsigned>(plane1));
 		drawPixelKV("Bits:", bits.String());
 
 		char bin0[9];
@@ -540,8 +503,7 @@ CHRExplorerView::Draw(BRect updateRect)
 
 		font_height monoFH;
 		GetFontHeight(&monoFH);
-		const float monoLineH = ceilf(monoFH.ascent + monoFH.descent
-			+ monoFH.leading) + 2.0f;
+		const float monoLineH = ceilf(monoFH.ascent + monoFH.descent + monoFH.leading) + 2.0f;
 
 		float bitW = StringWidth("0");
 		float bitX = pixelValueX + (sourceX * bitW);
@@ -558,20 +520,10 @@ CHRExplorerView::Draw(BRect updateRect)
 		SetBlendingMode(B_PIXEL_ALPHA, B_ALPHA_OVERLAY);
 
 		SetHighColor(255, 255, 0, 80);
-		FillRect(BRect(
-			bitX - 1.0f,
-			textY - monoFH.ascent,
-			bitX + bitW + 1.0f,
-			textY + monoFH.descent
-		));
+		FillRect(BRect(bitX - 1.0f, textY - monoFH.ascent, bitX + bitW + 1.0f, textY + monoFH.descent));
 
 		SetHighColor(255, 180, 0, 220);
-		StrokeRect(BRect(
-			bitX - 1.0f,
-			textY - monoFH.ascent,
-			bitX + bitW + 1.0f,
-			textY + monoFH.descent
-		));
+		StrokeRect(BRect(bitX - 1.0f, textY - monoFH.ascent, bitX + bitW + 1.0f, textY + monoFH.descent));
 
 		PopState();
 
@@ -589,20 +541,10 @@ CHRExplorerView::Draw(BRect updateRect)
 		SetBlendingMode(B_PIXEL_ALPHA, B_ALPHA_OVERLAY);
 
 		SetHighColor(255, 255, 0, 80);
-		FillRect(BRect(
-			bitX - 1.0f,
-			textY - monoFH.ascent,
-			bitX + bitW + 1.0f,
-			textY + monoFH.descent
-		));
+		FillRect(BRect(bitX - 1.0f, textY - monoFH.ascent, bitX + bitW + 1.0f, textY + monoFH.descent));
 
 		SetHighColor(255, 180, 0, 220);
-		StrokeRect(BRect(
-			bitX - 1.0f,
-			textY - monoFH.ascent,
-			bitX + bitW + 1.0f,
-			textY + monoFH.descent
-		));
+		StrokeRect(BRect(bitX - 1.0f, textY - monoFH.ascent, bitX + bitW + 1.0f, textY + monoFH.descent));
 
 		PopState();
 
@@ -649,8 +591,7 @@ CHRExplorerView::Draw(BRect updateRect)
 
 		font_height monoFH;
 		GetFontHeight(&monoFH);
-		const float monoLineH = ceilf(monoFH.ascent + monoFH.descent
-			+ monoFH.leading) + 2.0f;
+		const float monoLineH = ceilf(monoFH.ascent + monoFH.descent + monoFH.leading) + 2.0f;
 
 		SetHighColor(80, 80, 80);
 		DrawString("Row P0:", BPoint(pixelLabelX, textY));
@@ -680,13 +621,7 @@ CHRExplorerView::Draw(BRect updateRect)
 	const float legendBox = 12.0f;
 	const float legendTextX = rightColumnX + 20.0f;
 
-	BRect selectedBox(
-		rightColumnX,
-		textY - textAscent,
-		rightColumnX + legendBox,
-		textY - textAscent + legendBox
-	);
-
+	BRect selectedBox(rightColumnX, textY - textAscent, rightColumnX + legendBox, textY - textAscent + legendBox);
 	SetHighColor(255, 0, 0);
 	StrokeRect(selectedBox);
 	StrokeRect(selectedBox.InsetByCopy(-1, -1));
@@ -949,7 +884,7 @@ CHRExplorerView::SetTile8x8 (int32 whichPT, int32 tileIndex, bool locked,
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-CHRExplorerView::DrawDecodedZoomed(uint8 decoded[8][8], BPoint origin, float scale, int32 displayYBase)
+CHRExplorerView::DrawDecodedZoomed (uint8 decoded[8][8], BPoint origin, float scale, int32 displayYBase)
 {
 	// Draw the tile using the current palette.
 	DrawTileWithBgPalette(decoded, origin, scale, fPalette);
@@ -971,12 +906,8 @@ CHRExplorerView::DrawDecodedZoomed(uint8 decoded[8][8], BPoint origin, float sca
 
 	const int32 localY = displayY - displayYBase;
 
-	BRect r(
-		origin.x + displayX * scale,
-		origin.y + localY * scale,
-		origin.x + (displayX + 1) * scale - 1.0f,
-		origin.y + (localY + 1) * scale - 1.0f
-	);
+	BRect r(origin.x + displayX * scale, origin.y + localY * scale, 
+			origin.x + (displayX + 1) * scale - 1.0f,origin.y + (localY + 1) * scale - 1.0f);
 
 	PushState();
 
@@ -1065,8 +996,7 @@ CHRExplorerView::DrawInfo (BPoint point)
 		line.SetToFormat("$%02X", static_cast<unsigned>(fAttrByte));
 		drawKV("Attr Byte:", line.String());
 
-		line.SetToFormat("%s  Shift:%ld", kQuadrantNames[fAttrQuadrant % 4],
-			static_cast<long>(shift));
+		line.SetToFormat("%s  Shift:%ld", kQuadrantNames[fAttrQuadrant % 4], static_cast<long>(shift));
 		drawKV("Quadrant:", line.String());
 
 		line.SetToFormat("%u", static_cast<unsigned>(fQuadrantPalette));
@@ -1178,10 +1108,10 @@ CHRExplorerView::DecodeTile()
 void
 CHRExplorerView::DrawPaletteSwatch (BPoint point)
 {
-	Mapper* mapper = nes::cart.mapper();
+	Mapper *mapper = nes::cart.mapper();
 
 	BScreen screen(Window());
-	const color_map* cmap = screen.ColorMap();
+	const color_map *cmap = screen.ColorMap();
 
 	if (!mapper || !cmap || !fHostPalette) {
 		return;
@@ -1207,13 +1137,7 @@ CHRExplorerView::DrawPaletteSwatch (BPoint point)
 	for (int32 i = 0; i < 4; i++) {
 		rgb_color c = cmap->color_list[fHostPalette[colors[i]]];
 
-		BRect r(
-			point.x + i * w,
-			point.y,
-			point.x + (i + 1) * w - 2.0f,
-			point.y + h
-		);
-
+		BRect r(point.x + i * w, point.y, point.x + (i + 1) * w - 2.0f, point.y + h);
 		SetHighColor(c);
 		FillRect(r);
 
@@ -1335,13 +1259,12 @@ CHRExplorerView::SetTile8x16 (int32 whichPT, int32 topTileIndex, bool locked,
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-CHRExplorerView::DrawTileWithBgPalette(const uint8 decoded[8][8],
-	BPoint origin, float scale, uint8 bgPalette)
+CHRExplorerView::DrawTileWithBgPalette(const uint8 decoded[8][8], BPoint origin, float scale, uint8 bgPalette)
 {
-	Mapper* mapper = nes::cart.mapper();
+	Mapper *mapper = nes::cart.mapper();
 
 	BScreen screen(Window());
-	const color_map* cmap = screen.ColorMap();
+	const color_map *cmap = screen.ColorMap();
 
 	if (!mapper || !cmap || !fHostPalette) {
 		return;
@@ -1377,22 +1300,13 @@ CHRExplorerView::DrawTileWithBgPalette(const uint8 decoded[8][8],
 			uint8 pix = decoded[srcY][srcX] & 0x3;
 
 			SetHighColor(pal[pix]);
-			FillRect(BRect(
-				origin.x + x * scale,
-				origin.y + y * scale,
-				origin.x + (x + 1) * scale - 1.0f,
-				origin.y + (y + 1) * scale - 1.0f
-			));
+			FillRect(BRect(origin.x + x * scale, origin.y + y * scale, 
+							origin.x + (x + 1) * scale - 1.0f, origin.y + (y + 1) * scale - 1.0f));
 		}
 	}
 
 	SetHighColor(0, 0, 0);
-	StrokeRect(BRect(
-		origin.x,
-		origin.y,
-		origin.x + 8.0f * scale - 1.0f,
-		origin.y + 8.0f * scale - 1.0f
-	));
+	StrokeRect(BRect(origin.x, origin.y, origin.x + 8.0f * scale - 1.0f, origin.y + 8.0f * scale - 1.0f));
 }
 
 
@@ -1400,7 +1314,14 @@ CHRExplorerView::DrawTileWithBgPalette(const uint8 decoded[8][8],
 // CHRExplorerView::DrawPalettePreviewGrid
 //
 // Draws the 2x2 palette-preview grid showing the current tile rendered with all
-// four background palettes.  The selected and source palettes are outlined.
+// four background or sprite palettes.
+//
+// The selected palette is outlined in red.  When NameTable context is available,
+// the source attribute palette is outlined in black.
+//
+// For 8x16 tiles, both CHR halves are drawn.  A vertically flipped 8x16 sprite
+// requires both halves to be vertically flipped and their displayed top/bottom
+// positions swapped.
 //
 // Parameters:
 //   origin - Top-left position of the preview grid.
@@ -1429,57 +1350,51 @@ CHRExplorerView::DrawPalettePreviewGrid (BPoint origin)
 
 	// Draw each palette variant in a 2x2 grid.
 	for (int32 pal = 0; pal < 4; pal++) {
-		int col = pal & 1;
-		int row = pal >> 1;
+		int32 col = pal & 1;
+		int32 row = pal >> 1;
 
-		BPoint p(
-			origin.x + col * (cellW + gapX),
-			origin.y + row * (previewH + gapY)
-		);
+		BPoint p(origin.x + col * (cellW + gapX), origin.y + row * (previewH + gapY));
 
-		// label
-		label.SetToFormat("Pal %d", pal);
+		// Palette label.
+		label.SetToFormat("Pal %ld", static_cast<long>(pal));
+
 		SetHighColor(0, 0, 0);
-		DrawString(label.String(), BPoint(p.x, p.y - 4));
+		DrawString(label.String(), BPoint(p.x, p.y - 4.0f));
 
-		// top tile
-		DrawTileWithBgPalette(fDecodedPixels, p, scale, static_cast<uint8>(pal));
-
-		// bottom tile in 8x16 mode
-		if (fIsTile8x16) {
-			DrawTileWithBgPalette(
-				fDecodedPixelsBottom,
-				BPoint(p.x, p.y + tileH),
-				scale,
-				(uint8)pal
-			);
+		if (!fIsTile8x16) {
+			DrawTileWithBgPalette(fDecodedPixels, p, scale, static_cast<uint8>(pal));
+		} else if (fFlipV) {
+			/*
+			 * Vertical flipping an 8x16 sprite requires swapping the two
+			 * 8x8 halves as well as vertically flipping each individual
+			 * half.  DrawTileWithBgPalette() handles the within-tile flip.
+			 */
+			DrawTileWithBgPalette(fDecodedPixelsBottom, p, scale, static_cast<uint8>(pal));
+			DrawTileWithBgPalette(fDecodedPixels, BPoint(p.x, p.y + tileH), scale, static_cast<uint8>(pal));
+		} else {
+			DrawTileWithBgPalette(fDecodedPixels, p, scale, static_cast<uint8>(pal));
+			DrawTileWithBgPalette(fDecodedPixelsBottom, BPoint(p.x, p.y + tileH), scale, static_cast<uint8>(pal));
 		}
 
-		BRect tileRect(
-			p.x,
-			p.y,
-			p.x + cellW - 1,
-			p.y + previewH - 1
-		);
+		BRect tileRect(p.x, p.y, p.x + cellW - 1.0f, p.y + previewH - 1.0f);
 
-		bool isSelected = ((uint8)pal == fPalette);
-		bool isSource = (fWhichNameTable >= 0 && 
-						static_cast<uint8>(pal) == fQuadrantPalette);
+		const bool isSelected = (static_cast<uint8>(pal) == fPalette);
+		const bool isSource = (fWhichNameTable >= 0 && static_cast<uint8>(pal) == fQuadrantPalette);
 
 		if (isSelected && isSource) {
 			SetHighColor(0, 0, 0);
-			StrokeRect(tileRect.InsetByCopy(-3, -3));
+			StrokeRect(tileRect.InsetByCopy(-3.0f, -3.0f));
 
 			SetHighColor(255, 0, 0);
-			StrokeRect(tileRect.InsetByCopy(-2, -2));
-			StrokeRect(tileRect.InsetByCopy(-1, -1));
+			StrokeRect(tileRect.InsetByCopy(-2.0f, -2.0f));
+			StrokeRect(tileRect.InsetByCopy(-1.0f, -1.0f));
 		} else if (isSelected) {
 			SetHighColor(255, 0, 0);
-			StrokeRect(tileRect.InsetByCopy(-2, -2));
-			StrokeRect(tileRect.InsetByCopy(-1, -1));
+			StrokeRect(tileRect.InsetByCopy(-2.0f, -2.0f));
+			StrokeRect(tileRect.InsetByCopy(-1.0f, -1.0f));
 		} else if (isSource) {
 			SetHighColor(0, 0, 0);
-			StrokeRect(tileRect.InsetByCopy(-2, -2));
+			StrokeRect(tileRect.InsetByCopy(-2.0f, -2.0f));
 		}
 	}
 
@@ -1580,17 +1495,8 @@ CHRExplorerView::PalettePreviewAt (BPoint where) const
 		int32 col = pal & 1;
 		int32 row = pal >> 1;
 
-		BPoint p(
-			rightColumnX + col * (cellW + gapX),
-			rightColumnY + row * (previewH + gapY)
-		);
-
-		BRect r(
-			p.x,
-			p.y,
-			p.x + cellW - 1.0f,
-			p.y + previewH - 1.0f
-		);
+		BPoint p(rightColumnX + col * (cellW + gapX), rightColumnY + row * (previewH + gapY));
+		BRect r(p.x, p.y, p.x + cellW - 1.0f, p.y + previewH - 1.0f);
 
 		// Slightly expand clickable area around the preview tile.
 		r.InsetBy(-3.0f, -3.0f);
@@ -1625,12 +1531,8 @@ CHRExplorerView::DrawQuadrantDiagram (BPoint origin)
 		int col = q & 1;
 		int row = q >> 1;
 
-		BRect r(
-			origin.x + col * cell,
-			origin.y + row * cell,
-			origin.x + col * cell + cell - 1,
-			origin.y + row * cell + cell - 1
-		);
+		BRect r(origin.x + col * cell, origin.y + row * cell, 
+				origin.x + col * cell + cell - 1,origin.y + row * cell + cell - 1);
 
 		bool active = (q == (fAttrQuadrant % 4));
 		uint8 pal = (fAttrByte >> (q * 2)) & 0x3;
@@ -1649,37 +1551,59 @@ CHRExplorerView::DrawQuadrantDiagram (BPoint origin)
 	}
 
 	SetHighColor(0, 0, 0);
-	DrawString("TL", BPoint(origin.x,               origin.y - 2.0f));
+	DrawString("TL", BPoint(origin.x, origin.y - 2.0f));
 	DrawString("TR", BPoint(origin.x + cell + 2.0f, origin.y - 2.0f));
-	DrawString("BL", BPoint(origin.x,               origin.y + 2.0f * cell + 10.0f));
+	DrawString("BL", BPoint(origin.x, origin.y + 2.0f * cell + 10.0f));
 	DrawString("BR", BPoint(origin.x + cell + 2.0f, origin.y + 2.0f * cell + 10.0f));
 }
 
 
+// -----------------------------------------------------------------------------
+// CHRExplorerView::DrawTileSummary
+//
+// Draws a compact summary of the currently selected or hovered CHR tile.
+//
+// The summary identifies the pattern table and tile index, shows the CHR address
+// used by the tile, reports whether the tile is being interpreted as 8x8 or
+// 8x16, displays the active palette number, and indicates whether the tile is
+// currently locked or merely being hovered.
+//
+// In 8x16 sprite mode, both the top and bottom CHR tile addresses are displayed.
+//
+// Parameters:
+//   x - Left coordinate of the summary panel text.
+//   y - Baseline coordinate of the "Tile Summary" heading.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
-CHRExplorerView::DrawTileSummary(float x, float y)
+CHRExplorerView::DrawTileSummary (float x, float y)
 {
-	if (!fValid)
+	if (!fValid) {
 		return;
+	}
+
+	BFont previousFont;
+	GetFont(&previousFont);
 
 	SetFontSize(11.0f);
 
 	font_height fh;
 	GetFontHeight(&fh);
-	const float lineH = ceilf(fh.ascent + fh.descent + fh.leading) + 1.0f;
 
+	const float lineH = ceilf(fh.ascent + fh.descent + fh.leading) + 1.0f;
 	const float labelX = x;
 	const float valueX = x + 42.0f;
-
 	float textY = y;
-
 	BString s;
 
 	SetHighColor(0, 0, 0);
 	DrawString("Tile Summary:", BPoint(labelX, textY));
+
 	textY += lineH;
 
-	auto drawKV = [&](const char* label, const char* value) {
+	auto drawKV = [&](const char *label, const char *value) {
 		SetHighColor(80, 80, 80);
 		DrawString(label, BPoint(labelX, textY));
 
@@ -1696,28 +1620,19 @@ CHRExplorerView::DrawTileSummary(float x, float y)
 	drawKV("Tile:", s.String());
 
 	if (!fIsTile8x16) {
-		s.SetToFormat(
-			"$%04lX",
-			static_cast<unsigned long>(fCHRTileAddress)
-		);
+		s.SetToFormat("$%04lX", static_cast<unsigned long>(fCHRTileAddress));
 		drawKV("CHR:", s.String());
 	} else {
-		s.SetToFormat(
-			"$%04lX/$%04lX",
-			static_cast<unsigned long>(fCHRTileAddress),
-			static_cast<unsigned long>(fCHRTileAddressBottom)
-		);
+		s.SetToFormat("$%04lX/$%04lX", static_cast<unsigned long>(fCHRTileAddress),
+									   static_cast<unsigned long>(fCHRTileAddressBottom));
 		drawKV("CHR:", s.String());
 	}
 
-	s.SetToFormat(
-		"%s   Pal:%u",
-		fIsTile8x16 ? "8x16" : "8x8",
-		static_cast<unsigned>(fPalette)
-	);
+	s.SetToFormat("%s   Pal:%u", fIsTile8x16 ? "8x16" : "8x8", static_cast<unsigned>(fPalette));
 	drawKV("Mode:", s.String());
-
 	drawKV("State:", fLocked ? "LOCKED" : "HOVER");
+
+	SetFont(&previousFont);
 }
 
 
@@ -1726,6 +1641,8 @@ CHRExplorerView::DrawTileSummary(float x, float y)
 //
 // Analyzes the decoded tile pixels and draws compact information about bitplane
 // usage, colors used, and opaque-pixel count.
+//
+// For an 8x16 tile, both decoded 8x8 halves are included in the analysis.
 //
 // Parameters:
 //   x - Left edge of the analysis text.
@@ -1741,19 +1658,22 @@ CHRExplorerView::DrawCHRAnalysis (float x, float y)
 		return;
 	}
 
+	BFont previousFont;
+	GetFont(&previousFont);
+
 	SetFontSize(11.0f);
 
 	font_height fh;
 	GetFontHeight(&fh);
-	const float lineH = ceilf(fh.ascent + fh.descent + fh.leading) + 1.0f;
 
+	const float lineH = ceilf(fh.ascent + fh.descent + fh.leading) + 1.0f;
 	const float labelX = x;
 	const float valueX = x + 48.0f;
-
 	float textY = y;
 
 	SetHighColor(0, 0, 0);
 	DrawString("CHR Analysis:", BPoint(labelX, textY));
+
 	textY += lineH;
 
 	auto drawKV = [&](const char *label, const char *value) {
@@ -1768,15 +1688,21 @@ CHRExplorerView::DrawCHRAnalysis (float x, float y)
 
 	bool usedP0 = false;
 	bool usedP1 = false;
-	bool usedColor[4] = { false, false, false, false };
-	int32 opaquePixels = 0;
 
+	bool usedColor[4] = {
+		false,
+		false,
+		false,
+		false
+	};
+
+	int32 opaquePixels = 0;
 	const int32 height = fIsTile8x16 ? 16 : 8;
 
-	// Walk decoded pixels to collect simple per-tile usage stats.
+	// Walk decoded pixels to collect simple per-tile usage statistics.
 	for (int32 py = 0; py < height; py++) {
 		for (int32 px = 0; px < 8; px++) {
-			uint8 value;
+			uint8 value = 0;
 
 			if (!fIsTile8x16 || py < 8) {
 				value = fDecodedPixels[py][px] & 0x3;
@@ -1806,14 +1732,16 @@ CHRExplorerView::DrawCHRAnalysis (float x, float y)
 	BString colors;
 
 	for (int32 i = 0; i < 4; i++) {
-		if (!usedColor[i])
+		if (!usedColor[i]) {
 			continue;
+		}
 
 		if (!colors.IsEmpty()) {
 			colors.Append(" ");
 		}
 
 		BString tmp;
+
 		tmp.SetToFormat("%ld", static_cast<long>(i));
 		colors.Append(tmp);
 	}
@@ -1825,9 +1753,10 @@ CHRExplorerView::DrawCHRAnalysis (float x, float y)
 	drawKV("Colors:", colors.String());
 
 	BString opaque;
-	opaque.SetToFormat("%ld/%ld",
-						(long)opaquePixels, static_cast<long>((height * 8)));
+	opaque.SetToFormat("%ld/%ld", static_cast<long>(opaquePixels), static_cast<long>(height * 8));
 	drawKV("Opaque:", opaque.String());
+
+	SetFont(&previousFont);
 }
 
 
@@ -1892,14 +1821,11 @@ CHRExplorerView::SetPaletteHighlightTarget (PretendoWindow *parent, bool sprites
 void
 CHRExplorerView::NotifyPaletteHighlight()
 {
-	if (!fPaletteHighlightParent)
+	if (!fPaletteHighlightParent) {
 		return;
+	}
 
-	fPaletteHighlightParent->HighlightPaletteDebugger(
-		fPaletteHighlightSprites,
-		fPalette % 4,
-		-1
-	);
+	fPaletteHighlightParent->HighlightPaletteDebugger(fPaletteHighlightSprites, fPalette % 4, -1);
 }
 
 
@@ -1956,18 +1882,10 @@ CHRExplorerView::DrawNoROMMessage()
 	const float centerY = Bounds().top + (Bounds().Height() * 0.5f);
 
 	SetHighColor(80, 80, 80);
-
-	DrawString(
-		title,
-		BPoint(centerX - (titleWidth * 0.5f), centerY - 8.0f)
-	);
+	DrawString(title, BPoint(centerX - (titleWidth * 0.5f), centerY - 8.0f));
 
 	SetHighColor(120, 120, 120);
-
-	DrawString(
-		detail,
-		BPoint(centerX - (detailWidth * 0.5f), centerY + fh.ascent + 8.0f)
-	);
+	DrawString(detail, BPoint(centerX - (detailWidth * 0.5f), centerY + fh.ascent + 8.0f));
 
 	SetFont(&prevFont);
 }

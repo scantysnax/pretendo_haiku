@@ -106,6 +106,77 @@ InvalidateViewTree (BView *view)
 
 
 // -----------------------------------------------------------------------------
+// ClearNameTableWindow
+//
+// Clears ROM-specific state from an open NameTable debugger window.
+//
+// The window is locked before its NameTableView is accessed because each
+// debugger tool is a separate BWindow.  The window itself remains open.
+//
+// Parameters:
+//   window - NameTable debugger window to clear. May be nullptr.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+static void
+ClearNameTableWindow (NameTableWindow *window)
+{
+	if (!window) {
+		return;
+	}
+
+	if (!window->Lock()) {
+		return;
+	}
+
+	BView *child = window->FindView("name_table_view");
+	NameTableView *view = dynamic_cast<NameTableView *>(child);
+
+	if (view) {
+		view->Clear();
+	}
+
+	window->Unlock();
+}
+
+
+// -----------------------------------------------------------------------------
+// ClearPatternTableWindow
+//
+// Clears ROM-specific state from an open PatternTable debugger window.
+//
+// The window is locked before accessing its PatternTableView.  The debugger
+// window itself remains open.
+//
+// Parameters:
+//   window - PatternTable debugger window to clear. May be nullptr.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+static void
+ClearPatternTableWindow (PatternTableWindow *window)
+{
+	if (!window) {
+		return;
+	}
+
+	if (!window->Lock()) {
+		return;
+	}
+
+	PatternTableView *view = window->View();
+
+	if (view) {
+		view->Clear();
+	}
+
+	window->Unlock();
+}
+
+
+// -----------------------------------------------------------------------------
 // PretendoWindow::PretendoWindow
 //
 // Creates the main emulator window, initializes menus, video buffers, audio
@@ -957,8 +1028,13 @@ PretendoWindow::OnLoadROM (BMessage *message)
 // PretendoWindow::OnFreeROM
 //
 // Stops emulation, clears debugger/input/audio state, unloads the current ROM,
-// clears the cached video frame, and refreshes debugger windows so no stale ROM
-// state remains visible.
+// and clears ROM-specific state from open graphics debugger windows.
+//
+// Open NameTable and PatternTable windows remain open, but cached graphics,
+// tile selections, locks, CHR Explorer contents, cross-window highlights, and
+// other cartridge-specific state are cleared.
+//
+// User-selected debugger display options remain unchanged.
 //
 // Parameters:
 //   None.
@@ -968,7 +1044,7 @@ PretendoWindow::OnLoadROM (BMessage *message)
 // -----------------------------------------------------------------------------
 void
 PretendoWindow::OnFreeROM()
-{	
+{
 	OnStop();
 
 	ClearControllerInput();
@@ -983,11 +1059,25 @@ PretendoWindow::OnFreeROM()
 	}
 
 	nes::cart.unload();
-	
+
+	/*
+	 * Clear NameTable state first because NameTable views can own external
+	 * highlights in the PatternTable debugger.
+	 */
+	ClearNameTableWindow(fNameTable1Window);
+	ClearNameTableWindow(fNameTable2Window);
+	ClearNameTableWindow(fNameTable3Window);
+	ClearNameTableWindow(fNameTable4Window);
+
+	/*
+	 * Clear PatternTable selection, cached CHR data, and explorer state.
+	 */
+	ClearPatternTableWindow(fPatternTable1Window);
+	ClearPatternTableWindow(fPatternTable2Window);
+
 	ClearVideoView();
 
 	nes::cpu::debug_clear_instruction_trace();
-	nes::cpu::debug_clear_cpu_trace();
 
 	InvalidateDebugViews();
 	ResetCPUDisasmWindow(fCPUDisasmWindow);
@@ -1486,8 +1576,11 @@ PretendoWindow::OnAdjustPalette()
 // -----------------------------------------------------------------------------
 // PretendoWindow::OnViewPatternTable1
 //
-// Opens pattern table window 1, or brings the existing window forward.  New
-// windows claim tool-input ownership and are connected to open name table views.
+// Opens Pattern Table window 1 or brings the existing window forward.
+//
+// The window may be opened without a loaded ROM.  In that state the
+// PatternTableView displays its normal debugger UI with a "No ROM loaded"
+// message in place of pattern-table data.
 //
 // Parameters:
 //   None.
@@ -1500,8 +1593,9 @@ PretendoWindow::OnViewPatternTable1()
 {
 	if (fPatternTable1Window) {
 		if (fPatternTable1Window->Lock()) {
-			if (fPatternTable1Window->IsHidden())
+			if (fPatternTable1Window->IsHidden()) {
 				fPatternTable1Window->Show();
+			}
 
 			fPatternTable1Window->Activate(true);
 			fPatternTable1Window->Unlock();
@@ -1510,8 +1604,11 @@ PretendoWindow::OnViewPatternTable1()
 		return;
 	}
 
-	fPatternTable1Window = new PatternTableWindow(this, 0);
+	fPatternTable1Window
+		= new PatternTableWindow(this, 0);
+
 	BeginToolInput();
+
 	fPatternTable1Window->Show();
 
 	ConnectDebugViews();
@@ -1521,8 +1618,11 @@ PretendoWindow::OnViewPatternTable1()
 // -----------------------------------------------------------------------------
 // PretendoWindow::OnViewPatternTable2
 //
-// Opens pattern table window 2, or brings the existing window forward.  New
-// windows claim tool-input ownership and are connected to open name table views.
+// Opens Pattern Table window 2 or brings the existing window forward.
+//
+// The window may be opened without a loaded ROM.  In that state the
+// PatternTableView displays its normal debugger UI with a "No ROM loaded"
+// message in place of pattern-table data.
 //
 // Parameters:
 //   None.
@@ -1535,8 +1635,9 @@ PretendoWindow::OnViewPatternTable2()
 {
 	if (fPatternTable2Window) {
 		if (fPatternTable2Window->Lock()) {
-			if (fPatternTable2Window->IsHidden())
+			if (fPatternTable2Window->IsHidden()) {
 				fPatternTable2Window->Show();
+			}
 
 			fPatternTable2Window->Activate(true);
 			fPatternTable2Window->Unlock();
@@ -1545,8 +1646,11 @@ PretendoWindow::OnViewPatternTable2()
 		return;
 	}
 
-	fPatternTable2Window = new PatternTableWindow(this, 1);
+	fPatternTable2Window
+		= new PatternTableWindow(this, 1);
+
 	BeginToolInput();
+
 	fPatternTable2Window->Show();
 
 	ConnectDebugViews();
@@ -1556,9 +1660,11 @@ PretendoWindow::OnViewPatternTable2()
 // -----------------------------------------------------------------------------
 // PretendoWindow::OnViewNameTable1
 //
-// Opens name table window 1, or brings the existing window forward.  The window
-// is connected to the current pattern table windows and claims tool-input
-// ownership while open.
+// Opens NameTable window 1 or brings the existing window forward.
+//
+// The window may be opened without a loaded ROM.  In that state the
+// NameTableView displays its normal debugger UI with a "No ROM loaded"
+// message in place of NameTable data.
 //
 // Parameters:
 //   None.
@@ -1571,8 +1677,9 @@ PretendoWindow::OnViewNameTable1()
 {
 	if (fNameTable1Window) {
 		if (fNameTable1Window->Lock()) {
-			if (fNameTable1Window->IsHidden())
+			if (fNameTable1Window->IsHidden()) {
 				fNameTable1Window->Show();
+			}
 
 			fNameTable1Window->Activate(true);
 			fNameTable1Window->Unlock();
@@ -1589,18 +1696,21 @@ PretendoWindow::OnViewNameTable1()
 	);
 
 	BeginToolInput();
+
 	fNameTable1Window->Show();
-		
-	ConnectDebugViews();	
+
+	ConnectDebugViews();
 }
 
 
 // -----------------------------------------------------------------------------
 // PretendoWindow::OnViewNameTable2
 //
-// Opens name table window 2, or brings the existing window forward.  The window
-// is connected to the current pattern table windows and claims tool-input
-// ownership while open.
+// Opens NameTable window 2 or brings the existing window forward.
+//
+// The window may be opened without a loaded ROM.  In that state the
+// NameTableView displays its normal debugger UI with a "No ROM loaded"
+// message in place of NameTable data.
 //
 // Parameters:
 //   None.
@@ -1613,8 +1723,9 @@ PretendoWindow::OnViewNameTable2()
 {
 	if (fNameTable2Window) {
 		if (fNameTable2Window->Lock()) {
-			if (fNameTable2Window->IsHidden())
+			if (fNameTable2Window->IsHidden()) {
 				fNameTable2Window->Show();
+			}
 
 			fNameTable2Window->Activate(true);
 			fNameTable2Window->Unlock();
@@ -1631,8 +1742,9 @@ PretendoWindow::OnViewNameTable2()
 	);
 
 	BeginToolInput();
+
 	fNameTable2Window->Show();
-		
+
 	ConnectDebugViews();
 }
 
@@ -1640,9 +1752,11 @@ PretendoWindow::OnViewNameTable2()
 // -----------------------------------------------------------------------------
 // PretendoWindow::OnViewNameTable3
 //
-// Opens name table window 3, or brings the existing window forward.  The window
-// is connected to the current pattern table windows and claims tool-input
-// ownership while open.
+// Opens NameTable window 3 or brings the existing window forward.
+//
+// The window may be opened without a loaded ROM.  In that state the
+// NameTableView displays its normal debugger UI with a "No ROM loaded"
+// message in place of NameTable data.
 //
 // Parameters:
 //   None.
@@ -1655,8 +1769,9 @@ PretendoWindow::OnViewNameTable3()
 {
 	if (fNameTable3Window) {
 		if (fNameTable3Window->Lock()) {
-			if (fNameTable3Window->IsHidden())
+			if (fNameTable3Window->IsHidden()) {
 				fNameTable3Window->Show();
+			}
 
 			fNameTable3Window->Activate(true);
 			fNameTable3Window->Unlock();
@@ -1664,7 +1779,7 @@ PretendoWindow::OnViewNameTable3()
 
 		return;
 	}
-	
+
 	fNameTable3Window = new NameTableWindow(
 		this,
 		2,
@@ -1673,8 +1788,9 @@ PretendoWindow::OnViewNameTable3()
 	);
 
 	BeginToolInput();
+
 	fNameTable3Window->Show();
-		
+
 	ConnectDebugViews();
 }
 
@@ -1682,9 +1798,11 @@ PretendoWindow::OnViewNameTable3()
 // -----------------------------------------------------------------------------
 // PretendoWindow::OnViewNameTable4
 //
-// Opens name table window 4, or brings the existing window forward.  The window
-// is connected to the current pattern table windows and claims tool-input
-// ownership while open.
+// Opens NameTable window 4 or brings the existing window forward.
+//
+// The window may be opened without a loaded ROM.  In that state the
+// NameTableView displays its normal debugger UI with a "No ROM loaded"
+// message in place of NameTable data.
 //
 // Parameters:
 //   None.
@@ -1697,8 +1815,9 @@ PretendoWindow::OnViewNameTable4()
 {
 	if (fNameTable4Window) {
 		if (fNameTable4Window->Lock()) {
-			if (fNameTable4Window->IsHidden())
+			if (fNameTable4Window->IsHidden()) {
 				fNameTable4Window->Show();
+			}
 
 			fNameTable4Window->Activate(true);
 			fNameTable4Window->Unlock();
@@ -1715,8 +1834,9 @@ PretendoWindow::OnViewNameTable4()
 	);
 
 	BeginToolInput();
+
 	fNameTable4Window->Show();
-		
+
 	ConnectDebugViews();
 }
 

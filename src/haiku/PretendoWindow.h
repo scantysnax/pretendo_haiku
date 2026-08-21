@@ -28,6 +28,8 @@
 #include "MenuBarIcon.h"
 #include "Mutex.h"
 #include "NameTableWindow.h"
+#include "NameTableView.h"
+#include "PatternTableView.h"
 #include "OAMDebugWindow.h"
 #include "Palette.h"
 #include "PaletteWindow.h"

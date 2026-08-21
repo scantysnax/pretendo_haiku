@@ -131,21 +131,21 @@ PatternTableView::AttachedToWindow()
 }
 
 
-// -------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // PatternTableView::Draw
 //
-// Draws the complete PatternTable UI: background, controls panel,
-// bitmap panel, pattern-table bitmap, overlays, viewport border, and
-// bottom Pattern State panel. If no ROM is loaded, the normal UI frame
-// remains visible and the bitmap area shows a friendly empty-state message.
+// Draws the complete PatternTable debugger UI.
+//
+// The Controls and Pattern State panels remain visible whether or not a ROM is
+// loaded.  When no cartridge mapper is available, the normal pattern-table
+// bitmap is replaced by a "No ROM loaded" empty-state message.
 //
 // Parameters:
-//   updateRect - Invalidated region supplied by the app_server. The
-//                current implementation redraws the full view.
+//   updateRect - Invalidated region supplied by the app_server.
 //
 // Returns:
 //   Nothing.
-// -------------------------------------------------------------
+// -----------------------------------------------------------------------------
 void
 PatternTableView::Draw (BRect updateRect)
 {
@@ -166,7 +166,11 @@ PatternTableView::Draw (BRect updateRect)
 	}
 
 	if (fBitmap && fBits) {
-		memset(fBits, 0x00, fBitmap->BitsLength());
+		memset(
+			fBits,
+			0x00,
+			fBitmap->BitsLength()
+		);
 
 		if (fViewMode == MODE_8x16) {
 			DrawPatternTable8x16(fWhichPatternTable);
@@ -178,6 +182,7 @@ PatternTableView::Draw (BRect updateRect)
 	}
 
 	PushState();
+
 	TranslateBy(origin.x, origin.y);
 
 	DrawOverlays();
@@ -185,12 +190,15 @@ PatternTableView::Draw (BRect updateRect)
 	PopState();
 
 	SetHighColor(120, 120, 120);
-	StrokeRect(BRect(
-		origin.x,
-		origin.y,
-		origin.x + 255.0f,
-		origin.y + 255.0f
-	));
+
+	StrokeRect(
+		BRect(
+			origin.x,
+			origin.y,
+			origin.x + 255.0f,
+			origin.y + 255.0f
+		)
+	);
 
 	DrawPatternStatePanel();
 }
@@ -318,32 +326,31 @@ PatternTableView::MouseMoved (BPoint where, uint32 transit, const BMessage* msg)
 }
 
 
-// -------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // PatternTableView::Pulse
 //
-// Refreshes the CHR explorer while a tile is locked so the explorer
-// stays synchronized with live CHR/PPU data.
+// Refreshes the PatternTable display and CHR Explorer while a ROM is loaded.
+//
+// The PatternTable bitmap represents live CHR/PPU data, so the view is
+// invalidated on every pulse.  The active tile's CHR data is also refreshed so
+// the connected CHR Explorer, including its tile preview, palette previews, and
+// pixel inspector, is populated immediately without requiring mouse movement.
 //
 // Parameters:
 //   None.
 //
 // Returns:
 //   Nothing.
-// -------------------------------------------------------------
+// -----------------------------------------------------------------------------
 void
 PatternTableView::Pulse()
 {
 	if (!HasROMLoaded()) {
 		return;
 	}
-	
-	if (!fTileLocked) {
-		return;
-	}
 
 	UpdateExplorer();
-	NotifyCHRExplorer();
-	
+
 	Invalidate();
 }
 
@@ -962,6 +969,53 @@ PatternTableView::SetExplorer (CHRExplorerView *explorer)
 }
 
 
+// -----------------------------------------------------------------------------
+// PatternTableView::Clear
+//
+// Clears all ROM-specific Pattern Table selection, cached CHR, mouse, and
+// external-highlight state.
+//
+// This is used when the current ROM is unloaded so an open Pattern Table window
+// cannot continue displaying selections or CHR Explorer information belonging
+// to the previous cartridge.
+//
+// The Pattern Table identity and display mode are preserved because they are
+// properties of the debugger window rather than of the loaded ROM.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PatternTableView::Clear()
+{
+	fHoverTileIndex = -1;
+	fLockedTileIndex = -1;
+	fTileLocked = false;
+
+	fMouseValid = false;
+	fLastMouse = BPoint(-1.0f, -1.0f);
+
+	fCHRTileAddress = 0;
+	memset(fCHRBytes, 0, sizeof(fCHRBytes));
+
+	fHasExternalHighlight = false;
+	fExternalWhichPT = 0;
+	fExternalTileIndex = -1;
+
+	if (fBitmap && fBits) {
+		memset(fBits, 0, fBitmap->BitsLength());
+	}
+
+	if (fCHRExplorer) {
+		fCHRExplorer->Clear();
+	}
+
+	Invalidate();
+}
+
 
 // -------------------------------------------------------------
 // PatternTableView::BitmapOrigin
@@ -1228,8 +1282,8 @@ PatternTableView::HasROMLoaded() const
 // -----------------------------------------------------------------------------
 // PatternTableView::DrawNoROMMessage
 //
-// Draws a friendly empty-state message in the pattern-table bitmap area when
-// the pattern table window is opened without a loaded ROM.
+// Draws the PatternTable empty-state message inside the normal 256x256 bitmap
+// area when no ROM is loaded.
 //
 // Parameters:
 //   None.
@@ -1255,37 +1309,55 @@ PatternTableView::DrawNoROMMessage()
 	SetHighColor(160, 160, 160);
 	StrokeRect(panel);
 
-	BFont prevFont;
-	GetFont(&prevFont);
+	BFont previousFont;
+	GetFont(&previousFont);
 
-	BFont font = prevFont;
+	BFont font = previousFont;
 	font.SetSize(12.0f);
+
 	SetFont(&font);
 
-	const char *title = "No ROM loaded";
-	const char *detail = "Load a cartridge to view pattern tables.";
+	const char *title
+		= "No ROM loaded";
+
+	const char *detail
+		= "Load a cartridge to view pattern tables.";
 
 	font_height fh;
 	GetFontHeight(&fh);
 
-	const float titleWidth = StringWidth(title);
-	const float detailWidth = StringWidth(detail);
+	const float titleWidth
+		= StringWidth(title);
 
-	const float centerX = panel.left + (panel.Width() * 0.5f);
-	const float centerY = panel.top + (panel.Height() * 0.5f);
+	const float detailWidth
+		= StringWidth(detail);
+
+	const float centerX
+		= panel.left + (panel.Width() * 0.5f);
+
+	const float centerY
+		= panel.top + (panel.Height() * 0.5f);
 
 	SetHighColor(80, 80, 80);
+
 	DrawString(
 		title,
-		BPoint(centerX - (titleWidth * 0.5f), centerY - 8.0f)
+		BPoint(
+			centerX - (titleWidth * 0.5f),
+			centerY - 8.0f
+		)
 	);
 
 	SetHighColor(120, 120, 120);
+
 	DrawString(
 		detail,
-		BPoint(centerX - (detailWidth * 0.5f), centerY + fh.ascent + 8.0f)
+		BPoint(
+			centerX - (detailWidth * 0.5f),
+			centerY + fh.ascent + 8.0f
+		)
 	);
 
-	SetFont(&prevFont);
+	SetFont(&previousFont);
 }
 

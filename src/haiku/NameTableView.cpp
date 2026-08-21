@@ -219,68 +219,121 @@ NameTableTileOrigin (int32 whichNameTable, int32 &originTX, int32 &originTY)
 }
 
 
-// -------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // NameTableView::AttachedToWindow
 //
-// Allocates the backing bitmap, seeds a default hover tile, updates
-// the CHR explorer, and enables reliable pointer tracking.
+// Performs final setup after the NameTable view is attached to its window.
+//
+// The backing bitmap is allocated and cleared, the CHR Explorer receives the
+// host palette, and a default active tile is established at the upper-left
+// corner of this specific NameTable.
+//
+// Hover coordinates are stored in world-tile space, so the default tile must use
+// the world origin of the selected NameTable rather than always using (0, 0).
 //
 // Parameters:
 //   None.
 //
 // Returns:
-//   None.
-// -------------------------------------------------------------
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 NameTableView::AttachedToWindow()
 {
 	BView::AttachedToWindow();
 
-	// don't steal focus here; take focus on click in MouseDown().
-	// MakeFocus(true);
-
-	// allocate bitmap once
+	/*
+	 * Allocate the backing bitmap once.
+	 */
 	if (!fBitmap) {
-		fBitmap = new BBitmap(BRect(0, 0, WIDTH - 1, HEIGHT - 1), B_CMAP8);
-		fBits = reinterpret_cast<uint8 *>(fBitmap->Bits());
-		fRowBytes = fBitmap->BytesPerRow();
+		fBitmap = new BBitmap(
+			BRect(
+				0,
+				0,
+				WIDTH - 1,
+				HEIGHT - 1
+			),
+			B_CMAP8
+		);
+
+		fBits
+			= reinterpret_cast<uint8 *>(fBitmap->Bits());
+
+		fRowBytes
+			= fBitmap->BytesPerRow();
 	}
 
 	if (fBits) {
-		memset(fBits, 0x0, fBitmap->BitsLength());
+		memset(
+			fBits,
+			0x00,
+			fBitmap->BitsLength()
+		);
 	}
-	
-	// mark the bitmap as dirty
+
 	fBitmapDirty = true;
-	
-	// set default hover so explorer isn't blank
-	if (fHoverTileX < 0 || fHoverTileY < 0) {
-		fHoverTileX = 0;
-		fHoverTileY = 0;
-	}
 
-	// update explorer state
-	UpdateCHRExplorer();
-	MaybeUpdateCHRExplorer();
-
-	// reliable hover events
-	SetMouseEventMask(B_POINTER_EVENTS, B_NO_POINTER_HISTORY);
-
-	// set host palette for the explorer
+	/*
+	 * Give the explorer its host palette before sending tile data.
+	 */
 	if (fCHRExplorer && fPalette) {
 		fCHRExplorer->SetHostPalette(fPalette);
 	}
+
+	/*
+	 * Persistent explore mode needs a valid default tile.
+	 *
+	 * fHoverTileX/Y are WORLD coordinates, not local NameTable
+	 * coordinates.  Seed them with the upper-left world tile of
+	 * this particular NameTable.
+	 */
+	if (fHoverTileX < 0 || fHoverTileY < 0) {
+		int32 originTX = 0;
+		int32 originTY = 0;
+
+		NameTableTileOrigin(
+			fWhichNameTable,
+			originTX,
+			originTY
+		);
+
+		fHoverTileX = originTX;
+		fHoverTileY = originTY;
+	}
+
+	/*
+	 * Populate tile, attribute, palette, CHR, and cross-view state
+	 * immediately so no mouse movement is required.
+	 */
+	UpdateCHRExplorer();
+
+	SetMouseEventMask(
+		B_POINTER_EVENTS,
+		B_NO_POINTER_HISTORY
+	);
+
+	Invalidate();
 }
 
-
+// -----------------------------------------------------------------------------
+// NameTableView::DetachedFromWindow
+//
+// Cleans up cross-view debugger state when the NameTable view is removed from
+// its window.
+//
+// Any PatternTable highlight and Palette debugger highlight owned by this
+// NameTable view are cleared so other debugger windows do not retain stale
+// selection state after the NameTable window is closed.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 NameTableView::DetachedFromWindow()
 {
-	// This NameTableView may have been driving external highlights
-	// in other debugger windows. Clear those links when the view is
-	// removed so stale highlights do not remain visible after the
-	// NameTable window is closed.
-
 	ClearPatternWindowHighlight(fPatternTable0);
 	ClearPatternWindowHighlight(fPatternTable1);
 
@@ -292,6 +345,25 @@ NameTableView::DetachedFromWindow()
 }
 
 
+// -----------------------------------------------------------------------------
+// NameTableView::Draw
+//
+// Draws the complete NameTable debugger view.
+//
+// The function clears the view background, draws the NameTable bitmap and its
+// surrounding panel, renders all enabled bitmap-space overlays, and then draws
+// the controls and debugger state panels in normal view coordinates.
+//
+// When no ROM is loaded, the bitmap area is replaced with the "No ROM loaded"
+// message while the rest of the debugger UI remains visible.
+//
+// Parameters:
+//   updateRect - Invalidated region supplied by the app_server.  The current
+//                implementation redraws the complete view.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 NameTableView::Draw(BRect updateRect)
 {
@@ -596,26 +668,29 @@ NameTableView::MouseMoved (BPoint where, uint32 transit, const BMessage* msg)
 }
 
 
-// -------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // NameTableView::Pulse
 //
-// Tracks latched PPU scroll state once per frame and invalidates the
-// view when the scroll position changes.
+// Refreshes the NameTable and its connected debugger state whenever a new PPU
+// frame becomes available.
+//
+// If no active hover/locked tile exists, such as after a ROM was unloaded and
+// another ROM was loaded into an already-open NameTable window, a default tile
+// is established at the upper-left corner of this NameTable.
+//
+// The active tile's CHR, attribute, palette, PatternTable highlight, and CHR
+// Explorer state are then refreshed without requiring mouse movement.
 //
 // Parameters:
 //   None.
 //
 // Returns:
-//   None.
-// -------------------------------------------------------------
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 NameTableView::Pulse()
 {
 	if (fFreezeUpdates) {
-		return;
-	}
-
-	if (!nes::cart.mapper()) {
 		return;
 	}
 
@@ -627,7 +702,11 @@ NameTableView::Pulse()
 	uint32 y = 0;
 	uint32 frameId = 0;
 
-	if (!fMainWindow->GetLatchedScroll(x, y, frameId)) {
+	if (!fMainWindow->GetLatchedScroll(
+		x,
+		y,
+		frameId
+	)) {
 		return;
 	}
 
@@ -636,14 +715,33 @@ NameTableView::Pulse()
 	}
 
 	fLastPPUFrame = frameId;
+
 	fScrollX = x % 512;
 	fScrollY = y % 480;
 
 	fBitmapDirty = true;
 
-	if (fTileLocked && fLockToScreen) {
-		UpdateCHRExplorer();
+	/*
+	 * Clear() may have removed the previous hover selection when the
+	 * preceding ROM was unloaded.  Re-establish a valid default tile
+	 * for the newly loaded ROM.
+	 */
+	if (!fTileLocked
+		&& (fHoverTileX < 0 || fHoverTileY < 0)) {
+		int32 originTX = 0;
+		int32 originTY = 0;
+
+		NameTableTileOrigin(
+			fWhichNameTable,
+			originTX,
+			originTY
+		);
+
+		fHoverTileX = originTX;
+		fHoverTileY = originTY;
 	}
+
+	UpdateCHRExplorer();
 
 	Invalidate();
 }
@@ -1641,6 +1739,87 @@ NameTableView::BitmapOrigin() const
 	const float headerH = 148.0f;
 
 	return BPoint(12.0f, headerH + 10.0f);
+}
+
+// -----------------------------------------------------------------------------
+// NameTableView::Clear
+//
+// Clears all ROM-specific NameTable debugger state while preserving the
+// debugger window's identity and user-selected display options.
+//
+// Hover and lock state, cached tile and attribute information, PPU scroll/frame
+// state, the cached NameTable bitmap, CHR Explorer contents, PatternTable
+// highlights, and Palette debugger highlighting are cleared.
+//
+// Display options such as attribute grid/map, matching tiles, viewport,
+// follow mode, freeze mode, and attribute blocks are intentionally preserved.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+NameTableView::Clear()
+{
+	fHoverTileX = -1;
+	fHoverTileY = -1;
+
+	fTileLocked = false;
+	fLockedTileX = -1;
+	fLockedTileY = -1;
+
+	fLockToScreen = false;
+	fLockedViewPoint = BPoint(-1.0f, -1.0f);
+
+	fCurrentNameTableBase = NameTableBaseFromIndex(fWhichNameTable);
+
+	fHoverTileIndex = 0;
+	fHoverPalette = 0;
+	fHoverAttrByte = 0;
+	fHoverAttrAddr = 0;
+	fHoverWhichNameTable = -1;
+
+	fCHRTileAddress = 0;
+
+	memset(fCHRBytes, 0, sizeof(fCHRBytes));
+
+	fScrollX = 0;
+	fScrollY = 0;
+
+	/*
+	 * Force the first PPU frame of the next ROM to be treated as new.
+	 */
+	fLastPPUFrame = static_cast<uint64>(-1);
+
+	/*
+	 * The backing bitmap is explicitly cleared here, so it does not need
+	 * rebuilding while no ROM is loaded.  The first new PPU frame will mark
+	 * it dirty again after another ROM is loaded.
+	 */
+	fBitmapDirty = false;
+
+	if (fBitmap && fBits) {
+		memset(fBits, 0, fBitmap->BitsLength());
+	}
+
+	/*
+	 * This NameTable view may currently be driving highlights in either
+	 * PatternTable window.
+	 */
+	ClearPatternWindowHighlight(fPatternTable0);
+	ClearPatternWindowHighlight(fPatternTable1);
+
+	if (fMainWindow) {
+		fMainWindow->ClearPaletteDebuggerHighlight();
+	}
+
+	if (fCHRExplorer) {
+		fCHRExplorer->Clear();
+	}
+
+	Invalidate();
 }
 
 

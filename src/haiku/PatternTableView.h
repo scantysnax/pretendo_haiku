@@ -52,7 +52,7 @@ class PatternTableView : public BView
 	public:
 	// Explorer
 	void SetExplorer (CHRExplorerView *explorer);
-
+	void Clear();
 	// Drawing stuff
 	private:
 	void DrawPixel (int32 x, int32 y, uint8 color);
