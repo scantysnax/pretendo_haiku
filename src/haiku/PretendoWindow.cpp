@@ -211,6 +211,7 @@ ClearCPUMemoryWindow (CPUMemoryWindow *window)
 	window->Unlock();
 }
 
+
 // -----------------------------------------------------------------------------
 // ClearOAMWindow
 //
@@ -224,7 +225,7 @@ ClearCPUMemoryWindow (CPUMemoryWindow *window)
 //   Nothing.
 // -----------------------------------------------------------------------------
 static void
-ClearOAMWindow(OAMDebugWindow *window)
+ClearOAMWindow (OAMDebugWindow *window)
 {
 	if (!window) {
 		return;
@@ -4443,15 +4444,8 @@ PretendoWindow::LoadROMPath (const char *path)
 	OnFreeROM();
 
 	if (nes::cart.load(path) == false) {
-		(new BAlert(
-			"Error",
-			"Error.  Couldn't load ROM Image.",
-			"Okay",
-			nullptr,
-			nullptr,
-			B_WIDTH_AS_USUAL,
-			B_STOP_ALERT
-		))->Go();
+		(new BAlert("Error", "Error.  Couldn't load ROM Image.", "Okay", nullptr,
+					nullptr, B_WIDTH_AS_USUAL, B_STOP_ALERT))->Go();
 
 		return;
 	}

@@ -236,14 +236,12 @@ CPUMemoryView::Draw (BRect updateRect)
 // Refreshes the live CPU memory display and keeps transient hover inspection
 // synchronized with the mouse position.
 //
-// Hover tracking is active only while the CPU Memory window is active.  When
-// focus moves to another window, or when the pointer leaves this view, transient
-// hover state is cleared.  A locked byte is preserved across ordinary focus and
-// pointer changes.
+// The memory display itself continues to refresh whenever a ROM is loaded,
+// regardless of whether the CPU Memory window is active.  Hover tracking is
+// performed only while the window is active.
 //
-// While the active window is displaying a loaded ROM, the view is invalidated
-// on each pulse so memory contents, PC/opcode highlighting, operand highlighting,
-// stack pointer state, and instruction-target information remain live.
+// When the window becomes inactive, transient hover state is cleared while any
+// locked byte remains preserved.
 //
 // Parameters:
 //   None.
@@ -260,37 +258,44 @@ CPUMemoryView::Pulse()
 
 	BWindow *window = Window();
 
-	if (!window || !window->IsActive()) {
+	if (!window) {
+		return;
+	}
+
+	if (!window->IsActive()) {
 		if (fHasHoveredAddress) {
 			fHasHoveredAddress = false;
 			fHoveredAddress = 0x0000;
-
-			Invalidate();
 		}
 
+		/*
+		 * Memory, PC/SP state, operands, and instruction targets must remain
+		 * live even while this debugger window is inactive.
+		 */
+		Invalidate();
 		return;
 	}
 
 	BPoint where;
 	uint32 buttons = 0;
+
 	GetMouse(&where, &buttons, false);
 
 	if (!Bounds().Contains(where)) {
 		if (fHasHoveredAddress) {
 			fHasHoveredAddress = false;
 			fHoveredAddress = 0x0000;
-
-			Invalidate();
 		}
 
+		Invalidate();
 		return;
 	}
 
 	HoverAddressForPoint(where);
 
 	/*
-	 * Always refresh while this is the active CPU Memory window so live
-	 * memory, PC/SP state, operands, and instruction targets remain current.
+	 * Keep live memory, PC/SP state, operands, and instruction targets
+	 * current while the window is active.
 	 */
 	Invalidate();
 }
@@ -299,9 +304,14 @@ CPUMemoryView::Pulse()
 // -----------------------------------------------------------------------------
 // CPUMemoryView::MouseDown
 //
-// Locks the byte under the mouse when the user clicks either the hex byte column
-// or the ASCII column.  The locked byte remains shown in the header and outlined
-// in the memory grid while hover can continue to move separately.
+// Handles mouse clicks in the CPU memory grid.
+//
+// Clicking a hexadecimal or ASCII byte locks that address for inspection.
+// Clicking the currently locked byte again releases the lock and returns the
+// inspector to normal hover behavior.
+//
+// Mouse inspection is disabled while no ROM is loaded so an address selected
+// from the empty memory panel cannot survive into a subsequently loaded ROM.
 //
 // Parameters:
 //   where - Mouse position in this view.
@@ -314,17 +324,41 @@ CPUMemoryView::MouseDown (BPoint where)
 {
 	MakeFocus(true);
 
+	if (!HasROMLoaded()) {
+		return;
+	}
+
 	uint16 address = 0x0000;
 
-	if (AddressForPoint(where, address)) {
-		fLockedAddress = address;
-		fHasLockedAddress = true;
+	if (!AddressForPoint(where, address)) {
+		return;
+	}
+
+	/*
+	 * Clicking the already-locked byte releases the lock while preserving
+	 * that byte as the current hover address.
+	 */
+	if (fHasLockedAddress && fLockedAddress == address) {
+		fHasLockedAddress = false;
+		fLockedAddress = 0x0000;
 
 		fHoveredAddress = address;
 		fHasHoveredAddress = true;
 
 		Invalidate();
+		return;
 	}
+
+	/*
+	 * Lock the newly selected byte.
+	 */
+	fLockedAddress = address;
+	fHasLockedAddress = true;
+
+	fHoveredAddress = address;
+	fHasHoveredAddress = true;
+
+	Invalidate();
 }
 
 
@@ -763,22 +797,24 @@ CPUMemoryView::DrawByteCell (float x, float y, uint16 address, uint8 value, bool
 // CPUMemoryView::DrawMemoryPanel
 //
 // Draws a hexadecimal dump of CPU-visible memory beginning at fBaseAddress.
-// Bytes are read through nes::bus::debug_read_memory() so inspecting memory does
-// not trigger normal register side effects.  The current PC opcode byte, current
-// instruction operand bytes, stack pointer address, current instruction target,
-// hovered byte, and locked byte are highlighted when visible.
+//
+// Bytes are read through nes::bus::debug_read_memory() so inspection does not
+// trigger normal memory/register side effects.
+//
+// The current PC opcode byte, current instruction operand bytes, stack-pointer
+// address, current instruction target, hovered byte, and locked byte are
+// highlighted when visible.
+//
+// Instruction-byte addresses are calculated with 16-bit wrapping so an
+// instruction beginning near $FFFF correctly continues at $0000.
 //
 // Each memory row receives a soft region-based background color first.  PC/SP
-// row highlights are drawn afterward so the current execution position remains
-// visually dominant.  Individual opcode, operand, SP, target, hover, and locked
-// byte boxes are drawn last.
-//
-// Hardware-port ranges, such as PPU and APU/input registers, are annotated so
-// the viewer does not imply those bytes behave like ordinary mutable RAM.
+// row highlights are drawn afterward, followed by individual opcode, operand,
+// SP, target, hover, and lock indicators.
 //
 // This function uses 16-byte memory row numbers instead of incrementing a
-// uint16 address.  Row 0 is $0000 and row 4095 is $FFF0.  This prevents the
-// display from wrapping from $FFF0 back to zero page.
+// uint16 row address.  Row 0 is $0000 and row 4095 is $FFF0, preventing the
+// visible memory grid itself from wrapping from $FFFF back to zero page.
 //
 // Parameters:
 //   None.
@@ -790,8 +826,7 @@ void
 CPUMemoryView::DrawMemoryPanel()
 {
 	const float rightEdge = (fScrollBar && !fScrollBar->IsHidden())
-		? fScrollBar->Frame().left - 4.0f
-		: Bounds().right - 4.0f;
+			? fScrollBar->Frame().left - 4.0f : Bounds().right - 4.0f;
 
 	BRect panel(4.0f, 202.0f, rightEdge, Bounds().bottom - 8.0f);
 	::DrawDebugPanel(this, panel, "Memory");
@@ -805,10 +840,12 @@ CPUMemoryView::DrawMemoryPanel()
 	}
 
 	nes::cpu::cpu_state_t state = nes::cpu::debug_cpu_state();
+
 	const uint16 pcAddress = state.pc;
 	const uint16 spAddress = static_cast<uint16>(0x100 | state.s);
 
 	cpu_disasm_line_t pcLine = DisassembleCPU(pcAddress);
+
 	uint16 pcInstructionLength = pcLine.length;
 
 	if (pcInstructionLength == 0) {
@@ -817,10 +854,33 @@ CPUMemoryView::DrawMemoryPanel()
 		pcInstructionLength = 3;
 	}
 
-	const uint32 pcInstructionStart = static_cast<uint32>(pcAddress);
-	const uint32 pcInstructionEnd = pcInstructionStart + pcInstructionLength - 1;
+	/*
+	 * Determine the actual 16-bit addresses occupied by the instruction.
+	 *
+	 * Using uint16 arithmetic here intentionally allows:
+	 *
+	 *     $FFFF + 1 -> $0000
+	 *     $FFFF + 2 -> $0001
+	 *
+	 * which matches the CPU's address-bus wrapping.
+	 */
+	const uint16 pcOperandAddress1 = static_cast<uint16>(pcAddress + 1);
+	const uint16 pcOperandAddress2 = static_cast<uint16>(pcAddress + 2);
+
+	auto isInstructionOperand = [&](uint16 address) {
+		if ((pcInstructionLength >= 2) && (address == pcOperandAddress1)) {
+			return true;
+		}
+
+		if ((pcInstructionLength >= 3) && (address == pcOperandAddress2)) {
+			return true;
+		}
+
+		return false;
+	};
 
 	uint16 instructionTargetAddress = 0x0000;
+
 	const bool hasInstructionTarget = CurrentInstructionTarget(instructionTargetAddress);
 
 	BFont prevFont;
@@ -832,8 +892,8 @@ CPUMemoryView::DrawMemoryPanel()
 
 	font_height fh;
 	GetFontHeight(&fh);
-	const float lineH = ceilf(fh.ascent + fh.descent + fh.leading) + 2.0f;
 
+	const float lineH = ceilf(fh.ascent + fh.descent + fh.leading) + 2.0f;
 	const float addrX = panel.left + 10.0f;
 	const float hexX = addrX + 74.0f;
 	const float byteStep = 27.0f;
@@ -876,8 +936,27 @@ CPUMemoryView::DrawMemoryPanel()
 		const uint16 rowStart = address;
 		const uint16 rowEnd = static_cast<uint16>(address + 15);
 
-		const bool pcInRow = pcInstructionStart <= static_cast<uint32>(rowEnd)
-							 && pcInstructionEnd >= static_cast<uint32>(rowStart);
+		/*
+		 * Check whether any byte belonging to the current instruction lies
+		 * inside this memory row.  Testing explicit wrapped addresses avoids
+		 * the $FFFF->$0000 boundary problem of a linear numeric range.
+		 */
+		bool pcInRow = false;
+
+		if ((pcAddress >= rowStart) && (pcAddress <= rowEnd)) {
+			pcInRow = true;
+		}
+
+		if ((!pcInRow) && (pcInstructionLength >= 2) && (pcOperandAddress1 >= rowStart)
+			&& (pcOperandAddress1 <= rowEnd)) {
+			pcInRow = true;
+		}
+
+		if ((!pcInRow) && (pcInstructionLength >= 3) && (pcOperandAddress2 >= rowStart)
+			&& (pcOperandAddress2 <= rowEnd)) {
+			pcInRow = true;
+		}
+
 		const bool spInRow = (spAddress >= rowStart) && (spAddress <= rowEnd);
 		const bool stackRow = (address >= 0x100) && (address <= 0x1ff);
 		const bool ppuRegisterRow = (address >= 0x2000) && (address <= 0x3fff);
@@ -885,6 +964,7 @@ CPUMemoryView::DrawMemoryPanel()
 		const bool prgRow = (address >= 0x8000);
 
 		SetRegionBackgroundColor(address);
+
 		FillRect(BRect(panel.left + 6.0f, y - lineH + 4.0f, panel.right - 6.0f, y + 3.0f));
 
 		if (pcInRow) {
@@ -910,15 +990,15 @@ CPUMemoryView::DrawMemoryPanel()
 
 		for (int32 i = 0; i < 16; i++) {
 			const uint16 byteAddress = static_cast<uint16>(address + i);
-			const uint32 byteAddress32 = static_cast<uint32>(byteAddress);
 			const uint8 value = nes::bus::debug_read_memory(byteAddress);
-
-			const bool isPC = byteAddress == pcAddress;
-			const bool isPCOperand = (byteAddress32 > pcInstructionStart) && (byteAddress32 <= pcInstructionEnd);
+			const bool isPC = (byteAddress == pcAddress);
+			const bool isPCOperand = isInstructionOperand(byteAddress);
 			const bool isSP = (byteAddress == spAddress);
-			const bool isHovered = fHasHoveredAddress && (byteAddress == fHoveredAddress);
-			const bool isLocked = fHasLockedAddress && (byteAddress == fLockedAddress);
-			const bool isInstructionTarget = hasInstructionTarget && (byteAddress == instructionTargetAddress);
+
+			const bool isHovered = fHasHoveredAddress && byteAddress == fHoveredAddress;
+			const bool isLocked = fHasLockedAddress && byteAddress == fLockedAddress;
+			const bool isInstructionTarget = hasInstructionTarget && byteAddress == instructionTargetAddress;
+
 			float hexByteX = hexX + i * byteStep;
 
 			if (i >= 8) {
@@ -929,12 +1009,14 @@ CPUMemoryView::DrawMemoryPanel()
 
 			if (isInstructionTarget) {
 				SetHighColor(0, 130, 0);
+
 				BRect targetRect(hexByteX - 3.0f, y - 12.0f, hexByteX + 18.0f, y + 3.0f);
 				StrokeRect(targetRect);
 			}
 
 			if (isHovered) {
 				SetHighColor(90, 90, 90);
+
 				BRect hoverRect(hexByteX - 4.0f, y - 13.0f, hexByteX + 19.0f, y + 3.0f);
 				StrokeRect(hoverRect);
 			}
@@ -953,7 +1035,8 @@ CPUMemoryView::DrawMemoryPanel()
 				StrokeLine(BPoint(left, bottom), BPoint(left, top));
 			}
 
-			const char asciiChar = (value >= 32 && value <= 126) ? static_cast<char>(value) : '.';
+			const char asciiChar = value >= 32 && value <= 126 ? static_cast<char>(value) : '.';
+
 			BString asciiText;
 			asciiText << asciiChar;
 
@@ -988,6 +1071,9 @@ CPUMemoryView::DrawMemoryPanel()
 				StrokeLine(BPoint(left, bottom), BPoint(left, top));
 			}
 
+			/*
+			 * ASCII text follows the same row-color convention as before.
+			 */
 			if (pcInRow) {
 				SetHighColor(120, 60, 0);
 			} else if (spInRow) {
@@ -1228,6 +1314,7 @@ CPUMemoryView::Read6502IndirectVector (uint16 address) const
 
 	return static_cast<uint16>(low | (high << 8));
 }
+
 
 // -----------------------------------------------------------------------------
 // CPUMemoryView::Clear
