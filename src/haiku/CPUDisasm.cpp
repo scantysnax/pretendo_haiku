@@ -2,6 +2,15 @@
 #include "CPUDisasm.h"
 
 
+// -----------------------------------------------------------------------------
+// address_mode
+//
+// Identifies the 6502 addressing mode used by an opcode.
+//
+// The selected mode determines both the instruction length and how the operand
+// bytes are formatted for debugger disassembly output.
+//
+// -----------------------------------------------------------------------------
 enum address_mode {
 	AM_IMP,
 	AM_ACC,
@@ -19,12 +28,36 @@ enum address_mode {
 };
 
 
+// -----------------------------------------------------------------------------
+// opcode_info_t
+//
+// Describes one 6502 opcode for the debugger disassembler.
+//
+// Each opcode maps to a mnemonic string and an addressing mode.  Together these
+// determine the displayed instruction text and encoded instruction length.
+//
+// Members:
+//   mnemonic - Instruction mnemonic.
+//   mode     - Addressing mode used by the opcode.
+//
+// -----------------------------------------------------------------------------
 struct opcode_info_t {
 	const char *mnemonic;
 	address_mode mode;
 };
 
 
+// -----------------------------------------------------------------------------
+// kOpcodeTable
+//
+// Complete 256-entry 6502 opcode description table used by the debugger
+// disassembler.
+//
+// The table includes both documented and undocumented opcodes.  Each byte value
+// maps directly to its mnemonic and addressing mode so instruction decoding does
+// not require a large switch statement.
+//
+// -----------------------------------------------------------------------------
 static const opcode_info_t kOpcodeTable[256] = {
 	{ "brk", AM_IMP },    { "ora", AM_IND_X },  { "jam", AM_IMP },    { "slo", AM_IND_X },
 	{ "nop", AM_ZERO },   { "ora", AM_ZERO },   { "asl", AM_ZERO },   { "slo", AM_ZERO },
@@ -108,6 +141,20 @@ static const opcode_info_t kOpcodeTable[256] = {
 };
 
 
+// -----------------------------------------------------------------------------
+// DebugRead
+//
+// Reads one byte from CPU-visible memory through the debugger-safe memory path.
+//
+// Debugger reads do not use the normal CPU access path, avoiding side effects
+// and preventing debugger inspection from triggering memory watchpoints.
+//
+// Parameters:
+//   address - CPU address to read.
+//
+// Returns:
+//   Byte currently visible at the supplied CPU address.
+// -----------------------------------------------------------------------------
 static uint8
 DebugRead (uint16 address)
 {
@@ -115,16 +162,18 @@ DebugRead (uint16 address)
 }
 
 
-static uint16
-ReadOp16 (uint16 address)
-{
-	uint16 lo = DebugRead(address + 1);
-	uint16 hi = DebugRead(address + 2);
-
-	return lo | (hi << 8);
-}
-
-
+// -----------------------------------------------------------------------------
+// InstructionLength
+//
+// Returns the encoded byte length of a 6502 instruction from its addressing
+// mode.
+//
+// Parameters:
+//   mode - Addressing mode of the instruction.
+//
+// Returns:
+//   Instruction length in bytes: 1, 2, or 3.
+// -----------------------------------------------------------------------------
 static uint8
 InstructionLength (address_mode mode)
 {
@@ -153,13 +202,32 @@ InstructionLength (address_mode mode)
 }
 
 
+// -----------------------------------------------------------------------------
+// FormatOperand
+//
+// Formats the operand text for an instruction using already-supplied opcode
+// bytes.
+//
+// Using captured bytes rather than rereading CPU memory allows historical CPU
+// trace entries to remain correct even if mapper bank switching later changes
+// the contents currently visible at the same CPU address.
+//
+// Parameters:
+//   address - CPU address at which the instruction was executed.
+//   mode    - Addressing mode for the instruction.
+//   bytes   - Captured instruction bytes.
+//   operand - Receives the formatted operand text.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 static void
-FormatOperand (uint16 address, address_mode mode, BString &operand)
+FormatOperand (uint16 address, address_mode mode, const uint8 bytes[3], BString &operand)
 {
 	operand.SetTo("");
 
-	uint8 op8 = DebugRead(address + 1);
-	uint16 op16 = ReadOp16(address);
+	const uint8 op8 = bytes[1];
+	const uint16 op16 = static_cast<uint16>(bytes[1] | (static_cast<uint16>(bytes[2]) << 8));
 
 	switch (mode) {
 		case AM_IMP:
@@ -174,7 +242,6 @@ FormatOperand (uint16 address, address_mode mode, BString &operand)
 		{
 			int16 target = static_cast<int8>(op8);
 			target += static_cast<int16>(address + 2);
-
 			operand.SetToFormat("$%04X", static_cast<uint16>(target));
 			break;
 		}
@@ -222,6 +289,23 @@ FormatOperand (uint16 address, address_mode mode, BString &operand)
 }
 
 
+// -----------------------------------------------------------------------------
+// FormatBytes
+//
+// Formats the raw instruction bytes of a disassembled 6502 instruction into a
+// fixed-width textual representation.
+//
+// Unused byte positions are filled with spaces so instruction text remains
+// aligned regardless of whether the instruction is one, two, or three bytes
+// long.
+//
+// Parameters:
+//   line  - Disassembled instruction containing length and raw bytes.
+//   bytes - Receives the formatted byte string.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 static void
 FormatBytes (const cpu_disasm_line_t &line, BString &bytes)
 {
@@ -245,45 +329,83 @@ FormatBytes (const cpu_disasm_line_t &line, BString &bytes)
 }
 
 
+// -----------------------------------------------------------------------------
+// DisassembleCPUBytes
+//
+// Disassembles a 6502 instruction from supplied instruction bytes.
+//
+// Unlike DisassembleCPU(), this function does not read CPU memory.  This makes
+// it suitable for historical execution trace entries whose bytes were captured
+// when the instruction actually executed and whose original mapper bank may no
+// longer be visible.
+//
+// Parameters:
+//   address - CPU address at which the instruction was executed.
+//   bytes   - Three captured bytes beginning with the opcode.
+//
+// Returns:
+//   Fully formatted disassembly information for the supplied instruction.
+// -----------------------------------------------------------------------------
 cpu_disasm_line_t
-DisassembleCPU (uint16 address)
+DisassembleCPUBytes (uint16 address, const uint8 bytes[3])
 {
 	cpu_disasm_line_t line;
 
 	line.address = address;
 
-	uint8 opcode = DebugRead(address);
+	const uint8 opcode = bytes[0];
 	const opcode_info_t &info = kOpcodeTable[opcode];
 
 	line.length = InstructionLength(info.mode);
-	line.bytes[0] = opcode;
-	line.bytes[1] = DebugRead(address + 1);
-	line.bytes[2] = DebugRead(address + 2);
+
+	line.bytes[0] = bytes[0];
+	line.bytes[1] = bytes[1];
+	line.bytes[2] = bytes[2];
 
 	line.mnemonic.SetTo(info.mnemonic);
-	FormatOperand(address, info.mode, line.operand);
 
-	BString bytes;
+	FormatOperand(address, info.mode, bytes, line.operand);
 
-	FormatBytes(line, bytes);
+	BString byteText;
+	FormatBytes(line, byteText);
 
 	if (line.operand.Length() > 0) {
-		line.text.SetToFormat(
-			"$%04X:  %-8s  %s %s",
-			line.address,
-			bytes.String(),
-			line.mnemonic.String(),
-			line.operand.String()
-		);
+		line.text.SetToFormat("$%04X:  %-8s  %s %s", line.address, byteText.String(),
+								line.mnemonic.String(),
+								line.operand.String());
 	} else {
-		line.text.SetToFormat(
-			"$%04X:  %-8s  %s",
-			line.address,
-			bytes.String(),
-			line.mnemonic.String()
-		);
+		line.text.SetToFormat("$%04X:  %-8s  %s", line.address, byteText.String(),
+								line.mnemonic.String());
 	}
 
 	return line;
+}
+
+
+// -----------------------------------------------------------------------------
+// DisassembleCPU
+//
+// Disassembles the instruction currently visible at a CPU memory address.
+//
+// The instruction bytes are read through the side-effect-free debugger memory
+// path and then passed to DisassembleCPUBytes(), keeping all opcode decoding and
+// formatting in one shared implementation.
+//
+// Parameters:
+//   address - CPU address of the instruction to decode.
+//
+// Returns:
+//   Fully formatted disassembly information for the current instruction.
+// -----------------------------------------------------------------------------
+cpu_disasm_line_t
+DisassembleCPU (uint16 address)
+{
+	uint8 bytes[3];
+
+	bytes[0] = DebugRead(address);
+	bytes[1] = DebugRead(static_cast<uint16>(address + 1));
+	bytes[2] = DebugRead(static_cast<uint16>(address + 2));
+
+	return DisassembleCPUBytes(address, bytes);
 }
 

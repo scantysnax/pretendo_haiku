@@ -30,6 +30,8 @@ class CPUTraceWindow : public BWindow
 
 	virtual bool QuitRequested();
 	virtual void MessageReceived (BMessage *message);
+	CPUTraceView *View() const;
+	
 
 	private:
 	PretendoWindow *fParent = nullptr;

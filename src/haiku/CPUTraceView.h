@@ -61,6 +61,7 @@ class CPUTraceView : public BView
 
 	bool HandleShortcut (const char *bytes, int32 numBytes);
 	bool SelectedTraceAddress (uint16 &address) const;
+	void Clear();
 
 	void ToggleFreeze();
 	void ClearTrace();

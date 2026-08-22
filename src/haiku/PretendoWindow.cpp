@@ -246,6 +246,39 @@ ClearOAMWindow (OAMDebugWindow *window)
 
 
 // -----------------------------------------------------------------------------
+// ClearCPUTraceWindow
+//
+// Clears ROM-specific state from an open CPU Trace debugger window without
+// closing the window.
+//
+// Parameters:
+//   window - CPU Trace debugger window to clear.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+static void
+ClearCPUTraceWindow(CPUTraceWindow *window)
+{
+	if (!window) {
+		return;
+	}
+
+	if (!window->Lock()) {
+		return;
+	}
+
+	CPUTraceView *view = window->View();
+
+	if (view) {
+		view->Clear();
+	}
+
+	window->Unlock();
+}
+
+
+// -----------------------------------------------------------------------------
 // PretendoWindow::PretendoWindow
 //
 // Creates the main emulator window, initializes menus, video buffers, audio
@@ -1146,6 +1179,7 @@ PretendoWindow::OnFreeROM()
 	
 	ClearCPUMemoryWindow(fCPUMemoryWindow);
 	ClearOAMWindow(fOAMDebugWindow);
+	ClearCPUTraceWindow(fCPUTraceWindow);
 	ClearVideoView();
 
 	nes::cpu::debug_clear_instruction_trace();

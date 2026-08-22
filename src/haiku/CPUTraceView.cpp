@@ -35,12 +35,14 @@ class CPUTraceScrollBar : public BScrollBar
 // -----------------------------------------------------------------------------
 // CPUTraceView::CPUTraceView
 //
-// Creates the CPU trace view.
+// Creates the CPU trace debugger view and its vertical scrollbar.
+//
+// The owning PretendoWindow is retained so trace selections can navigate to
+// related debugger tools, such as the CPU Disassembly view.
 //
 // Parameters:
 //   frame  - Initial view frame.
-//   parent - Owning PretendoWindow.  Currently unused by the view; ownership and
-//            lifecycle callbacks are handled by CPUTraceWindow.
+//   parent - Owning PretendoWindow used for debugger navigation.
 //
 // Returns:
 //   Constructor; no return value.
@@ -75,9 +77,11 @@ CPUTraceView::~CPUTraceView()
 // -----------------------------------------------------------------------------
 // CPUTraceView::AttachedToWindow
 //
-// Completes CPU trace view setup after attachment to a window.  The scrollbar is
-// laid out, keyboard focus is enabled, and pointer events are requested for
-// future row selection support.
+// Completes CPU trace view setup after attachment to a window.
+//
+// The scrollbar is laid out and synchronized with the current trace position,
+// pointer events are enabled for trace-row selection and mouse-wheel handling,
+// and keyboard focus is assigned so debugger shortcuts work immediately.
 //
 // Parameters:
 //   None.
@@ -159,7 +163,7 @@ CPUTraceView::KeyDown(const char *bytes, int32 numBytes)
 //   true if the key was handled.
 // -----------------------------------------------------------------------------
 bool
-CPUTraceView::HandleShortcut(const char* bytes, int32 numBytes)
+CPUTraceView::HandleShortcut (const char *bytes, int32 numBytes)
 {
 	if (!bytes || numBytes <= 0) {
 		return false;
@@ -251,6 +255,9 @@ CPUTraceView::HandleShortcut(const char* bytes, int32 numBytes)
 // not stop CPU trace capture; it copies the current trace into fFrozenEntries so
 // the displayed backtrace remains stable while the emulator continues running.
 //
+// Returning to live mode clears any selected frozen trace row so the selection
+// cannot later refer to an unrelated entry in the live circular trace buffer.
+//
 // Parameters:
 //   None.
 //
@@ -285,6 +292,9 @@ CPUTraceView::ToggleFreeze()
 	fFreezeUpdates = false;
 	fFollowNewest = true;
 
+	fHasSelectedTraceIndex = false;
+	fSelectedTraceIndex = 0;
+
 	JumpToNewest();
 }
 
@@ -292,8 +302,11 @@ CPUTraceView::ToggleFreeze()
 // -----------------------------------------------------------------------------
 // CPUTraceView::ClearTrace
 //
-// Clears the CPU trace buffer and resets the visible trace position.  If the
-// view is frozen, the frozen snapshot is also cleared.
+// Clears the CPU trace buffer and resets the visible trace position.
+//
+// If the view is frozen, the frozen snapshot is also cleared.  Any selected
+// trace row is discarded so an old selection cannot later refer to a different
+// instruction after the trace buffer begins filling again.
 //
 // Parameters:
 //   None.
@@ -305,9 +318,13 @@ void
 CPUTraceView::ClearTrace()
 {
 	nes::cpu::debug_clear_cpu_trace();
+
 	fFrozenEntries.clear();
 
 	fBaseTraceIndex = 0;
+
+	fHasSelectedTraceIndex = false;
+	fSelectedTraceIndex = 0;
 
 	if (!fFreezeUpdates) {
 		fFollowNewest = true;
@@ -325,6 +342,10 @@ CPUTraceView::ClearTrace()
 //
 // Leaves frozen snapshot mode and resumes following the live CPU trace buffer.
 //
+// Any selected frozen trace row is cleared because its chronological index is
+// no longer guaranteed to identify the same instruction once the live circular
+// trace buffer resumes moving.
+//
 // Parameters:
 //   None.
 //
@@ -338,6 +359,9 @@ CPUTraceView::FollowNewest()
 
 	fFreezeUpdates = false;
 	fFollowNewest = true;
+
+	fHasSelectedTraceIndex = false;
+	fSelectedTraceIndex = 0;
 
 	JumpToNewest();
 }
@@ -399,8 +423,13 @@ CPUTraceView::MessageReceived(BMessage *message)
 // CPUTraceView::MouseDown
 //
 // Gives keyboard focus to the CPU trace view and selects a trace row when the
-// click lands inside the visible instruction table.  Clicking the selected row
-// again clears the selection.
+// click lands inside the visible instruction table.
+//
+// Selecting a row while the trace is live first captures a frozen snapshot.
+// This keeps the selected chronological index stable even if the live circular
+// CPU trace buffer continues recording and overwrites older entries.
+//
+// Clicking the currently selected row again clears the selection.
 //
 // Parameters:
 //   where - Mouse position in view coordinates.
@@ -413,10 +442,27 @@ CPUTraceView::MouseDown(BPoint where)
 {
 	MakeFocus(true);
 
+	/*
+	 * Do not freeze merely because the user clicked somewhere in the view.
+	 * First verify that the click actually lands on a visible trace row.
+	 *
+	 * The current live and frozen layouts use the same base index/count at
+	 * capture time, so the row index obtained here remains valid after the
+	 * snapshot is taken.
+	 */
 	uint32 index = 0;
 
 	if (!TraceIndexForPoint(where, index)) {
 		return;
+	}
+
+	if (!fFreezeUpdates) {
+		CaptureSnapshot();
+
+		fFreezeUpdates = true;
+		fFollowNewest = false;
+
+		UpdateScrollBar();
 	}
 
 	if (fHasSelectedTraceIndex && fSelectedTraceIndex == index) {
@@ -600,8 +646,7 @@ void
 CPUTraceView::DrawTracePanel()
 {
 	const float rightEdge = (fScrollBar && !fScrollBar->IsHidden())
-		? fScrollBar->Frame().left - 4.0f
-		: Bounds().right - 4.0f;
+		? fScrollBar->Frame().left - 4.0f : Bounds().right - 4.0f;
 
 	BRect panel(4.0f, 80.0f, rightEdge, Bounds().bottom - 8.0f);
 	::DrawDebugPanel(this, panel, "Executed Instructions");
@@ -759,8 +804,7 @@ CPUTraceView::DrawTracePanel()
 		DrawString(instr.String(), BPoint(instrX, y));
 
 		SetHighColor(50, 50, 50);
-		s.SetToFormat("%02X %02X %02X %02X %02X",
-						entry.a, entry.x, entry.y, entry.s, entry.p);
+		s.SetToFormat("%02X %02X %02X %02X %02X", entry.a, entry.x, entry.y, entry.s, entry.p);
 		DrawString(s.String(), BPoint(regX, y));
 
 		y += lineH;
@@ -1046,7 +1090,7 @@ CPUTraceView::TraceDisplayEntry (uint32 index, nes::cpu::cpu_trace_entry_t& entr
 //   true if a selected trace entry is available.
 // -----------------------------------------------------------------------------
 bool
-CPUTraceView::SelectedTraceEntry(nes::cpu::cpu_trace_entry_t &entry, BString &instruction) const
+CPUTraceView::SelectedTraceEntry (nes::cpu::cpu_trace_entry_t &entry, BString &instruction) const
 {
 	instruction.SetTo("");
 
@@ -1089,6 +1133,45 @@ CPUTraceView::SelectedTraceAddress (uint16 &address) const
 
 	address = entry.pc;
 	return true;
+}
+
+
+// -----------------------------------------------------------------------------
+// CPUTraceView::Clear
+//
+// Clears all ROM-specific CPU trace viewer state.
+//
+// The local frozen trace snapshot, current selection, and scroll position are
+// discarded so trace information from an unloaded ROM cannot remain visible
+// after another ROM is loaded.
+//
+// The viewer returns to live follow-newest mode, ready to display trace entries
+// generated by the next loaded ROM.
+//
+// This function clears only view-owned state.  The CPU trace backend is cleared
+// separately by PretendoWindow during ROM unload/load processing.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+CPUTraceView::Clear()
+{
+	fFrozenEntries.clear();
+
+	fFreezeUpdates = false;
+	fFollowNewest = true;
+
+	fBaseTraceIndex = 0;
+
+	fHasSelectedTraceIndex = false;
+	fSelectedTraceIndex = 0;
+
+	UpdateScrollBar();
+	Invalidate();
 }
 
 
@@ -1153,8 +1236,7 @@ bool
 CPUTraceView::TraceIndexForPoint(BPoint where, uint32 &index) const
 {
 	const float rightEdge = (fScrollBar && !fScrollBar->IsHidden())
-		? fScrollBar->Frame().left - 4.0f
-		: Bounds().right - 4.0f;
+		? fScrollBar->Frame().left - 4.0f : Bounds().right - 4.0f;
 
 	BRect panel(4.0f, 80.0f, rightEdge, Bounds().bottom - 8.0f);
 	
@@ -1360,8 +1442,7 @@ CPUTraceView::UpdateScrollBar()
 
 	fScrollBar->SetRange(0.0f, static_cast<float>(maxBase));
 	fScrollBar->SetSteps(1.0f, static_cast<float>(visibleRows));
-	fScrollBar->SetProportion(count > 0
-							? static_cast<float>(visibleRows) / static_cast<float>(count) : 1.0f);
+	fScrollBar->SetProportion(count > 0 ? static_cast<float>(visibleRows) / static_cast<float>(count) : 1.0f);
 	fScrollBar->SetValue(static_cast<float>(fBaseTraceIndex));
 
 	fUpdatingScrollBar = false;
@@ -1439,8 +1520,7 @@ int32
 CPUTraceView::VisibleTraceRows() const
 {
 	const float rightEdge = (fScrollBar && !fScrollBar->IsHidden())
-		? fScrollBar->Frame().left - 4.0f
-		: Bounds().right - 4.0f;
+		? fScrollBar->Frame().left - 4.0f : Bounds().right - 4.0f;
 
 	BRect panel(4.0f, 80.0f, rightEdge, Bounds().bottom - 8.0f);
 	const float inspectorHeight = 82.0f;

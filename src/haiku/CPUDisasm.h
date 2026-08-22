@@ -25,6 +25,7 @@ struct cpu_disasm_line_t {
 };
 
 
+cpu_disasm_line_t DisassembleCPUBytes (uint16 address, const uint8 bytes[3]);
 cpu_disasm_line_t DisassembleCPU (uint16 address);
 
 

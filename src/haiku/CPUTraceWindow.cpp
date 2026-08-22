@@ -128,3 +128,24 @@ CPUTraceWindow::QuitRequested()
 }
 
 
+// -----------------------------------------------------------------------------
+// CPUTraceWindow::View
+//
+// Returns the contained CPU trace debugger view.
+//
+// This accessor allows PretendoWindow to clear ROM-specific CPU trace viewer
+// state without closing the CPU Trace window.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Pointer to the contained CPUTraceView.
+// -----------------------------------------------------------------------------
+CPUTraceView*
+CPUTraceWindow::View() const
+{
+	return fView;
+}
+
+
