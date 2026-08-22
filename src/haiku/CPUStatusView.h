@@ -23,14 +23,13 @@
 // current instruction latch, current instruction cycle, and total executed CPU
 // cycles.
 // -----------------------------------------------------------------------------
-
 class CPUStatusView : public BView
 {
 	public:
 			CPUStatusView (BRect frame, PretendoWindow *parent);
 	virtual ~CPUStatusView();
 
-	virtual void AttachedToWindow();
+	public:
 	virtual void Draw (BRect updateRect);
 	virtual void Pulse();
 
@@ -39,8 +38,6 @@ class CPUStatusView : public BView
 	void DrawRegisterPanel();
 	void DrawFlagsPanel();
 	void DrawTimingPanel();
-	
-	private:
 	void DrawFlag (BRect rect, const char *name, bool active);
 	
 	private:

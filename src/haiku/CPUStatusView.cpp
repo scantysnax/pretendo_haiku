@@ -2,6 +2,22 @@
 #include "CPUStatusView.h"
 
 
+// -----------------------------------------------------------------------------
+// SetStateColor
+//
+// Selects the foreground color used to display an active or inactive CPU state
+// indicator.
+//
+// Active values are drawn in green, while inactive values are drawn in gray.
+//
+// Parameters:
+//   view   - View whose high color will be changed.
+//   active - true for the active-state color, false for the inactive-state
+//            color.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 static void
 SetStateColor (BView *view, bool active)
 {
@@ -13,6 +29,24 @@ SetStateColor (BView *view, bool active)
 }
 
 
+// -----------------------------------------------------------------------------
+// CPUStatusView::CPUStatusView
+//
+// Creates the CPU status debugger view.
+//
+// The view displays live 6502 register, processor-flag, instruction, stack,
+// emulator-state, and cycle information while a ROM is loaded.
+//
+// The parent Pretendo window is retained so the timing panel can report the
+// application's current running, paused, or stopped state.
+//
+// Parameters:
+//   frame  - Initial bounds of the CPU status view.
+//   parent - Owning PretendoWindow used for emulator run/pause state.
+//
+// Returns:
+//   Constructor; no return value.
+// -----------------------------------------------------------------------------
 CPUStatusView::CPUStatusView (BRect frame, PretendoWindow *parent)
 	: BView(frame, "cpu_status_view", B_FOLLOW_ALL_SIDES,
 			B_WILL_DRAW | B_PULSE_NEEDED | B_FRAME_EVENTS)
@@ -24,15 +58,22 @@ CPUStatusView::CPUStatusView (BRect frame, PretendoWindow *parent)
 }
 
 
+// -----------------------------------------------------------------------------
+// CPUStatusView::~CPUStatusView
+//
+// Destroys the CPU status debugger view.
+//
+// The view does not own any additional dynamically allocated resources, so no
+// explicit cleanup is required here.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Destructor; no return value.
+// -----------------------------------------------------------------------------
 CPUStatusView::~CPUStatusView()
 {
-}
-
-
-void
-CPUStatusView::AttachedToWindow()
-{
-	BView::AttachedToWindow();
 }
 
 
@@ -217,8 +258,8 @@ CPUStatusView::DrawRegisterPanel()
 	drawRightKV("P:", s.String());
 
 	const uint8 p = state.p;
-
 	BString flags;
+	
 	flags.SetToFormat("%c%c-%c%c%c%c%c",
 		(p & 0x80) ? 'N' : 'n',
 		(p & 0x40) ? 'V' : 'v',
@@ -239,8 +280,10 @@ CPUStatusView::DrawRegisterPanel()
 // CPUStatusView::DrawFlagsPanel
 //
 // Draws the decoded 6502 processor status flags.  Active flags are shown in
-// green; inactive flags are shown in gray.  The unused/reserved status bit is
-// displayed as '-' to match common 6502 debugger notation:
+// green; inactive flags are shown in gray.
+//
+// The unused/reserved status bit is displayed as a neutral '-' rather than as
+// an ordinary active/inactive processor flag:
 //
 //   N V - B D I Z C
 //
@@ -261,7 +304,6 @@ CPUStatusView::DrawFlagsPanel()
 
 	const bool n = (p & 0x80) != 0;
 	const bool v = (p & 0x40) != 0;
-	const bool r = (p & 0x20) != 0;
 	const bool b = (p & 0x10) != 0;
 	const bool d = (p & 0x08) != 0;
 	const bool i = (p & 0x04) != 0;
@@ -282,7 +324,29 @@ CPUStatusView::DrawFlagsPanel()
 	DrawFlag(BRect(x, y, x + boxW, y + boxH), "V", v);
 	x += boxW + gap;
 
-	DrawFlag(BRect(x, y, x + boxW, y + boxH), "-", r);
+	/*
+	 * Reserved / unused status bit.
+	 *
+	 * Draw it neutrally rather than treating bit 5 as an ordinary active
+	 * processor flag.
+	 */
+	BRect reservedRect(x, y, x + boxW, y + boxH);
+	SetHighColor(245, 245, 245);
+	FillRect(reservedRect);
+
+	SetHighColor(150, 150, 150);
+	StrokeRect(reservedRect);
+
+	SetFontSize(14.0f);
+	SetHighColor(100, 100, 100);
+
+	const char *reservedName = "-";
+
+	float reservedTextW = StringWidth(reservedName);
+	float reservedTextX = reservedRect.left + ((reservedRect.Width() - reservedTextW) * 0.5f);
+	float reservedTextY = reservedRect.top + 22.0f;
+	DrawString(reservedName, BPoint(reservedTextX, reservedTextY));
+
 	x += boxW + gap;
 
 	DrawFlag(BRect(x, y, x + boxW, y + boxH), "B", b);
@@ -303,8 +367,8 @@ CPUStatusView::DrawFlagsPanel()
 
 	font_height fh;
 	GetFontHeight(&fh);
-	const float lineH = ceilf(fh.ascent + fh.descent + fh.leading) + 1.0f;
 
+	const float lineH = ceilf(fh.ascent + fh.descent + fh.leading) + 1.0f;
 	const float leftX = panel.left + 24.0f;
 	const float midX = panel.left + 196.0f;
 	float legendY = y + boxH + 22.0f;
@@ -317,16 +381,27 @@ CPUStatusView::DrawFlagsPanel()
 		DrawString(text, BPoint(textX, legendY));
 	};
 
+	auto drawNeutralLegend = [&](float labelX, float textX, const char *flag, const char *text) {
+		SetHighColor(100, 100, 100);
+		DrawString(flag, BPoint(labelX, legendY));
+
+		SetHighColor(80, 80, 80);
+		DrawString(text, BPoint(textX, legendY));
+	};
+
 	drawLegend(leftX, leftX + 18.0f, "N", "Negative", n);
 	drawLegend(midX, midX + 18.0f, "D", "Decimal", d);
+
 	legendY += lineH;
 
 	drawLegend(leftX, leftX + 18.0f, "V", "Overflow", v);
 	drawLegend(midX, midX + 18.0f, "I", "IRQ Disable", i);
+
 	legendY += lineH;
 
-	drawLegend(leftX, leftX + 18.0f, "-", "Reserved", r);
+	drawNeutralLegend(leftX, leftX + 18.0f, "-", "Reserved");
 	drawLegend(midX, midX + 18.0f, "Z", "Zero", z);
+
 	legendY += lineH;
 
 	drawLegend(leftX, leftX + 18.0f, "B", "Break", b);
@@ -418,11 +493,19 @@ CPUStatusView::DrawTimingPanel()
 
 	cpu_disasm_line_t line = DisassembleCPU(state.pc);
 
+	uint16 instructionLength = line.length;
+
+	if (instructionLength == 0) {
+		instructionLength = 1;
+	} else if (instructionLength > 3) {
+		instructionLength = 3;
+	}
+
 	BString byteText;
 
-	if (line.length == 1) {
+	if (instructionLength == 1) {
 		byteText.SetToFormat("%02X      ", line.bytes[0]);
-	} else if (line.length == 2) {
+	} else if (instructionLength == 2) {
 		byteText.SetToFormat("%02X %02X   ", line.bytes[0], line.bytes[1]);
 	} else {
 		byteText.SetToFormat("%02X %02X %02X", line.bytes[0], line.bytes[1], line.bytes[2]);
@@ -468,7 +551,7 @@ CPUStatusView::DrawTimingPanel()
 					stackAddress0, stackValue0, stackValue1, stackValue2, stackValue3);
 	drawKV("Stack:", s.String());
 
-	s.SetToFormat("$%02X", (state.instruction & 0xff));
+	s.SetToFormat("$%02X", state.instruction & 0xff);
 	drawKV("Instruction:", s.String());
 
 	s.SetToFormat("%d", state.cycle);
