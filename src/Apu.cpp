@@ -209,6 +209,7 @@ mix_channels()
 	 * This removes the DC component of the positive-only NES mixer while
 	 * preserving the audible waveform.
 	 */
+	
 	constexpr double R = 0.995;
 	const double output = input - sDCBlockPreviousInput + R * sDCBlockPreviousOutput;
 	sDCBlockPreviousInput = input;
@@ -596,7 +597,7 @@ start_frame()
 	// sample_buffer_start = sample_buffer_end;
 	
 	
-	// That discarded queued samples at every video-frame boundary and was one 
+	// That discars queued samples at every video-frame boundary and was one 
 	// of the causes of audio discontinuities.
 }
 
