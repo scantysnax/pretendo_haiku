@@ -25,7 +25,7 @@ class NameTableWindow : public BWindow
 	
 	public:
 			NameTableWindow(PretendoWindow *parent, int32 which,
-							PatternTableWindow* pt0, PatternTableWindow* pt1);
+							PatternTableWindow* pt1, PatternTableWindow* pt2);
 	virtual ~NameTableWindow();
 	
 	public:
@@ -39,7 +39,7 @@ class NameTableWindow : public BWindow
 	 }
 	 
 	 public:
-	 void SetPatternTables(PatternTableWindow *pt0, PatternTableWindow *pt1);
+	 void SetPatternTables(PatternTableWindow *pt1, PatternTableWindow *pt2);
 	  
 	private:
 	void LoadSettings();

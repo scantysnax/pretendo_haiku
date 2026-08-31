@@ -1,6 +1,8 @@
 
 #include "AudioStream.h"
 
+#include <cstdio>
+
 
 // -----------------------------------------------------------------------------
 // AudioStream::AudioStream
@@ -19,28 +21,22 @@
 //   Nothing.
 // -----------------------------------------------------------------------------
 AudioStream::AudioStream(float sampleRate, int32 sampleBits, int32 channels, size_t bufferSize)
-{	
+{
 	media_raw_audio_format format;
 	memset(&format, 0, sizeof(format));
-	
+
 	format.frame_rate = sampleRate;
 	format.channel_count = channels;
 	format.format = media_raw_audio_format::B_AUDIO_UCHAR;
 	format.byte_order = B_MEDIA_LITTLE_ENDIAN;
 	format.buffer_size = bufferSize;
 
-	fSoundPlayer = new BSoundPlayer(
-		&format,
-		"Pretendo output",
-		&play_buffer,
-		nullptr,
-		this
-	);
-
+	fSoundPlayer = new BSoundPlayer(&format, "Pretendo output", &play_buffer, nullptr, this);
 	fBufferSize = bufferSize * (sampleBits / 8);
-	fSoundBuffer = reinterpret_cast<uint8 *>(malloc(fBufferSize));	
-	fMutex = new Mutex("pretendo_audio_mutex");
+	fSoundBuffer = reinterpret_cast<uint8 *>(malloc(fBufferSize));
 	
+	fMutex = new Mutex("pretendo_audio_mutex");
+
 	if (fSoundBuffer) {
 		memset(fSoundBuffer, 0x80, fBufferSize);
 	}
@@ -63,10 +59,11 @@ AudioStream::~AudioStream()
 {
 	if (fSoundPlayer) {
 		fSoundPlayer->Stop();
+
 		delete fSoundPlayer;
 		fSoundPlayer = nullptr;
 	}
-	
+
 	delete fMutex;
 	fMutex = nullptr;
 
@@ -96,9 +93,11 @@ AudioStream::Start()
 	if (fSoundPlayer->InitCheck() == B_OK) {
 		fSoundPlayer->SetHasData(true);
 		fSoundPlayer->Start();
+
 		fStreaming = true;
 	} else {
 		fSoundPlayer->SetHasData(false);
+
 		fStreaming = false;
 	}
 }
@@ -121,18 +120,20 @@ AudioStream::Stop()
 {
 	if (fStreaming) {
 		fSoundPlayer->SetHasData(false);
+
 		fStreaming = false;
+
 		fSoundPlayer->Stop();
+
 		fMutex->Unlock();
 	}
 }
 
-
 // -----------------------------------------------------------------------------
 // AudioStream::ClearBuffer
 //
-// Clears the internal unsigned 8-bit audio ring buffer to silence.  This does
-// not lock the audio pacing mutex.
+// Clears the internal unsigned 8-bit audio ring buffer to silence and resets
+// both circular-buffer positions.
 //
 // Parameters:
 //   None.
@@ -153,7 +154,7 @@ AudioStream::ClearBuffer()
 	fPlayPosition = 0;
 }
 
- 
+
 // -----------------------------------------------------------------------------
 // AudioStream::SuspendForDebugger
 //
@@ -186,6 +187,10 @@ AudioStream::SuspendForDebugger()
 //
 // Restarts host audio output after debugger stepping.
 //
+// The host audio buffer and accumulated pacing permits are cleared before
+// streaming resumes so stale debugger-era samples or catch-up permits cannot
+// cause a burst of unpaced audio immediately after leaving debugger mode.
+//
 // Parameters:
 //   None.
 //
@@ -196,6 +201,7 @@ void
 AudioStream::ResumeFromDebugger()
 {
 	ClearBuffer();
+	ResetPacing();
 
 	fMuted = false;
 	fDebugSuspended = false;
@@ -211,10 +217,7 @@ AudioStream::ResumeFromDebugger()
 // -----------------------------------------------------------------------------
 // AudioStream::ResetPacing
 //
-// Drains any accumulated pacing permits from the audio semaphore.  This prevents
-// the emulator from running a burst of catch-up frames after debugger pause or
-// single-step mode, where the host audio callback may have continued releasing
-// the pacing semaphore while normal emulation was not consuming it.
+// Drains any accumulated pacing permits from the audio semaphore.
 //
 // Parameters:
 //   None.
@@ -236,12 +239,13 @@ AudioStream::ResetPacing()
 // -----------------------------------------------------------------------------
 // AudioStream::SetMuted
 //
-// Enables or disables host audio mute.  When mute is enabled, the ring buffer is
-// cleared to unsigned 8-bit silence so stale samples from a running ROM cannot
-// continue to circulate while entering debugger step mode.
+// Enables or disables host audio mute.
+//
+// When mute is enabled, the host ring buffer is cleared to unsigned 8-bit
+// silence so stale emulator audio cannot continue to circulate.
 //
 // Parameters:
-//   muted - true to mute host audio output.
+//   muted - true to mute host audio.
 //
 // Returns:
 //   Nothing.
@@ -260,13 +264,10 @@ AudioStream::SetMuted (bool muted)
 // -----------------------------------------------------------------------------
 // AudioStream::Stream
 //
-// Writes emulator-generated samples into the host audio ring buffer.  The audio
-// mutex is intentionally unlocked by PlayBuffer(); this preserves the original
-// audio-paced emulator timing behavior.
+// Writes emulator-generated samples into the host audio ring buffer.
 //
-// When muted, this still waits on the pacing mutex, but writes unsigned 8-bit
-// silence instead of emulator audio so stale music cannot be queued during
-// debugger stepping.
+// The audio pacing mutex is acquired here and released by PlayBuffer(), which
+// preserves the existing audio-paced emulator timing behavior.
 //
 // Parameters:
 //   stream  - Source audio sample buffer.
@@ -281,13 +282,13 @@ AudioStream::Stream (void const *stream, size_t const samples)
 	if (!fSoundPlayer || fStreaming == false || samples == 0) {
 		return;
 	}
-	
+
 	if (fMutex->Lock()) {
 		uint8 const *output = reinterpret_cast<uint8 const *>(stream);
 		size_t length = samples * sizeof(uint8);
 		size_t const position = fWritePosition + length;
 		size_t const space = fBufferSize - fWritePosition;
-			
+
 		if (position > fBufferSize) {
 			if (fMuted || !output) {
 				memset(fSoundBuffer + fWritePosition, 0x80, space);
@@ -315,9 +316,14 @@ AudioStream::Stream (void const *stream, size_t const samples)
 // -----------------------------------------------------------------------------
 // AudioStream::PlayBuffer
 //
-// Supplies audio to the MediaKit sound player.  When muted, unsigned 8-bit
-// silence is written directly to the MediaKit output buffer.  The audio mutex is
-// unlocked here to preserve the original audio-paced emulator timing behavior.
+// Supplies audio to the MediaKit sound callback.
+//
+// When muted, unsigned 8-bit silence is returned directly.  While muted, at most
+// one pacing permit is retained so callbacks cannot build a large semaphore
+// backlog.
+//
+// During normal playback, one host ring-buffer block is copied to MediaKit and
+// the producer pacing semaphore is released.
 //
 // Parameters:
 //   buffer - Destination MediaKit audio buffer.
@@ -338,19 +344,28 @@ AudioStream::PlayBuffer(void *buffer, size_t const size)
 
 	if (fMuted) {
 		memset(output, 0x80, size);
-		fMutex->Unlock();
+
+		int32 semCount = 0;
+
+		if (get_sem_count(fMutex->Locker(), &semCount) == B_OK) {
+			if (semCount <= 0) {
+				fMutex->Unlock();
+			}
+		}
+
 		return;
 	}
 
 	size_t length = size;
 	size_t const position = fPlayPosition + length;
 	size_t const space = fBufferSize - fPlayPosition;
-		
+
 	if (position > fBufferSize) {
 		mmx_copy(output, fSoundBuffer + fPlayPosition, space);
 		output += space;
 		length -= space;
 		mmx_copy(output, fSoundBuffer, length);
+
 		fPlayPosition = position - fBufferSize;
 	} else {
 		mmx_copy(output, fSoundBuffer + fPlayPosition, length);

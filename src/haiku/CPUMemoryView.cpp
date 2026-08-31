@@ -480,9 +480,9 @@ CPUMemoryView::AddressForPoint (BPoint where, uint16 &address) const
 	BFont prevFont;
 	const_cast<CPUMemoryView *>(this)->GetFont(&prevFont);
 
-	BFont mono = *be_fixed_font;
-	mono.SetSize(10.0f);
-	const_cast<CPUMemoryView *>(this)->SetFont(&mono);
+	BFont fixed = *be_fixed_font;
+	fixed.SetSize(10.0f);
+	const_cast<CPUMemoryView *>(this)->SetFont(&fixed);
 
 	font_height fh;
 	const_cast<CPUMemoryView *>(this)->GetFontHeight(&fh);
@@ -493,7 +493,7 @@ CPUMemoryView::AddressForPoint (BPoint where, uint16 &address) const
 	const float byteStep = 27.0f;
 	const float groupGap = 10.0f;
 	const float asciiX = hexX + byteStep * 16.0f + groupGap + 10.0f;
-	const float asciiStep = mono.StringWidth("M");
+	const float asciiStep = fixed.StringWidth("M");
 
 	const_cast<CPUMemoryView *>(this)->SetFont(&prevFont);
 
@@ -599,8 +599,8 @@ CPUMemoryView::DrawHeaderPanel()
 	BFont prevFont;
 	GetFont(&prevFont);
 
-	BFont mono = *be_fixed_font;
-	mono.SetSize(10.0f);
+	BFont fixed = *be_fixed_font;
+	fixed.SetSize(10.0f);
 
 	BFont uiFont = prevFont;
 	uiFont.SetSize(11.0f);
@@ -617,7 +617,7 @@ CPUMemoryView::DrawHeaderPanel()
 
 	BString s;
 
-	SetFont(&mono);
+	SetFont(&fixed);
 	SetHighColor(0, 0, 0);
 
 	if (HasROMLoaded()) {
@@ -880,15 +880,14 @@ CPUMemoryView::DrawMemoryPanel()
 	};
 
 	uint16 instructionTargetAddress = 0x0000;
-
 	const bool hasInstructionTarget = CurrentInstructionTarget(instructionTargetAddress);
 
 	BFont prevFont;
 	GetFont(&prevFont);
 
-	BFont mono = *be_fixed_font;
-	mono.SetSize(10.0f);
-	SetFont(&mono);
+	BFont fixed = *be_fixed_font;
+	fixed.SetSize(10.0f);
+	SetFont(&fixed);
 
 	font_height fh;
 	GetFontHeight(&fh);
@@ -899,7 +898,7 @@ CPUMemoryView::DrawMemoryPanel()
 	const float byteStep = 27.0f;
 	const float groupGap = 10.0f;
 	const float asciiX = hexX + byteStep * 16.0f + groupGap + 10.0f;
-	const float asciiStep = mono.StringWidth("M");
+	const float asciiStep = fixed.StringWidth("M");
 	const float regionX = asciiX + asciiStep * 16.0f + 20.0f;
 	float y = panel.top + 34.0f;
 
@@ -1832,9 +1831,9 @@ CPUMemoryView::VisibleMemoryRows() const
 	BFont prevFont;
 	const_cast<CPUMemoryView *>(this)->GetFont(&prevFont);
 
-	BFont mono = *be_fixed_font;
-	mono.SetSize(10.0f);
-	const_cast<CPUMemoryView *>(this)->SetFont(&mono);
+	BFont fixed = *be_fixed_font;
+	fixed.SetSize(10.0f);
+	const_cast<CPUMemoryView *>(this)->SetFont(&fixed);
 
 	font_height fh;
 	const_cast<CPUMemoryView *>(this)->GetFontHeight(&fh);
@@ -1891,7 +1890,6 @@ CPUMemoryView::DrawInstructionTargetInfo (float x, float y)
 	}
 
 	const uint8 value = nes::bus::debug_read_memory(address);
-
 	BString asciiText;
 
 	if (value >= 32 && value <= 126) {

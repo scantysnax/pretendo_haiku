@@ -5,6 +5,20 @@
 #include "PaletteView.h"
 
 
+// -----------------------------------------------------------------------------
+// PaletteView::PaletteView
+//
+// Creates the palette editor view, stores the owning PretendoWindow, allocates
+// the 64-color working palette, and records the requested swatch size.
+//
+// Parameters:
+//   mainWindow - Owning PretendoWindow used to apply palette changes.
+//   frame      - Initial view frame.
+//   swatchSize - Size, in pixels, of each displayed palette swatch.
+//
+// Returns:
+//   Constructor; no return value.
+// -----------------------------------------------------------------------------
 PaletteView::PaletteView (PretendoWindow *mainWindow, BRect frame, size_t swatchSize)
 	: BView(frame, "palette_view", B_FOLLOW_ALL_SIDES, B_WILL_DRAW)
 {
@@ -14,6 +28,17 @@ PaletteView::PaletteView (PretendoWindow *mainWindow, BRect frame, size_t swatch
 }
 
 
+// -----------------------------------------------------------------------------
+// PaletteView::~PaletteView
+//
+// Releases the dynamically allocated 64-color palette buffer.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Destructor; no return value.
+// -----------------------------------------------------------------------------
 PaletteView::~PaletteView()
 {
 	if (fPalette != nullptr) {
@@ -22,6 +47,21 @@ PaletteView::~PaletteView()
 }
 
 
+// -----------------------------------------------------------------------------
+// PaletteView::AttachedToWindow
+//
+// Performs PaletteView setup that requires an attached window.
+//
+// The function creates the palette-adjustment sliders, splitters, and command
+// buttons, assigns their message targets, initializes default control values,
+// and positions the controls within the view.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PaletteView::AttachedToWindow()
 {
@@ -131,6 +171,21 @@ PaletteView::AttachedToWindow()
 }
 
 
+// -----------------------------------------------------------------------------
+// PaletteView::MessageReceived
+//
+// Handles palette-editor control messages.
+//
+// Slider changes update the corresponding palette-generation parameter and
+// regenerate the active palette.  Default and Revert restore predefined or
+// previously saved settings.  Load and Save messages are currently placeholders.
+//
+// Parameters:
+//   message - Message delivered to the view.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PaletteView::MessageReceived (BMessage *message)
 {
@@ -192,6 +247,18 @@ PaletteView::MessageReceived (BMessage *message)
 }
 
 
+// -----------------------------------------------------------------------------
+// PaletteView::Draw
+//
+// Regenerates the current 64-color NES palette from the active adjustment
+// parameters and draws the palette swatch matrix and hexadecimal indexes.
+//
+// Parameters:
+//   frame - Area of the view requested for redraw.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PaletteView::Draw (BRect frame)
 {		
@@ -215,6 +282,18 @@ PaletteView::Draw (BRect frame)
 }
 
 
+// -----------------------------------------------------------------------------
+// PaletteView::DrawSwatch
+//
+// Draws a single palette color swatch with a recessed BeOS-style border.
+//
+// Parameters:
+//   where - Top-left position of the swatch.
+//   fill  - Color used to fill the interior of the swatch.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PaletteView::DrawSwatch (BPoint where, rgb_color fill)
 {
@@ -246,6 +325,20 @@ PaletteView::DrawSwatch (BPoint where, rgb_color fill)
 }
 
 
+// -----------------------------------------------------------------------------
+// PaletteView::DrawSwatchRow
+//
+// Draws one horizontal row of palette swatches using the current working
+// palette.
+//
+// Parameters:
+//   start  - Top-left position of the first swatch.
+//   size   - Swatch size in pixels.
+//   rowlen - Number of swatches to draw in the row.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void 
 PaletteView::DrawSwatchRow (BPoint start, int32 size, int32 rowlen)
 {
@@ -260,6 +353,23 @@ PaletteView::DrawSwatchRow (BPoint start, int32 size, int32 rowlen)
 }
 
 
+// -----------------------------------------------------------------------------
+// PaletteView::DrawSwatchMatrix
+//
+// Draws the complete palette swatch matrix as a series of horizontal rows.
+//
+// The current working-palette pointer is advanced between rows so successive
+// palette colors are displayed throughout the matrix.
+//
+// Parameters:
+//   start - Top-left position of the matrix.
+//   size  - Swatch size in pixels.
+//   ncols - Number of swatches per row.
+//   nrows - Number of rows to draw.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PaletteView::DrawSwatchMatrix (BPoint start, int32 size, int32 ncols, int32 nrows)
 {
@@ -275,6 +385,18 @@ PaletteView::DrawSwatchMatrix (BPoint start, int32 size, int32 ncols, int32 nrow
 }
 
 
+// -----------------------------------------------------------------------------
+// PaletteView::DrawIndexes
+//
+// Draws hexadecimal row and column indexes around the palette swatch matrix
+// using the fixed-width system font.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PaletteView::DrawIndexes()
 {
@@ -300,6 +422,19 @@ PaletteView::DrawIndexes()
 }
 
 
+// -----------------------------------------------------------------------------
+// PaletteView::SetDefaultPalette
+//
+// Restores the palette-generation parameters to the application's predefined
+// defaults, applies the regenerated palette to the emulator, and schedules the
+// view for redraw.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PaletteView::SetDefaultPalette()
 {	
@@ -321,6 +456,18 @@ PaletteView::SetDefaultPalette()
 }
 
 
+// -----------------------------------------------------------------------------
+// PaletteView::UpdatePalette
+//
+// Regenerates and applies the NES palette using the current adjustment
+// parameters, resets the working-palette pointer, and schedules a redraw.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void 
 PaletteView::UpdatePalette()
 {	
@@ -336,6 +483,18 @@ PaletteView::UpdatePalette()
 }
 
 
+// -----------------------------------------------------------------------------
+// PaletteView::UpdateSliders
+//
+// Synchronizes the palette-adjustment sliders with the current hue,
+// saturation, contrast, brightness, and gamma values.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PaletteView::UpdateSliders()
 {

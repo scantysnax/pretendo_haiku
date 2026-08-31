@@ -14,14 +14,8 @@
 //   Constructor; no return value.
 // -----------------------------------------------------------------------------
 StackWindow::StackWindow(PretendoWindow *parent)
-	:
-	BWindow(
-		BRect(240.0f, 240.0f, 780.0f, 884.0f),
-		"Stack",
-		B_FLOATING_WINDOW_LOOK,
-		B_NORMAL_WINDOW_FEEL,
-		B_NOT_RESIZABLE | B_NOT_ZOOMABLE
-	),
+	: BWindow(BRect(240.0f, 240.0f, 780.0f, 884.0f), "Stack", B_FLOATING_WINDOW_LOOK, 
+			  B_NORMAL_WINDOW_FEEL, B_NOT_RESIZABLE | B_NOT_ZOOMABLE),
 	fParent(parent)
 {
 	fView = new StackView(Bounds(), parent);

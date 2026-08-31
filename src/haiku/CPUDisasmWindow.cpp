@@ -18,8 +18,8 @@
 // -----------------------------------------------------------------------------
 CPUDisasmWindow::CPUDisasmWindow (PretendoWindow *parent)
 	: BWindow(BRect(160.0f, 160.0f, 980.0f, 720.0f), 
-			"CPU Disassembly", B_FLOATING_WINDOW_LOOK, B_NORMAL_WINDOW_FEEL, 
-			B_NOT_RESIZABLE | B_NOT_ZOOMABLE)
+	  "CPU Disassembly", B_FLOATING_WINDOW_LOOK, B_NORMAL_WINDOW_FEEL, 
+	  B_NOT_RESIZABLE | B_NOT_ZOOMABLE)
 {
 	fParent = parent;
 	fView = new CPUDisasmView(Bounds(), parent);

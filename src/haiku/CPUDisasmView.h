@@ -61,6 +61,7 @@ class CPUDisasmView : public BView
 	bool IsAPUOrControllerRegister (const cpu_disasm_line_t &line) const;
 	bool IsControlFlowInstruction (const cpu_disasm_line_t &line) const;
 	bool IsLoadInstruction (const cpu_disasm_line_t &line) const;
+	bool IsConditionalBranchInstruction (const cpu_disasm_line_t &line) const;
 	bool IsUndocumentedInstruction (const cpu_disasm_line_t &line) const;
 	const char *HardwareLabelForOperand (const cpu_disasm_line_t &line) const;
 	const char *CPUIdiomCommentForLine (const cpu_disasm_line_t &line) const;
@@ -85,6 +86,10 @@ class CPUDisasmView : public BView
 	int32 VisibleDisasmRows() const;
 	
 	private:
+	void CaptureFrozenSnapshot();
+	cpu_disasm_line_t DisassembleAddress (uint16 address) const;
+	
+	private:
 	friend class CPUDisasmScrollBar;
 	BScrollBar *fScrollBar = nullptr;
 	bool fUpdatingScrollBar = false;
@@ -97,7 +102,15 @@ class CPUDisasmView : public BView
 	bool fFollowPC = true;
 	uint16 fBaseAddress = 0x0000;
 	uint16 fFrozenPC = 0x0000;
-
+	bool fHaveFrozenSnapshot = false;
+	uint8 fFrozenA = 0x00;
+	uint8 fFrozenX = 0x00;
+	uint8 fFrozenY = 0x00;
+	uint8 fFrozenS = 0x00;
+	uint8 fFrozenP = 0x00;
+	uint8 fFrozenMemory[0x10000] = {};
+	
+	private:
 	bool fHasSelectedAddress = false;
 	uint16 fSelectedAddress = 0x0000;
 };

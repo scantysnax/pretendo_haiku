@@ -17,8 +17,8 @@
 // -----------------------------------------------------------------------------
 BreakPointWindow::BreakPointWindow(PretendoWindow *parent)
 	: BWindow(BRect(260.0f, 220.0f, 800.0f, 700.0f),
-		"Breakpoints",
-		B_FLOATING_WINDOW_LOOK, B_NORMAL_WINDOW_FEEL, B_NOT_RESIZABLE | B_NOT_ZOOMABLE),
+		"Breakpoints", B_FLOATING_WINDOW_LOOK, B_NORMAL_WINDOW_FEEL, 
+						B_NOT_RESIZABLE | B_NOT_ZOOMABLE),
 		fParent(parent)
 {
 	fView = new BreakPointView(Bounds(), parent);

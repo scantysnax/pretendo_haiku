@@ -257,10 +257,8 @@ BreakPointView::KeyDown (const char *bytes, int32 numBytes)
 
 		if (key >= '0' && key <= '9') {
 			digit = key - '0';
-
 		} else if (key >= 'a' && key <= 'f') {
 			digit = key - 'a' + 10;
-
 		} else if (key >= 'A' && key <= 'F') {
 			digit = key - 'A' + 10;
 		}
@@ -317,7 +315,7 @@ BreakPointView::KeyDown (const char *bytes, int32 numBytes)
 		case B_DELETE:
 		case B_BACKSPACE:
 		{
-			WatchPointSelectionType watchType = WATCHPOINT_SELECTION_NONE;
+			watchpoint_selection_type watchType = WATCHPOINT_SELECTION_NONE;
 			uint16 address = 0x0000;
 
 			/*
@@ -441,14 +439,10 @@ BreakPointView::KeyDown (const char *bytes, int32 numBytes)
 			 * of the address conditions we are about to remove.
 			 */
 			const auto reason = nes::cpu::debug_break_reason();
-
 			const bool addressConditionHit = nes::cpu::debug_breakpoint_hit()
-				&& (
-					reason == nes::cpu::DEBUG_BREAK_EXECUTE
-					|| reason
-						== nes::cpu::DEBUG_BREAK_MEMORY_READ
-					|| reason
-						== nes::cpu::DEBUG_BREAK_MEMORY_WRITE);
+				&& (reason == nes::cpu::DEBUG_BREAK_EXECUTE
+					|| reason == nes::cpu::DEBUG_BREAK_MEMORY_READ
+					|| reason == nes::cpu::DEBUG_BREAK_MEMORY_WRITE);
 
 			nes::cpu::debug_clear_execute_breakpoints();
 			nes::cpu::debug_clear_read_watchpoints();
@@ -507,7 +501,7 @@ BreakPointView::KeyDown (const char *bytes, int32 numBytes)
 			uint16 address = 0x0000;
 
 			/*
-			 * An execute BreakPoint directly identifies an instruction
+			 * An execute Breakpoint directly identifies an instruction
 			 * address, so use it as the preferred disassembly target.
 			 */
 			if (SelectedExecuteBreakPoint(address)) {
@@ -521,7 +515,7 @@ BreakPointView::KeyDown (const char *bytes, int32 numBytes)
 			 * the current debugger stop, use the saved instruction-start
 			 * address associated with that hit.
 			 */
-			WatchPointSelectionType watchType = WATCHPOINT_SELECTION_NONE;
+			watchpoint_selection_type watchType = WATCHPOINT_SELECTION_NONE;
 
 			if (SelectedWatchPoint(watchType, address) && nes::cpu::debug_breakpoint_hit()) {
 				const auto reason = nes::cpu::debug_break_reason();
@@ -708,7 +702,7 @@ BreakPointView::DrawHeaderPanel()
 	 * Address-entry mode.
 	 */
 	if (fEntryMode != BREAKPOINT_ENTRY_NONE) {
-		const char *entryLabel = "Add execute BreakPoint:";
+		const char *entryLabel = "Add execute breakpoint:";
 
 		switch (fEntryMode) {
 			case BREAKPOINT_ENTRY_READ:
@@ -722,7 +716,7 @@ BreakPointView::DrawHeaderPanel()
 			case BREAKPOINT_ENTRY_EXECUTE:
 			case BREAKPOINT_ENTRY_NONE:
 			default:
-				entryLabel = "Add execute BreakPoint:";
+				entryLabel = "Add execute Breakpoint:";
 				break;
 		}
 
@@ -781,7 +775,7 @@ BreakPointView::DrawHeaderPanel()
 	y += 18.0f;
 
 	DrawString("C: clear all   H: reset hits   B: SP break   [/]: threshold   S: wrap   G: resume   D/Enter: disassemble",
-		BPoint(left, y));
+				BPoint(left, y));
 
 	SetFont(&normalFont);
 }
@@ -824,8 +818,8 @@ BreakPointView::DrawConditionPanel()
 	BFont previousFont;
 	GetFont(&previousFont);
 
-	BFont mono(be_fixed_font);
-	mono.SetSize(11.0f);
+	BFont fixed(be_fixed_font);
+	fixed.SetSize(11.0f);
 
 	const float leftLabelX = panel.left + 10.0f;
 	const float leftValueX = leftLabelX + 102.0f;
@@ -834,24 +828,24 @@ BreakPointView::DrawConditionPanel()
 	float leftY = panel.top + 36.0f;
 	float rightY = panel.top + 36.0f;
 
-	auto drawLeftKV = [&](const char *label, const char *value, bool monoValue) {
+	auto drawLeftLV = [&](const char *label, const char *value, bool fixedValue) {
 		SetFont(&previousFont);
 		SetHighColor(80, 80, 80);
 		DrawString(label, BPoint(leftLabelX, leftY));
 
-		SetFont(monoValue ? &mono : &previousFont);
+		SetFont(fixedValue ? &fixed : &previousFont);
 		SetHighColor(0, 0, 0);
 		DrawString(value, BPoint(leftValueX, leftY));
 
 		leftY += lineH;
 	};
 
-	auto drawRightKV = [&](const char *label, const char *value, bool monoValue) {
+	auto drawRightLV = [&](const char *label, const char *value, bool fixedValue) {
 		SetFont(&previousFont);
 		SetHighColor(80, 80, 80);
 		DrawString(label, BPoint(rightLabelX, rightY));
 
-		SetFont(monoValue ? &mono : &previousFont);
+		SetFont(fixedValue ? &fixed : &previousFont);
 		SetHighColor(0, 0, 0);
 		DrawString(value, BPoint(rightValueX, rightY));
 
@@ -865,12 +859,12 @@ BreakPointView::DrawConditionPanel()
 	BString s;
 	s.SetToFormat("$%02X", nes::cpu::debug_stack_sp_break_threshold());
 
-	drawLeftKV("SP threshold:", s.String(), true);
-	drawLeftKV("SP state:", spState, false);
-	drawLeftKV("Wrap break:", nes::cpu::debug_stack_wrap_break_enabled() ? "ON" : "OFF", false);
+	drawLeftLV("SP threshold:", s.String(), true);
+	drawLeftLV("SP state:", spState, false);
+	drawLeftLV("Wrap break:", nes::cpu::debug_stack_wrap_break_enabled() ? "ON" : "OFF", false);
 
 	s.SetToFormat("%ld", static_cast<long>(ExecuteBreakPointCount()));
-	drawRightKV("Execute:", s.String(), false);
+	drawRightLV("Execute:", s.String(), false);
 
 	const char *cpuState = "STOPPED";
 
@@ -878,8 +872,8 @@ BreakPointView::DrawConditionPanel()
 		cpuState = fParent->IsEmulatorPaused() ? "PAUSED" : "RUNNING";
 	}
 
-	drawRightKV("CPU state:", cpuState, false);
-	drawRightKV("Reason:", CurrentBreakReasonText(), false);
+	drawRightLV("CPU state:", cpuState, false);
+	drawRightLV("Reason:", CurrentBreakReasonText(), false);
 
 	SetFont(&previousFont);
 }
@@ -918,9 +912,9 @@ BreakPointView::DrawExecuteBreakPointPanel()
 	BFont previousFont;
 	GetFont(&previousFont);
 
-	BFont mono(be_fixed_font);
-	mono.SetSize(11.0f);
-	SetFont(&mono);
+	BFont fixed(be_fixed_font);
+	fixed.SetSize(11.0f);
+	SetFont(&fixed);
 
 	font_height fh;
 	GetFontHeight(&fh);
@@ -939,7 +933,7 @@ BreakPointView::DrawExecuteBreakPointPanel()
 
 	y += lineH;
 
-	ExecuteBreakPointEntry entries[kMaximumDisplayedBreakPoints];
+	execute_breakpoint_entry_t entries[kMaximumDisplayedBreakPoints];
 	const int32 capturedCount = CaptureExecuteBreakPoints(entries, kMaximumDisplayedBreakPoints);
 	const int32 totalCount = ExecuteBreakPointCount();
 
@@ -952,7 +946,7 @@ BreakPointView::DrawExecuteBreakPointPanel()
 	}
 
 	for (int32 i = 0; i < capturedCount; i++) {
-		const ExecuteBreakPointEntry &entry = entries[i];
+		const execute_breakpoint_entry_t &entry = entries[i];
 		const bool selected = fHasSelectedExecuteBreakPoint && (fSelectedExecuteBreakPoint == entry.address);
 		const bool currentHit = nes::cpu::debug_breakpoint_hit()
 			&& (nes::cpu::debug_break_reason()
@@ -1013,7 +1007,7 @@ BreakPointView::DrawExecuteBreakPointPanel()
 //   Number of entries written.
 // -----------------------------------------------------------------------------
 int32
-BreakPointView::CaptureExecuteBreakPoints (ExecuteBreakPointEntry *entries, int32 capacity) const
+BreakPointView::CaptureExecuteBreakPoints (execute_breakpoint_entry_t *entries, int32 capacity) const
 {
 	if (!entries || capacity <= 0) {
 		return 0;
@@ -1198,9 +1192,9 @@ BreakPointView::DrawReadWatchPointPanel()
 	BFont previousFont;
 	GetFont(&previousFont);
 
-	BFont mono(be_fixed_font);
-	mono.SetSize(11.0f);
-	SetFont(&mono);
+	BFont fixed(be_fixed_font);
+	fixed.SetSize(11.0f);
+	SetFont(&fixed);
 
 	font_height fh;
 	GetFontHeight(&fh);
@@ -1218,7 +1212,7 @@ BreakPointView::DrawReadWatchPointPanel()
 
 	y += lineH;
 
-	ReadWatchPointEntry entries[kMaximumDisplayedBreakPoints];
+	read_watchpoint_entry_t entries[kMaximumDisplayedBreakPoints];
 	const int32 capturedCount = CaptureReadWatchPoints(entries, kMaximumDisplayedBreakPoints);
 	const int32 totalCount = ReadWatchPointCount();
 
@@ -1231,7 +1225,7 @@ BreakPointView::DrawReadWatchPointPanel()
 	}
 
 	for (int32 i = 0; i < capturedCount; i++) {
-		const ReadWatchPointEntry &entry = entries[i];
+		const read_watchpoint_entry_t &entry = entries[i];
 
 		const bool currentHit = nes::cpu::debug_breakpoint_hit()
 			&& (nes::cpu::debug_break_reason()
@@ -1314,9 +1308,9 @@ BreakPointView::DrawWriteWatchPointPanel()
 	BFont previousFont;
 	GetFont(&previousFont);
 
-	BFont mono(be_fixed_font);
-	mono.SetSize(11.0f);
-	SetFont(&mono);
+	BFont fixed(be_fixed_font);
+	fixed.SetSize(11.0f);
+	SetFont(&fixed);
 
 	font_height fh;
 	GetFontHeight(&fh);
@@ -1334,7 +1328,7 @@ BreakPointView::DrawWriteWatchPointPanel()
 
 	y += lineH;
 
-	WriteWatchPointEntry entries[kMaximumDisplayedBreakPoints];
+	write_watchpoint_entry_t entries[kMaximumDisplayedBreakPoints];
 	const int32 capturedCount = CaptureWriteWatchPoints(entries, kMaximumDisplayedBreakPoints);
 	const int32 totalCount = WriteWatchPointCount();
 
@@ -1347,7 +1341,7 @@ BreakPointView::DrawWriteWatchPointPanel()
 	}
 
 	for (int32 i = 0; i < capturedCount; i++) {
-		const WriteWatchPointEntry &entry = entries[i];
+		const write_watchpoint_entry_t &entry = entries[i];
 		const bool currentHit
 			= nes::cpu::debug_breakpoint_hit()
 			&& (nes::cpu::debug_break_reason()
@@ -1427,9 +1421,9 @@ BreakPointView::ExecuteBreakPointAddressForPoint (BPoint where, uint16 &address)
 	BFont previousFont;
 	const_cast<BreakPointView *>(this)->GetFont(&previousFont);
 
-	BFont mono(be_fixed_font);
-	mono.SetSize(11.0f);
-	const_cast<BreakPointView *>(this)->SetFont(&mono);
+	BFont fixed(be_fixed_font);
+	fixed.SetSize(11.0f);
+	const_cast<BreakPointView *>(this)->SetFont(&fixed);
 
 	font_height fh;
 	const_cast<BreakPointView *>(this)->GetFontHeight(&fh);
@@ -1443,7 +1437,7 @@ BreakPointView::ExecuteBreakPointAddressForPoint (BPoint where, uint16 &address)
 	 */
 	y += lineH;
 
-	ExecuteBreakPointEntry entries[kMaximumDisplayedBreakPoints];
+	execute_breakpoint_entry_t entries[kMaximumDisplayedBreakPoints];
 	const int32 count = CaptureExecuteBreakPoints(entries, kMaximumDisplayedBreakPoints);
 
 	for (int32 i = 0; i < count; i++) {
@@ -1541,7 +1535,7 @@ BreakPointView::MoveBreakPointSelection (int32 direction)
 	/*
 	 * Determine whether the current selection is still valid.
 	 */
-	WatchPointSelectionType watchType = WATCHPOINT_SELECTION_NONE;
+	watchpoint_selection_type watchType = WATCHPOINT_SELECTION_NONE;
 	uint16 watchAddress = 0x0000;
 
 	if (SelectedWatchPoint(watchType, watchAddress)) {
@@ -1552,7 +1546,6 @@ BreakPointView::MoveBreakPointSelection (int32 direction)
 		} else if (watchType == WATCHPOINT_SELECTION_WRITE) {
 			currentGroup = SELECTION_GROUP_WRITE;
 		}
-
 	} else {
 		uint16 executeAddress = 0x0000;
 
@@ -1857,7 +1850,7 @@ BreakPointView::MoveBreakPointSelection (int32 direction)
 //   Number of READ watchpoints captured.
 // -----------------------------------------------------------------------------
 int32
-BreakPointView::CaptureReadWatchPoints (ReadWatchPointEntry *entries, int32 capacity) const
+BreakPointView::CaptureReadWatchPoints (read_watchpoint_entry_t *entries, int32 capacity) const
 {
 	if (!entries || capacity <= 0) {
 		return 0;
@@ -1898,7 +1891,7 @@ BreakPointView::CaptureReadWatchPoints (ReadWatchPointEntry *entries, int32 capa
 //   Number of WRITE watchpoints captured.
 // -----------------------------------------------------------------------------
 int32
-BreakPointView::CaptureWriteWatchPoints (WriteWatchPointEntry *entries, int32 capacity) const
+BreakPointView::CaptureWriteWatchPoints (write_watchpoint_entry_t *entries, int32 capacity) const
 {
 	if (!entries || capacity <= 0) {
 		return 0;
@@ -2006,9 +1999,9 @@ BreakPointView::ReadWatchPointAddressForPoint (BPoint where, uint16 &address) co
 	BFont previousFont;
 	const_cast<BreakPointView *>(this)->GetFont(&previousFont);
 
-	BFont mono(be_fixed_font);
-	mono.SetSize(11.0f);
-	const_cast<BreakPointView *>(this)->SetFont(&mono);
+	BFont fixed(be_fixed_font);
+	fixed.SetSize(11.0f);
+	const_cast<BreakPointView *>(this)->SetFont(&fixed);
 
 	font_height fh;
 	const_cast<BreakPointView *>(this)->GetFontHeight(&fh);
@@ -2021,7 +2014,7 @@ BreakPointView::ReadWatchPointAddressForPoint (BPoint where, uint16 &address) co
 	 */
 	y += lineH;
 
-	ReadWatchPointEntry entries[kMaximumDisplayedBreakPoints];
+	read_watchpoint_entry_t entries[kMaximumDisplayedBreakPoints];
 	const int32 count = CaptureReadWatchPoints(entries, kMaximumDisplayedBreakPoints);
 
 	for (int32 i = 0; i < count; i++) {
@@ -2072,9 +2065,9 @@ BreakPointView::WriteWatchPointAddressForPoint (BPoint where, uint16 &address) c
 	BFont previousFont;
 	const_cast<BreakPointView *>(this)->GetFont(&previousFont);
 
-	BFont mono(be_fixed_font);
-	mono.SetSize(11.0f);
-	const_cast<BreakPointView *>(this)->SetFont(&mono);
+	BFont fixed(be_fixed_font);
+	fixed.SetSize(11.0f);
+	const_cast<BreakPointView *>(this)->SetFont(&fixed);
 
 	font_height fh;
 	const_cast<BreakPointView *>(this)->GetFontHeight(&fh);
@@ -2087,7 +2080,7 @@ BreakPointView::WriteWatchPointAddressForPoint (BPoint where, uint16 &address) c
 	 */
 	y += lineH;
 
-	WriteWatchPointEntry entries[kMaximumDisplayedBreakPoints];
+	write_watchpoint_entry_t entries[kMaximumDisplayedBreakPoints];
 	const int32 count = CaptureWriteWatchPoints(entries, kMaximumDisplayedBreakPoints);
 
 	for (int32 i = 0; i < count; i++) {
@@ -2124,7 +2117,7 @@ BreakPointView::WriteWatchPointAddressForPoint (BPoint where, uint16 &address) c
 //   true if a valid READ or WRITE watchpoint is selected.
 // -----------------------------------------------------------------------------
 bool
-BreakPointView::SelectedWatchPoint (WatchPointSelectionType &type, uint16 &address) const
+BreakPointView::SelectedWatchPoint (watchpoint_selection_type &type, uint16 &address) const
 {
 	if (fSelectedWatchPointType == WATCHPOINT_SELECTION_NONE) {
 		return false;

@@ -14,12 +14,10 @@
 // Returns:
 //   Constructor; no return value.
 // -----------------------------------------------------------------------------
-StackView::StackView (BRect frame, PretendoWindow *parent)
+StackView::StackView(BRect frame, PretendoWindow *parent)
 	: BView(frame, "stack view", B_FOLLOW_ALL, B_WILL_DRAW | B_PULSE_NEEDED | B_NAVIGABLE),
-		fParent(parent)
+	fParent(parent)
 {
-	(void)fParent;
-
 	SetViewColor(B_TRANSPARENT_COLOR);
 	SetLowColor(B_TRANSPARENT_COLOR);
 }
@@ -46,6 +44,9 @@ StackView::~StackView()
 //
 // Initializes the view after it is attached to a window.
 //
+// If a cartridge is already loaded, an initial stack snapshot is captured and
+// the ROM-loaded lifecycle state is initialized.
+//
 // Parameters:
 //   None.
 //
@@ -59,8 +60,16 @@ StackView::AttachedToWindow()
 
 	MakeFocus(true);
 
-	if (HasROMLoaded()) {
+	fHadROMLoaded = HasROMLoaded();
+
+	if (fHadROMLoaded) {
+		ResetDebuggerState();
 		CaptureStackSnapshot();
+
+		if (fFollowStackPointer) {
+			fHasSelectedAddress = true;
+			fSelectedAddress = DisplayStackPointerAddress();
+		}
 	}
 
 	Invalidate();
@@ -70,7 +79,13 @@ StackView::AttachedToWindow()
 // -----------------------------------------------------------------------------
 // StackView::Draw
 //
-// Draws the complete Stack debugger.
+// Draws the complete CPU Stack debugger, including the stack summary, stack
+// grid, and whichever bottom panel is currently selected:
+//
+//   selected-byte detail
+//   stack activity history
+//   heuristic Possible Call Stack
+//   tracked execution stack
 //
 // Parameters:
 //   updateRect - Area being redrawn.
@@ -79,7 +94,7 @@ StackView::AttachedToWindow()
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-StackView::Draw(BRect updateRect)
+StackView::Draw (BRect updateRect)
 {
 	(void)updateRect;
 
@@ -92,13 +107,16 @@ StackView::Draw(BRect updateRect)
 		BRect panel(4.0f, 88.0f, Bounds().right - 4.0f, Bounds().bottom - 8.0f);
 		::DrawDebugPanel(this, panel, "CPU Stack");
 		DrawNoROMMessage(panel);
+
 		return;
 	}
 
 	DrawStackSummaryPanel();
 	DrawStackGrid();
 
-	if (fShowPossibleCallStack) {
+	if (fShowTrackedCallStack) {
+		DrawTrackedCallStackPanel();
+	} else if (fShowPossibleCallStack) {
 		DrawPossibleCallStackPanel();
 	} else if (fShowStackHistory) {
 		DrawStackHistoryPanel();
@@ -119,16 +137,20 @@ StackView::Draw(BRect updateRect)
 //   F      - Toggle Follow-SP.
 //   G      - Resume normal emulator execution after a debugger break.
 //   H      - Toggle stack activity history.
-//   K      - Toggle possible call stack.
+//   K      - Toggle heuristic Possible Call Stack.
+//   T      - Toggle tracked execution stack.
 //   B      - Toggle SP-threshold break.
 //   [ / ]  - Adjust SP break threshold.
 //   S      - Toggle stack-wrap break.
 //   R      - Refresh stack snapshot.
-//   C      - Clear stack history.
-//   Space  - Freeze/resume StackView snapshots.
+//   C      - Clear stack activity history.
 //
-// Manual selection disables Follow-SP and switches away from the history and
-// possible-call-stack panels so the selected stack byte can be inspected.
+// Manual selection disables Follow-SP and switches away from all alternate
+// bottom panels so the selected stack byte can be inspected.
+//
+// The K, T, and H panels are mutually exclusive. C clears only stack activity
+// history; it does not clear the heuristic call-stack view or the tracked
+// execution stack.
 //
 // Parameters:
 //   bytes    - Key bytes supplied by BeAPI.
@@ -146,22 +168,21 @@ StackView::KeyDown(const char *bytes, int32 numBytes)
 
 	if (!HasROMLoaded()) {
 		BView::KeyDown(bytes, numBytes);
+
 		return;
 	}
 
 	switch (bytes[0]) {
-		case ' ':
-			fFreezeUpdates = !fFreezeUpdates;
-			Invalidate();
-			break;
-
 		case B_LEFT_ARROW:
 			if (fHasSelectedAddress) {
 				MoveSelection(-1);
 			}
+
 			fFollowStackPointer = false;
 			fShowStackHistory = false;
 			fShowPossibleCallStack = false;
+			fShowTrackedCallStack = false;
+
 			Invalidate();
 			break;
 
@@ -169,9 +190,12 @@ StackView::KeyDown(const char *bytes, int32 numBytes)
 			if (fHasSelectedAddress) {
 				MoveSelection(1);
 			}
+
 			fFollowStackPointer = false;
 			fShowStackHistory = false;
 			fShowPossibleCallStack = false;
+			fShowTrackedCallStack = false;
+
 			Invalidate();
 			break;
 
@@ -179,9 +203,12 @@ StackView::KeyDown(const char *bytes, int32 numBytes)
 			if (fHasSelectedAddress) {
 				MoveSelection(-16);
 			}
+
 			fFollowStackPointer = false;
 			fShowStackHistory = false;
 			fShowPossibleCallStack = false;
+			fShowTrackedCallStack = false;
+
 			Invalidate();
 			break;
 
@@ -189,9 +216,12 @@ StackView::KeyDown(const char *bytes, int32 numBytes)
 			if (fHasSelectedAddress) {
 				MoveSelection(16);
 			}
+
 			fFollowStackPointer = false;
 			fShowStackHistory = false;
 			fShowPossibleCallStack = false;
+			fShowTrackedCallStack = false;
+
 			Invalidate();
 			break;
 
@@ -201,7 +231,7 @@ StackView::KeyDown(const char *bytes, int32 numBytes)
 
 			if (fFollowStackPointer) {
 				fHasSelectedAddress = true;
-				fSelectedAddress = StackPointerAddress();
+				fSelectedAddress = DisplayStackPointerAddress();
 			} else {
 				fHasSelectedAddress = false;
 			}
@@ -222,6 +252,7 @@ StackView::KeyDown(const char *bytes, int32 numBytes)
 		case 'H':
 			fShowStackHistory = !fShowStackHistory;
 			fShowPossibleCallStack = false;
+			fShowTrackedCallStack = false;
 
 			Invalidate();
 			break;
@@ -229,6 +260,16 @@ StackView::KeyDown(const char *bytes, int32 numBytes)
 		case 'k':
 		case 'K':
 			fShowPossibleCallStack = !fShowPossibleCallStack;
+			fShowStackHistory = false;
+			fShowTrackedCallStack = false;
+
+			Invalidate();
+			break;
+
+		case 't':
+		case 'T':
+			fShowTrackedCallStack = !fShowTrackedCallStack;
+			fShowPossibleCallStack = false;
 			fShowStackHistory = false;
 
 			Invalidate();
@@ -250,14 +291,11 @@ StackView::KeyDown(const char *bytes, int32 numBytes)
 		{
 			uint8 threshold = nes::cpu::debug_stack_sp_break_threshold();
 
-			if (threshold > 0x0) {
+			if (threshold > 0x00) {
 				threshold--;
 			}
 
-			nes::cpu::debug_set_stack_sp_break(
-				nes::cpu::debug_stack_sp_break_enabled(),
-				threshold
-			);
+			nes::cpu::debug_set_stack_sp_break(nes::cpu::debug_stack_sp_break_enabled(), threshold);
 
 			Invalidate();
 			break;
@@ -271,10 +309,7 @@ StackView::KeyDown(const char *bytes, int32 numBytes)
 				threshold++;
 			}
 
-			nes::cpu::debug_set_stack_sp_break(
-				nes::cpu::debug_stack_sp_break_enabled(),
-				threshold
-			);
+			nes::cpu::debug_set_stack_sp_break(nes::cpu::debug_stack_sp_break_enabled(), threshold);
 
 			Invalidate();
 			break;
@@ -282,9 +317,7 @@ StackView::KeyDown(const char *bytes, int32 numBytes)
 
 		case 's':
 		case 'S':
-			nes::cpu::debug_set_stack_wrap_break(
-				!nes::cpu::debug_stack_wrap_break_enabled()
-			);
+			nes::cpu::debug_set_stack_wrap_break(!nes::cpu::debug_stack_wrap_break_enabled());
 
 			Invalidate();
 			break;
@@ -292,12 +325,19 @@ StackView::KeyDown(const char *bytes, int32 numBytes)
 		case 'r':
 		case 'R':
 			CaptureStackSnapshot();
+
+			if (fFollowStackPointer) {
+				fHasSelectedAddress = true;
+				fSelectedAddress = DisplayStackPointerAddress();
+			}
+
 			Invalidate();
 			break;
 
 		case 'c':
 		case 'C':
 			ClearStackHistory();
+
 			Invalidate();
 			break;
 
@@ -324,7 +364,7 @@ StackView::KeyDown(const char *bytes, int32 numBytes)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-StackView::MouseDown(BPoint where)
+StackView::MouseDown (BPoint where)
 {
 	MakeFocus(true);
 
@@ -357,8 +397,15 @@ StackView::MouseDown(BPoint where)
 // -----------------------------------------------------------------------------
 // StackView::Pulse
 //
-// Periodically refreshes the live stack snapshot and updates the selected
-// address when Follow-SP mode is enabled.
+// Periodically refreshes the CPU Stack debugger.
+//
+// ROM load/unload transitions reset all run-specific debugger state. During
+// normal execution, the stack snapshot, stack activity history, heuristic call
+// candidates, tracked execution stack, and recent-interrupt information are
+// updated.
+//
+// When Follow-SP is enabled, the selected stack address follows the captured
+// stack pointer from the same debugger snapshot.
 //
 // Parameters:
 //   None.
@@ -369,17 +416,69 @@ StackView::MouseDown(BPoint where)
 void
 StackView::Pulse()
 {
-	if (!HasROMLoaded()) {
+	const bool romLoaded = HasROMLoaded();
+
+	/*
+	 * ROM was unloaded.
+	 */
+	if (!romLoaded) {
+		if (fHadROMLoaded) {
+			ResetDebuggerState();
+
+			fHadROMLoaded = false;
+
+			Invalidate();
+		}
+
 		return;
 	}
 
-	if (!fFreezeUpdates) {
+	/*
+	 * A ROM has just become available.
+	 *
+	 * Start with completely clean run-specific debugger state before taking
+	 * the first stack snapshot for the new cartridge.
+	 */
+	if (!fHadROMLoaded) {
+		ResetDebuggerState();
+		
+		fHadROMLoaded = true;
+
 		CaptureStackSnapshot();
+
+		if (fFollowStackPointer) {
+			fHasSelectedAddress = true;
+			fSelectedAddress = DisplayStackPointerAddress();
+		}
+
+		Invalidate();
+
+		return;
+	}
+
+	/*
+	 * Normal debugger refresh.
+	 */
+	CaptureStackSnapshot();
+
+	/*
+	 * Keep the most recently observed interrupt visible for several StackView
+	 * refreshes after it has already returned.
+	 *
+	 * A newly observed interrupt resets age to
+	 * kRecentInterruptHoldFrames inside RecordTrackedCallTransition().
+	 */
+	if (fRecentInterrupt.valid && fRecentInterrupt.age > 0) {
+		fRecentInterrupt.age--;
+
+		if (fRecentInterrupt.age == 0) {
+			fRecentInterrupt.valid = false;
+		}
 	}
 
 	if (fFollowStackPointer) {
 		fHasSelectedAddress = true;
-		fSelectedAddress = StackPointerAddress();
+		fSelectedAddress = DisplayStackPointerAddress();
 	}
 
 	Invalidate();
@@ -394,9 +493,6 @@ StackView::Pulse()
 // The top rows summarize mouse and keyboard controls. The Break row shows the
 // current SP-threshold break configuration and stack-wrap break state.
 //
-// The SP threshold itself is rendered in a fixed-width font so the hexadecimal
-// value remains visually stable as it changes.
-//
 // Parameters:
 //   None.
 //
@@ -406,67 +502,39 @@ StackView::Pulse()
 void
 StackView::DrawHeaderUI()
 {
-	BRect panel(
-		4.0f,
-		4.0f,
-		Bounds().right - 4.0f,
-		84.0f
-	);
-
-	::DrawDebugPanel(
-		this,
-		panel,
-		"Controls"
-	);
+	BRect panel(4.0f, 4.0f, Bounds().right - 4.0f, 84.0f);
+	::DrawDebugPanel(this, panel, "Controls");
 
 	SetFontSize(11.0f);
 
 	font_height fh;
 	GetFontHeight(&fh);
 
-	const float lineH = ceilf(
-		fh.ascent
-		+ fh.descent
-		+ fh.leading
-	) + 1.0f;
+	const float lineH = ceilf(fh.ascent + fh.descent + fh.leading) + 1.0f;
 
 	BFont normalFont;
 	GetFont(&normalFont);
 
-	BFont mono(be_fixed_font);
-	mono.SetSize(11.0f);
+	BFont fixed(be_fixed_font);
+	fixed.SetSize(11.0f);
 
 	const float labelX = panel.left + 8.0f;
 	const float valueX = labelX + 64.0f;
 	float y = panel.top + 34.0f;
 
-	auto drawKV = [&](const char *label, const char *value) {
+	auto drawLV = [&](const char *label, const char *value) {
 		SetFont(&normalFont);
-
 		SetHighColor(80, 80, 80);
-		DrawString(
-			label,
-			BPoint(labelX, y)
-		);
+		DrawString(label, BPoint(labelX, y));
 
 		SetHighColor(35, 35, 35);
-		DrawString(
-			value,
-			BPoint(valueX, y)
-		);
+		DrawString(value, BPoint(valueX, y));
 
 		y += lineH;
 	};
 
-	drawKV(
-		"Mouse:",
-		"click/clear   R refresh   C clear"
-	);
-
-	drawKV(
-		"Keys:",
-		"Arrows move   F follow   G resume   H history   K calls"
-	);
+	drawLV("Mouse:", "click/clear   R refresh   C clear");
+	drawLV("Keys:", "Arrows move   F follow   G resume   H history   K possible calls   T execution stack");
 
 	/*
 	 * Break row.
@@ -475,34 +543,21 @@ StackView::DrawHeaderUI()
 	 * SP threshold indicator itself.
 	 */
 	SetFont(&normalFont);
-
 	SetHighColor(80, 80, 80);
-	DrawString(
-		"Break:",
-		BPoint(labelX, y)
-	);
+	DrawString("Break:", BPoint(labelX, y));
 
 	const bool spBreakEnabled = nes::cpu::debug_stack_sp_break_enabled();
 	const bool spBreakArmed = nes::cpu::debug_stack_sp_break_armed();
-
-	const char *spBreakState
-		= !spBreakEnabled ? "OFF" : (spBreakArmed ? "ARMED" : "HIT");
+	const char *spBreakState = !spBreakEnabled ? "OFF" : (spBreakArmed ? "ARMED" : "HIT");
 
 	BString spText;
-	spText.SetToFormat(
-		"SP<=$%02X",
-		nes::cpu::debug_stack_sp_break_threshold()
-	);
+	spText.SetToFormat("SP<=$%02X", nes::cpu::debug_stack_sp_break_threshold());
 
-	SetFont(&mono);
+	SetFont(&fixed);
 	SetHighColor(35, 35, 35);
+	DrawString(spText.String(), BPoint(valueX, y));
 
-	DrawString(
-		spText.String(),
-		BPoint(valueX, y)
-	);
-
-	const float afterSP = valueX + mono.StringWidth(spText.String());
+	const float afterSP = valueX + fixed.StringWidth(spText.String());
 
 	/*
 	 * Return to the normal UI font for state and help text.
@@ -510,17 +565,9 @@ StackView::DrawHeaderUI()
 	SetFont(&normalFont);
 
 	BString remainder;
-	remainder.SetToFormat(
-		" %s   [ ] threshold   S wrap %s",
-		spBreakState,
-		nes::cpu::debug_stack_wrap_break_enabled() ? "ON" : "OFF"
-	);
-
-	DrawString(
-		remainder.String(),
-		BPoint(afterSP, y)
-	);
-
+	remainder.SetToFormat(" %s   [ ] threshold   S wrap %s", spBreakState,
+						  nes::cpu::debug_stack_wrap_break_enabled() ? "ON" : "OFF");
+	DrawString(remainder.String(), BPoint(afterSP, y));
 	SetFont(&normalFont);
 }
 
@@ -530,7 +577,8 @@ StackView::DrawHeaderUI()
 //
 // Draws the stack summary panel.
 //
-// The left column shows the current stack-pointer state and Follow-SP mode.
+// The left column shows the stack pointer represented by the current StackView
+// snapshot and Follow-SP mode.
 //
 // The right column shows stack usage plus a priority status line:
 //
@@ -568,13 +616,13 @@ StackView::DrawStackSummaryPanel()
 	BFont prevFont;
 	GetFont(&prevFont);
 
-	BFont mono(be_fixed_font);
-	mono.SetSize(11.0f);
+	BFont fixed(be_fixed_font);
+	fixed.SetSize(11.0f);
 
-	const uint8 sp = StackPointer();
-	const uint16 spAddress = StackPointerAddress();
-	const int32 usedBytes = (0xff - sp);
-	const int32 freeBytes = (sp + 1);
+	const uint8 sp = DisplayStackPointer();
+	const uint16 spAddress = DisplayStackPointerAddress();
+	const int32 usedBytes = 0xff - sp;
+	const int32 freeBytes = sp + 1;
 
 	const float leftLabelX = panel.left + 8.0f;
 	const float leftValueX = leftLabelX + 72.0f;
@@ -586,28 +634,27 @@ StackView::DrawStackSummaryPanel()
 
 	BString s;
 
-	auto drawLeftKV = [&](
-		const char *label, const char *value, bool monoValue) {
+	auto drawLeftLV = [&](const char *label, const char *value, bool fixedValue) {
 		SetFont(&prevFont);
 		SetHighColor(80, 80, 80);
 		DrawString(label, BPoint(leftLabelX, leftY));
 
-		SetFont(monoValue ? &mono : &prevFont);
+		SetFont(fixedValue ? &fixed : &prevFont);
 		SetHighColor(0, 0, 0);
 		DrawString(value, BPoint(leftValueX, leftY));
 
 		leftY += lineH;
 	};
 
-	auto drawRightKV = [&](const char *label, const char *value, bool monoValue) {
+	auto drawRightLV = [&](const char *label, const char *value, bool fixedValue) {
 		SetFont(&prevFont);
 		SetHighColor(80, 80, 80);
 		DrawString(label, BPoint(rightLabelX, rightY));
 
-		SetFont(monoValue ? &mono : &prevFont);
+		SetFont(fixedValue ? &fixed : &prevFont);
 		SetHighColor(0, 0, 0);
 		DrawString(value, BPoint(rightValueX, rightY));
-
+		
 		rightY += lineH;
 	};
 
@@ -615,45 +662,41 @@ StackView::DrawStackSummaryPanel()
 	 * Left column.
 	 */
 	s.SetToFormat("$%02X", sp);
-	drawLeftKV("SP:", s.String(), true);
+	drawLeftLV("SP:", s.String(), true);
 
 	s.SetToFormat("$%04X", spAddress);
-	drawLeftKV("SP Addr:", s.String(), true);
-	drawLeftKV("Follow:", (fFollowStackPointer ? "SP" : "off"), false);
+	drawLeftLV("SP Addr:", s.String(), true);
+	drawLeftLV("Follow:", fFollowStackPointer ? "SP" : "off", false);
 
 	/*
 	 * Right column.
 	 */
 	s.SetToFormat("%ld", static_cast<long>(usedBytes));
-	drawRightKV("Used:", s.String(), false);
+	drawRightLV("Used:", s.String(), false);
 
 	s.SetToFormat("%ld", static_cast<long>(freeBytes));
-	drawRightKV("Free:", s.String(), false);
+	drawRightLV("Free:", s.String(), false);
 
-	/*
-	 * The third right-column line is used for the most important current
-	 * stack status.
-	 */
 	const char *warning = StackWarningText();
 
 	if (warning != nullptr) {
-		drawRightKV("Warning:", warning, false);
+		drawRightLV("Warning:", warning, false);
 	} else if (nes::cpu::debug_breakpoint_hit()) {
-		const nes::cpu::DebugBreakReason reason = nes::cpu::debug_break_reason();
+		const nes::cpu::break_reason reason = nes::cpu::debug_break_reason();
 
 		if (reason == nes::cpu::DEBUG_BREAK_STACK_SP) {
-			s.SetToFormat("$%02X -> $%02X", nes::cpu::debug_stack_break_old_s(), nes::cpu::debug_stack_break_new_s());
-			drawRightKV("Break: SP", s.String(), true);
+			s.SetToFormat("$%02X -> $%02X", nes::cpu::debug_stack_break_old_s(),nes::cpu::debug_stack_break_new_s());
+			drawRightLV("Break: SP", s.String(), true);
 		} else if (reason == nes::cpu::DEBUG_BREAK_STACK_WRAP) {
 			s.SetToFormat("$%02X -> $%02X", nes::cpu::debug_stack_break_old_s(), nes::cpu::debug_stack_break_new_s());
-			drawRightKV("Break: wrap", s.String(), true);
+			drawRightLV("Break: wrap", s.String(), true);
 		} else {
 			s.SetToFormat("%u", static_cast<unsigned>(fPeakStackDepth));
-			drawRightKV("Peak:", s.String(), false);
+			drawRightLV("Peak:", s.String(), false);
 		}
 	} else {
 		s.SetToFormat("%u", static_cast<unsigned>(fPeakStackDepth));
-		drawRightKV("Peak:", s.String(), false);
+		drawRightLV("Peak:", s.String(), false);
 	}
 
 	SetFont(&prevFont);
@@ -685,9 +728,9 @@ StackView::DrawStackGrid()
 	BFont prevFont;
 	GetFont(&prevFont);
 
-	BFont mono(be_fixed_font);
-	mono.SetSize(11.0f);
-	SetFont(&mono);
+	BFont fixed(be_fixed_font);
+	fixed.SetSize(11.0f);
+	SetFont(&fixed);
 
 	const float rowLabelX = panel.left + 10.0f;
 	const float firstCellX = panel.left + 52.0f;
@@ -705,7 +748,7 @@ StackView::DrawStackGrid()
 		DrawString(s.String(), BPoint(firstCellX + col * cellW + 6.0f, panel.top + 36.0f));
 	}
 
-	const uint16 spAddress = StackPointerAddress();
+	const uint16 spAddress = DisplayStackPointerAddress();
 
 	for (int32 row = 0; row < 16; row++) {
 		const uint16 rowBase = static_cast<uint16>(0x1f0 - row * 16);
@@ -781,6 +824,10 @@ StackView::DrawStackGrid()
 //
 // Draws the selected-byte inspector.
 //
+// The selected stack byte is read from the current StackView snapshot. Stack-
+// pointer-relative state is also derived from the displayed snapshot SP so the
+// inspector remains internally consistent while updates are frozen.
+//
 // Parameters:
 //   None.
 //
@@ -803,23 +850,21 @@ StackView::DrawSelectedBytePanel()
 	BFont prevFont;
 	GetFont(&prevFont);
 
-	BFont mono(be_fixed_font);
-	mono.SetSize(11.0f);
+	BFont fixed(be_fixed_font);
+	fixed.SetSize(11.0f);
 
 	const float labelX = panel.left + 10.0f;
 	const float valueX = labelX + 92.0f;
-
 	const float col2X = panel.left + 260.0f;
 	const float col2ValueX = col2X + 80.0f;
-
 	float y = panel.top + 36.0f;
 
-	auto drawKV = [&](const char *label, const char *value, bool monoValue, float lx, float vx) {
+	auto drawLV = [&](const char *label, const char *value, bool fixedValue, float lx, float vx) {
 		SetFont(&prevFont);
 		SetHighColor(80, 80, 80);
 		DrawString(label, BPoint(lx, y));
-
-		SetFont(monoValue ? &mono : &prevFont);
+		
+		SetFont(fixedValue ? &fixed : &prevFont);
 		SetHighColor(0, 0, 0);
 		DrawString(value, BPoint(vx, y));
 	};
@@ -828,56 +873,55 @@ StackView::DrawSelectedBytePanel()
 		SetFont(&prevFont);
 		SetHighColor(90, 90, 90);
 		DrawString("Click a stack byte to inspect it.", BPoint(labelX, y));
+
 		return;
 	}
 
 	const uint16 address = fSelectedAddress;
 	const uint8 index = static_cast<uint8>(address & 0xff);
 	const uint8 value = fBytes[index];
+	const uint16 spAddress = DisplayStackPointerAddress();
 
 	BString s;
-
 	s.SetToFormat("$%04X", address);
-	drawKV("Address:", s.String(), true, labelX, valueX);
+	drawLV("Address:", s.String(), true, labelX, valueX);
 
 	s.SetToFormat("$%02X", value);
-	drawKV("Hex:", s.String(), true, col2X, col2ValueX);
+	drawLV("Hex:", s.String(), true, col2X, col2ValueX);
 
 	y += lineH;
 
 	s.SetToFormat("%u", static_cast<unsigned>(value));
-	drawKV("Unsigned:", s.String(), false, labelX, valueX);
+	drawLV("Unsigned:", s.String(), false, labelX, valueX);
 
 	const int32 signedValue = static_cast<int32>(static_cast<int8>(value));
 	s.SetToFormat("%ld", static_cast<long>(signedValue));
-	drawKV("Signed:", s.String(), false, col2X, col2ValueX);
+	drawLV("Signed:", s.String(), false, col2X, col2ValueX);
 
 	y += lineH;
 
 	BString binary;
 
 	for (int32 bit = 7; bit >= 0; bit--) {
-		binary << (((value >> bit) & 0x1) ? "1" : "0");
+		binary << (((value >> bit) & 0x01) ? "1" : "0");
 
 		if (bit == 4) {
 			binary << " ";
 		}
 	}
 
-	drawKV("Binary:", binary.String(), true, labelX, valueX);
-	drawKV("State:", (fChanged[index] ? "changed" : "unchanged"), false, col2X, col2ValueX);
+	drawLV("Binary:", binary.String(), true, labelX, valueX);
+	drawLV("State:", fChanged[index] ? "changed" : "unchanged", false, col2X, col2ValueX);
 
 	y += lineH;
 
-	if (address == StackPointerAddress()) {
-		drawKV("SP:", "current stack pointer", false, labelX, valueX);
-	} else if (address > StackPointerAddress()) {
-		drawKV("SP:", "used stack area", false, labelX, valueX);
+	if (address == spAddress) {
+		drawLV("SP:", "current stack pointer", false, labelX, valueX);
+	} else if (address > spAddress) {
+		drawLV("SP:", "used stack area", false, labelX, valueX);
 	} else {
-		drawKV("SP:", "free stack area", false, labelX, valueX);
+		drawLV("SP:", "free stack area", false, labelX, valueX);
 	}
-
-	drawKV("Mode:", (fFreezeUpdates ? "frozen" : "live"), false, col2X, col2ValueX);
 
 	SetFont(&prevFont);
 }
@@ -904,9 +948,9 @@ StackView::DrawStackHistoryPanel()
 	BFont previousFont;
 	GetFont(&previousFont);
 
-	BFont mono(be_fixed_font);
-	mono.SetSize(11.0f);
-	SetFont(&mono);
+	BFont fixed(be_fixed_font);
+	fixed.SetSize(11.0f);
+	SetFont(&fixed);
 
 	font_height fh;
 	GetFontHeight(&fh);
@@ -927,9 +971,8 @@ StackView::DrawStackHistoryPanel()
 		return;
 	}
 
-	const int32 linesToDraw = (fStackHistoryCount < kVisibleBottomPanelLines)
-			? fStackHistoryCount
-			: kVisibleBottomPanelLines;
+	const int32 linesToDraw = (fStackHistoryCount < kVisibleBottomPanelLines) ? fStackHistoryCount
+																			  : kVisibleBottomPanelLines;
 
 	for (int32 line = 0; line < linesToDraw; line++) {
 		int32 index = (fStackHistoryNext - 1 - line);
@@ -940,7 +983,7 @@ StackView::DrawStackHistoryPanel()
 
 		index %= kStackHistoryCapacity;
 
-		const StackActivity &activity = fStackHistory[index];
+		const stack_activity_t &activity = fStackHistory[index];
 
 		BString operation;
 		BString detail;
@@ -998,7 +1041,6 @@ StackView::DrawStackHistoryPanel()
 
 			case STACK_ACTIVITY_NMI:
 				operation.SetTo("NMI");
-
 				detail.SetToFormat("handler $%04X  stack $%04X-$%04X", activity.resumeAddress, 
 									activity.firstAddress, activity.lastAddress);
 
@@ -1007,7 +1049,6 @@ StackView::DrawStackHistoryPanel()
 
 			case STACK_ACTIVITY_IRQ:
 				operation.SetTo("IRQ");
-
 				detail.SetToFormat("handler $%04X  stack $%04X-$%04X", activity.resumeAddress,
 									activity.firstAddress, activity.lastAddress);
 
@@ -1019,15 +1060,6 @@ StackView::DrawStackHistoryPanel()
 				detail.SetToFormat("$%04X -> handler $%04X", activity.instructionAddress, activity.resumeAddress);
 
 				SetHighColor(180, 55, 45);
-				break;
-
-			case STACK_ACTIVITY_INTERRUPT:
-				operation.SetTo("INT");
-				detail.SetToFormat("handler $%04X  stack $%04X-$%04X", activity.resumeAddress,
-									activity.firstAddress,
-									activity.lastAddress);
-
-				SetHighColor(155, 80, 110);
 				break;
 
 			case STACK_ACTIVITY_PUSH:
@@ -1093,8 +1125,13 @@ StackView::DrawStackHistoryPanel()
 // -----------------------------------------------------------------------------
 // StackView::DrawPossibleCallStackPanel
 //
-// Draws heuristic JSR return-address candidates reconstructed from adjacent
-// bytes in the currently used stack area.
+// Draws heuristic JSR return-address candidates retained with the current
+// StackView snapshot.
+//
+// Candidate reconstruction occurs during CaptureStackSnapshot(), while the
+// captured stack bytes and current CPU memory mapping belong to the same
+// debugger refresh. Drawing therefore performs no live memory interpretation,
+// keeping the panel stable while StackView is frozen.
 //
 // Parameters:
 //   None.
@@ -1111,9 +1148,9 @@ StackView::DrawPossibleCallStackPanel()
 	BFont prevFont;
 	GetFont(&prevFont);
 
-	BFont mono(be_fixed_font);
-	mono.SetSize(11.0f);
-	SetFont(&mono);
+	BFont fixed(be_fixed_font);
+	fixed.SetSize(11.0f);
+	SetFont(&fixed);
 
 	font_height fh;
 	GetFontHeight(&fh);
@@ -1122,11 +1159,7 @@ StackView::DrawPossibleCallStackPanel()
 	const float x = panel.left + 10.0f;
 	float y = panel.top + 35.0f;
 
-	CallStackCandidate candidates[kCallStackCandidateCapacity];
-
-	const int32 candidateCount = BuildPossibleCallStack(candidates, kCallStackCandidateCapacity);
-
-	if (candidateCount <= 0) {
+	if (fCallStackCandidateCount <= 0) {
 		SetFont(&prevFont);
 		SetHighColor(90, 90, 90);
 		DrawString("No plausible JSR return addresses found.", BPoint(x, y));
@@ -1143,12 +1176,11 @@ StackView::DrawPossibleCallStackPanel()
 		return;
 	}
 
-	const int32 linesToDraw = (candidateCount < kVisibleBottomPanelLines)
-		? candidateCount
-		: kVisibleBottomPanelLines;
+	const int32 linesToDraw = (fCallStackCandidateCount < kVisibleBottomPanelLines)
+							? fCallStackCandidateCount : kVisibleBottomPanelLines;
 
 	for (int32 i = 0; i < linesToDraw; i++) {
-		const CallStackCandidate& candidate = candidates[i];
+		const call_stack_candidate_t &candidate = fCallStackCandidates[i];
 		const char *confidenceText = (candidate.confidence == CALL_STACK_CONFIDENCE_HIGH) ? "HIGH" : "MED";
 
 		if (candidate.confidence == CALL_STACK_CONFIDENCE_HIGH) {
@@ -1158,22 +1190,212 @@ StackView::DrawPossibleCallStackPanel()
 		}
 
 		BString text;
+		text.SetToFormat("$%04X-$%04X  raw $%04X  resume $%04X   JSR $%04X  %s", candidate.lowByteAddress,
+						  candidate.highByteAddress, candidate.rawReturnAddress, candidate.resumeAddress,
+						  candidate.callSiteAddress,
+						  confidenceText);
+			DrawString(text.String(), BPoint(x, y));
 
-		text.SetToFormat("$%04X-$%04X  raw $%04X  resume $%04X   JSR $%04X  %s",
-						candidate.lowByteAddress,
-						candidate.highByteAddress,
-						candidate.rawReturnAddress,
-						candidate.resumeAddress,
-						candidate.callSiteAddress,
-						confidenceText);
-		DrawString(text.String(), BPoint(x, y));
-		
 		y += lineH;
 	}
 
 	SetFont(&prevFont);
 	SetHighColor(100, 100, 100);
 	DrawString("K: selected-byte panel   H: stack history", BPoint(panel.left + 10.0f, panel.bottom - 8.0f));
+}
+
+
+// -----------------------------------------------------------------------------
+// StackView::DrawTrackedCallStackPanel
+//
+// Draws the debugger-maintained active execution stack.
+//
+// The panel includes ordinary JSR subroutine frames together with active IRQ,
+// NMI, and BRK interrupt frames. Frames are shown oldest/root-most first, with
+// the newest/top-most active frame at the bottom of the visible list.
+//
+// Each frame type has its own semantic colour. The current top frame is drawn
+// with stronger emphasis while retaining its frame-type colour.
+//
+// A dedicated status row immediately below the panel title shows the most
+// recently observed interrupt. This row remains present even when there is no
+// retained interrupt so the recent-interrupt state is always visible and easy
+// to verify.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+StackView::DrawTrackedCallStackPanel()
+{
+	BRect panel(4.0f, 458.0f, Bounds().right - 4.0f, Bounds().bottom - 8.0f);
+	::DrawDebugPanel(this, panel, "Tracked Execution Stack");
+
+	BFont prevFont;
+	GetFont(&prevFont);
+
+	BFont fixed(be_fixed_font);
+	fixed.SetSize(11.0f);
+	SetFont(&fixed);
+
+	font_height fh;
+	GetFontHeight(&fh);
+
+	const float lineH = ceilf(fh.ascent + fh.descent + fh.leading) + 2.0f;
+	const float x = panel.left + 10.0f;
+	float y = panel.top + 35.0f;
+
+	/*
+	 * Always-visible recent-interrupt status.
+	 */
+	if (fRecentInterrupt.valid) {
+		const char *interruptName = "NMI";
+
+		switch (fRecentInterrupt.type) {
+			case TRACKED_CALL_FRAME_IRQ:
+				interruptName = "IRQ";
+				
+				SetHighColor(155, 85, 45);
+				break;
+
+			case TRACKED_CALL_FRAME_NMI:
+				interruptName = "NMI";
+
+				SetHighColor(125, 65, 155);
+				break;
+
+			case TRACKED_CALL_FRAME_BRK:
+				interruptName = "BRK";
+
+				SetHighColor(175, 55, 55);
+				break;
+
+			default:
+				interruptName = "?";
+
+				SetHighColor(90, 90, 90);
+				break;
+		}
+
+		BString recentText;
+
+		recentText.SetToFormat("Recent interrupt: %s $%04X -> $%04X", interruptName, 
+							   fRecentInterrupt.sourceAddress, fRecentInterrupt.targetAddress);
+		DrawString(recentText.String(),
+			BPoint(x, y));
+	} else {
+		SetHighColor(115, 115, 115);
+		DrawString("Recent interrupt: none", BPoint(x, y));
+	}
+
+	y += lineH + 3.0f;
+
+	/*
+	 * Active tracked execution frames.
+	 */
+	if (fTrackedCallStackCount <= 0) {
+		SetHighColor(90, 90, 90);
+		DrawString("No active tracked calls or interrupts.", BPoint(x, y));
+	} else {
+		/*
+		 * One panel line is now permanently occupied by the recent-
+		 * interrupt status, so reserve one fewer line for frames.
+		 */
+		const int32 visibleFrameLines = kVisibleBottomPanelLines > 1 ? kVisibleBottomPanelLines - 1 : 1;
+		int32 firstIndex = 0;
+
+		if (fTrackedCallStackCount > visibleFrameLines) {
+			firstIndex = fTrackedCallStackCount - visibleFrameLines;
+		}
+
+		const int32 linesToDraw = fTrackedCallStackCount - firstIndex;
+
+		for (int32 row = 0; row < linesToDraw; row++) {
+			const int32 index = firstIndex + row;
+			const tracked_call_frame_t &frame = fTrackedCallStack[index];
+			const bool isTopFrame = index == (fTrackedCallStackCount - 1);
+			const char *frameName = "JSR";
+
+			uint8 red = 55;
+			uint8 green = 95;
+			uint8 blue = 165;
+
+			switch (frame.type) {
+				case TRACKED_CALL_FRAME_JSR:
+					frameName = "JSR";
+
+					red = 55;
+					green = 95;
+					blue = 165;
+					break;
+
+				case TRACKED_CALL_FRAME_IRQ:
+					frameName = "IRQ";
+
+					red = 155;
+					green = 85;
+					blue = 45;
+					break;
+
+				case TRACKED_CALL_FRAME_NMI:
+					frameName = "NMI";
+
+					red = 125;
+					green = 65;
+					blue = 155;
+					break;
+
+				case TRACKED_CALL_FRAME_BRK:
+					frameName = "BRK";
+
+					red = 175;
+					green = 55;
+					blue = 55;
+					break;
+			}
+
+			/*
+			 * Brighten the current top frame while preserving its
+			 * semantic frame-type colour.
+			 */
+			if (isTopFrame) {
+				red = static_cast<uint8>(red < 220 ? red + 25 : 255);
+				green = static_cast<uint8>(green < 220 ? green + 25 : 255);
+				blue = static_cast<uint8>(blue < 220 ? blue + 25 : 255);
+			}
+
+			SetHighColor(red, green, blue);
+
+			BString text;
+
+			if (frame.type == TRACKED_CALL_FRAME_JSR || frame.type == TRACKED_CALL_FRAME_BRK) {
+				text.SetToFormat("%c%02ld  %s $%04X -> $%04X  return $%04X  S:$%02X->$%02X",
+								isTopFrame ? '>' : ' ', static_cast<long>(index), frameName, frame.callSiteAddress,
+								frame.targetAddress, frame.resumeAddress, frame.stackPointerBeforeCall,
+								frame.stackPointerAfterCall);
+			} else {
+				text.SetToFormat("%c%02ld  %s $%04X -> $%04X  S:$%02X->$%02X", isTopFrame ? '>' : ' ',
+					 			static_cast<long>(index), frameName, frame.callSiteAddress, frame.targetAddress,
+								frame.stackPointerBeforeCall, frame.stackPointerAfterCall);
+			}
+
+			DrawString(text.String(), BPoint(x, y));
+
+			y += lineH;
+		}
+	}
+
+	SetFont(&prevFont);
+
+	SetHighColor(100, 100, 100);
+
+	BString footer;
+	footer.SetToFormat("Active:%ld   T selected   K possible   H history", static_cast<long>(fTrackedCallStackCount));
+	
+	DrawString(footer.String(), BPoint(panel.left + 10.0f, panel.bottom - 8.0f));
 }
 
 
@@ -1220,9 +1442,20 @@ StackView::DrawNoROMMessage (BRect panel)
 // -----------------------------------------------------------------------------
 // StackView::CaptureStackSnapshot
 //
-// Captures all 256 stack-page bytes, records changed bytes, updates stack
-// high-water information, processes instruction-aware stack history, and
-// maintains stack-depth warnings.
+// Captures all 256 stack-page bytes together with the current CPU stack pointer.
+//
+// Before capturing the new snapshot, the CPU trace is checked for an execution-
+// epoch restart. If the CPU cycle counter has gone backwards, StackView treats
+// that as a CPU reset and clears all run-specific debugger state before
+// establishing the new snapshot.
+//
+// The captured S value belongs to the same debugger refresh as fBytes[] and is
+// subsequently used for SP highlighting, used/free calculations, selection,
+// warnings, and heuristic call-stack scanning.
+//
+// The function also records changed bytes, rebuilds the retained heuristic call
+// stack, updates stack high-water information, processes instruction-aware stack
+// history, and maintains stack-wrap warnings.
 //
 // Parameters:
 //   None.
@@ -1236,23 +1469,68 @@ StackView::CaptureStackSnapshot()
 	static const uint8 kChangeHoldFrames = 8;
 	static const uint8 kWrapWarningHoldFrames = 60;
 
+	/*
+	 * Detect a CPU reset or other execution-epoch restart before capturing
+	 * any new stack state.
+	 *
+	 * The CPU cycle counter restarts when the CPU is reset. If StackView has
+	 * already processed a later trace cycle, the current trace belongs to a
+	 * new CPU run.
+	 */
+	if (fHaveProcessedTraceCycle) {
+		const uint32 traceCount = nes::cpu::debug_cpu_trace_count();
+
+		if (traceCount > 0) {
+			nes::cpu::cpu_trace_entry_t newestEntry;
+
+			if (nes::cpu::debug_cpu_trace_entry(traceCount - 1,newestEntry)) {
+				if (newestEntry.cycle < fLastProcessedTraceCycle) {
+					ResetDebuggerState();
+				}
+			}
+		}
+	}
+
+	/*
+	 * Remember whether a valid snapshot existed before this capture.
+	 *
+	 * This is used for change highlighting. The first snapshot of a cartridge
+	 * or CPU execution epoch establishes the baseline and must not appear as
+	 * though all 256 stack bytes changed at once.
+	 */
+	const bool hadSnapshot = fHaveSnapshot;
 	const uint8 currentSP = StackPointer();
 
+	/*
+	 * Capture the SP represented by this stack-page snapshot.
+	 */
+	fSnapshotStackPointer = currentSP;
 	UpdateStackHighWater(currentSP);
 
+	/*
+	 * Preserve the previous snapshot before reading the new stack page.
+	 */
 	for (uint32 i = 0; i < 0x100; i++) {
 		fPreviousBytes[i] = fBytes[i];
 	}
 
+	/*
+	 * Capture the complete CPU stack page.
+	 */
 	for (uint32 i = 0; i < 0x100; i++) {
 		const uint16 address = static_cast<uint16>(0x100 + i);
 		const uint8 value = nes::bus::debug_read_memory(address);
 
 		fBytes[i] = value;
 
-		if (!fHaveSnapshot) {
+		/*
+		 * The first snapshot establishes the baseline. Do not report
+		 * differences against uninitialized or previous-run contents.
+		 */
+		if (!hadSnapshot) {
 			fChangeAge[i] = 0;
 			fChanged[i] = false;
+
 			continue;
 		}
 
@@ -1265,10 +1543,39 @@ StackView::CaptureStackSnapshot()
 		fChanged[i] = fChangeAge[i] > 0;
 	}
 
+	/*
+	 * The stack bytes and captured S register now form a valid snapshot.
+	 *
+	 * Set this before building the possible-call-stack list so
+	 * DisplayStackPointer() resolves to fSnapshotStackPointer rather than
+	 * sampling the live CPU again.
+	 */
+	fHaveSnapshot = true;
+
+	/*
+	 * Reconstruct possible JSR return-address candidates now, while the
+	 * captured stack bytes and current CPU memory mapping belong to the same
+	 * debugger refresh.
+	 *
+	 * The resulting candidates are retained with the snapshot so redraws do
+	 * not reinterpret the same stack bytes through a later mapper state.
+	 */
+	fCallStackCandidateCount = BuildPossibleCallStack(fCallStackCandidates, kCallStackCandidateCapacity);
+
+	/*
+	 * Process newly available instruction and interrupt stack activity.
+	 */
 	CaptureInstructionStackHistory();
 
+	/*
+	 * Detect stack-pointer wrapping.
+	 *
+	 * A normal stack operation changes S only by a small amount. A raw
+	 * difference greater than half the 8-bit range indicates that S crossed
+	 * the $00/$FF boundary.
+	 */
 	if (fHasPreviousStackPointer) {
-		const int32 rawDelta = (static_cast<int32>(currentSP) - static_cast<int32>(fPreviousStackPointer));
+		const int32 rawDelta = static_cast<int32>(currentSP) - static_cast<int32>(fPreviousStackPointer);
 
 		if (rawDelta < -128 || rawDelta > 128) {
 			fStackWrapDetected = true;
@@ -1284,7 +1591,72 @@ StackView::CaptureStackSnapshot()
 
 	fPreviousStackPointer = currentSP;
 	fHasPreviousStackPointer = true;
-	fHaveSnapshot = true;
+}
+
+
+// -----------------------------------------------------------------------------
+// StackView::ResetDebuggerState
+//
+// Clears all StackView state that belongs to a particular cartridge or CPU
+// execution run.
+//
+// User-selected view preferences such as Follow-SP, history-panel,
+// possible-call-stack, and tracked-execution-stack modes are preserved.
+//
+// Snapshot contents, selection, changed-byte state, stack-history data,
+// high-water statistics, warnings, trace-processing cursors, retained heuristic
+// call-stack candidates, tracked execution frames, and recent-interrupt state
+// are reset.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+StackView::ResetDebuggerState()
+{
+	fHaveSnapshot = false;
+	fSnapshotStackPointer = 0xff;
+
+	for (uint32 i = 0; i < 0x100; i++) {
+		fBytes[i] = 0;
+		fPreviousBytes[i] = 0;
+		fChangeAge[i] = 0;
+		fChanged[i] = false;
+	}
+
+	fHasPreviousStackPointer = false;
+	fPreviousStackPointer = 0xff;
+
+	fHaveStackHighWater = false;
+	fStackBaselinePointer = 0xff;
+	fLowestStackPointer = 0xff;
+	fPeakStackDepth = 0;
+
+	fStackWrapDetected = false;
+	fStackWrapWarningAge = 0;
+
+	for (int32 i = 0; i < kStackHistoryCapacity; i++) {
+		fStackHistory[i] = stack_activity_t();
+	}
+
+	fStackHistoryCount = 0;
+	fStackHistoryNext = 0;
+	fStackActivitySequence = 0;
+
+	for (int32 i = 0; i < kCallStackCandidateCapacity; i++) {
+		fCallStackCandidates[i] = call_stack_candidate_t();
+	}
+
+	fCallStackCandidateCount = 0;
+	ClearTrackedCallStack();
+	fRecentInterrupt = recent_interrupt_info_t();
+	fHasSelectedAddress = false;
+	fSelectedAddress = 0x1ff;
+	fHaveProcessedTraceCycle = false;
+	fLastProcessedTraceCycle = 0;
 }
 
 
@@ -1303,7 +1675,7 @@ void
 StackView::ClearStackHistory()
 {
 	for (int32 i = 0; i < kStackHistoryCapacity; i++) {
-		fStackHistory[i] = StackActivity();
+		fStackHistory[i] = stack_activity_t();
 	}
 
 	fStackHistoryCount = 0;
@@ -1316,10 +1688,41 @@ StackView::ClearStackHistory()
 
 
 // -----------------------------------------------------------------------------
+// StackView::ClearTrackedCallStack
+//
+// Clears the debugger-maintained active execution stack.
+//
+// The tracked execution stack contains subroutine and interrupt nesting observed
+// during the current CPU execution epoch. It is rebuilt naturally as subsequent
+// JSR/RTS and IRQ/NMI/BRK/RTI trace transitions are processed.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+StackView::ClearTrackedCallStack()
+{
+	for (int32 i = 0; i < kTrackedCallStackCapacity; i++) {
+		fTrackedCallStack[i] = tracked_call_frame_t();
+	}
+
+	fTrackedCallStackCount = 0;
+	fTrackedCallSequence = 0;
+}
+
+
+// -----------------------------------------------------------------------------
 // StackView::BuildPossibleCallStack
 //
 // Scans adjacent byte pairs in the currently used stack area for plausible
 // 6502 JSR return addresses.
+//
+// The used stack range is determined from the stack pointer represented by the
+// current StackView snapshot. This keeps call-stack reconstruction consistent
+// with frozen stack bytes.
 //
 // A 6502 JSR pushes the address of the final byte of the JSR instruction.
 // The low byte appears at the lower stack address and the high byte appears at
@@ -1341,20 +1744,19 @@ StackView::ClearStackHistory()
 //   Number of candidates written.
 // -----------------------------------------------------------------------------
 int32
-StackView::BuildPossibleCallStack(CallStackCandidate *candidates, int32 capacity) const
+StackView::BuildPossibleCallStack (call_stack_candidate_t *candidates, int32 capacity) const
 {
 	if (!candidates || capacity <= 0) {
 		return 0;
 	}
 
-	const uint8 sp = StackPointer();
+	const uint8 sp = DisplayStackPointer();
 
 	/*
-	 * Addresses above the current stack pointer are the currently used
-	 * portion of the downward-growing 6502 stack.
+	 * Addresses above the displayed stack pointer are the currently used
+	 * portion of the downward-growing 6502 stack represented by fBytes[].
 	 */
 	const uint16 firstUsedAddress = static_cast<uint16>(0x100 + sp + 1);
-
 	int32 candidateCount = 0;
 
 	/*
@@ -1365,9 +1767,8 @@ StackView::BuildPossibleCallStack(CallStackCandidate *candidates, int32 capacity
 		const uint16 highAddress = static_cast<uint16>(lowAddress + 1);
 		const uint8 lowIndex = static_cast<uint8>(lowAddress & 0xff);
 		const uint8 highIndex = static_cast<uint8>(highAddress & 0xff);
-
-		const uint16 rawReturnAddress = static_cast<uint16>(fBytes[lowIndex]
-			| (static_cast<uint16>(fBytes[highIndex]) << 8));
+		const uint16 rawReturnAddress = static_cast<uint16>(fBytes[lowIndex] 
+										| (static_cast<uint16>(fBytes[highIndex]) << 8));
 
 		/*
 		 * raw $FFFF would wrap the resume address to $0000. It is not a
@@ -1388,20 +1789,19 @@ StackView::BuildPossibleCallStack(CallStackCandidate *candidates, int32 capacity
 		const uint16 callSiteAddress = static_cast<uint16>(rawReturnAddress - 2);
 		const uint8 opcode = nes::bus::debug_read_memory(callSiteAddress);
 
-		if (opcode != 0x20) { // JSR
+		if (opcode != 0x20) {
 			continue;
 		}
 
-		CallStackCandidate &candidate = candidates[candidateCount];
+		call_stack_candidate_t &candidate = candidates[candidateCount];
 		candidate.lowByteAddress = lowAddress;
 		candidate.highByteAddress = highAddress;
 		candidate.rawReturnAddress = rawReturnAddress;
 		candidate.resumeAddress = static_cast<uint16>(rawReturnAddress + 1);
 		candidate.callSiteAddress = callSiteAddress;
 
-		candidate.confidence = nes::cpu::debug_instruction_was_executed(callSiteAddress)
-			? CALL_STACK_CONFIDENCE_HIGH
-			: CALL_STACK_CONFIDENCE_MEDIUM;
+		candidate.confidence = nes::cpu::debug_instruction_was_executed(callSiteAddress) 
+							 ? CALL_STACK_CONFIDENCE_HIGH : CALL_STACK_CONFIDENCE_MEDIUM;
 
 		candidateCount++;
 	}
@@ -1411,9 +1811,258 @@ StackView::BuildPossibleCallStack(CallStackCandidate *candidates, int32 capacity
 
 
 // -----------------------------------------------------------------------------
+// StackView::RecordTrackedCallTransition
+//
+// Updates the debugger-maintained active execution stack from two chronological
+// CPU trace entries.
+//
+// Hardware IRQ/NMI boundaries are recognized before interpreting the memory byte
+// at entry.pc as an ordinary opcode. BRK, JSR, RTS, and RTI are then handled as
+// normal CPU instructions.
+//
+// RTS processing can also resynchronize the tracked stack when StackView begins
+// observing execution in the middle of an already-active call tree. If the
+// exact top frame does not match but an older tracked JSR frame has the observed
+// RTS destination, stale frames above that match are discarded.
+//
+// Interrupt entry also updates a short-lived "recent interrupt" record used by
+// the tracked execution panel so brief interrupt activity remains observable
+// even after RTI has already removed the active interrupt frame.
+//
+// Parameters:
+//   entry     - CPU state before the transition.
+//   nextEntry - CPU state after the transition.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+StackView::RecordTrackedCallTransition (const nes::cpu::cpu_trace_entry_t &entry, const nes::cpu::cpu_trace_entry_t &nextEntry)
+{
+	auto makeRoomForFrame = [&]() {
+		if (fTrackedCallStackCount < kTrackedCallStackCapacity) {
+			return;
+		}
+
+		for (int32 i = 1; i < kTrackedCallStackCapacity; i++) {
+			fTrackedCallStack[i - 1] = fTrackedCallStack[i];
+		}
+
+		fTrackedCallStackCount = kTrackedCallStackCapacity - 1;
+	};
+
+	auto clearFramesFrom = [&](int32 firstIndex) {
+		if (firstIndex < 0) {
+			firstIndex = 0;
+		}
+
+		for (int32 i = firstIndex; i < fTrackedCallStackCount; i++) {
+			fTrackedCallStack[i] = tracked_call_frame_t();
+		}
+
+		fTrackedCallStackCount = firstIndex;
+	};
+
+	auto recordRecentInterrupt = [&](tracked_call_frame_type type, uint16 sourceAddress, uint16 targetAddress) {
+		fRecentInterrupt.valid = true;
+		fRecentInterrupt.type = type;
+		fRecentInterrupt.sourceAddress = sourceAddress;
+		fRecentInterrupt.targetAddress = targetAddress;
+		fRecentInterrupt.age = kRecentInterruptHoldFrames;
+	};
+
+	/*
+	 * Hardware IRQ/NMI entry must be recognized before interpreting
+	 * entry.bytes[0] as a normal opcode.
+	 */
+	if (entry.interrupt != nes::cpu::CPU_TRACE_INTERRUPT_NONE) {
+		const uint8 expectedSP = static_cast<uint8>(entry.s - 3);
+
+		if (nextEntry.s != expectedSP) {
+			return;
+		}
+
+		tracked_call_frame_type interruptType;
+
+		switch (entry.interrupt) {
+			case nes::cpu::CPU_TRACE_INTERRUPT_IRQ:
+				interruptType = TRACKED_CALL_FRAME_IRQ;
+				break;
+
+			case nes::cpu::CPU_TRACE_INTERRUPT_NMI:
+				interruptType = TRACKED_CALL_FRAME_NMI;
+				break;
+
+			default:
+				return;
+		}
+
+		makeRoomForFrame();
+
+		tracked_call_frame_t &frame = fTrackedCallStack[fTrackedCallStackCount];
+		frame = tracked_call_frame_t();
+		frame.type = interruptType;
+		frame.callSiteAddress = entry.pc;
+		frame.targetAddress = nextEntry.pc;
+		frame.resumeAddress = 0;
+		frame.stackPointerBeforeCall = entry.s;
+		frame.stackPointerAfterCall = nextEntry.s;
+		frame.sequence = ++fTrackedCallSequence;
+
+		fTrackedCallStackCount++;
+
+		recordRecentInterrupt(interruptType, entry.pc, nextEntry.pc);
+
+		return;
+	}
+
+	/*
+	 * BRK
+	 */
+	if (entry.bytes[0] == 0x00) {
+		const uint8 expectedSP = static_cast<uint8>(entry.s - 3);
+
+		if (nextEntry.s != expectedSP) {
+			return;
+		}
+
+		makeRoomForFrame();
+
+		tracked_call_frame_t &frame = fTrackedCallStack[fTrackedCallStackCount];
+
+		frame = tracked_call_frame_t();
+		frame.type = TRACKED_CALL_FRAME_BRK;
+		frame.callSiteAddress = entry.pc;
+		frame.targetAddress = nextEntry.pc;
+		frame.resumeAddress = static_cast<uint16>(entry.pc + 2);
+		frame.stackPointerBeforeCall = entry.s;
+		frame.stackPointerAfterCall = nextEntry.s;
+		frame.sequence = ++fTrackedCallSequence;
+
+		fTrackedCallStackCount++;
+
+		recordRecentInterrupt(TRACKED_CALL_FRAME_BRK, entry.pc, nextEntry.pc);
+
+		return;
+	}
+
+	/*
+	 * JSR
+	 */
+	if (entry.bytes[0] == 0x20) {
+		const uint8 expectedSP = static_cast<uint8>(entry.s - 2);
+
+		if (nextEntry.s != expectedSP) {
+			return;
+		}
+
+		makeRoomForFrame();
+
+		tracked_call_frame_t &frame = fTrackedCallStack[fTrackedCallStackCount];
+		frame = tracked_call_frame_t();
+		frame.type = TRACKED_CALL_FRAME_JSR;
+		frame.callSiteAddress = entry.pc;
+		frame.targetAddress = static_cast<uint16>(entry.bytes[1] | (static_cast<uint16>(entry.bytes[2] ) << 8));
+		frame.resumeAddress = static_cast<uint16>(entry.pc + 3);
+		frame.stackPointerBeforeCall = entry.s;
+		frame.stackPointerAfterCall = nextEntry.s;
+		frame.sequence = ++fTrackedCallSequence;
+
+		fTrackedCallStackCount++;
+
+		return;
+	}
+
+	/*
+	 * RTS
+	 */
+	if (entry.bytes[0] == 0x60) {
+		const uint8 expectedSP = static_cast<uint8>(entry.s + 2);
+
+		if (nextEntry.s != expectedSP) {
+			return;
+		}
+
+		if (fTrackedCallStackCount <= 0) {
+			return;
+		}
+
+		int32 matchingIndex = -1;
+
+		for (int32 i = fTrackedCallStackCount - 1; i >= 0; i--) {
+			const tracked_call_frame_t &frame = fTrackedCallStack[i];
+
+			if (frame.type != TRACKED_CALL_FRAME_JSR) {
+				continue;
+			}
+
+			if (frame.resumeAddress == nextEntry.pc) {
+				matchingIndex = i;
+
+				break;
+			}
+		}
+
+		if (matchingIndex < 0) {
+			return;
+		}
+
+		clearFramesFrom(matchingIndex);
+
+		return;
+	}
+
+	/*
+	 * RTI
+	 */
+	if (entry.bytes[0] == 0x40) {
+		const uint8 expectedSP = static_cast<uint8>(entry.s + 3);
+
+		if (nextEntry.s != expectedSP) {
+			return;
+		}
+
+		if (fTrackedCallStackCount <= 0) {
+			return;
+		}
+
+		int32 interruptIndex = -1;
+
+		for (int32 i = fTrackedCallStackCount - 1; i >= 0; i--) {
+			const tracked_call_frame_type type = fTrackedCallStack[i].type;
+
+			if (type == TRACKED_CALL_FRAME_IRQ || type == TRACKED_CALL_FRAME_NMI || type == TRACKED_CALL_FRAME_BRK) {
+				interruptIndex = i;
+
+				break;
+			}
+		}
+
+		if (interruptIndex < 0) {
+			return;
+		}
+
+		const tracked_call_frame_t &frame = fTrackedCallStack[interruptIndex];
+
+		if (nextEntry.s != frame.stackPointerBeforeCall) {
+			return;
+		}
+
+		clearFramesFrom(interruptIndex);
+
+		return;
+	}
+}
+
+
+// -----------------------------------------------------------------------------
 // StackView::StackWarningText
 //
-// Returns a warning string for suspicious stack conditions.
+// Returns a warning string for suspicious conditions represented by the current
+// StackView snapshot.
+//
+// The warning state uses the displayed stack pointer rather than independently
+// sampling the live CPU, so warnings remain consistent with frozen stack data.
 //
 // Parameters:
 //   None.
@@ -1424,13 +2073,13 @@ StackView::BuildPossibleCallStack(CallStackCandidate *candidates, int32 capacity
 const char*
 StackView::StackWarningText() const
 {
-	const uint8 sp = StackPointer();
+	const uint8 sp = DisplayStackPointer();
 
 	if (fStackWrapWarningAge > 0) {
 		return "SP wrapped";
 	}
 
-	if (sp <= 0x7) {
+	if (sp <= 0x07) {
 		return "critical";
 	}
 
@@ -1474,7 +2123,7 @@ StackView::HasROMLoaded() const
 //   true if the point is inside a stack byte cell; false otherwise.
 // -----------------------------------------------------------------------------
 bool
-StackView::AddressForPoint(BPoint where, uint16& address) const
+StackView::AddressForPoint (BPoint where, uint16& address) const
 {
 	BRect panel(4.0f, 174.0f, Bounds().right - 4.0f, 448.0f);
 
@@ -1523,10 +2172,10 @@ StackView::AddressForPoint(BPoint where, uint16& address) const
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-StackView::MoveSelection(int32 delta)
+StackView::MoveSelection (int32 delta)
 {
 	int32 address = fHasSelectedAddress ? static_cast<int32>(fSelectedAddress) 
-										: static_cast<int32>(StackPointerAddress());
+										: static_cast<int32>(DisplayStackPointerAddress());
 
 	address += delta;
 
@@ -1542,32 +2191,6 @@ StackView::MoveSelection(int32 delta)
 	fSelectedAddress = static_cast<uint16>(address);
 
 	Invalidate();
-}
-
-
-// -----------------------------------------------------------------------------
-// StackView::ChangedByteCount
-//
-// Counts how many stack-page bytes are currently marked as recently changed.
-//
-// Parameters:
-//   None.
-//
-// Returns:
-//   Number of highlighted changed bytes.
-// -----------------------------------------------------------------------------
-int32
-StackView::ChangedByteCount() const
-{
-	int32 count = 0;
-
-	for (uint32 i = 0; i < 0x100; i++) {
-		if (fChanged[i]) {
-			count++;
-		}
-	}
-
-	return count;
 }
 
 
@@ -1605,6 +2228,54 @@ uint16
 StackView::StackPointerAddress() const
 {
 	return static_cast<uint16>(0x100 + StackPointer());
+}
+
+
+// -----------------------------------------------------------------------------
+// StackView::DisplayStackPointer
+//
+// Returns the stack pointer represented by the current StackView snapshot.
+//
+// Once a valid stack snapshot exists, the captured S value is returned so the
+// stack bytes, SP marker, used/free calculations, and inspectors all describe
+// the same moment in CPU execution.
+//
+// Before the first snapshot is available, the live CPU S register is used as a
+// fallback.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Stack pointer represented by the current debugger display.
+// -----------------------------------------------------------------------------
+uint8
+StackView::DisplayStackPointer() const
+{
+	if (fHaveSnapshot) {
+		return fSnapshotStackPointer;
+	}
+
+	return StackPointer();
+}
+
+
+// -----------------------------------------------------------------------------
+// StackView::DisplayStackPointerAddress
+//
+// Returns the absolute stack-page address represented by the StackView
+// snapshot's stack pointer.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Stack address $0100 + displayed S.
+// -----------------------------------------------------------------------------
+uint16
+StackView::DisplayStackPointerAddress() const
+{
+	return static_cast<uint16>(0x100 + DisplayStackPointer());
 }
 
 
@@ -1670,7 +2341,8 @@ StackView::UpdateStackHighWater(uint8 sp)
 // StackView::CaptureInstructionStackHistory
 //
 // Examines newly retained CPU trace entries and records instruction-driven
-// stack activity and interrupt-entry stack frames.
+// stack activity, interrupt-entry stack frames, and active execution-stack
+// transitions.
 //
 // Each trace entry represents CPU state at the start of its instruction:
 //
@@ -1678,13 +2350,15 @@ StackView::UpdateStackHighWater(uint8 sp)
 //   entry[i + 1] = state after instruction i and any interrupt taken before
 //                  the following instruction begins.
 //
-// This allows ordinary stack instructions and asynchronous IRQ/NMI entry to be
-// recognized from the same chronological trace.
+// CPU execution-epoch changes are detected by CaptureStackSnapshot() before
+// stack state is captured, so this function only processes trace transitions
+// belonging to the current CPU run.
 //
-// The CPU execution-cycle counter may restart when the CPU is reset. If the
-// retained trace now contains cycle values earlier than the last cycle processed
-// by StackView, the trace is treated as belonging to a new execution epoch and
-// the StackView processing cursor is restarted.
+// The execution tracker observes:
+//   JSR -> push subroutine frame
+//   RTS -> remove matching subroutine frame
+//   IRQ/NMI/BRK -> push interrupt frame
+//   RTI -> remove matching interrupt frame
 //
 // Parameters:
 //   None.
@@ -1701,27 +2375,6 @@ StackView::CaptureInstructionStackHistory()
 		return;
 	}
 
-	/*
-	 * Detect a CPU reset or other trace restart.
-	 *
-	 * The CPU cycle counter is reset when the CPU is reset. StackView's
-	 * fLastProcessedTraceCycle, however, survives for as long as the view
-	 * remains open. Without detecting the new trace epoch here, every new
-	 * post-reset entry could appear older than the last entry processed
-	 * before reset and would therefore be ignored.
-	 */
-	if (fHaveProcessedTraceCycle) {
-		nes::cpu::cpu_trace_entry_t newestEntry;
-
-		if (nes::cpu::debug_cpu_trace_entry(traceCount - 1, newestEntry)) {
-			if (newestEntry.cycle
-				< fLastProcessedTraceCycle) {
-				fHaveProcessedTraceCycle = false;
-				fLastProcessedTraceCycle = 0;
-			}
-		}
-	}
-
 	for (uint32 i = 0; i + 1 < traceCount; i++) {
 		nes::cpu::cpu_trace_entry_t entry;
 		nes::cpu::cpu_trace_entry_t nextEntry;
@@ -1734,24 +2387,14 @@ StackView::CaptureInstructionStackHistory()
 			continue;
 		}
 
-		/*
-		 * Skip trace transitions StackView has already processed.
-		 */
-		if (fHaveProcessedTraceCycle && (entry.cycle <= fLastProcessedTraceCycle)) {
+		if (fHaveProcessedTraceCycle && entry.cycle <= fLastProcessedTraceCycle) {
 			continue;
 		}
 
-		/*
-		 * First recognize normal opcode-driven stack operations.
-		 */
 		RecordInstructionStackActivity(entry, nextEntry);
-
-		/*
-		 * Then check whether the transition into the following traced
-		 * instruction represents BRK, IRQ, or NMI entry.
-		 */
 		RecordInterruptStackActivity(entry, nextEntry);
-		
+		RecordTrackedCallTransition(entry, nextEntry);
+
 		fLastProcessedTraceCycle = entry.cycle;
 		fHaveProcessedTraceCycle = true;
 	}
@@ -1761,35 +2404,30 @@ StackView::CaptureInstructionStackHistory()
 // -----------------------------------------------------------------------------
 // StackView::RecordInterruptStackActivity
 //
-// Detects a 6502 interrupt-entry stack frame between two chronological CPU
-// trace entries.
+// Detects and records a 6502 interrupt-entry stack frame between two
+// chronological CPU trace entries.
 //
-// BRK, IRQ, and NMI each push three bytes:
+// BRK, IRQ, and NMI each consume three stack bytes:
 //
 //   PC high
 //   PC low
 //   processor status
 //
-// causing S to decrease by three.
-//
-// BRK is identified directly from opcode $00. Hardware interrupt entry is
-// identified by comparing the next executed PC with the current NMI and IRQ
-// vector targets.
-//
-// If both vectors currently point to the same address, the event is labeled
-// as a generic interrupt because IRQ and NMI cannot be distinguished from the
-// trace transition alone.
+// BRK is identified directly from opcode $00. Hardware IRQ/NMI identity comes
+// directly from the interrupt type captured with the CPU trace entry, so
+// historical events do not depend on the cartridge's current mapper/vector
+// state.
 //
 // Parameters:
-//   entry     - CPU state before the previous instruction executes.
-//   nextEntry - CPU state at the beginning of the next traced instruction.
+//   entry     - CPU state at the boundary that caused the stack transition.
+//   nextEntry - CPU state at the beginning of the following traced instruction.
 //
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-StackView::RecordInterruptStackActivity(const nes::cpu::cpu_trace_entry_t &entry,
-	const nes::cpu::cpu_trace_entry_t &nextEntry)
+StackView::RecordInterruptStackActivity (const nes::cpu::cpu_trace_entry_t &entry, 
+										 const nes::cpu::cpu_trace_entry_t &nextEntry)
 {
 	/*
 	 * All normal 6502 interrupt-entry frames consume three stack bytes.
@@ -1800,22 +2438,12 @@ StackView::RecordInterruptStackActivity(const nes::cpu::cpu_trace_entry_t &entry
 		return;
 	}
 
-	const uint16 nmiVector = static_cast<uint16>(nes::bus::debug_read_memory(0xfffa) |
-		 					(static_cast<uint16>(nes::bus::debug_read_memory(0xfffb)) << 8));
-
-	const uint16 irqVector = static_cast<uint16>(nes::bus::debug_read_memory(0xfffe) |
-							(static_cast<uint16>(nes::bus::debug_read_memory(0xffff)) << 8));
-
-	StackActivity activity;
-
+	stack_activity_t activity;
 	activity.oldSP = entry.s;
 	activity.newSP = nextEntry.s;
-
 	activity.instructionAddress = entry.pc;
 	activity.opcode = entry.bytes[0];
-
 	activity.resumeAddress = nextEntry.pc;
-
 	activity.count = 3;
 
 	/*
@@ -1825,40 +2453,39 @@ StackView::RecordInterruptStackActivity(const nes::cpu::cpu_trace_entry_t &entry
 	 *   $0100 + S - 1
 	 *   $0100 + S - 2
 	 *
-	 * List them in ascending address order.
+	 * Store the range in ascending address order.
 	 */
 	activity.firstAddress = static_cast<uint16>(0x100 + static_cast<uint8>(entry.s - 2));
 	activity.lastAddress = static_cast<uint16>(0x100 + entry.s);
 
 	/*
-	 * BRK is explicit and therefore takes priority over vector matching.
+	 * BRK is an explicit software interrupt and takes priority over the
+	 * hardware-interrupt metadata.
 	 */
 	if (entry.bytes[0] == 0x00) {
 		activity.type = STACK_ACTIVITY_BRK;
-
-	/*
-	 * Identical vectors make IRQ/NMI indistinguishable here.
-	 */
-	} else if (nmiVector == irqVector && nextEntry.pc == nmiVector) {
-		activity.type = STACK_ACTIVITY_INTERRUPT;
-
-	} else if (nextEntry.pc == nmiVector) {
-		activity.type = STACK_ACTIVITY_NMI;
-
-	} else if (nextEntry.pc == irqVector) {
-		activity.type = STACK_ACTIVITY_IRQ;
 	} else {
-		/*
-		 * A three-byte SP movement by itself is not enough evidence. TXS,
-		 * unusual execution flow, or another event could have changed S.
-		 */
-		return;
+		switch (entry.interrupt) {
+			case nes::cpu::CPU_TRACE_INTERRUPT_NMI:
+				activity.type = STACK_ACTIVITY_NMI;
+				break;
+
+			case nes::cpu::CPU_TRACE_INTERRUPT_IRQ:
+				activity.type = STACK_ACTIVITY_IRQ;
+				break;
+
+			default:
+				/*
+				 * A three-byte SP change by itself is not sufficient
+				 * evidence of interrupt entry.
+				 */
+				return;
+		}
 	}
 
 	activity.sequence = ++fStackActivitySequence;
 
 	fStackHistory[fStackHistoryNext] = activity;
-
 	fStackHistoryNext = (fStackHistoryNext + 1) % kStackHistoryCapacity;
 
 	if (fStackHistoryCount < kStackHistoryCapacity) {
@@ -1898,7 +2525,7 @@ void
 StackView::RecordInstructionStackActivity(const nes::cpu::cpu_trace_entry_t &entry,
 										 const nes::cpu::cpu_trace_entry_t &nextEntry)
 {
-	StackActivity activity;
+	stack_activity_t activity;
 
 	activity.oldSP = entry.s;
 	activity.newSP = nextEntry.s;
@@ -1916,7 +2543,6 @@ StackView::RecordInstructionStackActivity(const nes::cpu::cpu_trace_entry_t &ent
 		case 0x48:	// PHA
 			activity.type = STACK_ACTIVITY_PHA;
 			activity.count = 1;
-
 			activity.firstAddress = static_cast<uint16>(0x100 + entry.s);
 			activity.lastAddress = activity.firstAddress;
 			activity.value = entry.a;
@@ -1925,7 +2551,6 @@ StackView::RecordInstructionStackActivity(const nes::cpu::cpu_trace_entry_t &ent
 		case 0x08:	// PHP
 			activity.type = STACK_ACTIVITY_PHP;
 			activity.count = 1;
-
 			activity.firstAddress = static_cast<uint16>(0x100 + entry.s);
 			activity.lastAddress = activity.firstAddress;
 			activity.value = entry.p;
@@ -1934,7 +2559,6 @@ StackView::RecordInstructionStackActivity(const nes::cpu::cpu_trace_entry_t &ent
 		case 0x68:	// PLA
 			activity.type = STACK_ACTIVITY_PLA;
 			activity.count = 1;
-
 			activity.firstAddress = static_cast<uint16>(0x100 + static_cast<uint8>(entry.s + 1));
 			activity.lastAddress = activity.firstAddress;
 			break;
@@ -1942,27 +2566,22 @@ StackView::RecordInstructionStackActivity(const nes::cpu::cpu_trace_entry_t &ent
 		case 0x28:	// PLP
 			activity.type = STACK_ACTIVITY_PLP;
 			activity.count = 1;
-
 			activity.firstAddress = static_cast<uint16>(0x100 + static_cast<uint8>(entry.s + 1));
 			activity.lastAddress = activity.firstAddress;
-
 			break;
 
 		case 0x20:	// JSR
 			activity.type = STACK_ACTIVITY_JSR;
 			activity.count = 2;
-
 			activity.firstAddress = static_cast<uint16>(0x100 + static_cast<uint8>(entry.s - 1));
 			activity.lastAddress = static_cast<uint16>(0x100 + entry.s);
 			activity.targetAddress = static_cast<uint16>(entry.bytes[1] | 
 									(static_cast<uint16>(entry.bytes[2]) << 8));
-
 			break;
 
 		case 0x60:	// RTS
 			activity.type = STACK_ACTIVITY_RTS;
 			activity.count = 2;
-
 			activity.firstAddress = static_cast<uint16>(0x100 + static_cast<uint8>(entry.s + 1));
 			activity.lastAddress = static_cast<uint16>(0x100 + static_cast<uint8>(entry.s + 2));
 			break;
@@ -1970,7 +2589,6 @@ StackView::RecordInstructionStackActivity(const nes::cpu::cpu_trace_entry_t &ent
 		case 0x40:	// RTI
 			activity.type = STACK_ACTIVITY_RTI;
 			activity.count = 3;
-
 			activity.firstAddress = static_cast<uint16>(0x100 + static_cast<uint8>(entry.s + 1));
 			activity.lastAddress = static_cast<uint16>(0x0100 + static_cast<uint8>(entry.s + 3));
 			break;
@@ -2036,5 +2654,4 @@ StackView::RecordInstructionStackActivity(const nes::cpu::cpu_trace_entry_t &ent
 		fStackHistoryCount++;
 	}
 }
-
 

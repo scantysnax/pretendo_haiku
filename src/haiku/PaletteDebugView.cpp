@@ -105,9 +105,14 @@ PaletteDebugView::MessageReceived(BMessage *message)
 // -----------------------------------------------------------------------------
 // PaletteDebugView::Pulse
 //
-// Refreshes the palette debugger during live updates.  When palette updates are
-// frozen, the current display is kept stable for inspection.  If no ROM is
-// loaded, the empty-state view is static and does not need continuous redraws.
+// Periodically refreshes the palette debugger.
+//
+// If no ROM is loaded, stale ROM-specific debugger state is cleared.  When a
+// ROM is loaded but no valid palette snapshot exists, one initial snapshot is
+// captured even if the viewer is currently frozen.
+//
+// Once a valid snapshot exists, frozen mode preserves it.  Live mode captures
+// a new coherent palette/PPUMASK snapshot on each pulse before redrawing.
 //
 // Parameters:
 //   None.
@@ -118,14 +123,25 @@ PaletteDebugView::MessageReceived(BMessage *message)
 void
 PaletteDebugView::Pulse()
 {
+	if (!HasROMLoaded()) {
+		if (fHavePaletteSnapshot || fEntryLocked || fHoverAddress != 0x3f00 || fHasExternalHighlight) {
+			Clear();
+		}
+
+		return;
+	}
+
+	if (!fHavePaletteSnapshot) {
+		CapturePaletteSnapshot();
+		Invalidate();
+		return;
+	}
+
 	if (fFreezeUpdates) {
 		return;
 	}
 
-	if (!HasROMLoaded()) {
-		return;
-	}
-
+	CapturePaletteSnapshot();
 	Invalidate();
 }
 
@@ -154,13 +170,7 @@ PaletteDebugView::Draw(BRect updateRect)
 	DrawHeaderUI();
 
 	if (!HasROMLoaded()) {
-		BRect panel(
-			4.0f,
-			108.0f,
-			Bounds().right - 4.0f,
-			Bounds().bottom - 8.0f
-		);
-
+		BRect panel(4.0f, 108.0f, Bounds().right - 4.0f, Bounds().bottom - 8.0f);
 		::DrawDebugPanel(this, panel, "Palettes");
 		DrawNoROMMessage(panel);
 		return;
@@ -187,13 +197,7 @@ PaletteDebugView::Draw(BRect updateRect)
 void
 PaletteDebugView::DrawHeaderUI()
 {
-	BRect panel(
-		4.0f,
-		4.0f,
-		Bounds().right - 4.0f,
-		96.0f
-	);
-
+	BRect panel(4.0f, 4.0f, Bounds().right - 4.0f, 96.0f);
 	::DrawDebugPanel(this, panel, "Controls");
 
 	SetFontSize(11.0f);
@@ -207,7 +211,7 @@ PaletteDebugView::DrawHeaderUI()
 
 	float y = panel.top + 34.0f;
 
-	auto drawKV = [&](const char *label, const char *value) {
+	auto drawLV = [&](const char *label, const char *value) {
 		SetHighColor(80, 80, 80);
 		DrawString(label, BPoint(labelX, y));
 
@@ -217,12 +221,10 @@ PaletteDebugView::DrawHeaderUI()
 		y += lineH;
 	};
 
-	drawKV("Mouse:", "hover inspect / click lock");
-	drawKV("Space:", fFreezeUpdates
-		? "unfreeze palette updates"
-		: "freeze palette updates");
-	drawKV("X:", "mirrored palette entry");
-	drawKV("Blue:", "external source palette");
+	drawLV("Mouse:", "hover inspect / click lock");
+	drawLV("Space:", fFreezeUpdates ? "unfreeze palette updates" : "freeze palette updates");
+	drawLV("X:", "mirrored palette entry");
+	drawLV("Blue:", "external source palette");
 }
 
 
@@ -241,13 +243,7 @@ PaletteDebugView::DrawHeaderUI()
 void
 PaletteDebugView::DrawBackgroundPalettes()
 {
-	BRect panel(
-		4.0f,
-		108.0f,
-		Bounds().right - 4.0f,
-		248.0f
-	);
-
+	BRect panel(4.0f, 108.0f, Bounds().right - 4.0f, 248.0f);
 	DrawPalettePanel(panel, "Background Palettes", false);
 }
 
@@ -266,13 +262,7 @@ PaletteDebugView::DrawBackgroundPalettes()
 void
 PaletteDebugView::DrawSpritePalettes()
 {
-	BRect panel(
-		4.0f,
-		258.0f,
-		Bounds().right - 4.0f,
-		398.0f
-	);
-
+	BRect panel(4.0f, 258.0f, Bounds().right - 4.0f, 398.0f);
 	DrawPalettePanel(panel, "Sprite Palettes", true);
 }
 
@@ -316,16 +306,13 @@ PaletteDebugView::DrawPalettePanel (BRect panel, const char *title, bool sprites
 
 	uint16 active = fEntryLocked ? fLockedAddress : fHoverAddress;
 
-	bool activeInThisPanel = sprites
-		? active >= 0x3f10 && active <= 0x3f1f
-		: active >= 0x3f00 && active <= 0x3f0f;
+	bool activeInThisPanel = sprites ? active >= 0x3f10 && active <= 0x3f1f
+									 : active >= 0x3f00 && active <= 0x3f0f;
 
 	int32 activePalette = -1;
 
 	if (activeInThisPanel) {
-		activePalette = sprites
-			? ((active - 0x3f10) / 4)
-			: ((active - 0x3f00) / 4);
+		activePalette = sprites ? ((active - 0x3f10) / 4) : ((active - 0x3f00) / 4);
 	}
 
 	bool externalInThisPanel = fHasExternalHighlight
@@ -336,12 +323,7 @@ PaletteDebugView::DrawPalettePanel (BRect panel, const char *title, bool sprites
 	for (int32 pal = 0; pal < 4; pal++) {
 		float y = firstRowY + pal * rowH;
 
-		BRect rowRect(
-			panel.left + 8.0f,
-			y - 2.0f,
-			panel.right - 8.0f,
-			y + cellH + 2.0f
-		);
+		BRect rowRect(panel.left + 8.0f, y - 2.0f, panel.right - 8.0f, y + cellH + 2.0f);
 
 		// Blue external source highlight, usually sent from NameTableView.
 		if (externalInThisPanel && pal == fExternalHighlightPalette) {
@@ -374,23 +356,18 @@ PaletteDebugView::DrawPalettePanel (BRect panel, const char *title, bool sprites
 
 		// Right-align the row label inside the fixed label column.
 		SetHighColor(70, 70, 70);
+		
 		float labelW = StringWidth(s.String());
+		
 		DrawString(s.String(), BPoint(labelRightX - labelW, y + 13.0f));
 		
 		for (int32 entry = 0; entry < 4; entry++) {
-			uint16 address = sprites
-				? static_cast<uint16>(0x3f10 + pal * 4 + entry)
-				: static_cast<uint16>(0x3f00 + pal * 4 + entry);
+			uint16 address = sprites ? static_cast<uint16>(0x3f10 + pal * 4 + entry)
+									 : static_cast<uint16>(0x3f00 + pal * 4 + entry);
 
-			BRect r(
-				cellStartX + entry * (cellW + gapX),
-				y,
-				cellStartX + entry * (cellW + gapX) + cellW - 1.0f,
-				y + cellH - 1.0f
-			);
-
+			BRect r(cellStartX + entry * (cellW + gapX), y,
+					cellStartX + entry * (cellW + gapX) + cellW - 1.0f, y + cellH - 1.0f);
 			bool selected = (active == address);
-
 			DrawPaletteEntry(r, address, selected);
 
 			// Optional exact-entry external highlight.
@@ -450,7 +427,7 @@ PaletteDebugView::DrawPaletteEntry (BRect r, uint16 address, bool selected)
 	}
 
 	const color_map *cmap = BScreen().ColorMap();
-	rgb_color rgb = {0, 0, 0, 255};
+	rgb_color rgb = { 0, 0, 0, 255 };
 
 	if (cmap) {
 		rgb = cmap->color_list[hostIndex];
@@ -464,16 +441,8 @@ PaletteDebugView::DrawPaletteEntry (BRect r, uint16 address, bool selected)
 
 	if (resolved != address) {
 		SetHighColor(0, 0, 0, 170);
-
-		StrokeLine(
-			BPoint(r.left + 3.0f, r.top + 3.0f),
-			BPoint(r.right - 3.0f, r.bottom - 3.0f)
-		);
-
-		StrokeLine(
-			BPoint(r.left + 3.0f, r.bottom - 3.0f),
-			BPoint(r.right - 3.0f, r.top + 3.0f)
-		);
+		StrokeLine(BPoint(r.left + 3.0f, r.top + 3.0f), BPoint(r.right - 3.0f, r.bottom - 3.0f));
+		StrokeLine(BPoint(r.left + 3.0f, r.bottom - 3.0f), BPoint(r.right - 3.0f, r.top + 3.0f));
 	}
 
 	if (selected) {
@@ -505,7 +474,6 @@ PaletteDebugView::DrawPaletteEntry (BRect r, uint16 address, bool selected)
 	float textW = StringWidth(s);
 	float textX = r.left + ((r.Width() - textW) * 0.5f);
 	float textY = r.top + 13.0f;
-
 	DrawString(s.String(), BPoint(textX, textY));
 
 	SetFont(&prevFont);
@@ -531,13 +499,7 @@ PaletteDebugView::DrawPaletteEntry (BRect r, uint16 address, bool selected)
 void
 PaletteDebugView::DrawSelectedInfo()
 {
-	BRect panel(
-		4.0f,
-		408.0f,
-		Bounds().right - 4.0f,
-		Bounds().bottom - 8.0f
-	);
-
+	BRect panel(4.0f, 408.0f, Bounds().right - 4.0f, Bounds().bottom - 8.0f);
 	::DrawDebugPanel(this, panel, "Selected Color");
 
 	uint16 address = fEntryLocked ? fLockedAddress : fHoverAddress;
@@ -551,7 +513,7 @@ PaletteDebugView::DrawSelectedInfo()
 	}
 
 	const color_map *cmap = BScreen().ColorMap();
-	rgb_color rgb = {0, 0, 0, 255};
+	rgb_color rgb = { 0, 0, 0, 255 };
 
 	if (cmap) {
 		rgb = cmap->color_list[hostIndex];
@@ -559,17 +521,11 @@ PaletteDebugView::DrawSelectedInfo()
 
 	bool sprites = address >= 0x3f10;
 
-	int32 palette = sprites
-		? ((address - 0x3f10) / 4)
-		: ((address - 0x3f00) / 4);
+	int32 palette = sprites ? ((address - 0x3f10) / 4) : ((address - 0x3f00) / 4);
+	int32 entry = sprites ? ((address - 0x3f10) % 4) : ((address - 0x3f00) % 4);
+	uint8 mask = DisplayPPUMASK();
 
-	int32 entry = sprites
-		? ((address - 0x3f10) % 4)
-		: ((address - 0x3f00) % 4);
-
-	uint8 mask = nes::ppu::ppumask();
-
-	bool monochrome = (mask & 0x01) != 0;
+	bool monochrome = (mask & 0x1) != 0;
 	bool emphR = (mask & 0x20) != 0;
 	bool emphG = (mask & 0x40) != 0;
 	bool emphB = (mask & 0x80) != 0;
@@ -609,7 +565,7 @@ PaletteDebugView::DrawSelectedInfo()
 	float leftY = panel.top + 36.0f;
 	float rightY = panel.top + 36.0f;
 
-	auto drawLeftKV = [&](const char *label, const char *value) {
+	auto drawLeftLV = [&](const char *label, const char *value) {
 		SetHighColor(80, 80, 80);
 		DrawString(label, BPoint(leftLabelX, leftY));
 
@@ -619,7 +575,7 @@ PaletteDebugView::DrawSelectedInfo()
 		leftY += lineH;
 	};
 
-	auto drawRightKV = [&](const char *label, const char *value) {
+	auto drawRightLV = [&](const char *label, const char *value) {
 		SetHighColor(80, 80, 80);
 		DrawString(label, BPoint(rightLabelX, rightY));
 
@@ -632,56 +588,49 @@ PaletteDebugView::DrawSelectedInfo()
 	BString s;
 
 	s.SetToFormat("$%04X", address);
-	drawLeftKV("Address:", s.String());
+	drawLeftLV("Address:", s.String());
 
 	if (resolved != address) {
 		s.SetToFormat("$%04X -> $%04X", address, resolved);
-		drawLeftKV("Mirror:", s.String());
+		drawLeftLV("Mirror:", s.String());
 	} else {
-		drawLeftKV("Mirror:", "none");
+		drawLeftLV("Mirror:", "none");
 	}
 
-	drawLeftKV("Group:", sprites ? "Sprite" : "Background");
+	drawLeftLV("Group:", sprites ? "Sprite" : "Background");
 
 	s.SetToFormat("%ld", (long)palette);
-	drawLeftKV("Palette:", s.String());
+	drawLeftLV("Palette:", s.String());
 
 	s.SetToFormat("%ld", (long)entry);
-	drawLeftKV("Entry:", s.String());
+	drawLeftLV("Entry:", s.String());
 
 	s.SetToFormat("$%02X", nesColor & 0x3f);
-	drawRightKV("NES:", s.String());
+	drawRightLV("NES:", s.String());
 
 	s.SetToFormat("%u", (unsigned)hostIndex);
-	drawRightKV("Host:", s.String());
+	drawRightLV("Host:", s.String());
 
-	s.SetToFormat("%u,%u,%u",
-		(unsigned)rgb.red,
-		(unsigned)rgb.green,
-		(unsigned)rgb.blue);
-	drawRightKV("RGB:", s.String());
+	s.SetToFormat("%u,%u,%u", static_cast<unsigned>(rgb.red), 
+							  static_cast<unsigned>(rgb.green), 
+							  static_cast<unsigned>(rgb.blue));
+	drawRightLV("RGB:", s.String());
 
 	s.SetToFormat("$%02X", mask);
-	drawRightKV("PPUMASK:", s.String());
+	drawRightLV("PPUMASK:", s.String());
+	drawRightLV("Mono:", monochrome ? "ON" : "off");
+	drawRightLV("Emph:", emphasis.String());
+	drawRightLV("State:", fEntryLocked ? "LOCKED" : "HOVER");
 
-	drawRightKV("Mono:", monochrome ? "ON" : "off");
-	drawRightKV("Emph:", emphasis.String());
-
-	drawRightKV("State:", fEntryLocked ? "LOCKED" : "HOVER");
-
-	BRect swatch(
-		panel.right - 66.0f,
-		panel.top + 70.0f,
-		panel.right - 20.0f,
-		panel.top + 116.0f
-	);
-
+	BRect swatch(panel.right - 66.0f, panel.top + 70.0f, panel.right - 20.0f, panel.top + 116.0f);
 	SetHighColor(rgb);
 	FillRect(swatch);
 
 	SetHighColor(0, 0, 0);
 	StrokeRect(swatch);
 }
+
+
 // -----------------------------------------------------------------------------
 // PaletteDebugView::HasROMLoaded
 //
@@ -732,22 +681,10 @@ PaletteDebugView::DrawNoROMMessage (BRect panel)
 	const float centerY = panel.top + (panel.Height() * 0.5f);
 
 	SetHighColor(80, 80, 80, 255);
-	DrawString(
-		title,
-		BPoint(
-			centerX - (StringWidth(title) * 0.5f),
-			centerY - 8.0f
-		)
-	);
+	DrawString(title, BPoint(centerX - (StringWidth(title) * 0.5f), centerY - 8.0f));
 
 	SetHighColor(120, 120, 120, 255);
-	DrawString(
-		detail,
-		BPoint(
-			centerX - (StringWidth(detail) * 0.5f),
-			centerY + fh.ascent + 8.0f
-		)
-	);
+	DrawString(detail, BPoint(centerX - (StringWidth(detail) * 0.5f), centerY + fh.ascent + 8.0f));
 
 	SetFont(&prevFont);
 }
@@ -769,18 +706,15 @@ PaletteDebugView::DrawNoROMMessage (BRect panel)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-PaletteDebugView::MouseMoved(BPoint where, uint32 transit, const BMessage* message)
+PaletteDebugView::MouseMoved (BPoint where, uint32 transit, const BMessage *message)
 {
 	(void)message;
 
 	if (!HasROMLoaded()) {
-		fMouseInside = false;
 		return;
 	}
 
 	if (transit == B_EXITED_VIEW) {
-		fMouseInside = false;
-
 		if (!fEntryLocked && !fFreezeUpdates) {
 			Invalidate();
 		}
@@ -788,15 +722,17 @@ PaletteDebugView::MouseMoved(BPoint where, uint32 transit, const BMessage* messa
 		return;
 	}
 
-	fMouseInside = true;
-
-	// Freeze means the visible/active palette inspection stays fixed.
-	// Mouse movement should not change the active entry while frozen.
+	/*
+	 * Freeze means the visible/active palette inspection stays fixed.
+	 * Mouse movement should not change the active entry while frozen.
+	 */
 	if (fFreezeUpdates) {
 		return;
 	}
 
-	// When locked, mouse movement should not change the active entry.
+	/*
+	 * When locked, mouse movement should not change the active entry.
+	 */
 	if (fEntryLocked) {
 		return;
 	}
@@ -829,7 +765,7 @@ PaletteDebugView::MouseMoved(BPoint where, uint32 transit, const BMessage* messa
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-PaletteDebugView::MouseDown(BPoint where)
+PaletteDebugView::MouseDown (BPoint where)
 {
 	MakeFocus(true);
 
@@ -870,9 +806,12 @@ PaletteDebugView::MouseDown(BPoint where)
 // -----------------------------------------------------------------------------
 // PaletteDebugView::KeyDown
 //
-// Handles keyboard shortcuts for the palette debugger.  Space toggles frozen
-// palette inspection so the visible values remain stable while the emulator
-// continues running.
+// Handles keyboard shortcuts for the palette debugger.
+//
+// Space toggles frozen palette inspection.  Entering freeze captures a fresh
+// coherent palette/PPUMASK snapshot immediately so the frozen state represents
+// the moment the user requested it.  Leaving freeze allows the next Pulse() to
+// resume live snapshot updates.
 //
 // Parameters:
 //   bytes    - Key bytes supplied by the BeAPI.
@@ -884,12 +823,27 @@ PaletteDebugView::MouseDown(BPoint where)
 void
 PaletteDebugView::KeyDown (const char *bytes, int32 numBytes)
 {
-	if (numBytes <= 0)
+	if (numBytes <= 0) {
 		return;
+	}
 
 	switch (bytes[0]) {
 		case ' ':
-			fFreezeUpdates = !fFreezeUpdates;
+			if (!fFreezeUpdates) {
+				/*
+				 * Capture the exact palette/PPUMASK state at the moment
+				 * freeze is requested.
+				 */
+				CapturePaletteSnapshot();
+				fFreezeUpdates = true;
+			} else {
+				/*
+				 * Resume live updates.  The next Pulse() will replace
+				 * the frozen snapshot with current state.
+				 */
+				fFreezeUpdates = false;
+			}
+
 			Invalidate();
 			break;
 
@@ -930,17 +884,12 @@ PaletteDebugView::PaletteEntryAt (BPoint where, uint16 &outAddress) const
 			float y = firstRowY + pal * rowH;
 
 			for (int32 entry = 0; entry < 4; entry++) {
-				uint16 address = sprites
-					? static_cast<uint16>(0x3f10 + pal * 4 + entry)
-					: static_cast<uint16>(0x3f00 + pal * 4 + entry);
+				uint16 address = sprites ? static_cast<uint16>(0x3f10 + pal * 4 + entry)
+										 : static_cast<uint16>(0x3f00 + pal * 4 + entry);
 
-				BRect r(
-					cellStartX + entry * (cellW + gapX),
-					y,
-					cellStartX + entry * (cellW + gapX) + cellW - 1.0f,
-					y + cellH - 1.0f
-				);
-
+				BRect r(cellStartX + entry * (cellW + gapX), y,
+						cellStartX + entry * (cellW + gapX) + cellW - 1.0f,
+						y + cellH - 1.0f);
 				r.InsetBy(-4.0f, -4.0f);
 
 				if (r.Contains(where)) {
@@ -953,19 +902,8 @@ PaletteDebugView::PaletteEntryAt (BPoint where, uint16 &outAddress) const
 		return false;
 	};
 
-	BRect bgPanel(
-		4.0f,
-		108.0f,
-		Bounds().right - 4.0f,
-		248.0f
-	);
-
-	BRect spritePanel(
-		4.0f,
-		258.0f,
-		Bounds().right - 4.0f,
-		398.0f
-	);
+	BRect bgPanel(4.0f, 108.0f, Bounds().right - 4.0f, 248.0f);
+	BRect spritePanel(4.0f, 258.0f, Bounds().right - 4.0f, 398.0f);
 
 	if (checkPanel(bgPanel, false)) {
 		return true;
@@ -1023,26 +961,23 @@ PaletteDebugView::ResolvePaletteAddress (uint16 address) const
 // -----------------------------------------------------------------------------
 // PaletteDebugView::ReadPalette
 //
-// Reads a NES palette RAM value through the active cartridge mapper.  The value
-// is masked to the valid NES color range of 0-63.
+// Reads a NES palette RAM value through the palette debugger's current display
+// state.
+//
+// Once a snapshot exists, this returns the captured palette value so frozen
+// drawing and inspection remain stable.  Before the first snapshot is available,
+// DisplayPalette() falls back to the current live mapper state.
 //
 // Parameters:
 //   address - Palette RAM address to read.
 //
 // Returns:
-//   NES color index stored at the requested palette address, or $0F if no
-//   mapper is available.
+//   NES color index stored at the requested palette address, masked to 0-63.
 // -----------------------------------------------------------------------------
 uint8
 PaletteDebugView::ReadPalette (uint16 address) const
 {
-	Mapper *mapper = nes::cart.mapper();
-
-	if (!mapper) {
-		return 0xf;
-	}
-
-	return mapper->read_vram(address) & 0x3f;
+	return DisplayPalette(address);
 }
 
 
@@ -1098,6 +1033,143 @@ PaletteDebugView::ClearExternalHighlight()
 	if (!fHasExternalHighlight) {
 		return;
 	}
+
+	fHasExternalHighlight = false;
+	fExternalHighlightSprites = false;
+	fExternalHighlightPalette = -1;
+	fExternalHighlightEntry = -1;
+
+	Invalidate();
+}
+
+
+// -----------------------------------------------------------------------------
+// PaletteDebugView::CapturePaletteSnapshot
+//
+// Captures the palette RAM and PPUMASK state represented by the palette
+// debugger.
+//
+// The complete $3F00-$3F1F palette RAM area and PPUMASK are captured together
+// so palette colors and mask/emphasis information remain coherent when the
+// debugger is frozen.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PaletteDebugView::CapturePaletteSnapshot()
+{
+	Mapper *mapper = nes::cart.mapper();
+
+	if (!mapper) {
+		fHavePaletteSnapshot = false;
+		return;
+	}
+
+	for (uint32 offset = 0; offset < 0x20; offset++) {
+		fSnapshotPalette[offset] = mapper->read_vram(0x3f00 + offset) & 0x3f;
+	}
+
+	fSnapshotPPUMASK = nes::ppu::ppumask();
+	fHavePaletteSnapshot = true;
+}
+
+
+// -----------------------------------------------------------------------------
+// PaletteDebugView::DisplayPalette
+//
+// Reads one palette RAM value represented by the current palette debugger
+// snapshot.
+//
+// Once a valid snapshot exists, palette display and inspection use the captured
+// palette RAM rather than current live PPU state.  Before the first snapshot is
+// available, live palette RAM is used as a fallback.
+//
+// Parameters:
+//   address - Palette RAM address to read.
+//
+// Returns:
+//   Snapshot or live NES palette color index, masked to 0-63.
+// -----------------------------------------------------------------------------
+uint8
+PaletteDebugView::DisplayPalette (uint16 address) const
+{
+	const uint16 resolved = ResolvePaletteAddress(address);
+
+	if (fHavePaletteSnapshot) {
+		const uint32 offset = static_cast<uint32>(resolved - 0x3f00) & 0x1f;
+
+		return fSnapshotPalette[offset] & 0x3f;
+	}
+
+	Mapper *mapper = nes::cart.mapper();
+
+	if (!mapper) {
+		return 0x0f;
+	}
+
+	return mapper->read_vram(resolved) & 0x3f;
+}
+
+
+// -----------------------------------------------------------------------------
+// PaletteDebugView::DisplayPPUMASK
+//
+// Returns the PPUMASK value represented by the current palette debugger
+// snapshot.
+//
+// Once a snapshot exists, monochrome and color-emphasis information remains
+// synchronized with the palette data captured at the same time.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Snapshot or live PPUMASK value.
+// -----------------------------------------------------------------------------
+uint8
+PaletteDebugView::DisplayPPUMASK() const
+{
+	if (fHavePaletteSnapshot) {
+		return fSnapshotPPUMASK;
+	}
+
+	return nes::ppu::ppumask();
+}
+
+
+// -----------------------------------------------------------------------------
+// PaletteDebugView::Clear
+//
+// Clears all ROM-specific Palette debugger state while preserving user-selected
+// viewer state.
+//
+// The current palette/PPUMASK snapshot, hover/lock selection, and external
+// highlight state are discarded so data from an unloaded ROM cannot remain
+// visible after another ROM is loaded.
+//
+// Freeze mode is intentionally preserved.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PaletteDebugView::Clear()
+{
+	fHavePaletteSnapshot = false;
+
+	memset(fSnapshotPalette, 0, sizeof(fSnapshotPalette));
+	fSnapshotPPUMASK = 0x00;
+
+	fEntryLocked = false;
+	fLockedAddress = 0x3f00;
+	fHoverAddress = 0x3f00;
 
 	fHasExternalHighlight = false;
 	fExternalHighlightSprites = false;

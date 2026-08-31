@@ -5,6 +5,20 @@
 static status_t error;
 
 
+// -----------------------------------------------------------------------------
+// VideoScreen::VideoScreen
+//
+// Creates the fullscreen video screen and stores the owning PretendoWindow.
+//
+// If the BWindowScreen cannot be created successfully, the fullscreen window is
+// asked to quit immediately.
+//
+// Parameters:
+//   parent - Owning PretendoWindow.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 VideoScreen::VideoScreen (PretendoWindow *parent)
 	: BWindowScreen ("Pretendo Fullscreen", B_8_BIT_640x480, &error)
 {
@@ -17,6 +31,18 @@ VideoScreen::VideoScreen (PretendoWindow *parent)
 }
 
 
+// -----------------------------------------------------------------------------
+// VideoScreen::~VideoScreen
+//
+// Hides the fullscreen screen and synchronizes pending screen operations before
+// destruction.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 VideoScreen::~VideoScreen()
 {
 	Hide();
@@ -24,6 +50,21 @@ VideoScreen::~VideoScreen()
 }
 
 
+// -----------------------------------------------------------------------------
+// VideoScreen::MessageReceived
+//
+// Handles fullscreen window messages.
+//
+// Escape leaves fullscreen mode by posting LEAVE_FULLSCREEN to the owning
+// PretendoWindow.  All messages are then passed to BWindowScreen for normal
+// processing.
+//
+// Parameters:
+//   message - Message received by the fullscreen window.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 VideoScreen::MessageReceived (BMessage *message)
 {
@@ -47,6 +88,17 @@ VideoScreen::MessageReceived (BMessage *message)
 }
 
 
+// -----------------------------------------------------------------------------
+// VideoScreen::QuitRequested
+//
+// Marks the fullscreen screen as disconnected and allows the window to close.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   true to allow the fullscreen window to quit.
+// -----------------------------------------------------------------------------
 bool
 VideoScreen::QuitRequested()
 {
@@ -55,6 +107,24 @@ VideoScreen::QuitRequested()
 }
 
 
+// -----------------------------------------------------------------------------
+// VideoScreen::ScreenConnected
+//
+// Handles connection and disconnection of the fullscreen display.
+//
+// When connected, the screen is configured for 640x480 8-bit video and the
+// framebuffer address, row-byte count, and pixel width are cached for direct
+// fullscreen rendering.  If the requested display mode cannot be established,
+// the fullscreen window is asked to quit.
+//
+// The final connection state is also forwarded to BWindowScreen.
+//
+// Parameters:
+//   connected - true when the fullscreen display has been connected.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 VideoScreen::ScreenConnected (bool connected)
 {
@@ -75,3 +145,5 @@ VideoScreen::ScreenConnected (bool connected)
 		
 	BWindowScreen::ScreenConnected (fConnected);
 }
+
+

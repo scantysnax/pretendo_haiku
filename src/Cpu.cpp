@@ -3,10 +3,11 @@
 #pragma warning(disable : 4127)
 #endif
 
-#include "Cpu.h"
+
 #include "Bus.h"
 #include "Cart.h"
 #include "Compiler.h"
+#include "Cpu.h"
 #include "Mapper.h"
 #include "Nes.h"
 
@@ -15,6 +16,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
+
 
 #define LAST_CYCLE                                         \
 	do {                                                   \
@@ -104,7 +106,7 @@ bool sExecuteBreakpointAddress[0x10000] = {};
 bool sDebugBreakpointHit = false;
 uint16_t sDebugBreakpointHitAddress = 0x0000;
 uint16_t sDebugCurrentInstructionAddress = 0x0000;
-DebugBreakReason sDebugBreakReason = DEBUG_BREAK_NONE;
+break_reason sDebugBreakReason = DEBUG_BREAK_NONE;
 
 bool sDebugSkipBreakpointOnce = false;
 uint32_t sExecuteBreakpointHitCount[0x10000] = {};
@@ -193,12 +195,15 @@ uint64_t executed_cycles_ = 1; // NOTE(eteran): 1 instead of 0 makes 4.irq_and_d
 // -----------------------------------------------------------------------------
 // record_cpu_trace_entry
 //
-// Records the CPU state at the start of an instruction.  The entry stores the
-// instruction address, opcode bytes, current registers, and cycle count.  The
-// trace buffer is circular, keeping the most recent CPU_TRACE_CAPACITY entries.
+// Records the CPU state at the start of an instruction or interrupt boundary.
+//
+// The entry stores the instruction address, opcode bytes, current registers,
+// cycle count, and the actual hardware interrupt source selected for this CPU
+// boundary. Recording IRQ/NMI identity here avoids later debugger code having
+// to reconstruct historical interrupt events from the current memory mapping.
 //
 // Parameters:
-//   address - CPU address of the instruction about to execute.
+//   address - CPU address associated with the boundary about to execute.
 //
 // Returns:
 //   Nothing.
@@ -207,21 +212,32 @@ static void
 record_cpu_trace_entry(uint16_t address)
 {
 	cpu_trace_entry_t& entry = sCPUTraceEntries[sCPUTraceNext];
-
 	entry.cycle = executed_cycles_;
 	entry.pc = address;
-
 	entry.bytes[0] = nes::bus::debug_read_memory(address);
 	entry.bytes[1] = nes::bus::debug_read_memory(static_cast<uint16_t>(address + 1));
 	entry.bytes[2] = nes::bus::debug_read_memory(static_cast<uint16_t>(address + 2));
-
 	entry.length = 1;
-
 	entry.a = A;
 	entry.x = X;
 	entry.y = Y;
 	entry.s = S;
 	entry.p = P;
+
+	/*
+	 * nmi_executing_ / irq_executing_ have already been resolved for this
+	 * CPU boundary before record_cpu_trace_entry() is called.
+	 *
+	 * NMI has priority in the CPU's interrupt-selection logic, so test it
+	 * first here as well.
+	 */
+	if (nmi_executing_) {
+		entry.interrupt = CPU_TRACE_INTERRUPT_NMI;
+	} else if (irq_executing_) {
+		entry.interrupt = CPU_TRACE_INTERRUPT_IRQ;
+	} else {
+		entry.interrupt = CPU_TRACE_INTERRUPT_NONE;
+	}
 
 	sCPUTraceNext = (sCPUTraceNext + 1) % CPU_TRACE_CAPACITY;
 
@@ -810,21 +826,12 @@ tick()
 		 * memory watchpoints need the original instruction address.
 		 */
 		sDebugCurrentInstructionAddress = PC.raw;
-
 		sDebugPreviousBoundaryS = S;
-
-		sDebugPreviousBoundaryWasInterrupt
-			= nmi_executing_
-				|| irq_executing_;
-
-		sDebugPreviousBoundaryOpcode
-			= nes::bus::debug_read_memory(
-				PC.raw
-			);
-
+		sDebugPreviousBoundaryWasInterrupt = nmi_executing_ || irq_executing_;
+		sDebugPreviousBoundaryOpcode = nes::bus::debug_read_memory(PC.raw);
 		sDebugHavePreviousBoundaryS = true;
-
 		sExecutedInstructionAddress[PC.raw] = true;
+		
 		record_cpu_trace_entry(PC.raw);
 	}
 
@@ -973,7 +980,7 @@ void reset(Reset reset_type) {
  * @brief irq
  * @param source
  */
-void irq(IrqSource source) {
+void irq(irq_source source) {
 
 	irq_sources_ |= source;
 
@@ -986,7 +993,7 @@ void irq(IrqSource source) {
  * @brief clear_irq
  * @param source
  */
-void clear_irq(IrqSource source) {
+void clear_irq(irq_source source) {
 
 	irq_sources_ &= ~source;
 
@@ -1199,7 +1206,7 @@ debug_breakpoint_hit_address()
 // Returns:
 //   DebugBreakReason describing why execution stopped.
 // -----------------------------------------------------------------------------
-DebugBreakReason
+break_reason
 debug_break_reason()
 {
 	return sDebugBreakReason;
@@ -1845,10 +1852,7 @@ debug_clear_write_watchpoint_hit_count(uint16_t address)
 void
 debug_clear_all_read_watchpoint_hit_counts()
 {
-	for (uint32_t address = 0x0000;
-		address <= 0xffff;
-		address++) {
-
+	for (uint32_t address = 0x0000; address <= 0xffff; address++) {
 		sDebugReadWatchpointHitCount[address] = 0;
 	}
 }
@@ -1868,10 +1872,7 @@ debug_clear_all_read_watchpoint_hit_counts()
 void
 debug_clear_all_write_watchpoint_hit_counts()
 {
-	for (uint32_t address = 0x0000;
-		address <= 0xffff;
-		address++) {
-
+	for (uint32_t address = 0x0000; address <= 0xffff; address++) {
 		sDebugWriteWatchpointHitCount[address] = 0;
 	}
 }
@@ -1945,7 +1946,7 @@ debug_check_memory_write(uint16_t address)
 
 // -----------------------------------------------------------------------------
 // nes::cpu::debug_memory_break_address
-//sf
+//
 // Returns the CPU-memory address responsible for the current memory
 // read/write debugger break.
 //
@@ -1982,7 +1983,6 @@ debug_reset_in_progress()
 {
 	return rst_asserted_ || rst_executing_;
 }
-
 
 }
 

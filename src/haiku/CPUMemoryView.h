@@ -65,7 +65,6 @@ class CPUMemoryView : public BView
 	
 	private:
 	PretendoWindow *fParent = nullptr;
-	uint16 fBaseAddress = 0x0000;
 	
 	private:
 	void LayoutScrollBar();
@@ -78,12 +77,14 @@ class CPUMemoryView : public BView
 	BScrollBar *fScrollBar = nullptr;
 	bool fUpdatingScrollBar = false;
 	
+	private:
+	uint16 fBaseAddress = 0x0000;
 	bool fHasHoveredAddress = false;
 	uint16 fHoveredAddress = 0x0000;
-
 	bool fHasLockedAddress = false;
 	uint16 fLockedAddress = 0x0000;
 };
+
 
 #endif	// _CPU_MEMORY_VIEW_H_
 

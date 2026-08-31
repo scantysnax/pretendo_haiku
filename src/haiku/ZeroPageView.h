@@ -1,17 +1,15 @@
+
 #ifndef _ZERO_PAGE_VIEW_H_
 #define _ZERO_PAGE_VIEW_H_
 
 #include <View.h>
 
+#include <cmath>
+
 #include "Bus.h"
 #include "Cart.h"
 #include "DebugHelpers.h"
 #include "PretendoWindow.h"
-
-#include <cmath>
-
-
-class PretendoWindow;
 
 
 // -----------------------------------------------------------------------------
@@ -40,6 +38,7 @@ class ZeroPageView : public BView
 
 	private:
 	void CaptureZeroPageSnapshot();
+	void ResetDebuggerState();
 	bool HasROMLoaded() const;
 	bool AddressForPoint (BPoint where, uint16 &address) const;
 	void MoveSelection (int32 delta);
@@ -52,6 +51,7 @@ class ZeroPageView : public BView
 	bool fFreezeUpdates = false;
 	bool fHaveSnapshot = false;
 
+	private:
 	uint8 fBytes[0x100] = {};
 	uint8 fPreviousBytes[0x100] = {};
 	bool fChanged[0x100] = {};
@@ -60,6 +60,9 @@ class ZeroPageView : public BView
 	private:
 	bool fHasSelectedAddress = false;
 	uint16 fSelectedAddress = 0x0000;
+	
+	private:
+	bool fHadROMLoaded = false;
 };
 
 

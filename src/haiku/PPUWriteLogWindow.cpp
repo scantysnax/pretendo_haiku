@@ -16,9 +16,7 @@
 // -----------------------------------------------------------------------------
 PPUWriteLogWindow::PPUWriteLogWindow (PretendoWindow *parent)
 	: BWindow (BRect(220.0f, 220.0f, 900.0f, 720.0f),
-				"PPU Write Log",
-				B_FLOATING_WINDOW_LOOK,
-				B_NORMAL_WINDOW_FEEL,
+				"PPU Write Log", B_FLOATING_WINDOW_LOOK, B_NORMAL_WINDOW_FEEL,
 				B_NOT_RESIZABLE | B_NOT_ZOOMABLE)
 {
 	fParent = parent;

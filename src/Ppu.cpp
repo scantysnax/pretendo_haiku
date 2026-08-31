@@ -191,6 +191,7 @@ Status         status_                      = {0};
 uint8_t        tile_offset_                 = 0; // loopy x
 uint8_t        monochrome_mask_             = 0xff;
 static uint64_t frame_counter_				= 0; // frame counter
+static bool sPendingCpuSlot = false;
 
 bool odd_frame_   = false;
 bool write_latch_ = false;
@@ -273,7 +274,6 @@ uint8_t select_pixel(uint_least16_t index) {
 	if (LIKELY(index >= 8 || ppu_mask_.sprite_clipping) && ppu_mask_.sprites_visible) {
 
 		for (uint8_t spr = 0; spr != visible_sprite_count_; ++spr) {
-
 			const SpritePattern &sprite = sprite_patterns_[spr];
 			const uint16_t x_offset     = index - sprite.x;
 
@@ -896,29 +896,160 @@ void end_frame() {
 	nes::cart.mapper()->ppu_end_frame();
 }
 
-//------------------------------------------------------------------------------
-// execute_scanline_impl (cpp-only)
-//------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// execute_scanline_impl
+//
+// Executes or resumes one PPU scanline.
+//
+// Unlike the original implementation, hpos_ is not reset when this function is
+// entered.  This allows an interrupted scanline to resume at the exact PPU dot
+// where a CPU debugger BreakPoint stopped execution.
+//
+// Because clock_ppu() executes before the CPU/APU slot for a given timing point,
+// an execute BreakPoint may occur after the PPU dot has already completed but
+// before the CPU has consumed its corresponding cycle.  sPendingCpuSlot records
+// that condition so the CPU/APU slot can be completed after debugger resume
+// without clocking the same PPU dot twice.
+//
+// Parameters:
+//   target - PPU scanline rendering target.
+//
+// Returns:
+//   true  - The complete scanline finished.
+//   false - Execution stopped before the scanline finished.
+// -----------------------------------------------------------------------------
 template <class T>
-void execute_scanline_impl(const T &target) {
-
-	if (UNLIKELY(vpos_ == 262)) {
-		start_frame();
-	} else if (UNLIKELY(vpos_ == 241)) {
-		end_frame();
+bool
+execute_scanline_impl(const T &target)
+{
+	if (nes::ppu::system_paused) {
+		return false;
 	}
 
-	if (LIKELY(!nes::ppu::system_paused)) {
-		for (hpos_ = 0; hpos_ < CyclesPerScanline; ++hpos_, ++ppu_cycle_) {
-			clock_ppu(target);
-			if ((ppu_cycle_ % 3) == CpuAlignment) {
-				nes::cpu::exec<1>();
-				nes::apu::exec<1>();
-			}
+	/*
+	 * If a BreakPoint stopped us after clock_ppu() but before the CPU
+	 * consumed this timing slot, finish that CPU/APU slot first.
+	 *
+	 * Do NOT clock the PPU again here.
+	 */
+	if (sPendingCpuSlot) {
+		const uint64_t beforeCycles = nes::cpu::cycle_count();
+
+		nes::cpu::exec<1>();
+
+		const uint64_t afterCycles = nes::cpu::cycle_count();
+
+		/*
+		 * The CPU still refused to advance. Leave the timing slot
+		 * pending and remain at exactly the same PPU position.
+		 */
+		if (afterCycles == beforeCycles) {
+			return false;
 		}
-		++vpos_;
+
+		/*
+		 * The CPU consumed the pending cycle. The APU must consume its
+		 * corresponding cycle as well.
+		 */
+		nes::apu::exec<1>();
+
+		sPendingCpuSlot = false;
+
+		/*
+		 * Complete the PPU timing position whose clock_ppu() call was
+		 * performed before the debugger stop.
+		 */
+		++hpos_;
+		++ppu_cycle_;
+
+		if (hpos_ >= CyclesPerScanline) {
+			hpos_ = 0;
+			++vpos_;
+
+			return true;
+		}
+
+		/*
+		 * A memory/stack BreakPoint could theoretically have become
+		 * latched while the pending CPU cycle itself executed.
+		 */
+		if (nes::cpu::debug_breakpoint_hit()) {
+			return false;
+		}
 	}
+
+	/*
+	 * Frame-boundary PPU work must happen only once, at the genuine
+	 * beginning of a scanline.
+	 */
+	if (hpos_ == 0) {
+		if (UNLIKELY(vpos_ == 262)) {
+			start_frame();
+		} else if (UNLIKELY(vpos_ == 241)) {
+			end_frame();
+		}
+	}
+
+	while (hpos_ < CyclesPerScanline) {
+		/*
+		 * First execute the PPU portion of this dot, preserving the
+		 * emulator's existing PPU-before-CPU ordering.
+		 */
+		clock_ppu(target);
+
+		if ((ppu_cycle_ % 3) == CpuAlignment) {
+			const uint64_t beforeCycles = nes::cpu::cycle_count();
+
+			nes::cpu::exec<1>();
+
+			const uint64_t afterCycles = nes::cpu::cycle_count();
+
+			/*
+			 * An execute BreakPoint is checked at CPU instruction
+			 * cycle zero before the CPU actually clocks. Therefore
+			 * the PPU dot above has happened but this CPU cycle has
+			 * not.
+			 *
+			 * Preserve the exact timing position and return.
+			 */
+			if (afterCycles == beforeCycles) {
+				sPendingCpuSlot = true;
+
+				return false;
+			}
+
+			/*
+			 * Keep the APU synchronized with every CPU cycle that
+			 * genuinely completed.
+			 */
+			nes::apu::exec<1>();
+		}
+
+		/*
+		 * This complete PPU timing point has now been consumed.
+		 */
+		++hpos_;
+		++ppu_cycle_;
+
+		/*
+		 * READ/WRITE/stack conditions may latch while the CPU cycle
+		 * itself executes. In that case the CPU slot did complete, so
+		 * no pending-slot state is required.
+		 */
+		if (nes::cpu::debug_breakpoint_hit()) {
+			return false;
+		}
+	}
+
+	/*
+	 * Normalize to the start of the next scanline.
+	 */
+	hpos_ = 0;
+	++vpos_;
+
+	return true;
 }
+
 
 } // end anonymous namespace
 
@@ -971,6 +1102,7 @@ void reset(nes::Reset reset_type) {
 	write_block_          = true;
 	monochrome_mask_      = 0xff;
 	frame_counter_		  = 0;
+	sPendingCpuSlot = false;
 	std::cout << "PPU reset complete" << std::endl;
 }
 
@@ -1170,14 +1302,38 @@ void write4014(uint8_t value) {
 	cpu::schedule_spr_dma(write2004, sprite_addr, 256);
 }
 
-//------------------------------------------------------------------------------
-// Public scanline entry points (non-template, so other TUs can call them)
-//------------------------------------------------------------------------------
-void execute_scanline(const scanline_vblank &t)      { execute_scanline_impl(t); }
-void execute_scanline(const scanline_prerender &t)   { execute_scanline_impl(t); }
-void execute_scanline(const scanline_postrender &t)  { execute_scanline_impl(t); }
-void execute_scanline(const scanline_render &t)      { execute_scanline_impl(t); }
 
+// -----------------------------------------------------------------------------
+// Public resumable scanline entry points.
+//
+// Returns true only when the requested scanline has completely finished.
+// -----------------------------------------------------------------------------
+bool
+execute_scanline(const scanline_vblank &target)
+{
+	return execute_scanline_impl(target);
+}
+
+
+bool
+execute_scanline(const scanline_prerender &target)
+{
+	return execute_scanline_impl(target);
+}
+
+
+bool
+execute_scanline(const scanline_postrender &target)
+{
+	return execute_scanline_impl(target);
+}
+
+
+bool
+execute_scanline(const scanline_render &target)
+{
+	return execute_scanline_impl(target);
+}
 //------------------------------------------------------------------------------
 // Debug helpers
 //------------------------------------------------------------------------------
@@ -1232,8 +1388,30 @@ uint8_t oamaddr() {
 }
 
 
+// -----------------------------------------------------------------------------
+// log_ppu_write
+//
+// Appends one CPU write to a PPU-facing register to the rolling write log.
+//
+// In addition to frame/render position and the written value, the current
+// $2005/$2006 shared write-latch state is captured before the register handler
+// changes it.  This allows debugger views to distinguish first and second
+// PPUSCROLL/PPUADDR writes accurately.
+//
+// write_latch:
+//   0 - first $2005/$2006 write
+//   1 - second $2005/$2006 write
+//
+// Parameters:
+//   address - CPU-visible PPU register address.
+//   value   - Value written by the CPU.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
-log_ppu_write(uint16_t address, uint8_t value) {
+log_ppu_write(uint16_t address, uint8_t value)
+{
 	ppu_write_log_entry_t& entry = write_log_[write_log_next_];
 
 	entry.frame = frame_counter_;
@@ -1242,6 +1420,13 @@ log_ppu_write(uint16_t address, uint8_t value) {
 	entry.address = address;
 	entry.value = value;
 	entry.write_index = write_log_write_index_++;
+
+	/*
+	 * log_ppu_write() is called before write2005()/write2006() toggle
+	 * write_latch_, so this records the state that applies to the current
+	 * write.
+	 */
+	entry.write_latch = write_latch_ ? 1 : 0;
 
 	write_log_next_ = (write_log_next_ + 1) % PPU_WRITE_LOG_CAPACITY;
 
@@ -1286,6 +1471,62 @@ clear_ppu_write_log()
 	write_log_write_index_ = 0;
 }
 
+// -----------------------------------------------------------------------------
+// ppu_write_log_snapshot
+//
+// Copies the current logical PPU write log into caller-provided storage.
+//
+// The ring-buffer count and starting position are captured once before copying,
+// so every entry in the returned snapshot uses the same logical ordering.
+//
+// Entries are returned oldest to newest:
+//
+//   entries[0]         = oldest captured write
+//   entries[count - 1] = newest captured write
+//
+// Parameters:
+//   entries  - Destination array.
+//   capacity - Maximum number of entries that may be written.
+//
+// Returns:
+//   Number of entries copied.
+// -----------------------------------------------------------------------------
+uint32_t
+ppu_write_log_snapshot(ppu_write_log_entry_t *entries, uint32_t capacity)
+{
+	if (!entries || capacity == 0) {
+		return 0;
+	}
+
+	const uint32_t available = write_log_count_;
+	const uint32_t count = (available < capacity) ? available : capacity;
+
+	if (count == 0) {
+		return 0;
+	}
+
+	uint32_t start = 0;
+
+	if (available == PPU_WRITE_LOG_CAPACITY) {
+		start = write_log_next_;
+	}
+
+	/*
+	 * If the destination is smaller than the current log, retain the
+	 * newest entries rather than the oldest ones.
+	 */
+	if (count < available) {
+		start = (start + (available - count)) % PPU_WRITE_LOG_CAPACITY;
+	}
+
+	for (uint32_t index = 0; index < count; index++) {
+		const uint32_t physicalIndex = (start + index) % PPU_WRITE_LOG_CAPACITY;
+		entries[index] = write_log_[physicalIndex];
+	}
+
+	return count;
+}
+
 
 uint64_t ppu_frame_counter()
 {
@@ -1316,10 +1557,17 @@ debug_read_ppu_memory(uint16_t address)
 // -----------------------------------------------------------------------------
 // nes::ppu::debug_step_dot
 //
-// Advances the emulator by one PPU dot using the same timing relationship used
-// by normal scanline execution.  This is intended for debugger stepping and
-// intentionally ignores system_paused so a paused emulator can still advance
-// under debugger control.
+// Advances debugger execution by one PPU timing position.
+//
+// If normal execution stopped after clocking a PPU dot but before the matching
+// CPU/APU slot could execute, the pending slot is completed first without
+// clocking the PPU dot a second time.
+//
+// Visible rendering uses the same persistent scanline buffer as run_frame() so
+// debugger stepping can safely occur in the middle of a visible scanline.
+//
+// system_paused is intentionally ignored because debugger stepping operates while
+// normal emulator execution is paused.
 //
 // Parameters:
 //   None.
@@ -1330,7 +1578,31 @@ debug_read_ppu_memory(uint16_t address)
 void
 debug_step_dot()
 {
-	alignas(512) static uint32_t dummyBuffer[256] = {};
+	if (sPendingCpuSlot) {
+		const uint64_t beforeCycles = nes::cpu::cycle_count();
+
+		nes::cpu::exec<1>();
+
+		const uint64_t afterCycles = nes::cpu::cycle_count();
+
+		if (afterCycles == beforeCycles) {
+			return;
+		}
+
+		nes::apu::exec<1>();
+
+		sPendingCpuSlot = false;
+
+		++hpos_;
+		++ppu_cycle_;
+
+		if (hpos_ >= CyclesPerScanline) {
+			hpos_ = 0;
+			++vpos_;
+		}
+
+		return;
+	}
 
 	if (hpos_ >= CyclesPerScanline) {
 		hpos_ = 0;
@@ -1342,7 +1614,6 @@ debug_step_dot()
 		hpos_ = 0;
 	}
 
-	// Match execute_scanline_impl(), but only at the start of a scanline.
 	if (hpos_ == 0) {
 		if (UNLIKELY(vpos_ == 262)) {
 			start_frame();
@@ -1354,7 +1625,7 @@ debug_step_dot()
 	if (vpos_ == 0) {
 		clock_ppu(nes::ppu::scanline_prerender{});
 	} else if (vpos_ >= 1 && vpos_ <= 240) {
-		clock_ppu(nes::ppu::scanline_render(dummyBuffer));
+		clock_ppu(nes::ppu::scanline_render(nes::frame_scanline_buffer()));
 	} else if (vpos_ == 241) {
 		clock_ppu(nes::ppu::scanline_postrender{});
 	} else {
@@ -1362,7 +1633,17 @@ debug_step_dot()
 	}
 
 	if ((ppu_cycle_ % 3) == CpuAlignment) {
+		const uint64_t beforeCycles = nes::cpu::cycle_count();
+
 		nes::cpu::exec<1>();
+
+		const uint64_t afterCycles = nes::cpu::cycle_count();
+
+		if (afterCycles == beforeCycles) {
+			sPendingCpuSlot = true;
+			return;
+		}
+
 		nes::apu::exec<1>();
 	}
 

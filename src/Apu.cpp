@@ -46,6 +46,10 @@ uint8_t clock_step_            = 0;
 APUFrameCounter frame_counter_ = {0};
 uint8_t last_frame_counter_    = 0;
 
+// dc filter
+double sDCBlockPreviousInput = 0.0;
+double sDCBlockPreviousOutput = 0.0;
+
 }
 
 Square<0> square_0;
@@ -58,6 +62,7 @@ APUStatus status = {0};
 uint8_t sample_buffer_[buffer_size];
 size_t sample_buffer_start = 0;
 size_t sample_buffer_end   = 0;
+static uint8_t sLastOutputSample = silence;
 
 
 void clock_linear() {
@@ -165,43 +170,79 @@ void clock_frame_mode_1() {
 	clock_step_ = (clock_step_ + 1) % 5;
 }
 
-//------------------------------------------------------------------------------
-// Name: mix_channels
-//------------------------------------------------------------------------------
-uint8_t mix_channels() {
 
-	int const square1_out =		square_0.output();
-	int const square2_out = 	square_1.output();
-	int const triangle_out = 	triangle.output();
-	int const noise_out = 		noise.output();
-	int const dmc_out = 		dmc.output();
+// -----------------------------------------------------------------------------
+// mix_channels
+//
+// Mixes the five NES audio channels and removes the DC component from the
+// resulting unipolar signal.
+//
+// The NES mixer naturally produces a positive-only output level, while unsigned
+// 8-bit host PCM uses 0x80 as silence.  A simple DC-blocking high-pass filter
+// converts the mixer output into a bipolar waveform centered around 0x80.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Unsigned 8-bit PCM sample centered around 0x80.
+// -----------------------------------------------------------------------------
+uint8_t
+mix_channels()
+{
+	const int32_t square1Out = square_0.output();
+	const int32_t square2Out = square_1.output();
+	const int32_t triangleOut = triangle.output();
+	const int32_t noiseOut = noise.output();
+	const int32_t dmcOut = dmc.output();
 
-#if 1
-	double const square_out = 	0.00752 * (square1_out + square2_out);
-	double const tnd_out = 		0.00851 * triangle_out + 
-							 	0.00494 * noise_out + 
-							 	0.00335 * dmc_out;
-	int const output = 			(square_out + tnd_out) * 255.0;
-#else
-	int const output = (square1_out +
-						square2_out +
-						triangle_out +
-						noise_out +
-						dmc_out +
-						0);
-#endif
+	const double squareOut = 0.00752 * (square1Out + square2Out);
+	const double tndOut = 0.00851 * triangleOut + 0.00494 * noiseOut + 0.00335 * dmcOut;
 
-	return std::clamp(output, 0, 255);
+	const double input = (squareOut + tndOut) * 255.0;
+
+	/*
+	 * One-pole DC-blocking high-pass filter:
+	 *
+	 *     y[n] = x[n] - x[n-1] + R * y[n-1]
+	 *
+	 * This removes the DC component of the positive-only NES mixer while
+	 * preserving the audible waveform.
+	 */
+	constexpr double R = 0.995;
+	const double output = input - sDCBlockPreviousInput + R * sDCBlockPreviousOutput;
+	sDCBlockPreviousInput = input;
+	sDCBlockPreviousOutput = output;
+	const int sample = static_cast<int>(output + 128.0);
+
+	return static_cast<uint8_t>(std::clamp(sample, 0, 255));
 }
 
 
-void reset(Reset reset_type) {
-
+// -----------------------------------------------------------------------------
+// nes::apu::reset
+//
+// Resets APU timing, channel state, sample-output state, and DC-blocking filter.
+//
+// Parameters:
+//   reset_type - Hard or soft reset mode.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+reset(Reset reset_type)
+{
 	status.raw     = 0;
 	frame_counter_ = {0};
 	apu_cycles_    = 0;
 	next_clock_    = 0;
 	clock_step_    = 0;
+
+	sLastOutputSample = silence;
+
+	sDCBlockPreviousInput = 0.0;
+	sDCBlockPreviousOutput = 0.0;
 
 	if (reset_type == Reset::Hard) {
 		last_frame_counter_ = 0;
@@ -478,53 +519,85 @@ uint64_t cycle_count() {
 // -----------------------------------------------------------------------------
 // nes::apu::read_samples
 //
-// Reads mixed APU samples into the supplied host audio buffer.  The destination
-// buffer is always fully initialized.  If debugger audio mute is active, or if
-// not enough queued APU samples are available, unsigned 8-bit silence is written
-// for the remaining output.
+// Reads mixed APU samples into the supplied host audio buffer.
+//
+// If fewer APU samples are available than requested, the last real output
+// sample is repeated rather than abruptly inserting 0x80 silence.  This avoids
+// introducing a discontinuity when the generated sample count is slightly
+// shorter than the fixed host frame request.
 //
 // Parameters:
 //   buffer - Destination audio buffer.
-//   size   - Number of samples requested by the host audio callback.
+//   size   - Number of samples requested.
 //
 // Returns:
-//   Number of samples written to buffer.
+//   Number of samples written.
 // -----------------------------------------------------------------------------
 size_t
-read_samples(uint8_t* buffer, size_t size)
+read_samples(uint8_t *buffer, size_t size)
 {
 	if (!buffer || size == 0) {
 		return 0;
 	}
 
 	if (debug_audio_is_muted()) {
-		for (size_t i = 0; i < size; i++) {
+		for (size_t i = 0; i < size; ++i) {
 			buffer[i] = silence;
 		}
 
 		sample_buffer_start = sample_buffer_end;
+		sLastOutputSample = silence;
+
 		return size;
 	}
 
 	size_t i = 0;
 
 	while (i < size && sample_buffer_start != sample_buffer_end) {
-		buffer[i] = sample_buffer_[sample_buffer_start];
+		const uint8_t sample = sample_buffer_[sample_buffer_start];
+
+		buffer[i] = sample;
+		sLastOutputSample = sample;
+
 		sample_buffer_start = (sample_buffer_start + 1) % buffer_size;
-		i++;
+
+		++i;
 	}
 
 	while (i < size) {
-		buffer[i] = silence;
-		i++;
+		buffer[i] = sLastOutputSample;
+		++i;
 	}
 
 	return size;
 }
 
 
-void start_frame() {
-	sample_buffer_start = sample_buffer_end;
+// -----------------------------------------------------------------------------
+// nes::apu::start_frame
+//
+// Marks the beginning of an emulated video frame.
+//
+// Audio sample generation is continuous across video-frame boundaries, so no
+// APU state or queued samples are reset here.  The function remains as part of
+// the frame-lifecycle interface used by the emulator.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+start_frame()
+{
+	// we don't want to do this:
+	
+	// sample_buffer_start = sample_buffer_end;
+	
+	
+	// That discarded queued samples at every video-frame boundary and was one 
+	// of the causes of audio discontinuities.
 }
 
 

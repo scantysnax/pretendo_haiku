@@ -5,6 +5,7 @@
 #include <View.h>
 
 #include <cmath>
+#include <vector>
 
 #include "Cart.h"
 #include "DebugHelpers.h"
@@ -21,13 +22,15 @@
 //
 // The log is useful for debugging palette uploads, scroll writes, nametable
 // updates, sprite DMA, mid-frame effects, and status bar/split-screen behavior.
+//
+// The emulator's write log is copied into debugger-owned storage before it is
+// displayed.  This gives the view stable redraws and allows freeze mode to
+// preserve the exact visible log state.
 // -----------------------------------------------------------------------------
-
-
 class PPUWriteLogView : public BView
 {
 	public:
-			PPUWriteLogView (BRect frame, PretendoWindow *parent);
+			PPUWriteLogView(BRect frame, PretendoWindow *parent);
 	virtual ~PPUWriteLogView();
 
 	public:
@@ -37,22 +40,24 @@ class PPUWriteLogView : public BView
 	virtual void Pulse();
 
 	private:
+	void CaptureLogSnapshot();
+
 	void DrawHeaderPanel();
 	void DrawLogPanel();
 
 	private:
 	const char *RegisterName (uint16 address) const;
-	void DescribeWrite (uint16 address, uint8 value, BString &text) const;
-	
-	private:
-	bool HasROMLoaded() const;
-	void DrawNoROMMessage (BRect panel);
+	void DescribeWrite (const nes::ppu::ppu_write_log_entry_t &entry, BString &text) const;
 
 	private:
-	PretendoWindow *fParent = nullptr;
+	bool HasROMLoaded() const;
+	void DrawNoROMMessage(BRect panel);
+
+
 	bool fFreezeUpdates = false;
+
+	std::vector<nes::ppu::ppu_write_log_entry_t> fLogSnapshot;
 };
 
 
 #endif // _PPU_WRITE_LOG_VIEW_H_
-

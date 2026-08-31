@@ -40,7 +40,7 @@ class OAMDebugView : public BView
 	public:
 	void SetFirstSpriteFromScrollBar (int32 firstSprite);
 	void SetHostPalette (uint8 *palette);
-	void SetPatternTables (PatternTableWindow *pt0, PatternTableWindow *pt1);
+	void SetPatternTables (PatternTableWindow *pt1, PatternTableWindow *pt2);
 	void SetExplorer (CHRExplorerView *explorer);
 	void Clear();
 
@@ -63,6 +63,11 @@ class OAMDebugView : public BView
 	private:
 	bool HasROMLoaded() const;
 	void DrawNoROMMessage (BRect panel);
+	
+	private:
+	uint8 DisplayPPUCTRL() const;
+	uint8 DisplayCHRByte (uint32 address) const;
+	uint8 DisplayPaletteByte (uint32 address) const;
 
 	private:
 	PretendoWindow *fParent = nullptr;
@@ -79,13 +84,18 @@ class OAMDebugView : public BView
 	int32 fFirstSprite = 0;
 	uint8 fFrozenOAM[0x100] = {};
 	bool fHaveFrozenOAM = false;
+	
+	private:
+	uint8 fFrozenPPUCTRL = 0x00;
+	uint8 fFrozenCHR[0x2000] = {};
+	uint8 fFrozenPalette[0x20] = {};
 
 	private:
 	uint8 *fHostPalette = nullptr;
 
 	private:
-	PatternTableWindow *fPatternTable0 = nullptr;
-	PatternTableWindow *fPatternTable1 = nullptr;
+	PatternTableWindow *fPatternTable1Window = nullptr;
+	PatternTableWindow *fPatternTable2Window = nullptr;
 
 	private:
 	CHRExplorerView *fCHRExplorer = nullptr;

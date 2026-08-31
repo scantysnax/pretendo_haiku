@@ -48,8 +48,7 @@ class CPUTraceScrollBar : public BScrollBar
 //   Constructor; no return value.
 // -----------------------------------------------------------------------------
 CPUTraceView::CPUTraceView (BRect frame, PretendoWindow *parent)
-	: BView(
-		frame, "cpu trace view", B_FOLLOW_ALL, B_WILL_DRAW | B_PULSE_NEEDED | B_NAVIGABLE)
+	: BView( frame, "cpu trace view", B_FOLLOW_ALL, B_WILL_DRAW | B_PULSE_NEEDED | B_NAVIGABLE)
 {
 	fParent = parent;
 	fScrollBar = new CPUTraceScrollBar(BRect(0.0f, 0.0f, 0.0f, 0.0f), "cpu trace scroll", this);
@@ -636,6 +635,10 @@ CPUTraceView::DrawHeaderPanel()
 // cannot change while the emulator continues running.  A selected-row inspector
 // is drawn at the bottom of the panel.
 //
+// Instruction bytes and instruction length come from the historical trace entry
+// itself.  They are never recomputed from current CPU memory, since RAM contents
+// or cartridge mappings may have changed after the traced instruction executed.
+//
 // Parameters:
 //   None.
 //
@@ -663,9 +666,9 @@ CPUTraceView::DrawTracePanel()
 	BFont prevFont;
 	GetFont(&prevFont);
 
-	BFont mono(be_fixed_font);
-	mono.SetSize(10.0f);
-	SetFont(&mono);
+	BFont fixed(be_fixed_font);
+	fixed.SetSize(10.0f);
+	SetFont(&fixed);
 
 	font_height fh;
 	GetFontHeight(&fh);
@@ -711,9 +714,9 @@ CPUTraceView::DrawTracePanel()
 		}
 
 		SetFont(&prevFont);
-
 		SetHighColor(170, 170, 170);
 		StrokeLine(BPoint(panel.left + 8.0f, inspectorTop - 4.0f), BPoint(panel.right - 8.0f, inspectorTop - 4.0f));
+
 		DrawSelectedTraceInfo(panel);
 		return;
 	}
@@ -737,17 +740,14 @@ CPUTraceView::DrawTracePanel()
 			break;
 		}
 
+		/*
+		 * Use the instruction length captured with the trace entry.
+		 *
+		 * Do not decode current CPU memory to determine the length, because
+		 * the memory contents or mapper state may have changed since this
+		 * instruction originally executed.
+		 */
 		uint8 instructionLength = entry.length;
-
-		if (!fFreezeUpdates) {
-			cpu_disasm_line_t line = DisassembleCPU(entry.pc);
-
-			if (line.length == 0 || line.length > 3) {
-				instructionLength = 1;
-			} else {
-				instructionLength = line.length;
-			}
-		}
 
 		if (instructionLength == 0 || instructionLength > 3) {
 			instructionLength = 1;
@@ -761,6 +761,7 @@ CPUTraceView::DrawTracePanel()
 
 		const bool newest = traceIndex + 1 == count;
 		const bool selected = fHasSelectedTraceIndex && (fSelectedTraceIndex == traceIndex);
+
 		BRect rowRect(panel.left + 8.0f, y - 11.0f, panel.right - 8.0f, y + 3.0f);
 
 		if (selected) {
@@ -775,6 +776,7 @@ CPUTraceView::DrawTracePanel()
 		}
 
 		SetHighColor(80, 80, 80);
+
 		s.SetToFormat("%llu", static_cast<unsigned long long>(entry.cycle));
 		DrawString(s.String(), BPoint(cycleX, y));
 
@@ -782,6 +784,7 @@ CPUTraceView::DrawTracePanel()
 		DrawString(s.String(), BPoint(indexX, y));
 
 		SetHighColor(0, 0, 0);
+
 		s.SetToFormat("$%04X", entry.pc);
 		DrawString(s.String(), BPoint(pcX, y));
 
@@ -861,7 +864,7 @@ CPUTraceView::DrawSelectedTraceInfo (BRect panel)
 	const float x = panel.left + 10.0f;
 	float y = inspectorTop + 14.0f;
 
-	drawNormal("Selected Trace", x, y, rgb_color{0, 0, 0, 255});
+	drawNormal("Selected Trace", x, y, rgb_color { 0, 0, 0, 255 } );
 
 	nes::cpu::cpu_trace_entry_t entry;
 	BString instruction;
@@ -1178,9 +1181,15 @@ CPUTraceView::Clear()
 // -----------------------------------------------------------------------------
 // CPUTraceView::TraceDisplayInstruction
 //
-// Reads stable instruction text for a displayed trace row.  Frozen mode returns
-// the instruction text captured in the snapshot.  Live mode decodes current CPU
-// memory at the trace PC.
+// Returns stable instruction text for a displayed trace row.
+//
+// Frozen mode returns the instruction text captured in the local frozen
+// snapshot.  Live mode decodes the instruction from the historical opcode and
+// operand bytes stored in the CPU trace entry itself.
+//
+// Current CPU memory is never consulted when decoding a historical trace entry.
+// This prevents RAM writes or cartridge mapper changes that occur after an
+// instruction executes from changing the meaning of an existing trace row.
 //
 // Parameters:
 //   index       - Chronological trace index.
@@ -1209,7 +1218,11 @@ CPUTraceView::TraceDisplayInstruction (uint32 index, BString &instruction) const
 		return false;
 	}
 
-	cpu_disasm_line_t line = DisassembleCPU(entry.pc);
+	/*
+	 * Decode the bytes that were actually captured when this instruction
+	 * executed.  Do not reread current CPU memory at entry.pc.
+	 */
+	cpu_disasm_line_t line = DisassembleCPUBytes(entry.pc, entry.bytes);
 
 	if (line.operand.Length() > 0) {
 		instruction.SetToFormat("%s %s", line.mnemonic.String(), line.operand.String());
@@ -1219,6 +1232,7 @@ CPUTraceView::TraceDisplayInstruction (uint32 index, BString &instruction) const
 
 	return true;
 }
+
 
 // -----------------------------------------------------------------------------
 // CPUTraceView::TraceIndexForPoint
@@ -1255,9 +1269,9 @@ CPUTraceView::TraceIndexForPoint(BPoint where, uint32 &index) const
 	BFont prevFont;
 	const_cast<CPUTraceView*>(this)->GetFont(&prevFont);
 
-	BFont mono(be_fixed_font);
-	mono.SetSize(10.0f);
-	const_cast<CPUTraceView*>(this)->SetFont(&mono);
+	BFont fixed(be_fixed_font);
+	fixed.SetSize(10.0f);
+	const_cast<CPUTraceView*>(this)->SetFont(&fixed);
 
 	font_height fh;
 	const_cast<CPUTraceView*>(this)->GetFontHeight(&fh);
@@ -1302,9 +1316,12 @@ CPUTraceView::TraceIndexForPoint(BPoint where, uint32 &index) const
 // -----------------------------------------------------------------------------
 // CPUTraceView::CaptureSnapshot
 //
-// Copies the current CPU trace buffer into a local frozen snapshot.  Instruction
-// length and decoded instruction text are resolved during the snapshot so frozen
-// display does not depend on live memory changing later.
+// Copies the current CPU trace buffer into a local frozen snapshot.
+//
+// Instruction length and decoded instruction text are resolved from the opcode
+// and operand bytes stored in each historical trace entry.  Current CPU memory
+// is not consulted, so RAM changes or cartridge mapper changes that occurred
+// after the traced instruction executed cannot alter the frozen representation.
 //
 // Parameters:
 //   None.
@@ -1327,7 +1344,11 @@ CPUTraceView::CaptureSnapshot()
 			continue;
 		}
 
-		cpu_disasm_line_t line = DisassembleCPU(entry.pc);
+		/*
+		 * Decode the instruction from the bytes captured in the historical
+		 * trace entry rather than reading current memory at entry.pc.
+		 */
+		cpu_disasm_line_t line = DisassembleCPUBytes(entry.pc, entry.bytes);
 
 		if (line.length == 0 || line.length > 3) {
 			entry.length = 1;
@@ -1335,7 +1356,7 @@ CPUTraceView::CaptureSnapshot()
 			entry.length = line.length;
 		}
 
-		CPUTraceFrozenEntry frozenEntry;
+		cpu_trace_frozen_entry_t frozenEntry;
 		frozenEntry.trace = entry;
 
 		if (line.operand.Length() > 0) {
@@ -1530,9 +1551,9 @@ CPUTraceView::VisibleTraceRows() const
 	BFont prevFont;
 	const_cast<CPUTraceView *>(this)->GetFont(&prevFont);
 
-	BFont mono(be_fixed_font);
-	mono.SetSize(10.0f);
-	const_cast<CPUTraceView *>(this)->SetFont(&mono);
+	BFont fixed(be_fixed_font);
+	fixed.SetSize(10.0f);
+	const_cast<CPUTraceView *>(this)->SetFont(&fixed);
 
 	font_height fh;
 	const_cast<CPUTraceView *>(this)->GetFontHeight(&fh);

@@ -1,6 +1,6 @@
 
-#ifndef CPU_20080314_H_
-#define CPU_20080314_H_
+#ifndef _CPU_H_
+#define _CPU_H_
 
 #include "BitField.h"
 #include "Reset.h"
@@ -10,12 +10,14 @@ namespace nes::cpu {
 
 using dma_handler_t = void (*)(uint8_t);
 
-enum IrqSource : uint8_t {
+
+enum irq_source : uint8_t {
 	MAPPER_IRQ = 0x01,
 	APU_IRQ    = 0x02,
 	FDS_IRQ    = 0x04,
 	ALL_IRQ    = 0xff
 };
+
 
 enum : uint8_t {
 	C_MASK = 0x01,
@@ -28,17 +30,19 @@ enum : uint8_t {
 	N_MASK = 0x80
 };
 
+
 union register16 {
 	uint_least16_t raw;
 	BitField<uint_least16_t, 0, 8> lo;
 	BitField<uint_least16_t, 8, 8> hi;
 };
 
+
 // API
 uint64_t cycle_count();
-void clear_irq(IrqSource source);
+void clear_irq(irq_source source);
 void clear_nmi();
-void irq(IrqSource source);
+void irq(irq_source source);
 void schedule_spr_dma(dma_handler_t dma_handler, uint_least16_t source_address, uint_least16_t count);
 void schedule_dmc_dma(dma_handler_t dma_handler, uint_least16_t source_address, uint_least16_t count);
 void reset(Reset reset_type);
@@ -46,6 +50,7 @@ void reset();
 void stop();
 void nmi();
 void tick();
+
 
 // public registers
 extern register16 PC;
@@ -55,12 +60,14 @@ extern uint8_t Y;
 extern uint8_t S;
 extern uint8_t P;
 
+
 template <int Cycles>
 void exec() {
 	for (int i = 0; i < Cycles; ++i) {
 		tick();
 	}
 }
+
 
 struct cpu_state_t {
 	uint16_t pc;
@@ -75,6 +82,13 @@ struct cpu_state_t {
 };
 
 
+enum cpu_trace_interrupt {
+	CPU_TRACE_INTERRUPT_NONE = 0,
+	CPU_TRACE_INTERRUPT_IRQ,
+	CPU_TRACE_INTERRUPT_NMI
+};
+
+
 struct cpu_trace_entry_t {
 	uint64_t cycle = 0;
 	uint16_t pc = 0;
@@ -86,14 +100,17 @@ struct cpu_trace_entry_t {
 	uint8_t y = 0;
 	uint8_t s = 0;
 	uint8_t p = 0;
+	
+	cpu_trace_interrupt interrupt = CPU_TRACE_INTERRUPT_NONE;
 };
+
 
 enum : uint32_t {
 	CPU_TRACE_CAPACITY = 2048
 };
 
 
-enum DebugBreakReason : uint8_t {
+enum break_reason : uint8_t {
 	DEBUG_BREAK_NONE = 0,
 	DEBUG_BREAK_EXECUTE,
 	DEBUG_BREAK_MEMORY_READ,
@@ -104,7 +121,6 @@ enum DebugBreakReason : uint8_t {
 
 
 uint8_t debug_s();
-
 
 cpu_state_t debug_cpu_state();
 
@@ -158,7 +174,7 @@ uint16_t debug_memory_break_address();
 bool debug_reset_in_progress();
 
 // stack stuff
-DebugBreakReason debug_break_reason();
+break_reason debug_break_reason();
 void debug_set_stack_sp_break(bool enabled, uint8_t threshold);
 bool debug_stack_sp_break_enabled();
 uint8_t debug_stack_sp_break_threshold();
@@ -171,5 +187,5 @@ uint8_t debug_stack_break_new_s();
 
 }
 
-#endif
+#endif	// _CPU_H_
 

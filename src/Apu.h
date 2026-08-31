@@ -31,9 +31,9 @@ union APUStatus {
 	BitField<uint8_t, 6, 2> irq_firing;
 };
 
-constexpr int frequency		= 48000;
-constexpr int frame_rate 	= 60; 
-constexpr int buffer_size = (frequency / frame_rate) * 4;
+constexpr int32_t frequency		= 48000;
+constexpr int32_t frame_rate 	= 60; 
+constexpr int32_t buffer_size = (frequency / frame_rate) * 4;
 constexpr uint8_t silence = 0x80;
 
 extern bool debug_audio_muted;

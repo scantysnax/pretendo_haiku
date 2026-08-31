@@ -21,10 +21,7 @@
 //   Nothing.
 // -----------------------------------------------------------------------------
 CPUMemoryWindow::CPUMemoryWindow(PretendoWindow *parent)
-	:
-	BWindow(BRect(80.0f, 80.0f, 960.0f, 628.0f),
-			"CPU Memory", B_FLOATING_WINDOW_LOOK, B_NORMAL_WINDOW_FEEL,
-			B_NOT_RESIZABLE | B_NOT_ZOOMABLE),
+	: BWindow(BRect(80.0f, 80.0f, 960.0f, 628.0f), "CPU Memory", B_FLOATING_WINDOW_LOOK, 						B_NORMAL_WINDOW_FEEL, B_NOT_RESIZABLE | B_NOT_ZOOMABLE),
 	fParent(parent)
 {
 	SetPulseRate(100000);

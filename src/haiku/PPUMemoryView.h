@@ -67,9 +67,12 @@ class PPUMemoryView : public BView
 	bool AddressForPoint (BPoint where, uint16 &address) const;
 	bool HoverAddressForPoint (BPoint where);
 	bool ActiveInspectAddress (uint16 &address) const;
+	const char *RegionName (uint16 address) const;
 	
 	private:
-	const char *RegionName (uint16 address) const;
+	void CapturePPUMemorySnapshot();
+	uint8 DisplayPPUMemory (uint16 address) const;
+	void Clear();
 
 	private:
 	PretendoWindow *fParent = nullptr;
@@ -87,6 +90,10 @@ class PPUMemoryView : public BView
 	uint16 fHoveredAddress = 0x0000;
 	bool fHasLockedAddress = false;
 	uint16 fLockedAddress = 0x0000;
+	
+	private:
+	bool fHavePPUMemorySnapshot = false;
+	uint8 fSnapshotPPUMemory[0x4000] = {};
 
 };
 

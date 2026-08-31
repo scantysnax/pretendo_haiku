@@ -238,6 +238,7 @@ CHRExplorerView::MouseDown(BPoint where)
 	}
 
 	int32 pal = PalettePreviewAt(where);
+	
 	if (pal >= 0 && pal < 4) {
 		fPalette = static_cast<uint8>(pal);
 		NotifyPaletteHighlight();
@@ -308,8 +309,7 @@ CHRExplorerView::Draw(BRect updateRect)
 {
 	(void)updateRect;
 
-	rgb_color bg = {216, 216, 216, 255};
-
+	rgb_color bg = { 216, 216, 216, 255 };
 	SetHighColor(bg);
 	FillRect(Bounds());
 
@@ -337,7 +337,6 @@ CHRExplorerView::Draw(BRect updateRect)
 	const BPoint zoomOrigin(12.0f, 52.0f);
 
 	const float leftColumnX = 12.0f;
-
 	const float minRightColumnX = 170.0f;
 	const float rightColumnW = 130.0f;
 	const float rightColumnX = std::max(minRightColumnX, Bounds().right - rightColumnW);
@@ -377,7 +376,7 @@ CHRExplorerView::Draw(BRect updateRect)
 		DrawDecodedZoomed(fDecodedPixels, BPoint(zoomOrigin.x, zoomOrigin.y + 8.0f * zoomScale), zoomScale, 8);
 	} else {
 		DrawDecodedZoomed(fDecodedPixels, zoomOrigin, zoomScale, 0);
-		DrawDecodedZoomed(fDecodedPixelsBottom, BPoint(zoomOrigin.x, zoomOrigin.y + 8.0f * zoomScale), zoomScale,8);
+		DrawDecodedZoomed(fDecodedPixelsBottom, BPoint(zoomOrigin.x, zoomOrigin.y + 8.0f * zoomScale), zoomScale, 8);
 	}
 
 	DrawInfo(BPoint(leftColumnX, infoY));
@@ -426,7 +425,7 @@ CHRExplorerView::Draw(BRect updateRect)
 	const float pixelLabelX = rightColumnX;
 	const float pixelValueX = rightColumnX + 54.0f;
 
-	auto drawPixelKV = [&](const char *label, const char *value) {
+	auto drawPixelLV = [&](const char *label, const char *value) {
 		SetHighColor(80, 80, 80);
 		DrawString(label, BPoint(pixelLabelX, textY));
 
@@ -480,14 +479,14 @@ CHRExplorerView::Draw(BRect updateRect)
 
 		BString pix;
 		pix.SetToFormat("(%ld,%ld) = %u", static_cast<long>(px), static_cast<long>(py), static_cast<unsigned>(value));
-		drawPixelKV("Pixel:", pix.String());
+		drawPixelLV("Pixel:", pix.String());
 
 		uint8 plane0 = value & 0x1;
 		uint8 plane1 = (value >> 1) & 0x1;
 
 		BString bits;
 		bits.SetToFormat("P0=%u  P1=%u", static_cast<unsigned>(plane0), static_cast<unsigned>(plane1));
-		drawPixelKV("Bits:", bits.String());
+		drawPixelLV("Bits:", bits.String());
 
 		char bin0[9];
 		char bin1[9];
@@ -498,12 +497,12 @@ CHRExplorerView::Draw(BRect updateRect)
 		BFont prevFont;
 		GetFont(&prevFont);
 
-		BFont mono(be_fixed_font);
-		SetFont(&mono);
+		BFont fixed(be_fixed_font);
+		SetFont(&fixed);
 
-		font_height monoFH;
-		GetFontHeight(&monoFH);
-		const float monoLineH = ceilf(monoFH.ascent + monoFH.descent + monoFH.leading) + 2.0f;
+		font_height fixedFH;
+		GetFontHeight(&fixedFH);
+		const float fixedLineH = ceilf(fixedFH.ascent + fixedFH.descent + fixedFH.leading) + 2.0f;
 
 		float bitW = StringWidth("0");
 		float bitX = pixelValueX + (sourceX * bitW);
@@ -516,18 +515,18 @@ CHRExplorerView::Draw(BRect updateRect)
 		DrawString(bin0, BPoint(pixelValueX, textY));
 
 		PushState();
+		
 		SetDrawingMode(B_OP_ALPHA);
 		SetBlendingMode(B_PIXEL_ALPHA, B_ALPHA_OVERLAY);
-
 		SetHighColor(255, 255, 0, 80);
-		FillRect(BRect(bitX - 1.0f, textY - monoFH.ascent, bitX + bitW + 1.0f, textY + monoFH.descent));
+		FillRect(BRect(bitX - 1.0f, textY - fixedFH.ascent, bitX + bitW + 1.0f, textY + fixedFH.descent));
 
 		SetHighColor(255, 180, 0, 220);
-		StrokeRect(BRect(bitX - 1.0f, textY - monoFH.ascent, bitX + bitW + 1.0f, textY + monoFH.descent));
+		StrokeRect(BRect(bitX - 1.0f, textY - fixedFH.ascent, bitX + bitW + 1.0f, textY + fixedFH.descent));
 
 		PopState();
 
-		textY += monoLineH;
+		textY += fixedLineH;
 
 		// Row P1
 		SetHighColor(80, 80, 80);
@@ -541,14 +540,14 @@ CHRExplorerView::Draw(BRect updateRect)
 		SetBlendingMode(B_PIXEL_ALPHA, B_ALPHA_OVERLAY);
 
 		SetHighColor(255, 255, 0, 80);
-		FillRect(BRect(bitX - 1.0f, textY - monoFH.ascent, bitX + bitW + 1.0f, textY + monoFH.descent));
+		FillRect(BRect(bitX - 1.0f, textY - fixedFH.ascent, bitX + bitW + 1.0f, textY + fixedFH.descent));
 
 		SetHighColor(255, 180, 0, 220);
-		StrokeRect(BRect(bitX - 1.0f, textY - monoFH.ascent, bitX + bitW + 1.0f, textY + monoFH.descent));
+		StrokeRect(BRect(bitX - 1.0f, textY - fixedFH.ascent, bitX + bitW + 1.0f, textY + fixedFH.descent));
 
 		PopState();
 
-		textY += monoLineH;
+		textY += fixedLineH;
 
 		SetFont(&prevFont);
 		SetHighColor(0, 0, 0);
@@ -574,44 +573,44 @@ CHRExplorerView::Draw(BRect updateRect)
 
 		BString palInfo;
 		palInfo.SetToFormat("$%04X", static_cast<unsigned>(palAddr));
-		drawPixelKV("PalAddr:", palInfo.String());
+		drawPixelLV("PalAddr:", palInfo.String());
 
 		BString nesInfo;
 		nesInfo.SetToFormat("$%02X", static_cast<unsigned>(nesColor));
-		drawPixelKV("NES:", nesInfo.String());
+		drawPixelLV("NES:", nesInfo.String());
 	} else {
-		drawPixelKV("Pixel:", "--");
-		drawPixelKV("Bits:", "--");
+		drawPixelLV("Pixel:", "--");
+		drawPixelLV("Bits:", "--");
 
 		BFont prevFont;
 		GetFont(&prevFont);
 
-		BFont mono(be_fixed_font);
-		SetFont(&mono);
+		BFont fixed(be_fixed_font);
+		SetFont(&fixed);
 
-		font_height monoFH;
-		GetFontHeight(&monoFH);
-		const float monoLineH = ceilf(monoFH.ascent + monoFH.descent + monoFH.leading) + 2.0f;
+		font_height fixedFH;
+		GetFontHeight(&fixedFH);
+		const float fixedLineH = ceilf(fixedFH.ascent + fixedFH.descent + fixedFH.leading) + 2.0f;
 
 		SetHighColor(80, 80, 80);
 		DrawString("Row P0:", BPoint(pixelLabelX, textY));
 
 		SetHighColor(0, 0, 0);
 		DrawString("--", BPoint(pixelValueX, textY));
-		textY += monoLineH;
+		textY += fixedLineH;
 
 		SetHighColor(80, 80, 80);
 		DrawString("Row P1:", BPoint(pixelLabelX, textY));
 
 		SetHighColor(0, 0, 0);
 		DrawString("--", BPoint(pixelValueX, textY));
-		textY += monoLineH;
+		textY += fixedLineH;
 
 		SetFont(&prevFont);
 		SetHighColor(0, 0, 0);
 
-		drawPixelKV("PalAddr:", "--");
-		drawPixelKV("NES:", "--");
+		drawPixelLV("PalAddr:", "--");
+		drawPixelLV("NES:", "--");
 	}
 
 	// ----- LEGEND -----
@@ -818,10 +817,9 @@ CHRExplorerView::SetSelectedPalette (uint8 palette)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-CHRExplorerView::SetTile8x8 (int32 whichPT, int32 tileIndex, bool locked,
-	uint32 chrAddr, const uint8 *chrBytes, uint8 bgPalette,
-	int32 whichNT, uint32 nameTileAddr,
-	uint32 attrAddr, uint8 attrByte, uint8 attrQuadrant)
+CHRExplorerView::SetTile8x8 (int32 whichPT, int32 tileIndex, bool locked, uint32 chrAddr, const uint8 *chrBytes, 
+							uint8 bgPalette, int32 whichNT, uint32 nameTileAddr,
+							uint32 attrAddr, uint8 attrByte, uint8 attrQuadrant)
 {
 	// A null CHR pointer means there is no valid tile to inspect.
 	if (!chrBytes) {
@@ -925,6 +923,11 @@ CHRExplorerView::DrawDecodedZoomed (uint8 decoded[8][8], BPoint origin, float sc
 // Draws the left-side tile metadata block, raw CHR byte dump, and compact tile
 // summary beneath the zoomed tile preview.
 //
+// Numeric tile indices, CHR addresses, Name Table addresses, attribute values,
+// and other hexadecimal fields are displayed using the fixed-width font for
+// consistent alignment. Descriptive labels and state text remain in the normal
+// UI font.
+//
 // Parameters:
 //   point - Baseline position for the first metadata row.
 //
@@ -932,22 +935,31 @@ CHRExplorerView::DrawDecodedZoomed (uint8 decoded[8][8], BPoint origin, float sc
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-CHRExplorerView::DrawInfo (BPoint point)
+CHRExplorerView::DrawInfo(BPoint point)
 {
+	BFont uiFont;
+	GetFont(&uiFont);
+
+	BFont fixed(be_fixed_font);
+	fixed.SetSize(uiFont.Size());
+
 	font_height fh;
 	GetFontHeight(&fh);
+	
 	const float lineH = ceilf(fh.ascent + fh.descent + fh.leading) + 2.0f;
 
 	const float labelX = point.x;
 	const float valueX = point.x + 62.0f;
-
 	float textY = point.y;
+	
 	BString line;
 
-	auto drawKV = [&](const char *label, const char *value) {
+	auto drawLV = [&](const char *label, const char *value, bool fixedValue) {
+		SetFont(&uiFont);
 		SetHighColor(80, 80, 80);
 		DrawString(label, BPoint(labelX, textY));
 
+		SetFont(fixedValue ? &fixed : &uiFont);
 		SetHighColor(0, 0, 0);
 		DrawString(value, BPoint(valueX, textY));
 
@@ -955,23 +967,21 @@ CHRExplorerView::DrawInfo (BPoint point)
 	};
 
 	line.SetToFormat("%ld", static_cast<long>(fWhichPatternTable));
-	drawKV("PT:", line.String());
+	drawLV("PT:", line.String(), false);
 
-	line.SetToFormat("%u", static_cast<unsigned>(fTileIndex));
-	drawKV("Tile:", line.String());
-
-	drawKV("State:", fLocked ? "LOCKED" : "HOVER");
-
-
+	line.SetToFormat("$%02X", static_cast<unsigned>(fTileIndex & 0xff));
+	drawLV("Tile:", line.String(), true);
+	drawLV("State:", fLocked ? "LOCKED" : "HOVER", false);
+	
 	if (!fIsTile8x16) {
 		line.SetToFormat("$%04X", static_cast<unsigned>(fCHRTileAddress));
-		drawKV("CHR:", line.String());
+		drawLV("CHR:", line.String(), true);
 	} else {
 		line.SetToFormat("$%04X", static_cast<unsigned>(fCHRTileAddress));
-		drawKV("CHR Top:", line.String());
+		drawLV("CHR Top:", line.String(), true);
 
 		line.SetToFormat("$%04X", static_cast<unsigned>(fCHRTileAddressBottom));
-		drawKV("CHR Bot:", line.String());
+		drawLV("CHR Bot:", line.String(), true);
 	}
 
 	if (fWhichNameTable >= 0) {
@@ -982,30 +992,30 @@ CHRExplorerView::DrawInfo (BPoint point)
 		int32 shift = (fAttrQuadrant % 4) * 2;
 
 		line.SetToFormat("%ld", static_cast<long>(fWhichNameTable));
-		drawKV("NT:", line.String());
+		drawLV("NT:", line.String(), false);
 
 		line.SetToFormat("$%04X", static_cast<unsigned>(fNameTileAddress));
-		drawKV("Tile Addr:", line.String());
+		drawLV("Tile Addr:", line.String(), true);
 
 		line.SetToFormat("$%02X", static_cast<unsigned>(fTileIndex));
-		drawKV("Tile Index:", line.String());
+		drawLV("Tile Index:", line.String(), true);
 
 		line.SetToFormat("$%04X", static_cast<unsigned>(fAttrAddress));
-		drawKV("Attr:", line.String());
+		drawLV("Attr:", line.String(), true);
 
 		line.SetToFormat("$%02X", static_cast<unsigned>(fAttrByte));
-		drawKV("Attr Byte:", line.String());
+		drawLV("Attr Byte:", line.String(), true);
 
 		line.SetToFormat("%s  Shift:%ld", kQuadrantNames[fAttrQuadrant % 4], static_cast<long>(shift));
-		drawKV("Quadrant:", line.String());
+		drawLV("Quadrant:", line.String(), false);
 
 		line.SetToFormat("%u", static_cast<unsigned>(fQuadrantPalette));
-		drawKV("Source Pal:", line.String());
+		drawLV("Source Pal:", line.String(), false);
 	}
 
 	line.SetToFormat("%u", static_cast<unsigned>(fPalette));
-	drawKV("Selected:", line.String());
-	
+	drawLV("Selected:", line.String(), false);
+
 	DrawPaletteSwatch(BPoint(valueX + 30.0f, textY - lineH - 10.0f));
 
 	textY += 8.0f;
@@ -1014,15 +1024,12 @@ CHRExplorerView::DrawInfo (BPoint point)
 	// CHR bytes
 	// -------------------------------------------------
 
-	BFont prevFont;
-	GetFont(&prevFont);
+	SetFont(&fixed);
 
-	BFont mono(be_fixed_font);
-	SetFont(&mono);
+	font_height fixedFH;
+	GetFontHeight(&fixedFH);
 
-	font_height monoFH;
-	GetFontHeight(&monoFH);
-	const float monoLineH = ceilf(monoFH.ascent + monoFH.descent + monoFH.leading) + 2.0f;
+	const float fixedLineH = ceilf(fixedFH.ascent + fixedFH.descent + fixedFH.leading) + 2.0f;
 
 	const float cellW = StringWidth("FF ") + 2.0f;
 	const int32 cols = 8;
@@ -1050,12 +1057,12 @@ CHRExplorerView::DrawInfo (BPoint point)
 		int32 col = i % cols;
 		int32 row = i / cols;
 
-		DrawString(line.String(), BPoint(point.x + col * cellW, textY + row * monoLineH));
+		DrawString(line.String(), BPoint(point.x + col * cellW, textY + row * fixedLineH));
 	}
 
-	float afterBytesY = textY + (byteRows * monoLineH) + 6.0f;
+	float afterBytesY = textY + (byteRows * fixedLineH) + 6.0f;
 
-	SetFont(&prevFont);
+	SetFont(&uiFont);
 	SetHighColor(0, 0, 0);
 
 	DrawTileSummary(point.x, afterBytesY);
@@ -1078,8 +1085,8 @@ void
 CHRExplorerView::DecodeTile()
 {
 	for (int32 y = 0; y < 8; y++) {
-		uint8 firstPlane = fCHRBytes[y+0];
-		uint8 secondPlane = fCHRBytes[y+8];
+		uint8 firstPlane = fCHRBytes[y + 0];
+		uint8 secondPlane = fCHRBytes[y + 8];
 
 		for (int32 x = 0; x < 8; x++) {
 			int32 shift = 7 - x;
@@ -1167,10 +1174,8 @@ CHRExplorerView::DrawPaletteSwatch (BPoint point)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-CHRExplorerView::SetTile8x16 (int32 whichPT, int32 topTileIndex, bool locked,
-	uint32 chrAddrTop, const uint8 *chrTop,
-	uint32 chrAddrBottom, const uint8 *chrBottom,
-	uint8 bgPalette)
+CHRExplorerView::SetTile8x16 (int32 whichPT, int32 topTileIndex, bool locked, uint32 chrAddrTop, const uint8 *chrTop,
+								uint32 chrAddrBottom, const uint8 *chrBottom, uint8 bgPalette)
 {
 	// Both halves are required for an 8x16 tile.
 	if (!chrTop || !chrBottom) {
@@ -1568,6 +1573,9 @@ CHRExplorerView::DrawQuadrantDiagram (BPoint origin)
 // 8x16, displays the active palette number, and indicates whether the tile is
 // currently locked or merely being hovered.
 //
+// Tile indices and CHR addresses are hexadecimal values and are displayed using
+// the fixed-width font for consistent numeric alignment.
+//
 // In 8x16 sprite mode, both the top and bottom CHR tile addresses are displayed.
 //
 // Parameters:
@@ -1578,7 +1586,7 @@ CHRExplorerView::DrawQuadrantDiagram (BPoint origin)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-CHRExplorerView::DrawTileSummary (float x, float y)
+CHRExplorerView::DrawTileSummary(float x, float y)
 {
 	if (!fValid) {
 		return;
@@ -1587,26 +1595,35 @@ CHRExplorerView::DrawTileSummary (float x, float y)
 	BFont previousFont;
 	GetFont(&previousFont);
 
+	BFont fixed(be_fixed_font);
+	fixed.SetSize(11.0f);
+
 	SetFontSize(11.0f);
 
 	font_height fh;
 	GetFontHeight(&fh);
 
 	const float lineH = ceilf(fh.ascent + fh.descent + fh.leading) + 1.0f;
+
 	const float labelX = x;
 	const float valueX = x + 42.0f;
+
 	float textY = y;
+
 	BString s;
 
 	SetHighColor(0, 0, 0);
+	SetFont(&previousFont);
 	DrawString("Tile Summary:", BPoint(labelX, textY));
 
 	textY += lineH;
 
-	auto drawKV = [&](const char *label, const char *value) {
+	auto drawLV = [&](const char *label, const char *value, bool fixedValue) {
+		SetFont(&previousFont);
 		SetHighColor(80, 80, 80);
 		DrawString(label, BPoint(labelX, textY));
 
+		SetFont(fixedValue ? &fixed : &previousFont);
 		SetHighColor(0, 0, 0);
 		DrawString(value, BPoint(valueX, textY));
 
@@ -1614,23 +1631,23 @@ CHRExplorerView::DrawTileSummary (float x, float y)
 	};
 
 	s.SetToFormat("%ld", static_cast<long>(fWhichPatternTable));
-	drawKV("PT:", s.String());
+	drawLV("PT:", s.String(), false);
 
 	s.SetToFormat("$%02lX", static_cast<unsigned long>(fTileIndex & 0xff));
-	drawKV("Tile:", s.String());
+	drawLV("Tile:", s.String(), true);
 
 	if (!fIsTile8x16) {
 		s.SetToFormat("$%04lX", static_cast<unsigned long>(fCHRTileAddress));
-		drawKV("CHR:", s.String());
+		drawLV("CHR:", s.String(), true);
 	} else {
-		s.SetToFormat("$%04lX/$%04lX", static_cast<unsigned long>(fCHRTileAddress),
-									   static_cast<unsigned long>(fCHRTileAddressBottom));
-		drawKV("CHR:", s.String());
+		s.SetToFormat("$%04lX/$%04lX", static_cast<unsigned long>(fCHRTileAddress), 
+										static_cast<unsigned long>(fCHRTileAddressBottom));
+		drawLV("CHR:", s.String(), true);
 	}
 
 	s.SetToFormat("%s   Pal:%u", fIsTile8x16 ? "8x16" : "8x8", static_cast<unsigned>(fPalette));
-	drawKV("Mode:", s.String());
-	drawKV("State:", fLocked ? "LOCKED" : "HOVER");
+	drawLV("Mode:", s.String(), false);
+	drawLV("State:", fLocked ? "LOCKED" : "HOVER", false);
 
 	SetFont(&previousFont);
 }
@@ -1676,7 +1693,7 @@ CHRExplorerView::DrawCHRAnalysis (float x, float y)
 
 	textY += lineH;
 
-	auto drawKV = [&](const char *label, const char *value) {
+	auto drawLV = [&](const char *label, const char *value) {
 		SetHighColor(80, 80, 80);
 		DrawString(label, BPoint(labelX, textY));
 
@@ -1726,8 +1743,8 @@ CHRExplorerView::DrawCHRAnalysis (float x, float y)
 		}
 	}
 
-	drawKV("P0:", usedP0 ? "used" : "blank");
-	drawKV("P1:", usedP1 ? "used" : "blank");
+	drawLV("P0:", usedP0 ? "used" : "blank");
+	drawLV("P1:", usedP1 ? "used" : "blank");
 
 	BString colors;
 
@@ -1750,11 +1767,12 @@ CHRExplorerView::DrawCHRAnalysis (float x, float y)
 		colors.SetTo("-");
 	}
 
-	drawKV("Colors:", colors.String());
+	drawLV("Colors:", colors.String());
 
 	BString opaque;
+	
 	opaque.SetToFormat("%ld/%ld", static_cast<long>(opaquePixels), static_cast<long>(height * 8));
-	drawKV("Opaque:", opaque.String());
+	drawLV("Opaque:", opaque.String());
 
 	SetFont(&previousFont);
 }

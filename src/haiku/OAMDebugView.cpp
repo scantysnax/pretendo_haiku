@@ -88,28 +88,36 @@ class OAMSpriteScrollBar : public BScrollBar
 // -----------------------------------------------------------------------------
 // SetPatternWindowHighlight
 //
-// Safely applies an external tile highlight to a PatternTableWindow.  The
-// window is locked before accessing its view because pattern table windows are
-// separate BWindow instances.
+// Safely applies an external Pattern Table highlight to a PatternTableWindow.
+//
+// The window is locked before accessing its view because Pattern Table windows
+// are separate BWindow instances.
+//
+// Sprite-oriented callers can request an 8x16 pair highlight and also propagate
+// whether the originating external selection is currently locked.
 //
 // Parameters:
-//   window    - Pattern table window to update.
-//   whichPT   - Pattern table index, 0 for $0000 or 1 for $1000.
-//   tileIndex - Tile index to highlight.
+//   window             - Pattern Table window to update.
+//   whichPT            - Pattern-table index, 0 for $0000 or 1 for $1000.
+//   tileIndex          - Tile index to highlight.
+//   highlight8x16Pair  - true to highlight the complete even/odd 8x16 pair.
+//   externalLocked     - true when the originating external selection is locked.
 //
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
 static inline void
-SetPatternWindowHighlight (PatternTableWindow *window, int32 whichPT, int32 tileIndex)
+SetPatternWindowHighlight (PatternTableWindow *window, int32 whichPT, int32 tileIndex,
+							bool highlight8x16Pair, bool externalLocked)
 {
 	if (!window) {
 		return;
 	}
 
 	if (window->Lock()) {
-		if (window->View())
-			window->View()->SetExternalHighlight(whichPT, tileIndex);
+		if (window->View()) {
+			window->View()->SetExternalHighlight(whichPT, tileIndex, highlight8x16Pair, externalLocked);
+		}
 
 		window->Unlock();
 	}
@@ -196,9 +204,9 @@ OAMDebugView::~OAMDebugView()
 // OAMDebugView::AttachedToWindow
 //
 // Performs setup that requires the view to be attached to a window.  This
-// enables keyboard focus, mouse-wheel tracking, creates the OAM sprite scrollbar,
-// captures the initial OAM snapshot, and starts the viewer in stable snapshot
-// mode.
+// enables keyboard focus, mouse-wheel tracking, creates the OAM sprite
+// scrollbar, captures the initial OAM snapshot, and starts the viewer in
+// live-update mode.
 //
 // Parameters:
 //   None.
@@ -217,14 +225,20 @@ OAMDebugView::AttachedToWindow()
 	if (!fSpriteScrollBar) {
 		BRect listPanel(4.0f, 174.0f, Bounds().right - 4.0f, 526.0f);
 		BRect scrollFrame(listPanel.right - 18.0f, listPanel.top + 26.0f,
-						  listPanel.right - 4.0f, listPanel.bottom - 22.0f);
+						  listPanel.right - 4.0f,
+						  listPanel.bottom - 22.0f);
 
 		fSpriteScrollBar = new OAMSpriteScrollBar(scrollFrame, this);
 		AddChild(fSpriteScrollBar);
+
 		fSpriteScrollBar->SetValue(fFirstSprite);
 	}
 
-	fFreezeUpdates = true;
+	/*
+	 * Start in live mode.  Space can then be used to freeze the current
+	 * coherent OAM/PPU snapshot when desired.
+	 */
+	fFreezeUpdates = false;
 
 	if (HasROMLoaded()) {
 		CaptureOAMSnapshot();
@@ -261,7 +275,7 @@ OAMDebugView::AttachedToWindow()
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-OAMDebugView::Draw(BRect updateRect)
+OAMDebugView::Draw (BRect updateRect)
 {
 	(void)updateRect;
 
@@ -309,7 +323,7 @@ OAMDebugView::Draw(BRect updateRect)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-OAMDebugView::FrameResized(float width, float height)
+OAMDebugView::FrameResized (float width, float height)
 {
 	BView::FrameResized(width, height);
 
@@ -344,7 +358,7 @@ OAMDebugView::FrameResized(float width, float height)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-OAMDebugView::KeyDown(const char *bytes, int32 numBytes)
+OAMDebugView::KeyDown (const char *bytes, int32 numBytes)
 {
 	if (numBytes <= 0) {
 		return;
@@ -499,7 +513,7 @@ OAMDebugView::KeyDown(const char *bytes, int32 numBytes)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-OAMDebugView::MessageReceived(BMessage *message)
+OAMDebugView::MessageReceived (BMessage *message)
 {
 	switch (message->what) {
 		case B_MOUSE_WHEEL_CHANGED:
@@ -564,7 +578,10 @@ OAMDebugView::MessageReceived(BMessage *message)
 // -----------------------------------------------------------------------------
 // OAMDebugView::MouseDown
 //
-// Handles mouse clicks in the sprite list.  Clicking a sprite locks it for
+// Handles mouse clicks in the sprite list.
+//
+// The row hit-test is aligned with the actual visual row rectangle so the
+// clickable area matches what the user sees. Clicking a sprite locks it for
 // inspection; clicking the locked sprite again unlocks it and returns to hover
 // inspection.
 //
@@ -591,7 +608,9 @@ OAMDebugView::MouseDown(BPoint where)
 
 	const float firstRowY = listPanel.top + 58.0f;
 	const float rowH = 17.0f;
-	int32 row = static_cast<int32>((where.y - firstRowY) / rowH);
+	const float rowTop = firstRowY - 12.0f;
+
+	int32 row = static_cast<int32>((where.y - rowTop) / rowH);
 
 	if (row < 0 || row >= kVisibleOAMRows) {
 		return;
@@ -623,9 +642,12 @@ OAMDebugView::MouseDown(BPoint where)
 // -----------------------------------------------------------------------------
 // OAMDebugView::MouseMoved
 //
-// Handles hover inspection in the sprite list.  When no sprite is locked, moving
-// over a row updates the active sprite and synchronizes the linked palette,
-// pattern table, and CHR explorer views.
+// Handles hover inspection in the sprite list.
+//
+// The hover hit-test is aligned with the actual visual row rectangle so moving
+// across the list selects the row directly beneath the pointer. When no sprite
+// is locked, hover changes synchronize the palette debugger, Pattern Table, and
+// CHR Explorer.
 //
 // Parameters:
 //   where   - Mouse position in view coordinates.
@@ -680,7 +702,9 @@ OAMDebugView::MouseMoved (BPoint where, uint32 transit, const BMessage *message)
 
 	const float firstRowY = listPanel.top + 58.0f;
 	const float rowH = 17.0f;
-	int32 row = static_cast<int32>((where.y - firstRowY) / rowH);
+	const float rowTop = firstRowY - 12.0f;
+
+	int32 row = static_cast<int32>((where.y - rowTop) / rowH);
 
 	if (row < 0 || row >= kVisibleOAMRows) {
 		return;
@@ -806,7 +830,7 @@ OAMDebugView::DrawHeaderUI()
 	const float valueX = labelX + 58.0f;
 	float y = panel.top + 34.0f;
 
-	auto drawKV = [&](const char *label, const char *value) {
+	auto drawLV = [&](const char *label, const char *value) {
 		SetHighColor(80, 80, 80);
 		DrawString(label, BPoint(labelX, y));
 
@@ -816,9 +840,9 @@ OAMDebugView::DrawHeaderUI()
 		y += lineH;
 	};
 
-	drawKV("Mouse:", "hover inspect / click lock");
-	drawKV("Keys:", "Up/Down sprite   Wheel scroll   [ ] page");
-	drawKV("Space:", fFreezeUpdates ? "live OAM   R refresh snapshot" : "snapshot OAM   R refresh snapshot");
+	drawLV("Mouse:", "hover inspect / click lock");
+	drawLV("Keys:", "Up/Down sprite   Wheel scroll   [ ] page");
+	drawLV("Space:", fFreezeUpdates ? "live OAM   R refresh snapshot" : "snapshot OAM   R refresh snapshot");
 }
 
 
@@ -827,7 +851,7 @@ OAMDebugView::DrawHeaderUI()
 //
 // Draws the OAM summary panel.  The summary counts visible and hidden sprites,
 // shows whether the viewer is in live or frozen snapshot mode, and reports the
-// active PPU sprite size mode.
+// sprite-size mode and PPUCTRL value represented by the current OAM snapshot.
 //
 // Parameters:
 //   None.
@@ -850,8 +874,8 @@ OAMDebugView::DrawOAMSummaryPanel()
 	BFont prevFont;
 	GetFont(&prevFont);
 
-	BFont mono(be_fixed_font);
-	mono.SetSize(11.0f);
+	BFont fixed(be_fixed_font);
+	fixed.SetSize(11.0f);
 
 	int32 usedSprites = 0;
 	int32 hiddenSprites = 0;
@@ -877,40 +901,42 @@ OAMDebugView::DrawOAMSummaryPanel()
 
 	BString s;
 
-	auto drawLeftKV = [&](const char *label, const char *value, bool monoValue) {
+	auto drawLeftLV = [&](const char *label, const char *value, bool fixedValue) {
 		SetHighColor(80, 80, 80);
 		SetFont(&prevFont);
 		DrawString(label, BPoint(leftLabelX, leftY));
 
 		SetHighColor(0, 0, 0);
-		SetFont(monoValue ? &mono : &prevFont);
+		SetFont(fixedValue ? &fixed : &prevFont);
 		DrawString(value, BPoint(leftValueX, leftY));
 
 		leftY += lineH;
 	};
 
-	auto drawRightKV = [&](const char *label, const char *value, bool monoValue) {
+	auto drawRightLV = [&](const char *label, const char *value, bool fixedValue) {
 		SetHighColor(80, 80, 80);
 		SetFont(&prevFont);
 		DrawString(label, BPoint(rightLabelX, rightY));
 
 		SetHighColor(0, 0, 0);
-		SetFont(monoValue ? &mono : &prevFont);
+		SetFont(fixedValue ? &fixed : &prevFont);
 		DrawString(value, BPoint(rightValueX, rightY));
 
 		rightY += lineH;
 	};
 
 	s.SetToFormat("%ld / 64", (long)usedSprites);
-	drawLeftKV("OAM Used:", s.String(), false);
+	drawLeftLV("OAM Used:", s.String(), false);
 
 	s.SetToFormat("%ld", (long)hiddenSprites);
-	drawLeftKV("Hidden:", s.String(), false);
-	drawRightKV("State:", fFreezeUpdates ? "FROZEN" : "LIVE", false);
-	drawRightKV("Mode:", (nes::ppu::ppuctrl() & 0x20) ? "8x16 sprites" : "8x8 sprites", false);
+	drawLeftLV("Hidden:", s.String(), false);
+	drawRightLV("State:", fFreezeUpdates ? "FROZEN" : "LIVE", false);
 
-	s.SetToFormat("$%02X", nes::ppu::ppuctrl());
-	drawRightKV("PPUCTRL:", s.String(), true);
+	const uint8 ctrl = DisplayPPUCTRL();
+	drawRightLV("Mode:", (ctrl & 0x20) ? "8x16 sprites" : "8x8 sprites", false);
+
+	s.SetToFormat("$%02X", ctrl);
+	drawRightLV("PPUCTRL:", s.String(), true);
 
 	SetFont(&prevFont);
 }
@@ -965,8 +991,8 @@ OAMDebugView::DrawSpriteListPanel()
 	BFont prevFont;
 	GetFont(&prevFont);
 
-	BFont mono(be_fixed_font);
-	mono.SetSize(11.0f);
+	BFont fixed(be_fixed_font);
+	fixed.SetSize(11.0f);
 
 	int32 active = fSpriteLocked ? fLockedSprite : fHoverSprite;
 
@@ -1039,7 +1065,7 @@ OAMDebugView::DrawSpriteListPanel()
 			SetHighColor(0, 0, 0);
 		}
 
-		SetFont(&mono);
+		SetFont(&fixed);
 
 		BString s;
 
@@ -1100,8 +1126,8 @@ OAMDebugView::DrawSpriteListPanel()
 // OAMDebugView::DrawSelectedSpritePanel
 //
 // Draws the selected or hovered sprite details panel.  The panel decodes the
-// active OAM entry into position, tile, CHR address, palette, priority, flip
-// flags, raw OAM byte range, and a small sprite preview.
+// active OAM entry using the PPU state represented by the same debugger
+// snapshot, including sprite-size and pattern-table selection.
 //
 // Parameters:
 //   None.
@@ -1133,28 +1159,28 @@ OAMDebugView::DrawSelectedSpritePanel()
 	BFont prevFont;
 	GetFont(&prevFont);
 
-	BFont mono(be_fixed_font);
-	mono.SetSize(11.0f);
+	BFont fixed(be_fixed_font);
+	fixed.SetSize(11.0f);
 
-	auto drawLeftKV = [&](const char *label, const char *value, bool monoValue) {
+	auto drawLeftLV = [&](const char *label, const char *value, bool fixedValue) {
 		SetHighColor(80, 80, 80);
 		SetFont(&prevFont);
 		DrawString(label, BPoint(leftLabelX, leftY));
 
 		SetHighColor(0, 0, 0);
-		SetFont(monoValue ? &mono : &prevFont);
+		SetFont(fixedValue ? &fixed : &prevFont);
 		DrawString(value, BPoint(leftValueX, leftY));
 
 		leftY += lineH;
 	};
 
-	auto drawRightKV = [&](const char *label, const char *value, bool monoValue) {
+	auto drawRightLV = [&](const char *label, const char *value, bool fixedValue) {
 		SetHighColor(80, 80, 80);
 		SetFont(&prevFont);
 		DrawString(label, BPoint(rightLabelX, rightY));
 
 		SetHighColor(0, 0, 0);
-		SetFont(monoValue ? &mono : &prevFont);
+		SetFont(fixedValue ? &fixed : &prevFont);
 		DrawString(value, BPoint(rightValueX, rightY));
 
 		rightY += lineH;
@@ -1162,39 +1188,41 @@ OAMDebugView::DrawSelectedSpritePanel()
 
 	int32 active = fSpriteLocked ? fLockedSprite : fHoverSprite;
 	BRect previewRect(panel.right - 58.0f, panel.top + 34.0f, panel.right - 12.0f, panel.bottom - 12.0f);
+	
 	DrawSpritePreview(previewRect, active);
 
 	if (active < 0) {
-		drawLeftKV("Sprite:", "--", true);
-		drawLeftKV("Raw Y:", "--", true);
-		drawLeftKV("Screen Y:", "--", true);
-		drawLeftKV("Visible:", "--", false);
-		drawLeftKV("X:", "--", true);
-		drawLeftKV("Tile:", "--", true);
+		drawLeftLV("Sprite:", "--", true);
+		drawLeftLV("Raw Y:", "--", true);
+		drawLeftLV("Screen Y:", "--", true);
+		drawLeftLV("Visible:", "--", false);
+		drawLeftLV("X:", "--", true);
+		drawLeftLV("Tile:", "--", true);
 
-		drawRightKV("OAM:", "--", true);
-		drawRightKV("Bytes:", "--", true);
-		drawRightKV("CHR:", "--", true);
-		drawRightKV("Pal/P:", "--", false);
-		drawRightKV("Flip:", "--", false);
-		drawRightKV("State:", fSpriteLocked ? "LOCKED" : "HOVER", false);
+		drawRightLV("OAM:", "--", true);
+		drawRightLV("Bytes:", "--", true);
+		drawRightLV("CHR:", "--", true);
+		drawRightLV("Pal/P:", "--", false);
+		drawRightLV("Flip:", "--", false);
+		drawRightLV("State:", fSpriteLocked ? "LOCKED" : "HOVER", false);
 
 		SetFont(&prevFont);
 		return;
 	}
 
 	uint32 base = active * 4;
-
 	uint8 spriteY = OAMByte(base + 0);
 	uint8 tile = OAMByte(base + 1);
 	uint8 attr = OAMByte(base + 2);
 	uint8 spriteX = OAMByte(base + 3);
-
 	uint8 pal = attr & 0x3;
+	
 	bool priority = (attr & 0x20) != 0;
 	bool flipH = (attr & 0x40) != 0;
 	bool flipV = (attr & 0x80) != 0;
-	bool largeSprites = (nes::ppu::ppuctrl() & 0x20) != 0;
+
+	const uint8 ctrl = DisplayPPUCTRL();
+	bool largeSprites = (ctrl & 0x20) != 0;
 
 	uint32 chrAddr = 0;
 	uint32 chrAddrBottom = 0;
@@ -1206,64 +1234,63 @@ OAMDebugView::DrawSelectedSpritePanel()
 		chrAddr = (whichPT ? 0x1000 : 0x0000) + topTile * 16;
 		chrAddrBottom = chrAddr + 16;
 	} else {
-		uint32 spritePatternBase = (nes::ppu::ppuctrl() & 0x8) ? 0x1000 : 0x0000;
+		uint32 spritePatternBase = (ctrl & 0x08) ? 0x1000 : 0x0000;
 		chrAddr = spritePatternBase + tile * 16;
 	}
 
 	BString s;
 
 	s.SetToFormat("%02ld", static_cast<long>(active));
-	drawLeftKV("Sprite:", s.String(), true);
+	drawLeftLV("Sprite:", s.String(), true);
 
 	s.SetToFormat("$%02X", spriteY);
-	drawLeftKV("Raw Y:", s.String(), true);
+	drawLeftLV("Raw Y:", s.String(), true);
 
 	const unsigned screenY = static_cast<unsigned>(spriteY) + 1U;
 	s.SetToFormat("%u", screenY);
-	drawLeftKV("Screen Y:", s.String(), false);
-
-	drawLeftKV("Visible:", spriteY < 0xef ? "yes" : "offscreen", false);
+	drawLeftLV("Screen Y:", s.String(), false);
+	drawLeftLV("Visible:", (spriteY < 0xef) ? "yes" : "offscreen", false);
 
 	s.SetToFormat("$%02X", spriteX);
-	drawLeftKV("X:", s.String(), true);
+	drawLeftLV("X:", s.String(), true);
 
 	if (largeSprites) {
 		s.SetToFormat("$%02X/$%02X", tile & 0xfe, (tile & 0xfe) + 1);
-		drawLeftKV("Tiles:", s.String(), true);
+		drawLeftLV("Tiles:", s.String(), true);
 	} else {
 		s.SetToFormat("$%02X", tile);
-		drawLeftKV("Tile:", s.String(), true);
+		drawLeftLV("Tile:", s.String(), true);
 	}
 
 	s.SetToFormat("$%02lX-$%02lX", static_cast<unsigned long>(base), static_cast<unsigned long>(base + 3));
-	drawRightKV("OAM:", s.String(), true);
+	drawRightLV("OAM:", s.String(), true);
 
 	s.SetToFormat("%02X %02X %02X %02X", spriteY, tile, attr, spriteX);
-	drawRightKV("Bytes:", s.String(), true);
+	drawRightLV("Bytes:", s.String(), true);
 
 	if (largeSprites) {
 		s.SetToFormat("$%04lX/$%04lX", static_cast<unsigned long>(chrAddr), 
-										static_cast<unsigned long>(chrAddrBottom));
-		drawRightKV("CHR:", s.String(), true);
+									   static_cast<unsigned long>(chrAddrBottom));
+		drawRightLV("CHR:", s.String(), true);
 	} else {
 		s.SetToFormat("$%04lX", static_cast<unsigned long>(chrAddr));
-		drawRightKV("CHR:", s.String(), true);
+		drawRightLV("CHR:", s.String(), true);
 	}
 
 	s.SetToFormat("%u / %s", static_cast<unsigned>(pal), priority ? "behind" : "front");
-	drawRightKV("Pal/P:", s.String(), false);
+	drawRightLV("Pal/P:", s.String(), false);
 
 	if (flipH && flipV) {
-		drawRightKV("Flip:", "H + V", false);
+		drawRightLV("Flip:", "H + V", false);
 	} else if (flipH) {
-		drawRightKV("Flip:", "H", false);
+		drawRightLV("Flip:", "H", false);
 	} else if (flipV) {
-		drawRightKV("Flip:", "V", false);
+		drawRightLV("Flip:", "V", false);
 	} else {
-		drawRightKV("Flip:", "none", false);
+		drawRightLV("Flip:", "none", false);
 	}
 
-	drawRightKV("State:", fSpriteLocked ? "LOCKED" : "HOVER", false);
+	drawRightLV("State:", fSpriteLocked ? "LOCKED" : "HOVER", false);
 
 	SetFont(&prevFont);
 }
@@ -1342,9 +1369,10 @@ OAMDebugView::SetHostPalette (uint8 *palette)
 // -----------------------------------------------------------------------------
 // OAMDebugView::SpritePreviewColor
 //
-// Converts a decoded sprite pixel value into a Haiku rgb_color using live NES
-// sprite palette RAM and the host palette lookup table.  Pixel value 0 uses the
-// universal background color for preview purposes.
+// Converts a decoded sprite pixel value into a Haiku rgb_color using the
+// palette state represented by the current OAM debugger snapshot.
+//
+// Pixel value 0 uses the universal background color for preview purposes.
 //
 // Parameters:
 //   spritePalette - Sprite palette row, 0-3.
@@ -1359,25 +1387,29 @@ OAMDebugView::SpritePreviewColor (uint8 spritePalette, uint8 pixel) const
 	uint32 paletteAddress;
 
 	if (pixel == 0) {
-		// Sprite pixel 0 is transparent, but for this preview we draw it
-		// using the universal background color so the sprite preview matches
-		// the current PPU palette.
+		/*
+		 * Sprite pixel 0 is transparent, but for this preview we draw it
+		 * using the universal background color so the sprite preview matches
+		 * the palette represented by the current debugger snapshot.
+		 */
 		paletteAddress = 0x3f00;
 	} else {
-		// Sprite palettes live at $3f10-$3f1f.
-		// Entries 1-3 are visible sprite colors.
+		/*
+		 * Sprite palettes live at $3F10-$3F1F.
+		 * Entries 1-3 are visible sprite colors.
+		 */
 		paletteAddress = 0x3f10 + (spritePalette * 4) + pixel;
 	}
 
-	uint8 nesColor = nes::ppu::palette_ram(paletteAddress) & 0x3f;
+	uint8 nesColor = DisplayPaletteByte(paletteAddress) & 0x3f;
 
 	if (!fHostPalette || !Window()) {
-		return rgb_color{0, 0, 0, 255};
+		return rgb_color{ 0, 0, 0, 255 };
 	}
 
 	uint8 hostIndex = fHostPalette[nesColor];
-
 	BScreen screen(Window());
+
 	return screen.ColorForIndex(hostIndex);
 }
 
@@ -1385,9 +1417,10 @@ OAMDebugView::SpritePreviewColor (uint8 spritePalette, uint8 pixel) const
 // -----------------------------------------------------------------------------
 // OAMDebugView::DrawSpritePreview
 //
-// Draws a small preview of the selected sprite using the current OAM snapshot,
-// CHR data, sprite palette, and OAM flip flags.  Hidden/offscreen sprites are
-// reported as OFF SCR instead of being rendered.
+// Draws a small preview of the selected sprite using the OAM, PPUCTRL, CHR,
+// palette, and flip state represented by the current debugger snapshot.
+//
+// Hidden/offscreen sprites are reported as OFF SCR instead of being rendered.
 //
 // Parameters:
 //   previewRect - Destination rectangle for the preview box.
@@ -1397,59 +1430,64 @@ OAMDebugView::SpritePreviewColor (uint8 spritePalette, uint8 pixel) const
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-OAMDebugView::DrawSpritePreview(BRect previewRect, int32 spriteIndex)
+OAMDebugView::DrawSpritePreview (BRect previewRect, int32 spriteIndex)
 {
-	// Small shadow so the preview box stands off the gray panel.
+	/*
+	 * Small shadow so the preview box stands off the gray panel.
+	 */
 	BRect shadowRect = previewRect;
 	shadowRect.OffsetBy(2.0f, 2.0f);
-
+	
 	SetHighColor(190, 190, 190);
 	FillRect(shadowRect);
 
-	// Outer preview area: light gray debugger background.
+	/*
+	 * Outer preview area: light gray debugger background.
+	 */
 	SetHighColor(236, 236, 236);
 	FillRect(previewRect);
 
 	SetHighColor(135, 135, 135);
 	StrokeRect(previewRect);
 
-	// Inner highlight edge.
+	/*
+	 * Inner highlight edge.
+	 */
 	SetHighColor(255, 255, 255);
 	StrokeLine(BPoint(previewRect.left + 1.0f, previewRect.top + 1.0f),
-				BPoint(previewRect.right - 1.0f, previewRect.top + 1.0f));
+			   BPoint(previewRect.right - 1.0f, previewRect.top + 1.0f));
 	StrokeLine(BPoint(previewRect.left + 1.0f, previewRect.top + 1.0f),
-				BPoint(previewRect.left + 1.0f, previewRect.bottom - 1.0f));
+			   BPoint(previewRect.left + 1.0f, previewRect.bottom - 1.0f));
 
 	if (spriteIndex < 0 || spriteIndex >= 64 || !nes::cart.mapper()) {
 		SetHighColor(90, 90, 90);
 		DrawString("--", BPoint(previewRect.left + 12.0f, previewRect.top + 24.0f));
+
 		return;
 	}
 
 	uint32 base = spriteIndex * 4;
-
 	uint8 spriteY = OAMByte(base + 0);
 	uint8 tile = OAMByte(base + 1);
 	uint8 attr = OAMByte(base + 2);
-
-	uint8 palette = (attr & 0x3);
+	uint8 palette = attr & 0x03;
 
 	if (spriteY >= 0xef) {
 		SetHighColor(90, 90, 90);
 		DrawString("OFF", BPoint(previewRect.left + 11.0f, previewRect.top + 27.0f));
 		DrawString("SCR", BPoint(previewRect.left + 11.0f, previewRect.top + 42.0f));
+
 		return;
 	}
 
 	bool flipH = (attr & 0x40) != 0;
 	bool flipV = (attr & 0x80) != 0;
-	bool largeSprites = (nes::ppu::ppuctrl() & 0x20) != 0;
-
+	const uint8 ctrl = DisplayPPUCTRL();
+	bool largeSprites = (ctrl & 0x20) != 0;
 	const int spriteW = 8;
 	const int spriteH = largeSprites ? 16 : 8;
-
+	
 	const float scale = largeSprites ? 3.0f : 4.0f;
-
 	const float drawW = spriteW * scale;
 	const float drawH = spriteH * scale;
 
@@ -1458,8 +1496,10 @@ OAMDebugView::DrawSpritePreview(BRect previewRect, int32 spriteIndex)
 
 	BRect spriteRect(startX, startY, startX + drawW - 1.0f, startY + drawH - 1.0f);
 
-	// Inner sprite area: live universal background color from $3F00.
-	// Transparent sprite pixels show through this color.
+	/*
+	 * Transparent sprite pixels show the universal background color represented
+	 * by the current debugger snapshot.
+	 */
 	SetHighColor(SpritePreviewColor(palette, 0));
 	FillRect(spriteRect);
 
@@ -1469,52 +1509,52 @@ OAMDebugView::DrawSpritePreview(BRect previewRect, int32 spriteIndex)
 		uint32 chrAddr;
 
 		if (largeSprites) {
-			uint32 whichPT = (tile & 0x1);
-			uint32 topTile = (tile & 0xfe);
-
+			uint32 whichPT = tile & 0x01;
+			uint32 topTile = tile & 0xfe;
 			chrAddr = (whichPT ? 0x1000 : 0x0000) + (topTile * 16) + ((srcY / 8) * 16) + (srcY & 0x7);
 		} else {
-			uint32 spritePatternBase = (nes::ppu::ppuctrl() & 0x8) ? 0x1000 : 0x0000;
-			
+			uint32 spritePatternBase = (ctrl & 0x8) ? 0x1000 : 0x0000;
 			chrAddr = spritePatternBase + (tile * 16) + srcY;
 		}
 
-		uint8 plane0 = nes::cart.mapper()->read_vram(chrAddr);
-		uint8 plane1 = nes::cart.mapper()->read_vram(chrAddr + 8);
+		uint8 plane0 = DisplayCHRByte(chrAddr);
+		uint8 plane1 = DisplayCHRByte(chrAddr + 8);
 
-		for (int px = 0; px < spriteW; px++) {
-			int srcX = flipH ? px : (7 - px);
-
-			uint8 pixel = ((plane0 >> srcX) & 0x1)
-				| (((plane1 >> srcX) & 0x1) << 1);
+		for (int32 px = 0; px < spriteW; px++) {
+			int32 srcX = flipH ? px : (7 - px);
+			uint8 pixel = ((plane0 >> srcX) & 0x1) | (((plane1 >> srcX) & 0x1) << 1);
 
 			if (pixel == 0) {
 				continue;
 			}
 
 			BRect r(startX + (px * scale), startY + (py * scale), 
-					startX + ((px + 1) * scale) - 1.0f,
-					startY + ((py + 1) * scale) - 1.0f);
+					startX + ((px + 1) * scale) - 1.0f, startY + ((py + 1) * scale) - 1.0f);
 
 			SetHighColor(SpritePreviewColor(palette, pixel));
 			FillRect(r);
 		}
 	}
 
-	// Inner sprite canvas outline.
+	/*
+	 * Inner sprite canvas outline.
+	 */
 	SetHighColor(40, 40, 40);
 	StrokeRect(spriteRect);
 
 	SetHighColor(255, 255, 255);
 	StrokeLine(BPoint(spriteRect.left + 1.0f, spriteRect.top + 1.0f),
-				BPoint(spriteRect.right - 1.0f, spriteRect.top + 1.0f));
+			   BPoint(spriteRect.right - 1.0f, spriteRect.top + 1.0f));
 	StrokeLine(BPoint(spriteRect.left + 1.0f, spriteRect.top + 1.0f),
-				BPoint(spriteRect.left + 1.0f, spriteRect.bottom - 1.0f));
+			   BPoint(spriteRect.left + 1.0f, spriteRect.bottom - 1.0f));
 
-	// Outer preview border, redrawn after all contents.
+	/*
+	 * Outer preview border, redrawn after all contents.
+	 */
 	SetHighColor(135, 135, 135);
 	StrokeRect(previewRect);
 }
+
 
 // -----------------------------------------------------------------------------
 // OAMDebugView::UpdatePaletteDebuggerHighlight
@@ -1543,7 +1583,6 @@ OAMDebugView::UpdatePaletteDebuggerHighlight()
 	}
 
 	uint32 base = (active * 4);
-
 	uint8 attr = OAMByte(base + 2);
 	uint8 spritePalette = (attr & 0x3);
 
@@ -1559,7 +1598,7 @@ OAMDebugView::UpdatePaletteDebuggerHighlight()
 //
 // The function resolves sprite pattern-table selection, CHR address, sprite
 // palette, 8x8/8x16 mode, and horizontal/vertical flip state from the current
-// coherent OAM snapshot.
+// coherent OAM debugger snapshot.
 //
 // Hidden/offscreen OAM entries are still sent to the CHR Explorer because their
 // tile, palette, and transform data remain valid and useful for debugging.
@@ -1577,9 +1616,7 @@ OAMDebugView::UpdateCHRExplorer()
 		return;
 	}
 
-	Mapper *mapper = nes::cart.mapper();
-
-	if (!mapper) {
+	if (!nes::cart.mapper()) {
 		fCHRExplorer->Clear();
 		return;
 	}
@@ -1595,13 +1632,13 @@ OAMDebugView::UpdateCHRExplorer()
 	uint8 tile = OAMByte(base + 1);
 	uint8 attr = OAMByte(base + 2);
 	uint8 spritePalette = attr & 0x3;
-
 	bool flipH = (attr & 0x40) != 0;
 	bool flipV = (attr & 0x80) != 0;
-	bool largeSprites = (nes::ppu::ppuctrl() & 0x20) != 0;
+	const uint8 ctrl = DisplayPPUCTRL();
+	bool largeSprites = (ctrl & 0x20) != 0;
 
 	if (largeSprites) {
-		int32 whichPT = tile & 0x1;
+		int32 whichPT = tile & 0x01;
 		int32 topTile = tile & 0xfe;
 
 		uint32 chrAddrTop = (whichPT ? 0x1000 : 0x0000) + (topTile * 16);
@@ -1611,12 +1648,12 @@ OAMDebugView::UpdateCHRExplorer()
 		uint8 chrBottom[16];
 
 		for (int32 i = 0; i < 16; i++) {
-			chrTop[i] = mapper->read_vram(chrAddrTop + i);
-			chrBottom[i] = mapper->read_vram(chrAddrBottom + i);
+			chrTop[i] = DisplayCHRByte(chrAddrTop + i);
+			chrBottom[i] = DisplayCHRByte(chrAddrBottom + i);
 		}
 
-		fCHRExplorer->SetTile8x16(whichPT, topTile, fSpriteLocked, chrAddrTop,
-									chrTop, chrAddrBottom, chrBottom, spritePalette);
+		fCHRExplorer->SetTile8x16(whichPT, topTile, fSpriteLocked, chrAddrTop, chrTop,
+								  chrAddrBottom, chrBottom, spritePalette);
 
 		fCHRExplorer->SetUseSpritePalette(true);
 		fCHRExplorer->SetSelectedPalette(spritePalette);
@@ -1625,17 +1662,18 @@ OAMDebugView::UpdateCHRExplorer()
 		return;
 	}
 
-	int32 whichPT = (nes::ppu::ppuctrl() & 0x08) ? 1 : 0;
+	int32 whichPT = (ctrl & 0x08) ? 1 : 0;
 	uint32 chrAddr = (whichPT ? 0x1000 : 0x0000) + (tile * 16);
 
 	uint8 chrBytes[16];
 
 	for (int32 i = 0; i < 16; i++) {
-		chrBytes[i] = mapper->read_vram(chrAddr + i);
+		chrBytes[i] = DisplayCHRByte(chrAddr + i);
 	}
 
-	fCHRExplorer->SetTile8x8(whichPT, tile, fSpriteLocked, chrAddr, chrBytes, spritePalette, 
-								-1, 0, 0, 0, 0);
+	fCHRExplorer->SetTile8x8(whichPT, tile, fSpriteLocked, chrAddr, chrBytes, 
+							 spritePalette, -1, 0, 0, 0, 0);
+
 	fCHRExplorer->SetUseSpritePalette(true);
 	fCHRExplorer->SetSelectedPalette(spritePalette);
 	fCHRExplorer->SetTileTransform(flipH, flipV);
@@ -1649,17 +1687,17 @@ OAMDebugView::UpdateCHRExplorer()
 // highlight the CHR tile used by the active sprite.
 //
 // Parameters:
-//   pt0 - Pattern table window for pattern table 0 / CHR $0000.
-//   pt1 - Pattern table window for pattern table 1 / CHR $1000.
+//   pt1 - Pattern table window for pattern table 1 / CHR $0000.
+//   pt2 - Pattern table window for pattern table 2 / CHR $1000.
 //
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-OAMDebugView::SetPatternTables(PatternTableWindow *pt0, PatternTableWindow *pt1)
+OAMDebugView::SetPatternTables (PatternTableWindow *pt1, PatternTableWindow *pt2)
 {
-	fPatternTable0 = pt0;
-	fPatternTable1 = pt1;
+	fPatternTable1Window = pt1;
+	fPatternTable2Window = pt2;
 
 	UpdatePatternTableHighlight();
 }
@@ -1680,18 +1718,30 @@ OAMDebugView::SetPatternTables(PatternTableWindow *pt0, PatternTableWindow *pt1)
 void
 OAMDebugView::ClearPatternTableHighlight()
 {
-	ClearPatternWindowHighlight(fPatternTable0);
-	ClearPatternWindowHighlight(fPatternTable1);
+	ClearPatternWindowHighlight(fPatternTable1Window);
+	ClearPatternWindowHighlight(fPatternTable2Window);
 }
 
 
 // -----------------------------------------------------------------------------
 // OAMDebugView::UpdatePatternTableHighlight
 //
-// Synchronizes the pattern table debugger windows with the active OAM sprite.
-// In 8x8 mode, the sprite pattern table comes from PPUCTRL bit 3.  In 8x16
-// mode, the low bit of the OAM tile selects the pattern table and the top tile
-// is aligned with tile & $FE.
+// Updates the Pattern Table debugger highlight to match the currently active
+// OAM sprite.
+//
+// The active sprite is taken from the locked selection when one exists;
+// otherwise the current hover sprite is used.
+//
+// In 8x8 sprite mode, PPUCTRL bit 3 selects the sprite pattern table and the OAM
+// tile byte directly selects the CHR tile.
+//
+// In 8x16 sprite mode, bit 0 of the OAM tile byte selects the pattern table and
+// bits 1-7 select the even-numbered top tile. The following odd-numbered tile
+// forms the bottom half of the sprite, so the Pattern Table view is asked to
+// highlight the complete pair.
+//
+// The OAM lock state is propagated to the Pattern Table and CHR Explorer so the
+// linked debugger views can report HOVER or LOCKED consistently.
 //
 // Parameters:
 //   None.
@@ -1702,34 +1752,48 @@ OAMDebugView::ClearPatternTableHighlight()
 void
 OAMDebugView::UpdatePatternTableHighlight()
 {
-	int32 active = fSpriteLocked ? fLockedSprite : fHoverSprite;
+	const int32 active = fSpriteLocked ? fLockedSprite : fHoverSprite;
 
-	if (active < 0 || active >= 64) {
+	if (active < 0 || active >= kOAMSpriteCount) {
 		ClearPatternTableHighlight();
 		return;
 	}
 
-	uint32 base = (active * 4);
-	uint8 tile = OAMByte(base + 1);
-	bool largeSprites = (nes::ppu::ppuctrl() & 0x20) != 0;
-
-	int32 whichPT;
-	int32 tileIndex;
+	const uint32 base = static_cast<uint32>(active) * 4;
+	const uint8 tile = OAMByte(base + 1);
+	const uint8 ctrl = DisplayPPUCTRL();
+	const bool largeSprites = (ctrl & 0x20) != 0;
+	int32 whichPT = 0;
+	int32 tileIndex = 0;
 
 	if (largeSprites) {
-		whichPT = tile & 0x1;
+		/*
+		 * In 8x16 sprite mode:
+		 *
+		 *   tile bit 0  -> pattern table
+		 *   tile bits 1-7 -> even-numbered top tile
+		 *
+		 * The following odd-numbered tile forms the bottom half.
+		 */
+		whichPT = tile & 0x01;
 		tileIndex = tile & 0xfe;
 	} else {
-		whichPT = (nes::ppu::ppuctrl() & 0x8) ? 1 : 0;
+		/*
+		 * In 8x8 sprite mode, PPUCTRL bit 3 selects the sprite
+		 * pattern table and the OAM tile byte is the tile index.
+		 */
+		whichPT = (ctrl & 0x08) ? 1 : 0;
 		tileIndex = tile;
 	}
 
 	if (whichPT == 0) {
-		SetPatternWindowHighlight(fPatternTable0, whichPT, tileIndex);
-		ClearPatternWindowHighlight(fPatternTable1);
+		SetPatternWindowHighlight(fPatternTable1Window, whichPT, tileIndex,
+									largeSprites, fSpriteLocked);
+		ClearPatternWindowHighlight(fPatternTable2Window);
 	} else {
-		ClearPatternWindowHighlight(fPatternTable0);
-		SetPatternWindowHighlight(fPatternTable1, whichPT, tileIndex);
+		ClearPatternWindowHighlight(fPatternTable1Window);
+		SetPatternWindowHighlight(fPatternTable2Window, whichPT, tileIndex,
+									largeSprites, fSpriteLocked);
 	}
 }
 
@@ -1751,7 +1815,7 @@ OAMDebugView::UpdatePatternTableHighlight()
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-OAMDebugView::SetExplorer(CHRExplorerView *explorer)
+OAMDebugView::SetExplorer (CHRExplorerView *explorer)
 {
 	fCHRExplorer = explorer;
 
@@ -1782,7 +1846,7 @@ OAMDebugView::SetExplorer(CHRExplorerView *explorer)
 // Clears all ROM-specific OAM debugger state while preserving user-selected
 // viewer state.
 //
-// The current OAM snapshot, hover/lock selection, and linked debugger
+// The current OAM/PPU snapshot, hover/lock selection, and linked debugger
 // highlights are discarded so data from an unloaded ROM cannot remain visible
 // after another ROM is loaded.
 //
@@ -1799,9 +1863,12 @@ OAMDebugView::Clear()
 {
 	fHaveFrozenOAM = false;
 
-	for (int32 i = 0; i < 0x100; i++) {
-		fFrozenOAM[i] = 0;
-	}
+	memset(fFrozenOAM, 0, sizeof(fFrozenOAM));
+
+	fFrozenPPUCTRL = 0x0;
+
+	memset(fFrozenCHR, 0, sizeof(fFrozenCHR));
+	memset(fFrozenPalette, 0, sizeof(fFrozenPalette));
 
 	fSpriteLocked = false;
 	fLockedSprite = -1;
@@ -1826,8 +1893,13 @@ OAMDebugView::Clear()
 // -----------------------------------------------------------------------------
 // OAMDebugView::CaptureOAMSnapshot
 //
-// Captures all 256 bytes of live PPU OAM into the display snapshot buffer.
-// Snapshot mode keeps this buffer stable; live mode refreshes it each pulse.
+// Captures one coherent snapshot of all PPU state required by the OAM debugger.
+//
+// In addition to the 256-byte OAM table, the snapshot records PPUCTRL, the
+// complete 8 KB CHR pattern area, and the 32-byte NES palette-RAM area.  This
+// ensures that frozen OAM entries retain the same sprite-size interpretation,
+// pattern-table selection, tile graphics, and palette colors that existed when
+// the OAM bytes were captured.
 //
 // Parameters:
 //   None.
@@ -1838,8 +1910,37 @@ OAMDebugView::Clear()
 void
 OAMDebugView::CaptureOAMSnapshot()
 {
+	Mapper *mapper = nes::cart.mapper();
+
+	if (!mapper) {
+		fHaveFrozenOAM = false;
+		return;
+	}
+
+	/*
+	 * Capture interpretation state first.
+	 */
+	fFrozenPPUCTRL = nes::ppu::ppuctrl();
+
+	/*
+	 * Capture all 64 OAM entries / 256 bytes.
+	 */
 	for (uint32 i = 0; i < 0x100; i++) {
 		fFrozenOAM[i] = nes::ppu::oam_ram(i);
+	}
+
+	/*
+	 * Capture the complete CHR pattern area used by sprites.
+	 */
+	for (uint32 address = 0; address < 0x2000; address++) {
+		fFrozenCHR[address] = mapper->read_vram(address);
+	}
+
+	/*
+	 * Capture the complete NES palette-RAM area.
+	 */
+	for (uint32 offset = 0; offset < 0x20; offset++) {
+		fFrozenPalette[offset] = nes::ppu::palette_ram(0x3f00 + offset);
 	}
 
 	fHaveFrozenOAM = true;
@@ -1861,7 +1962,7 @@ OAMDebugView::CaptureOAMSnapshot()
 //   snapshot has been captured.
 // -----------------------------------------------------------------------------
 uint8
-OAMDebugView::OAMByte(uint32 address) const
+OAMDebugView::OAMByte (uint32 address) const
 {
 	if (fHaveFrozenOAM) {
 		return fFrozenOAM[address & 0xff];
@@ -1927,4 +2028,101 @@ OAMDebugView::DrawNoROMMessage (BRect panel)
 
 	SetFont(&prevFont);
 }
+
+
+// -----------------------------------------------------------------------------
+// OAMDebugView::DisplayPPUCTRL
+//
+// Returns the PPUCTRL value represented by the current OAM debugger snapshot.
+//
+// Once an OAM snapshot exists, sprite size and pattern-table interpretation
+// must use the PPUCTRL value captured with that snapshot.  Before the first
+// snapshot is available, the current live PPUCTRL value is returned.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Snapshot or live PPUCTRL value.
+// -----------------------------------------------------------------------------
+uint8
+OAMDebugView::DisplayPPUCTRL() const
+{
+	if (fHaveFrozenOAM) {
+		return fFrozenPPUCTRL;
+	}
+
+	return nes::ppu::ppuctrl();
+}
+
+
+// -----------------------------------------------------------------------------
+// OAMDebugView::DisplayCHRByte
+//
+// Reads one CHR byte represented by the current OAM debugger snapshot.
+//
+// Once a snapshot exists, sprite previews and linked debugger views use the
+// captured CHR state rather than current mapper state.  Before the first
+// snapshot exists, live CHR is used as a fallback.
+//
+// Parameters:
+//   address - CHR address to read.
+//
+// Returns:
+//   Snapshot or live CHR byte.
+// -----------------------------------------------------------------------------
+uint8
+OAMDebugView::DisplayCHRByte (uint32 address) const
+{
+	address &= 0x1fff;
+
+	if (fHaveFrozenOAM) {
+		return fFrozenCHR[address];
+	}
+
+	Mapper *mapper = nes::cart.mapper();
+
+	if (!mapper) {
+		return 0;
+	}
+
+	return mapper->read_vram(address);
+}
+
+
+// -----------------------------------------------------------------------------
+// OAMDebugView::DisplayPaletteByte
+//
+// Reads one palette-RAM byte represented by the current OAM debugger snapshot.
+//
+// The address is normalized into the NES $3F00-$3F1F palette range, including
+// the special $3F10/$3F14/$3F18/$3F1C aliases.
+//
+// Parameters:
+//   address - PPU palette address.
+//
+// Returns:
+//   Snapshot or live NES palette-RAM byte.
+// -----------------------------------------------------------------------------
+uint8
+OAMDebugView::DisplayPaletteByte(uint32 address) const
+{
+	uint32 offset = (address - 0x3f00) & 0x1f;
+
+	/*
+	 * $3F10/$3F14/$3F18/$3F1C mirror
+	 * $3F00/$3F04/$3F08/$3F0C.
+	 */
+	if ((offset & 0x13) == 0x10) {
+		offset &= 0x0f;
+	}
+
+	if (fHaveFrozenOAM) {
+		return fFrozenPalette[offset];
+	}
+
+	return nes::ppu::palette_ram(0x3f00 + offset);
+}
+
+
 

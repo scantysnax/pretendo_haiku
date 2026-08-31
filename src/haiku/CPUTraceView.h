@@ -25,7 +25,7 @@ class PretendoWindow;
 // entry stores cycle/register/opcode data, while instruction stores the decoded
 // instruction text as it appeared at freeze time.
 // -----------------------------------------------------------------------------
-struct CPUTraceFrozenEntry {
+struct cpu_trace_frozen_entry_t {
 	nes::cpu::cpu_trace_entry_t trace;
 	BString instruction;
 };
@@ -105,7 +105,7 @@ class CPUTraceView : public BView
 
 	private:
 	uint32 fBaseTraceIndex = 0;
-	std::vector<CPUTraceFrozenEntry> fFrozenEntries;
+	std::vector<cpu_trace_frozen_entry_t> fFrozenEntries;
 	bool fHasSelectedTraceIndex = false;
 	uint32 fSelectedTraceIndex = 0;
 	

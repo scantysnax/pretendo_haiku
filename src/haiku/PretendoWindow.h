@@ -380,15 +380,29 @@ class PretendoWindow : public BWindow
 	Mutex const *fMutex = nullptr;
 	
 	public:
-	bool LockMutex() const { 
+	bool LockMutex() const {
+		if (!fMutex) {
+			return false;
+		}
+
 		return fMutex->Lock();
 	}
-	
-	bool LockMutex (bigtime_t timeOut) const {
+
+
+	bool LockMutex(bigtime_t timeOut) const {
+		if (!fMutex) {
+			return false;
+		}
+
 		return fMutex->Lock(timeOut);
 	}
 
-	bool UnlockMutex() const { 
+
+	bool UnlockMutex() const {
+		if (!fMutex) {
+			return false;
+		}
+
 		return fMutex->Unlock();
 	}
 	
@@ -441,10 +455,12 @@ class PretendoWindow : public BWindow
 	void InputWindowClosed();
 	void PatternTable1WindowClosed();
 	void PatternTable2WindowClosed();
-	void NameTable1WindowClosed();
-	void NameTable2WindowClosed();
-	void NameTable3WindowClosed();
-	void NameTable4WindowClosed();
+	//void NameTable1WindowClosed();
+	//void NameTable2WindowClosed();
+	//void NameTable3WindowClosed();
+	//void NameTable4WindowClosed();
+	void NameTableWindowClosed (int32 which);
+	
 	void PaletteDebugWindowClosed();
 	void OAMDebugWindowClosed();
 	void PPUStatusWindowClosed();

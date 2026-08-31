@@ -196,8 +196,8 @@ CPUStatusView::DrawRegisterPanel()
 	BFont prevFont;
 	GetFont(&prevFont);
 
-	BFont mono = *be_fixed_font;
-	mono.SetSize(11.0f);
+	BFont fixed = *be_fixed_font;
+	fixed.SetSize(11.0f);
 
 	const float leftLabelX = panel.left + 8.0f;
 	const float leftValueX = leftLabelX + 52.0f;
@@ -211,51 +211,51 @@ CPUStatusView::DrawRegisterPanel()
 	BString s;
 	nes::cpu::cpu_state_t state = nes::cpu::debug_cpu_state();
 
-	auto drawLeftKV = [&](const char *label, const char *value) {
+	auto drawLeftLV = [&](const char *label, const char *value) {
 		SetHighColor(80, 80, 80);
 		SetFont(&prevFont);
 		DrawString(label, BPoint(leftLabelX, leftY));
 
 		SetHighColor(0, 0, 0);
-		SetFont(&mono);
+		SetFont(&fixed);
 		DrawString(value, BPoint(leftValueX, leftY));
 
 		leftY += lineH;
 	};
 
-	auto drawRightKV = [&](const char *label, const char *value) {
+	auto drawRightLV = [&](const char *label, const char *value) {
 		SetHighColor(80, 80, 80);
 		SetFont(&prevFont);
 		DrawString(label, BPoint(rightLabelX, rightY));
 
 		SetHighColor(0, 0, 0);
-		SetFont(&mono);
+		SetFont(&fixed);
 		DrawString(value, BPoint(rightValueX, rightY));
 
 		rightY += lineH;
 	};
 
 	s.SetToFormat("$%04X", state.pc);
-	drawLeftKV("PC:", s.String());
+	drawLeftLV("PC:", s.String());
 
 	s.SetToFormat("$%02X", state.a);
-	drawLeftKV("A:", s.String());
+	drawLeftLV("A:", s.String());
 
 	s.SetToFormat("$%02X", state.x);
-	drawLeftKV("X:", s.String());
+	drawLeftLV("X:", s.String());
 
 	const uint16 stackAddress = static_cast<uint16>(0x100 | state.s);
 	s.SetToFormat("$%04X", stackAddress);
-	drawLeftKV("Stack:", s.String());
+	drawLeftLV("Stack:", s.String());
 
 	s.SetToFormat("$%02X", state.y);
-	drawRightKV("Y:", s.String());
+	drawRightLV("Y:", s.String());
 
 	s.SetToFormat("$%02X", state.s);
-	drawRightKV("S:", s.String());
+	drawRightLV("S:", s.String());
 
 	s.SetToFormat("$%02X", state.p);
-	drawRightKV("P:", s.String());
+	drawRightLV("P:", s.String());
 
 	const uint8 p = state.p;
 	BString flags;
@@ -270,7 +270,7 @@ CPUStatusView::DrawRegisterPanel()
 		(p & 0x01) ? 'C' : 'c'
 	);
 
-	drawRightKV("Flags:", flags.String());
+	drawRightLV("Flags:", flags.String());
 
 	SetFont(&prevFont);
 }
@@ -450,8 +450,8 @@ CPUStatusView::DrawTimingPanel()
 	BFont prevFont;
 	GetFont(&prevFont);
 
-	BFont mono = *be_fixed_font;
-	mono.SetSize(11.0f);
+	BFont fixed = *be_fixed_font;
+	fixed.SetSize(11.0f);
 
 	const float leftLabelX = panel.left + 8.0f;
 	const float leftValueX = leftLabelX + 108.0f;
@@ -464,13 +464,13 @@ CPUStatusView::DrawTimingPanel()
 	/*
 	 * Draw a label with its value in the fixed-width font.
 	 */
-	auto drawKV = [&](const char *label, const char *value) {
+	auto drawLV = [&](const char *label, const char *value) {
 		SetHighColor(80, 80, 80);
 		SetFont(&prevFont);
 		DrawString(label, BPoint(leftLabelX, y));
 
 		SetHighColor(0, 0, 0);
-		SetFont(&mono);
+		SetFont(&fixed);
 		DrawString(value, BPoint(leftValueX, y));
 
 		y += lineH;
@@ -479,7 +479,7 @@ CPUStatusView::DrawTimingPanel()
 	/*
 	 * Draw a label and value using the regular UI font.
 	 */
-	auto drawKVRegular = [&](const char *label, const char *value) {
+	auto drawLVRegular = [&](const char *label, const char *value) {
 		SetHighColor(80, 80, 80);
 		SetFont(&prevFont);
 		DrawString(label, BPoint(leftLabelX, y));
@@ -512,7 +512,7 @@ CPUStatusView::DrawTimingPanel()
 	}
 
 	s.SetToFormat("$%04X  %-8s  %s", line.address, byteText.String(), line.text.String());
-	drawKV("Decoded:", s.String());
+	drawLV("Decoded:", s.String());
 
 	/*
 	 * Use the application's actual run/pause state rather than only
@@ -524,12 +524,12 @@ CPUStatusView::DrawTimingPanel()
 		emulatorState = fParent->IsEmulatorPaused() ? "Paused" : "Running";
 	}
 
-	drawKVRegular("Emulator:", emulatorState);
+	drawLVRegular("Emulator:", emulatorState);
 
 	if (nes::cpu::debug_instruction_boundary()) {
-		drawKVRegular("Boundary:", "Yes");
+		drawLVRegular("Boundary:", "Yes");
 	} else {
-		drawKVRegular("Boundary:", "No");
+		drawLVRegular("Boundary:", "No");
 	}
 
 	const uint8 stackIndex0 = static_cast<uint8>(state.s + 1);
@@ -549,16 +549,16 @@ CPUStatusView::DrawTimingPanel()
 
 	s.SetToFormat("Top $%04X:$%02X  +1:$%02X  +2:$%02X  +3:$%02X",
 					stackAddress0, stackValue0, stackValue1, stackValue2, stackValue3);
-	drawKV("Stack:", s.String());
+	drawLV("Stack:", s.String());
 
 	s.SetToFormat("$%02X", state.instruction & 0xff);
-	drawKV("Instruction:", s.String());
+	drawLV("Instruction:", s.String());
 
 	s.SetToFormat("%d", state.cycle);
-	drawKVRegular("Cycle:", s.String());
+	drawLVRegular("Cycle:", s.String());
 
 	s.SetToFormat("%llu", static_cast<unsigned long long>(state.executed_cycles));
-	drawKVRegular("Total Cycles:", s.String());
+	drawLVRegular("Total Cycles:", s.String());
 
 	SetFont(&prevFont);
 }

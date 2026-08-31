@@ -241,6 +241,7 @@ FormatOperand (uint16 address, address_mode mode, const uint8 bytes[3], BString 
 		case AM_REL:
 		{
 			int16 target = static_cast<int8>(op8);
+			
 			target += static_cast<int16>(address + 2);
 			operand.SetToFormat("$%04X", static_cast<uint16>(target));
 			break;

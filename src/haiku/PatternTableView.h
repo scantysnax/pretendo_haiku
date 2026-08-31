@@ -38,7 +38,7 @@ class PatternTableView : public BView
 	} view_mode;
 
 	public:
-	PatternTableView (BRect frame, PretendoWindow *mainWindow, int32 which, CHRExplorerView *explorer);
+			PatternTableView (BRect frame, PretendoWindow *mainWindow, int32 which, CHRExplorerView *explorer);
 	virtual ~PatternTableView();
 
 	// inherited from BView
@@ -53,6 +53,8 @@ class PatternTableView : public BView
 	// Explorer
 	void SetExplorer (CHRExplorerView *explorer);
 	void Clear();
+	void RefreshDebugPalette();
+	
 	// Drawing stuff
 	private:
 	void DrawPixel (int32 x, int32 y, uint8 color);
@@ -82,6 +84,8 @@ class PatternTableView : public BView
 	public:
 	// Highlight api
 	void SetExternalHighlight (int32 whichPT, int32 tileIndex);
+	void SetExternalHighlight (int32 whichPT, int32 tileIndex, const uint8 *chrBytes);
+	void SetExternalHighlight(int32 whichPT, int32 tileIndex, bool highlight8x16Pair, bool externalLocked);
 	void ClearExternalHighlight();
 	
 	public:
@@ -136,6 +140,9 @@ class PatternTableView : public BView
 		return (nes::ppu::ppuctrl() & 0x20) != 0;
 	}
 	
+	void CaptureCHRRenderSnapshot();
+	
+	
 	private:
 	bool HasROMLoaded() const;
 	void DrawNoROMMessage();
@@ -170,15 +177,20 @@ class PatternTableView : public BView
 	uint8 fCHRBytes[16] = {0};
 
 	private:
-	// Last mouse position/state inside this view.
-	BPoint fLastMouse;
-	bool fMouseValid = false;
-
-	private:
 	// External highlight supplied by NameTableView.
 	bool fHasExternalHighlight = false;
+	bool fExternalHighlight8x16Pair = false;
 	int32 fExternalWhichPT = 0;
 	int32 fExternalTileIndex = -1;
+	bool fExternalHighlightLocked = false;
+	
+	private:
+	uint8 fDebugPalette[4] = {};
+	
+	private:
+	uint8 fCHRRenderSnapshot[0x2000] = {};
+	uint8 fExternalCHRBytes[16] = {};
+	bool fHaveExternalCHRBytes = false;
 };
 
 #endif // _PATTERN_TABLE_VIEW_H_

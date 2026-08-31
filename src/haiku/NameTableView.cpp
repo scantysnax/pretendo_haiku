@@ -50,7 +50,8 @@ NameTableBaseFromIndex (int32 which)
 // These are needed because NameTableView::~NameTableView() uses
 // ClearPatternWindowHighlight(), but the helper's full definition
 // appears later in this file.
-static inline void SetPatternWindowHighlight(PatternTableWindow *window, int32 whichPT, int32 tileIndex);
+static inline void SetPatternWindowHighlight(PatternTableWindow *window, int32 whichPT, 
+											 int32 tileIndex, const uint8 *chrBytes = nullptr);
 static inline void ClearPatternWindowHighlight(PatternTableWindow *window);
 
 
@@ -114,36 +115,46 @@ NameTableView::~NameTableView()
 }
 
 
-// -------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // SetPatternWindowHighlight
 //
-// Sends an external tile highlight to a PatternTableWindow, if it
-// exists and can be locked safely.
+// Sets the external tile highlight in a Pattern Table debugger window.
+//
+// The caller may optionally provide the exact 16 CHR bytes used by the source
+// debugger view.  Passing those bytes keeps the externally highlighted tile
+// synchronized with the NameTable view on cartridges that switch CHR banks.
 //
 // Parameters:
-//   window    - PatternTableWindow to update.
-//   whichPT   - Pattern table index, 0 for $0000 or 1 for $1000.
+//   window    - Pattern Table window to update.
+//   whichPT   - Pattern table index: 0 or 1.
 //   tileIndex - Tile index to highlight.
+//   chrBytes  - Optional 16-byte CHR image for the highlighted tile.
 //
 // Returns:
-//   None.
-// -------------------------------------------------------------
+//   Nothing.
+// -----------------------------------------------------------------------------
 static inline void
-SetPatternWindowHighlight (PatternTableWindow *window, int32 whichPT, int32 tileIndex)
+SetPatternWindowHighlight (PatternTableWindow *window, int32 whichPT, int32 tileIndex, const uint8 *chrBytes)
 {
 	if (!window) {
 		return;
 	}
 
-	if (window->Lock()) {
-		PatternTableView *view = window->View();
-		
-		if (view) {
+	if (!window->Lock()) {
+		return;
+	}
+
+	PatternTableView *view = window->View();
+
+	if (view) {
+		if (chrBytes) {
+			view->SetExternalHighlight(whichPT, tileIndex, chrBytes);
+		} else {
 			view->SetExternalHighlight(whichPT, tileIndex);
 		}
-
-		window->Unlock();
 	}
+
+	window->Unlock();
 }
 
 
@@ -168,6 +179,7 @@ ClearPatternWindowHighlight (PatternTableWindow *window)
 
 	if (window->Lock()) {
 		PatternTableView* view = window->View();
+		
 		if (view) {
 			view->ClearExternalHighlight();
 		}
@@ -252,7 +264,7 @@ NameTableView::AttachedToWindow()
 	}
 
 	if (fBits) {
-		memset(fBits, 0x00, fBitmap->BitsLength());
+		memset(fBits, 0x0, fBitmap->BitsLength());
 	}
 
 	fBitmapDirty = true;
@@ -350,7 +362,6 @@ NameTableView::Draw(BRect updateRect)
 	FillRect(Bounds());
 
 	BPoint origin = BitmapOrigin();
-
 	DrawHeaderUI();
 	DrawBitmapPanel(origin);
 
@@ -362,7 +373,7 @@ NameTableView::Draw(BRect updateRect)
 
 	if (fBitmap && fBits) {
 		if (fBitmapDirty) {
-			memset(fBits, 0x00, fBitmap->BitsLength());
+			memset(fBits, 0x0, fBitmap->BitsLength());
 			DrawNameTable(fWhichNameTable);
 			fBitmapDirty = false;
 		}
@@ -371,7 +382,7 @@ NameTableView::Draw(BRect updateRect)
 	}
 
 	PushState();
-	TranslateBy(origin.x, origin.y);
+	 TranslateBy(origin.x, origin.y);
 
 	if (fShowAttributeMap) {
 		DrawAttributeMapOverlay();
@@ -460,7 +471,25 @@ NameTableView::KeyDown (const char *bytes, int32 numBytes)
 			break;
 
 		case ' ':
-			fFreezeUpdates = !fFreezeUpdates;
+			if (!fFreezeUpdates) {
+				/*
+		 		* Take a fresh coherent snapshot at the moment freeze is requested.
+		 		*/
+				CapturePPUSnapshot();
+
+				fFreezeUpdates = true;
+				fBitmapDirty = true;
+
+				UpdateCHRExplorer();
+			} else {
+				/*
+		 		* Leaving freeze does not discard the current snapshot immediately.
+		 		* The next Pulse() replaces it atomically with a new live snapshot.
+				*/
+				fFreezeUpdates = false;
+
+				fLastPPUFrame = static_cast<uint64>(-1);
+			}
 			break;
 
 		case 'f':
@@ -638,17 +667,18 @@ NameTableView::MouseMoved (BPoint where, uint32 transit, const BMessage *msg)
 // -----------------------------------------------------------------------------
 // NameTableView::Pulse
 //
-// Refreshes the NameTable and its connected debugger state whenever a new PPU
-// frame becomes available.
+// Refreshes the live NameTable display whenever a new PPU frame becomes
+// available.
 //
-// When a ROM has just been loaded into an already-open NameTable window,
-// ROM-specific state may have been cleared by Clear().  In that case, one
-// initialization pass is allowed even if updates are currently frozen so the
-// bitmap, active tile, CHR Explorer, palette state, and cross-view highlights
-// can be populated for the new ROM.
+// Cross-view debugger selection is intentionally not recomputed on every frame
+// once a valid active tile already exists.  Hover/lock selection changes are
+// handled by the mouse/keyboard selection paths themselves.
 //
-// Once valid state has been established, freeze mode again prevents subsequent
-// live updates until the user disables it.
+// This prevents a stationary NameTable selection from oscillating between
+// transient tile values while the game updates PPU memory.
+//
+// When the view has just been initialized or a new ROM has been loaded, one
+// initial CHR Explorer / PatternTable synchronization is performed.
 //
 // Parameters:
 //   None.
@@ -671,14 +701,7 @@ NameTableView::Pulse()
 		return;
 	}
 
-	/*
-	 * After Clear(), there is no active hover tile.  Allow the first valid
-	 * frame of a newly loaded ROM to initialize the view even if freeze mode
-	 * was preserved across the ROM change.
-	 */
-	const bool needsInitialization
-		= !fTileLocked
-		&& (fHoverTileX < 0 || fHoverTileY < 0);
+	const bool needsInitialization = !fHavePPUSnapshot || (!fTileLocked && (fHoverTileX < 0 || fHoverTileY < 0));
 
 	if (fFreezeUpdates && !needsInitialization) {
 		return;
@@ -693,27 +716,24 @@ NameTableView::Pulse()
 	fScrollX = x % 512;
 	fScrollY = y % 480;
 
+	CapturePPUSnapshot();
+
 	fBitmapDirty = true;
 
-	/*
-	 * Clear() removes the old ROM's active hover state.  Re-establish a
-	 * valid default world tile at the upper-left corner of this NameTable.
-	 */
-	if (needsInitialization) {
+	if (!fTileLocked && (fHoverTileX < 0 || fHoverTileY < 0)) {
 		int32 originTX = 0;
 		int32 originTY = 0;
 
-		NameTableTileOrigin(
-			fWhichNameTable,
-			originTX,
-			originTY
-		);
-
+		NameTableTileOrigin(fWhichNameTable, originTX, originTY);
 		fHoverTileX = originTX;
 		fHoverTileY = originTY;
-	}
 
-	UpdateCHRExplorer();
+		/*
+		 * Initial connection only. Once a valid active tile exists,
+		 * mouse/lock selection changes own cross-view synchronization.
+		 */
+		UpdateCHRExplorer();
+	}
 
 	Invalidate();
 }
@@ -802,7 +822,8 @@ NameTableView::ComputeTileFromViewPoint (BPoint where, int32 &outTX, int32 &outT
 // -------------------------------------------------------------
 // NameTableView::PatternBase
 //
-// Returns the background pattern table base selected by PPUCTRL.
+// Returns the background pattern table base represented by the current
+// NameTable display snapshot.
 //
 // Parameters:
 //   None.
@@ -813,13 +834,9 @@ NameTableView::ComputeTileFromViewPoint (BPoint where, int32 &outTX, int32 &outT
 uint32
 NameTableView::PatternBase() const
 {
-    // background pattern table select is PPUCTRL bit 4:
-    // 	0: $0000
-    //	1: $1000
+	const uint8 ppuctrl = DisplayPPUCTRL();
 
-	uint8 const ppuctrl = nes::ppu::ppuctrl();
-
-	return (ppuctrl & 0x10) << 8; // ? 0x1000 : 0x0000;
+	return (ppuctrl & 0x10) << 8;
 }
 
 
@@ -870,7 +887,7 @@ NameTableView::DrawNameTable (int32 which)
 	for (int32 tileY = 0; tileY < 30; tileY++) {
 		for (int32 tileX = 0; tileX < 32; tileX++) {
 			const uint32 ntAddr = baseAddr + tileX + (tileY * 32);
-			const uint8 tileIndex = mapper->read_vram(ntAddr);
+			const uint8 tileIndex = DisplayVRAM(ntAddr);
 			const uint8 palette = PaletteForAttribute(baseAddr, tileX, tileY);
 
 			DrawTile(patternBase, tileIndex, tileX, tileY, palette);
@@ -903,13 +920,13 @@ NameTableView::ColorForPixel (uint8 palette, uint8 pixel)
 
 	// pixel 0 always uses universal background color ($3f00)
 	if (pixel == 0) {
-		uint8 bg = mapper->read_vram(0x3f00) & 0x3f;
+		uint8 bg = DisplayVRAM(0x3f00) & 0x3f;
 		return fPalette[bg];
 	}
 
 	// bg palettes: $3f01..$3f0f (mirrors handled by mapper)
 	uint32 addr = 0x3f00 + 1 + (palette * 4) + (pixel - 1);
-	uint8 index = mapper->read_vram(addr) & 0x3f;
+	uint8 index = DisplayVRAM(addr) & 0x3f;
 	
 	return fPalette[index];
 }
@@ -939,7 +956,7 @@ NameTableView::PaletteForAttribute (uint32 nameTableBase, int32 tileX, int32 til
 
 	// attribute byte address: base + 0x3C0 + (tileY/4)*8 + (tileX/4)
 	uint32 attrAddr = nameTableBase + 0x3c0 + ((tileY / 4) * 8) + (tileX / 4);
-	uint8 attrByte = mapper->read_vram(attrAddr);
+	uint8 attrByte = DisplayVRAM(attrAddr);
 
     // quadrant inside 4x4 tile region
 	uint8 qx = ((tileX % 4) / 2); // 0 or 1
@@ -982,8 +999,8 @@ NameTableView::DrawTile (uint32 patternBase, uint8 tileIndex, int32 tileX, int32
 	uint32 tileAddr = patternBase + tileIndex * 16;
 
 	for (int32 y = 0; y < 8; y++) {
-		uint8 firstPlane = mapper->read_vram(tileAddr + y);
-		uint8 secondPlane = mapper->read_vram(tileAddr + y + 8);
+		uint8 firstPlane = DisplayVRAM(tileAddr + y);
+		uint8 secondPlane = DisplayVRAM(tileAddr + y + 8);
 
 		for (int32 x = 0; x < 8; x++) {
 			int32 shift = 7 - x;
@@ -1054,26 +1071,34 @@ NameTableView::DrawAttributeGrid()
 }
 
 
-// -------------------------------------------------------------
+// -----------------------------------------------------------------------------
 // NameTableView::UpdateCHRExplorer
 //
-// Resolves the active world tile into NameTable, attribute, CHR, and
-// palette data, then updates the CHR explorer and PatternTable highlight.
+// Updates the CHR Explorer, Palette debugger highlight, and Pattern Table
+// external highlight from the currently active NameTable tile.
+//
+// Tile, attribute, and CHR data are read through DisplayVRAM() so all debugger
+// views use the same live/frozen NameTable state.
+//
+// The exact 16 CHR bytes used by this NameTable tile are also supplied to the
+// corresponding PatternTableView.  This keeps the externally highlighted tile
+// synchronized on cartridges that switch CHR banks while rendering.
 //
 // Parameters:
 //   None.
 //
 // Returns:
-//   None.
-// -------------------------------------------------------------
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 NameTableView::UpdateCHRExplorer()
 {
 	Mapper *mapper = nes::cart.mapper();
 
 	if (!mapper || !fCHRExplorer) {
-		if (fMainWindow)
+		if (fMainWindow) {
 			fMainWindow->ClearPaletteDebuggerHighlight();
+		}
 
 		return;
 	}
@@ -1099,7 +1124,7 @@ NameTableView::UpdateCHRExplorer()
 
 	if (!WorldTileToLocalTile(worldTX, worldTY, tileX, tileY)) {
 		fCHRExplorer->Clear();
-
+		
 		ClearPatternWindowHighlight(fPatternTable0);
 		ClearPatternWindowHighlight(fPatternTable1);
 
@@ -1116,17 +1141,14 @@ NameTableView::UpdateCHRExplorer()
 	fHoverWhichNameTable = fWhichNameTable;
 
 	uint32 tileAddr = nameBase + (tileY * 32) + tileX;
-
-	fHoverTileIndex = mapper->read_vram(tileAddr);
-
+	fHoverTileIndex = DisplayVRAM(tileAddr);
 	uint32 attrAddr = nameBase + 0x3c0 + ((tileY / 4) * 8) + (tileX / 4);
 	fHoverAttrAddr = attrAddr;
-	fHoverAttrByte = mapper->read_vram(attrAddr);
+	fHoverAttrByte = DisplayVRAM(attrAddr);
 
 	uint8 qx = (tileX % 4) / 2;
 	uint8 qy = (tileY % 4) / 2;
 	uint8 quadrant = (qy << 1) | qx;
-
 	int32 shift = quadrant * 2;
 
 	fHoverPalette = (fHoverAttrByte >> shift) & 0x3;
@@ -1139,16 +1161,16 @@ NameTableView::UpdateCHRExplorer()
 	fCHRTileAddress = patternBase + (fHoverTileIndex * 16);
 
 	for (int32 i = 0; i < 16; i++) {
-		fCHRBytes[i] = mapper->read_vram(fCHRTileAddress + i);
+		fCHRBytes[i] = DisplayVRAM((fCHRTileAddress + i) & 0x3fff);
 	}
 
 	int32 whichPT = (patternBase != 0) ? 1 : 0;
 
 	if (whichPT == 0) {
-		SetPatternWindowHighlight(fPatternTable0, 0, fHoverTileIndex);
+		SetPatternWindowHighlight(fPatternTable0, 0, fHoverTileIndex, fCHRBytes);
 		ClearPatternWindowHighlight(fPatternTable1);
 	} else {
-		SetPatternWindowHighlight(fPatternTable1, 1, fHoverTileIndex);
+		SetPatternWindowHighlight(fPatternTable1, 1, fHoverTileIndex, fCHRBytes);
 		ClearPatternWindowHighlight(fPatternTable0);
 	}
 
@@ -1211,17 +1233,17 @@ NameTableView::DrawScrolledViewport (int32 scrollX, int32 scrollY)
 
 			uint32 ntBase = NameTableBaseFromIndex(whichNT);
 			uint32 nameAddr = ntBase + tileY * 32 + tileX;
-			uint8 tileIndex = mapper->read_vram(nameAddr);
+			uint8 tileIndex = DisplayVRAM(nameAddr);
 
 			uint32 attrAddr = ntBase + 0x3c0 + (tileY / 4) * 8 + (tileX / 4);
-			uint8 attrByte = mapper->read_vram(attrAddr);
+			uint8 attrByte = DisplayVRAM(attrAddr);
 
 			int32 shift = ((tileY & 0x2) << 1) | (tileX & 0x2);
 			uint8 palette = (attrByte >> shift) & 0x3;
 
 			uint32 chrAddr = patternBase + (tileIndex * 16);
-			uint8 firstPlane = mapper->read_vram(chrAddr + fineY);
-			uint8 secondPlane = mapper->read_vram(chrAddr + fineY + 8);
+			uint8 firstPlane = DisplayVRAM(chrAddr + fineY);
+			uint8 secondPlane = DisplayVRAM(chrAddr + fineY + 8);
 
 			shift = 7 - fineX;
 			uint8 pixel = (firstPlane >> shift) & 0x1; 
@@ -1505,7 +1527,7 @@ NameTableView::DrawMatchingTileOverlay()
 
 	uint32 nameTableBase = 0x2000 + (fWhichNameTable * 0x400);
 	uint32 selectedTileAddr = nameTableBase + (localTileY * 32) + localTileX;
-	uint8 selectedTile = mapper->read_vram(selectedTileAddr);
+	uint8 selectedTile = DisplayVRAM(selectedTileAddr);
 
 	PushState();
 
@@ -1519,7 +1541,7 @@ NameTableView::DrawMatchingTileOverlay()
 	for (int32 ty = 0; ty < 30; ty++) {
 		for (int32 tx = 0; tx < 32; tx++) {
 			uint32 tileAddr = nameTableBase + (ty * 32) + tx;
-			uint8 tile = mapper->read_vram(tileAddr);
+			uint8 tile = DisplayVRAM(tileAddr);
 
 			if (tile != selectedTile) {
 				continue;
@@ -1600,7 +1622,6 @@ NameTableView::NotifyCHRExplorer()
 	uint8 quadrant = (qy << 1) | qx;
 
 	int32 whichPT = (PatternBase() != 0) ? 1 : 0;
-
 	uint32 tileAddr = fCurrentNameTableBase + (tileY * 32) + tileX;
 
 	fCHRExplorer->SetTile8x8(whichPT, fHoverTileIndex, fTileLocked, fCHRTileAddress,
@@ -1653,7 +1674,6 @@ NameTableView::SetExplorer (CHRExplorerView *explorer)
 		int32 originTY = 0;
 
 		NameTableTileOrigin(fWhichNameTable, originTX, originTY);
-
 		fHoverTileX = originTX;
 		fHoverTileY = originTY;
 	}
@@ -1759,6 +1779,10 @@ NameTableView::Clear()
 	if (fCHRExplorer) {
 		fCHRExplorer->Clear();
 	}
+	
+	fHavePPUSnapshot = false;
+	fSnapshotPPUCTRL = 0x00;
+	memset(fSnapshotVRAM, 0, sizeof(fSnapshotVRAM));
 
 	Invalidate();
 }
@@ -1807,11 +1831,11 @@ NameTableView::DrawActiveAttributeBlockOverlay()
 	rgb_color stroke;
 
 	if (fTileLocked) {
-		fill = (rgb_color){255, 190,  80,  26};  // locked: soft amber
-		stroke = (rgb_color){255, 150,  40, 150};
+		fill = (rgb_color){ 255, 190, 80,  26 };  // locked: soft amber
+		stroke = (rgb_color){ 255, 150, 40, 150 };
 	} else {
-		fill = (rgb_color){ 80, 200, 255,  22};  // hover: soft cyan
-		stroke = (rgb_color){ 40, 160, 220, 140};
+		fill = (rgb_color){ 80, 200, 255, 22};  // hover: soft cyan
+		stroke = (rgb_color){ 40, 160, 220, 140 };
 	}
 
 	PushState();
@@ -1877,27 +1901,19 @@ NameTableView::DrawAttributeBlockOverlay()
 
 			switch (palette) {
 				case 0:
-					tint = (rgb_color){
-						255, 80, 80, 34
-					};
+					tint = (rgb_color){ 255, 80, 80, 34 };
 					break;
 
 				case 1:
-					tint = (rgb_color){
-						80, 180, 255, 34
-					};
+					tint = (rgb_color){ 80, 180, 255, 34 };
 					break;
 
 				case 2:
-					tint = (rgb_color){
-						120, 255, 120, 34
-					};
+					tint = (rgb_color){ 120, 255, 120, 34 };
 					break;
 
 				default:
-					tint = (rgb_color){
-						255, 210, 80, 34
-					};
+					tint = (rgb_color){ 255, 210, 80, 34 };
 					break;
 			}
 
@@ -1949,10 +1965,10 @@ NameTableView::DrawAttributeMapOverlay()
 	}
 
 	static const rgb_color kPaletteTint[4] = {
-		{255,   0, 255, 56},   // pal 0: magenta
-		{ 0, 220, 255, 56},   // pal 1: cyan
-		{120, 255, 0, 56},   // pal 2: lime
-		{255, 140, 0, 56}    // pal 3: orange
+		{ 255, 0, 255, 56 },	// pal 0: magenta
+		{ 0, 220, 255, 56 },	// pal 1: cyan
+		{ 120, 255, 0, 56 },	// pal 2: lime
+		{ 255, 140, 0, 56 }		// pal 3: orange
 	};
 
 	PushState();
@@ -2083,7 +2099,7 @@ NameTableView::DrawHeaderUI()
 	const float valueX = labelX + 68.0f;
 	float y = panel.top + 36.0f;
 
-	auto drawKV = [&](const char *label, const char *value) {
+	auto drawLV = [&](const char *label, const char *value) {
 		SetHighColor(80, 80, 80);
 		DrawString(label, BPoint(labelX, y));
 
@@ -2093,12 +2109,12 @@ NameTableView::DrawHeaderUI()
 		y += lineH;
 	};
 
-	drawKV("G/H/B/N:", "grid / map / both / none");
-	drawKV("F/M:", "blocks / matching tiles");
-	drawKV("V:", "viewport");
-	drawKV("Space:", "freeze updates");
-	drawKV("Mouse:", "hover / click lock / shift screen lock");
-	drawKV("CHR:", "1-4 palette / 0 source");
+	drawLV("G/H/B/N:", "grid / map / both / none");
+	drawLV("F/M:", "blocks / matching tiles");
+	drawLV("V:", "viewport");
+	drawLV("Space:", "freeze updates");
+	drawLV("Mouse:", "hover / click lock / shift screen lock");
+	drawLV("CHR:", "1-4 palette / 0 source");
 }
 
 
@@ -2124,7 +2140,6 @@ NameTableView::WorldTileToLocalTile (int32 worldTX, int32 worldTY, int32 &outLoc
 	int32 originTY;
 	
 	NameTableTileOrigin(fWhichNameTable, originTX, originTY);
-
 	int32 localTX = worldTX - originTX;
 	int32 localTY = worldTY - originTY;
 
@@ -2144,6 +2159,9 @@ NameTableView::WorldTileToLocalTile (int32 worldTX, int32 worldTY, int32 &outLoc
 //
 // Draws the bottom NameTable state panel, including aligned PPU state
 // fields and overlay-state badges.
+//
+// Numeric PPU state values are displayed using a fixed-width font so
+// hexadecimal register and address values remain consistently aligned.
 //
 // Parameters:
 //   None.
@@ -2166,24 +2184,34 @@ NameTableView::DrawDebugPanel()
 
 	SetFontSize(11.0f);
 
+	BFont uiFont;
+	GetFont(&uiFont);
+
+	BFont fixed(be_fixed_font);
+	fixed.SetSize(uiFont.Size());
+
 	font_height fh;
 	GetFontHeight(&fh);
 
 	const float lineH = ceilf(fh.ascent + fh.descent + fh.leading) + 1.0f;
+
 	const float labelX = panel.left + 8.0f;
 	const float valueX = labelX + 84.0f;
+
 	float textY = panel.top + 36.0f;
 
-	uint8 ctrl = nes::ppu::ppuctrl();
+	uint8 ctrl = DisplayPPUCTRL();
 	uint16 bgPT = (ctrl & 0x10) ? 0x1000 : 0x0000;
 	uint32 ntBase = NameTableBaseFromIndex(fWhichNameTable);
 
 	BString s;
 
-	auto drawKV = [&](const char *label, const char *value) {
+	auto drawLV = [&](const char *label, const char *value, bool fixedValue) {
+		SetFont(&uiFont);
 		SetHighColor(80, 80, 80);
 		DrawString(label, BPoint(labelX, textY));
 
+		SetFont(fixedValue ? &fixed : &uiFont);
 		SetHighColor(0, 0, 0);
 		DrawString(value, BPoint(valueX, textY));
 
@@ -2191,19 +2219,22 @@ NameTableView::DrawDebugPanel()
 	};
 
 	s.SetToFormat("$%02X", ctrl);
-	drawKV("PPUCTRL:", s.String());
+	drawLV("PPUCTRL:", s.String(), true);
 
 	s.SetToFormat("$%04X", bgPT);
-	drawKV("Background:", s.String());
+	drawLV("Background:", s.String(), true);
 
 	s.SetToFormat("$%04X", ntBase);
-	drawKV("Name Table:", s.String());
+	drawLV("Name Table:", s.String(), true);
 
 	/*
 	 * State badges with automatic wrapping.
 	 */
+	SetFont(&uiFont);
+
 	float sx = labelX;
 	float sy = textY + 5.0f;
+
 	const float maxW = panel.right - 8.0f;
 
 	auto drawStateBadge = [&](const char *label, bool enabled) {
@@ -2219,7 +2250,12 @@ NameTableView::DrawDebugPanel()
 			sy += badgeH + 4.0f;
 		}
 
-		BRect r(sx, sy, sx + badgeW, sy + badgeH);
+		BRect r(
+			sx,
+			sy,
+			sx + badgeW,
+			sy + badgeH
+		);
 
 		if (enabled) {
 			SetHighColor(210, 235, 210);
@@ -2243,7 +2279,13 @@ NameTableView::DrawDebugPanel()
 			SetHighColor(105, 105, 105);
 		}
 
-		DrawString(label, BPoint(sx + padX, sy + 11.0f));
+		DrawString(
+			label,
+			BPoint(
+				sx + padX,
+				sy + 11.0f
+			)
+		);
 
 		sx += badgeW + gap;
 	};
@@ -2254,6 +2296,8 @@ NameTableView::DrawDebugPanel()
 	drawStateBadge("MATCH", fShowMatchingTiles);
 	drawStateBadge("VIEW", fShowViewportBox);
 	drawStateBadge("FREEZE", fFreezeUpdates);
+
+	SetFont(&uiFont);
 }
 
 
@@ -2334,4 +2378,79 @@ NameTableView::DrawNoROMMessage()
 	SetFont(&prevFont);
 }
 
+
+void
+NameTableView::CapturePPUSnapshot()
+{
+	Mapper *mapper = nes::cart.mapper();
+
+	if (!mapper) {
+		fHavePPUSnapshot = false;
+		return;
+	}
+
+	fSnapshotPPUCTRL = nes::ppu::ppuctrl();
+
+	for (uint32 address = 0; address < 0x4000; address++) {
+		fSnapshotVRAM[address] = mapper->read_vram(address);
+	}
+
+	fHavePPUSnapshot = true;
+}
+
+
+// -----------------------------------------------------------------------------
+// NameTableView::DisplayPPUCTRL
+//
+// Returns the PPUCTRL value represented by the current NameTable display state.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Snapshot PPUCTRL when available, otherwise the current live value.
+// -----------------------------------------------------------------------------
+uint8
+NameTableView::DisplayPPUCTRL() const
+{
+	if (fHavePPUSnapshot) {
+		return fSnapshotPPUCTRL;
+	}
+
+	return nes::ppu::ppuctrl();
+}
+
+
+// -----------------------------------------------------------------------------
+// NameTableView::DisplayVRAM
+//
+// Reads one byte from the PPU memory state represented by this debugger view.
+//
+// Once a display snapshot exists, all NameTable rendering and inspection reads
+// use that snapshot so overlays and linked debugger tools cannot observe newer
+// live VRAM than the bitmap beneath them.
+//
+// Parameters:
+//   address - PPU address to read.
+//
+// Returns:
+//   Snapshot or live PPU-memory byte.
+// -----------------------------------------------------------------------------
+uint8
+NameTableView::DisplayVRAM(uint32 address) const
+{
+	address &= 0x3fff;
+
+	if (fHavePPUSnapshot) {
+		return fSnapshotVRAM[address];
+	}
+
+	Mapper *mapper = nes::cart.mapper();
+
+	if (!mapper) {
+		return 0;
+	}
+
+	return mapper->read_vram(address);
+}
 

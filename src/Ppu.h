@@ -1,8 +1,11 @@
-#ifndef PPU_20080314_H_
-#define PPU_20080314_H_
+
+#ifndef _PPU_H_
+#define _PPU_H_
+
+#include <cstdint>
 
 #include "Reset.h"
-#include <cstdint>
+
 
 namespace nes::ppu {
 
@@ -29,7 +32,18 @@ struct ppu_write_log_entry_t {
 	uint16_t address;
 	uint8_t value;
 	uint8_t write_index;
+
+	/*
+	 * $2005/$2006 shared write-latch state at the time of the write.
+	 *
+	 * 0 = first write
+	 * 1 = second write
+	 *
+	 * This field is meaningful for PPUSCROLL and PPUADDR writes.
+	 */
+	uint8_t write_latch;
 };
+
 
 constexpr uint32_t PPU_WRITE_LOG_CAPACITY = 256;
 
@@ -56,10 +70,10 @@ uint8_t read200x();
  * execute_scanline is NOT a template in the public API anymore.
  * (template implementation stays in Ppu.cpp)
  */
-void execute_scanline(const scanline_vblank& target);
-void execute_scanline(const scanline_prerender& target);
-void execute_scanline(const scanline_postrender& target);
-void execute_scanline(const scanline_render& target);
+bool execute_scanline(const scanline_vblank& target);
+bool execute_scanline(const scanline_prerender& target);
+bool execute_scanline(const scanline_postrender& target);
+bool execute_scanline(const scanline_render& target);
 
 // debug/introspection helpers
 scroll_state_t scroll_state();
@@ -72,7 +86,6 @@ uint8_t  ppustatus();
 uint16_t ppu_dot();
 uint16_t ppu_scanline();
 uint64_t ppu_frame_counter();
-
 
 uint64_t       cycle_count();
 uint_least16_t hpos();
@@ -88,6 +101,7 @@ void log_ppu_write(uint16_t address, uint8_t value);
 uint32_t ppu_write_log_count();
 ppu_write_log_entry_t ppu_write_log_entry(uint32_t index);
 void clear_ppu_write_log();
+uint32_t ppu_write_log_snapshot(ppu_write_log_entry_t *entries, uint32_t capacity);
 
 uint8_t debug_read_ppu_memory(uint16_t address);
 void debug_step_dot();
@@ -97,4 +111,7 @@ extern bool system_paused;
 
 } // namespace nes::ppu
 
-#endif
+
+#endif	// _PPU_H_
+
+

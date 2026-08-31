@@ -21,49 +21,144 @@ void reset(Reset reset_type) {
     ppu::reset(reset_type);
 }
 
+alignas(512) static uint32_t sFrameScanlineBuffer[256] = {};
 
-void 
+uint32_t*
+frame_scanline_buffer()
+{
+	return sFrameScanlineBuffer;
+}
+
+
+// -----------------------------------------------------------------------------
+// nes::run_frame
+//
+// Executes or resumes one NES frame.
+//
+// Frame execution is derived directly from the PPU's persistent vpos/hpos state.
+// If a debugger BreakPoint interrupts a scanline, the function returns without
+// losing the current PPU position. The next call resumes that same scanline.
+//
+// Visible-scanline pixel storage is persistent so an interrupted visible line can
+// continue rendering into the same 256-pixel buffer after debugger resume.
+//
+// Parameters:
+//   window - Main emulator window receiving completed rendered scanlines.
+//
+// Returns:
+//   true  - A complete NES frame finished.
+//   false - Execution stopped before the frame finished.
+// -----------------------------------------------------------------------------
+bool
 run_frame(PretendoWindow *window)
 {
-    if (!window)
-        return;
+	if (!window) {
+		return false;
+	}
 
-    // Scanline 20: prerender
-    ppu::execute_scanline(ppu::scanline_prerender{});
+	while (true) {
+		const uint16_t scanline = static_cast<uint16_t>(nes::ppu::vpos());
 
-    // Latch scroll for the frame BEFORE visible rendering starts
-    {
-        nes::ppu::scroll_state_t const s = nes::ppu::scroll_state();
-        uint32_t const v = s.v;
+		/*
+		 * PPU scanline 0 is prerender after reset.
+		 *
+		 * At the end of a completed frame vpos_ is 262. Entering the
+		 * prerender scanline at 262 causes the PPU's start_frame() to
+		 * wrap vpos_ back to zero before executing the line.
+		 */
+		if (scanline == 0 || scanline == 262) {
+			if (!nes::ppu::execute_scanline(
+					nes::ppu::scanline_prerender{})) {
 
-        int32_t const coarseX = v & 0x1f;
-        int32_t const coarseY = (v >> 5) & 0x1f;
-        int32_t const fineY = (v >> 12) & 0x7;
-        int32_t const fineX = s.x & 0x7;
+				return false;
+			}
 
-        int32_t const ntX = (v & 0x400) ? 256 : 0;
-        int32_t const ntY = (v & 0x800) ? 240 : 0;
+			/*
+			 * Prerender completed. Latch the scroll state exactly once
+			 * before visible rendering begins.
+			 */
+			{
+				const nes::ppu::scroll_state_t s = nes::ppu::scroll_state();
+				const uint32_t v = s.v;
+				const int32_t coarseX = v & 0x1f;
+				const int32_t coarseY = (v >> 5) & 0x1f;
+				const int32_t fineY = (v >> 12) & 0x7;
+				const int32_t fineX = s.x & 0x7;
 
-        uint32_t const scrollX = static_cast<uint32_t>((ntX + coarseX * 8 + fineX) & 0x1ff);
-        uint32_t const scrollY = static_cast<uint32_t>((ntY + coarseY * 8 + fineY) % 480);
+				const int32_t ntX = (v & 0x400) ? 256 : 0;
+				const int32_t ntY = (v & 0x800) ? 240 : 0;
 
-        window->SetLatchedScroll(scrollX, scrollY);
-    }
+				const uint32_t scrollX = static_cast<uint32>((ntX + coarseX * 8 + fineX) & 0x1ff);
+				const uint32_t scrollY = static_cast<uint32_t>((ntY + coarseY * 8 + fineY) % 480);
 
-    // Visible scanlines 21-260
-    alignas(512) uint32_t buffer[256] = {};
-    for (int y = 0; y < 240; ++y) {
-        ppu::execute_scanline(ppu::scanline_render(buffer));
-        window->submit_scanline(y, buffer);
-    }
+				window->SetLatchedScroll(scrollX, scrollY);
+			}
 
-    // Scanline 261: postrender
-    ppu::execute_scanline(ppu::scanline_postrender{});
+			continue;
+		}
 
-    // Scanlines 0-19: vblank
-    for (int i = 0; i < 20; ++i) {
-        ppu::execute_scanline(ppu::scanline_vblank{});
-    }
+		/*
+		 * Visible scanlines.
+		 *
+		 * PPU vpos 1..240 maps to output rows 0..239.
+		 */
+		if (scanline >= 1 && scanline <= 240) {
+			const int32_t y = static_cast<int32_t>(scanline - 1);
+
+			if (!nes::ppu::execute_scanline(nes::ppu::scanline_render(sFrameScanlineBuffer))) {
+				return false;
+			}
+
+			/*
+			 * Only submit a completely rendered scanline.
+			 */
+			window->submit_scanline(y, sFrameScanlineBuffer);
+			continue;
+		}
+
+		/*
+		 * Postrender scanline.
+		 */
+		if (scanline == 241) {
+			if (!nes::ppu::execute_scanline(nes::ppu::scanline_postrender{})) {
+				return false;
+			}
+
+			continue;
+		}
+
+		/*
+		 * VBlank scanlines.
+		 */
+		if (scanline >= 242 && scanline <= 261) {
+			if (!nes::ppu::execute_scanline(nes::ppu::scanline_vblank{})) {
+				return false;
+			}
+
+			/*
+			 * Reaching vpos_ 262 means the complete frame has
+			 * finished. The next invocation begins the next
+			 * prerender scanline.
+			 */
+			if (nes::ppu::vpos() == 262) {
+				return true;
+			}
+
+			continue;
+		}
+
+		/*
+		 * This should never happen during correctly synchronized
+		 * PPU execution.
+		 */
+		return false;
+	}
+
+	/*
+	 * The loop above always exits via a return, but keep an explicit
+	 * fallback so the compiler sees a value on every control path.
+	 */
+	return false;
 }
 
 
@@ -121,7 +216,7 @@ debug_step_frame()
 		return;
 	}
 
-	const uint64 startFrame = nes::ppu::ppu_frame_counter();
+	const uint64_t startFrame = nes::ppu::ppu_frame_counter();
 
 	for (int32_t safety = 0; safety < 2000000; safety++) {
 		nes::ppu::debug_step_dot();

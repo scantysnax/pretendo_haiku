@@ -49,6 +49,12 @@ class PaletteDebugView : public BView
 	bool PaletteEntryAt (BPoint where, uint16 &outAddress) const;
 	uint16 ResolvePaletteAddress (uint16 address) const;
 	uint8 ReadPalette (uint16 address) const;
+	
+	private:
+	void CapturePaletteSnapshot();
+	uint8 DisplayPalette (uint16 address) const;
+	uint8 DisplayPPUMASK() const;
+	void Clear();
 
 	private:
 	PretendoWindow *fParent = nullptr;
@@ -56,7 +62,6 @@ class PaletteDebugView : public BView
 
 	private:
 	bool fFreezeUpdates = false;
-	bool fMouseInside = false;
 	bool fEntryLocked = false;
 
 	private:
@@ -68,6 +73,11 @@ class PaletteDebugView : public BView
 	bool fExternalHighlightSprites = false;
 	int32 fExternalHighlightPalette = -1;
 	int32 fExternalHighlightEntry = -1;
+	
+	private:
+	bool fHavePaletteSnapshot = false;
+	uint8 fSnapshotPalette[0x20] = {};
+	uint8 fSnapshotPPUMASK = 0x00;
 };
 
 

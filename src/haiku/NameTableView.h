@@ -199,6 +199,15 @@ class NameTableView : public BView
 	
 	// Draws a message that indicates no ROM is loaded.
 	void DrawNoROMMessage();
+	
+	// Snapshot API
+	bool fHavePPUSnapshot = false;
+	uint8 fSnapshotPPUCTRL = 0x00;
+	uint8 fSnapshotVRAM[0x4000] = {};
+	
+	void CapturePPUSnapshot();
+	uint8 DisplayPPUCTRL() const;
+	uint8 DisplayVRAM (uint32 address) const;
 };
 
 #endif

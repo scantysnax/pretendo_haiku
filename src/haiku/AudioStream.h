@@ -46,4 +46,6 @@ class AudioStream
 	bool fStreaming = false;
 };
 
+
 #endif // _AUDIO_STREAM_H_
+

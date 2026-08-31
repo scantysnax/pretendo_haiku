@@ -357,17 +357,17 @@ PretendoWindow::PretendoWindow()
 		ClearBitmap(true);
 	} else {
 		fOverlayBits = nullptr;
-		if (fOverlayBitmap) {
-			delete fOverlayBitmap;
-		}
-		
+
+		delete fOverlayBitmap;
+		fOverlayBitmap = nullptr;
+	
 		fView->SetViewColor(0, 0, 0);
 		ClearBitmap(false);
 		fVideoMenu->ItemAt(2)->SetEnabled(false);
 	}
 	
 	// start video
-	fFullScreen = 
+	fFullScreen = false;
 	fFrameworkChanging = false;	
 	fFramework = 
 	fPrevFramework = video_framework::NONE;
@@ -470,13 +470,11 @@ PretendoWindow::~PretendoWindow()
 	fAudioStream->Stop();
 	delete fAudioStream;
 
-	if (fBitmap->IsValid()) {
-		delete fBitmap;
-	}
-	
-	if (fOverlayBitmap->IsValid()) {
-		delete fOverlayBitmap;
-	}
+	delete fBitmap;
+	fBitmap = nullptr;
+
+	delete fOverlayBitmap;
+	fOverlayBitmap = nullptr;
 	
 	delete_area(fBitsArea);
 	delete_area(fDirtyArea);
@@ -606,9 +604,7 @@ PretendoWindow::~PretendoWindow()
 	}
 	
 	// long day.
-	
-	fMutex->Unlock();
-	
+
 	SaveSettings();
 	
 	delete fSettingsMessage;
@@ -647,9 +643,7 @@ PretendoWindow::MessageReceived (BMessage *message)
 			break;
 		
 		case messages::CHANGE_RENDER:
-			ChangeFramework(
-				static_cast<video_framework>(fVideoMenu->IndexOf(fVideoMenu->FindMarked()))
-			);
+			ChangeFramework(static_cast<video_framework>(fVideoMenu->IndexOf(fVideoMenu->FindMarked())));
 			break;
 		
 		case messages::LEAVE_FULLSCREEN:
@@ -901,8 +895,10 @@ PretendoWindow::MenusEnded()
 // -----------------------------------------------------------------------------
 // PretendoWindow::QuitRequested
 //
-// Requests application shutdown, releases the emulator mutex to stop the worker
-// thread, waits for the thread to exit, and posts B_QUIT_REQUESTED to the app.
+// Requests application shutdown by destroying the emulator mutex, which wakes
+// the worker thread if it is blocked waiting for the semaphore.  The function
+// then waits for the emulator thread to exit before allowing normal window
+// destruction to continue.
 //
 // Parameters:
 //   None.
@@ -921,6 +917,8 @@ PretendoWindow::QuitRequested()
 	status_t ret;
 
 	delete fMutex;
+	fMutex = nullptr;
+
 	wait_for_thread(fThread, &ret);
 	
 	fRunning = false;
@@ -1256,10 +1254,8 @@ PretendoWindow::ForceFullBitmapRedraw()
 // -----------------------------------------------------------------------------
 // PretendoWindow::MuteAudioForDebugging
 //
-// Mutes emulator audio for debugger stepping, breakpoints, and debugger pause
-// states.  Both the emulated APU output and host audio stream are muted, and any
-// stale host samples are cleared so the last generated sound does not loop or
-// stick while the debugger is stopped.
+// Silences host audio while execution is debugger-paused without changing
+// emulated APU state.
 //
 // Parameters:
 //   None.
@@ -1270,8 +1266,6 @@ PretendoWindow::ForceFullBitmapRedraw()
 void
 PretendoWindow::MuteAudioForDebugging()
 {
-	nes::apu::debug_set_audio_muted(true);
-
 	if (fAudioStream) {
 		fAudioStream->SetMuted(true);
 		fAudioStream->ClearBuffer();
@@ -1283,9 +1277,13 @@ PretendoWindow::MuteAudioForDebugging()
 // -----------------------------------------------------------------------------
 // PretendoWindow::ResumeAudioAfterDebugging
 //
-// Restores emulator audio after leaving debugger pause/step mode.  Any stale
-// host samples are cleared before unmuting so normal playback resumes cleanly
-// from the current emulation state.
+// Restores host audio output after debugger execution resumes.
+//
+// The debugger-muted callback is allowed to retain at most one pacing permit.
+// That permit is deliberately preserved here so the emulator can immediately
+// generate fresh audio when execution resumes.
+//
+// Pacing is reset when entering debugger pause, not when leaving it.
 //
 // Parameters:
 //   None.
@@ -1296,15 +1294,10 @@ PretendoWindow::MuteAudioForDebugging()
 void
 PretendoWindow::ResumeAudioAfterDebugging()
 {
-	nes::apu::debug_set_audio_muted(false);
-
 	if (fAudioStream) {
-		fAudioStream->ClearBuffer();
-		fAudioStream->ResetPacing();
 		fAudioStream->SetMuted(false);
 	}
 }
-
 
 // -----------------------------------------------------------------------------
 // PretendoWindow::OnROMInfo
@@ -1362,12 +1355,17 @@ PretendoWindow::OnQuit()
 // -----------------------------------------------------------------------------
 // PretendoWindow::OnRun
 //
-// Starts or resumes emulation when a ROM is loaded.  On first run this performs
-// a hard reset, clears any stale execute-breakpoint hit latch, unlocks the
-// emulator mutex, starts audio, and enables fullscreen mode.
+// Starts or resumes emulation when a ROM is loaded.
 //
-// If emulation is already running but paused, this delegates to OnPause() so the
-// normal pause/unpause path is preserved.
+// If emulation has not yet started, a hard reset is performed and the emulator
+// thread is released normally.
+//
+// If execution is currently stopped by the debugger, the existing debugger
+// resume path is used so breakpoint state, debugger pause state, controller
+// input, and audio are restored consistently.
+//
+// If the emulator is paused through the normal Pause command, OnPause() handles
+// the ordinary unpause path.
 //
 // Parameters:
 //   None.
@@ -1377,20 +1375,57 @@ PretendoWindow::OnQuit()
 // -----------------------------------------------------------------------------
 void
 PretendoWindow::OnRun()
-{	
+{
 	if (!fRunning) {
-		// make sure we have a cart loaded
-		if (nes::cart.mapper()) {
-			reset(nes::Reset::Hard);
-
-			nes::cpu::debug_clear_breakpoint_hit();
-
-			fMutex->Unlock(); // unlock the mutual exclusion
-			fRunning = true;  // signal the thread that we're running
-			fAudioStream->Start();
-			fVideoMenu->ItemAt(video_framework::FULLSCREEN)->SetEnabled(true); // we can now go fullscreen
+		if (!nes::cart.mapper()) {
+			return;
 		}
-	} else if (fPaused) {
+
+		reset(nes::Reset::Hard);
+
+		nes::cpu::debug_clear_breakpoint_hit();
+
+		fDebuggerPausedEmulation = false;
+		fPaused = false;
+
+		nes::ppu::system_paused = false;
+		nes::apu::debug_set_audio_muted(false);
+
+		ClearControllerInput();
+
+		if (fAudioStream) {
+			fAudioStream->ClearBuffer();
+			fAudioStream->ResetPacing();
+			fAudioStream->SetMuted(false);
+		}
+
+		fRunning = true;
+
+		UnlockMutex();
+
+		if (fAudioStream) {
+			fAudioStream->Start();
+		}
+
+		if (fVideoMenu
+			&& fVideoMenu->ItemAt(video_framework::FULLSCREEN)) {
+			fVideoMenu->ItemAt(video_framework::FULLSCREEN)->SetEnabled(true);
+		}
+
+		return;
+	}
+
+	/*
+	 * The emulator thread can still be considered "running" while execution is
+	 * stopped by the debugger.  In that state, use the debugger resume path
+	 * rather than the normal menu-pause path.
+	 */
+	if (fDebuggerPausedEmulation) {
+		DebugResumeExecution();
+		return;
+	}
+
+	if (fPaused) {
 		OnPause();
 	}
 }
@@ -1399,8 +1434,11 @@ PretendoWindow::OnRun()
 // -----------------------------------------------------------------------------
 // PretendoWindow::OnStop
 //
-// Stops emulation, reacquires the emulator mutex when needed, stops audio,
-// clears the active video target, and disables fullscreen mode.
+// Stops emulation and establishes the normal stopped state.
+//
+// The emulator mutex remains locked while stopped.  OnRun() releases it again.
+// The visible and cached video frame are replaced with a blank frame so the
+// previous emulator image does not remain onscreen.
 //
 // Parameters:
 //   None.
@@ -1410,32 +1448,84 @@ PretendoWindow::OnRun()
 // -----------------------------------------------------------------------------
 void
 PretendoWindow::OnStop()
-{		
-	// if we're running, set fRunning to false to signal the thread we're not
-	// running, lock the mutual exclusion and stop the sound stream
+{
 	if (fRunning) {
+		const bool wasPaused = fPaused;
+
 		fRunning = false;
-		
-		if (! fPaused) {
-			fMutex->Lock();
+
+		/*
+		 * Normal Pause already owns the mutex.
+		 * Otherwise acquire it and retain it while stopped.
+		 */
+		if (!wasPaused) {
+			if (!LockMutex()) {
+				return;
+			}
+		}
+
+		if (fAudioStream) {
 			fAudioStream->Stop();
 		}
 
-		// clear the window contents
+		nes::cpu::debug_clear_breakpoint_hit();
+
+		fDebuggerPausedEmulation = false;
+		nes::ppu::system_paused = false;
+
+		nes::apu::debug_set_audio_muted(false);
+
+		if (fAudioStream) {
+			fAudioStream->ClearBuffer();
+			fAudioStream->ResetPacing();
+			fAudioStream->SetMuted(false);
+		}
+
 		if (fFramework == video_framework::OVERLAY) {
 			ClearBitmap(true);
 		} else {
+			/*
+			 * Clear the actual bitmap first.
+			 */
 			ClearBitmap(false);
-			fView->SetViewColor(0, 0, 0);
-			fView->Invalidate();
+
+			if (fView && fBitmap) {
+				/*
+				 * Keep PretendoView's normal display/cached-frame state
+				 * intact, but replace the previous frame with the newly
+				 * cleared bitmap.
+				 */
+				fView->SetDisplayBitmap(fBitmap);
+				fView->CaptureLastFrame(fBitmap);
+
+				fView->SetViewColor(0, 0, 0);
+				fView->DrawBitmap(fBitmap, fView->Bounds());
+			}
 		}
-		
-		// make sure we can't go fullscreen
-		fVideoMenu->ItemAt(video_framework::FULLSCREEN)->SetEnabled(false);
+
+		if (fVideoMenu
+			&& fVideoMenu->ItemAt(video_framework::FULLSCREEN)) {
+			fVideoMenu->ItemAt(video_framework::FULLSCREEN)->SetEnabled(false);
+		}
 	}
-	
+
 	fPaused = false;
-	fEmuMenu->ItemAt(1)->SetMarked(false);
+
+	if (fEmuMenu && fEmuMenu->ItemAt(1)) {
+		fEmuMenu->ItemAt(1)->SetMarked(false);
+	}
+
+	ClearControllerInput();
+
+	/*
+	 * Deliberately:
+	 *
+	 *   - no ClearVideoView()
+	 *   - no UpdateIfNeeded()
+	 *   - no InvalidateDebugViews()
+	 *
+	 * The stopped-state emulator mutex remains owned until OnRun().
+	 */
 }
 
 
@@ -1458,13 +1548,13 @@ PretendoWindow::OnPause()
 		if (fPaused) {
 			// if we are paused, we want to unpause, so unlock the mutual exclusion
 			// update the recent roms menu and start the sound interface
-			fMutex->Unlock();
+			UnlockMutex();
 			fEmuMenu->ItemAt(1)->SetMarked(false);
 			fAudioStream->Start();
 		} else {
 			// otherwise, we want to pause, so lock the mutual exclusion
 			// mark the menu accordingly and stop the sound interface
-			fMutex->Lock();
+			LockMutex();
 			fEmuMenu->ItemAt(1)->SetMarked(true);
 			fAudioStream->Stop();
 		}
@@ -1472,6 +1562,7 @@ PretendoWindow::OnPause()
 		fPaused = !fPaused;
 	}
 }
+
 
 // -----------------------------------------------------------------------------
 // PretendoWindow::OnSoftReset
@@ -1709,8 +1800,7 @@ PretendoWindow::OnViewPatternTable1()
 		return;
 	}
 
-	fPatternTable1Window
-		= new PatternTableWindow(this, 0);
+	fPatternTable1Window = new PatternTableWindow(this, 0);
 
 	BeginToolInput();
 
@@ -1751,8 +1841,7 @@ PretendoWindow::OnViewPatternTable2()
 		return;
 	}
 
-	fPatternTable2Window
-		= new PatternTableWindow(this, 1);
+	fPatternTable2Window = new PatternTableWindow(this, 1);
 
 	BeginToolInput();
 
@@ -1793,12 +1882,7 @@ PretendoWindow::OnViewNameTable1()
 		return;
 	}
 
-	fNameTable1Window = new NameTableWindow(
-		this,
-		0,
-		fPatternTable1Window,
-		fPatternTable2Window
-	);
+	fNameTable1Window = new NameTableWindow(this, 0, fPatternTable1Window, fPatternTable2Window);
 
 	BeginToolInput();
 
@@ -1839,12 +1923,7 @@ PretendoWindow::OnViewNameTable2()
 		return;
 	}
 
-	fNameTable2Window = new NameTableWindow(
-		this,
-		1,
-		fPatternTable1Window,
-		fPatternTable2Window
-	);
+	fNameTable2Window = new NameTableWindow(this, 1, fPatternTable1Window, fPatternTable2Window);
 
 	BeginToolInput();
 
@@ -1885,12 +1964,7 @@ PretendoWindow::OnViewNameTable3()
 		return;
 	}
 
-	fNameTable3Window = new NameTableWindow(
-		this,
-		2,
-		fPatternTable1Window,
-		fPatternTable2Window
-	);
+	fNameTable3Window = new NameTableWindow(this, 2, fPatternTable1Window, fPatternTable2Window);
 
 	BeginToolInput();
 
@@ -1931,12 +2005,7 @@ PretendoWindow::OnViewNameTable4()
 		return;
 	}
 
-	fNameTable4Window = new NameTableWindow(
-		this,
-		3,
-		fPatternTable1Window,
-		fPatternTable2Window
-	);
+	fNameTable4Window = new NameTableWindow(this, 3, fPatternTable1Window, fPatternTable2Window);
 
 	BeginToolInput();
 
@@ -2543,6 +2612,50 @@ PretendoWindow::InputWindowClosed()
 
 
 // -----------------------------------------------------------------------------
+// PretendoWindow::NameTableWindowClosed
+//
+// Releases tool-input ownership for the specified Name Table debugger window
+// and clears the corresponding stored window pointer.
+//
+// Parameters:
+//   which - Name-table window index:
+//             0 = $2000
+//             1 = $2400
+//             2 = $2800
+//             3 = $2C00
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::NameTableWindowClosed (int32 which)
+{
+	EndToolInput();
+
+	switch (which) {
+		case 0:
+			fNameTable1Window = nullptr;
+			break;
+
+		case 1:
+			fNameTable2Window = nullptr;
+			break;
+
+		case 2:
+			fNameTable3Window = nullptr;
+			break;
+
+		case 3:
+			fNameTable4Window = nullptr;
+			break;
+
+		default:
+			break;
+	}
+}
+
+
+// -----------------------------------------------------------------------------
 // PretendoWindow::PatternTable1WindowClosed
 //
 // Releases tool-input ownership for the first Pattern Table window and clears the
@@ -2583,85 +2696,6 @@ PretendoWindow::PatternTable2WindowClosed()
 	fPatternTable2Window = nullptr;
 
 	ConnectDebugViews();
-}
-
-// -----------------------------------------------------------------------------
-// PretendoWindow::NameTable1WindowClosed
-//
-// Releases tool-input ownership for the first Name Table window and clears the
-// stored window pointer.  This is called by the child window as it closes.
-//
-// Parameters:
-//   None.
-//
-// Returns:
-//   Nothing.
-// -----------------------------------------------------------------------------
-void
-PretendoWindow::NameTable1WindowClosed()
-{
-	EndToolInput();
-	fNameTable1Window = nullptr;
-}
-
-
-// -----------------------------------------------------------------------------
-// PretendoWindow::NameTable2WindowClosed
-//
-// Releases tool-input ownership for the second Name Table window and clears the
-// stored window pointer.  This is called by the child window as it closes.
-//
-// Parameters:
-//   None.
-//
-// Returns:
-//   Nothing.
-// -----------------------------------------------------------------------------
-void
-PretendoWindow::NameTable2WindowClosed()
-{
-	EndToolInput();
-	fNameTable2Window = nullptr;
-}
-
-
-// -----------------------------------------------------------------------------
-// PretendoWindow::NameTable3WindowClosed
-//
-// Releases tool-input ownership for the third Name Table window and clears the
-// stored window pointer.  This is called by the child window as it closes.
-//
-// Parameters:
-//   None.
-//
-// Returns:
-//   Nothing.
-// -----------------------------------------------------------------------------
-void
-PretendoWindow::NameTable3WindowClosed()
-{
-	EndToolInput();
-	fNameTable3Window = nullptr;
-}
-
-
-// -----------------------------------------------------------------------------
-// PretendoWindow::NameTable4WindowClosed
-//
-// Releases tool-input ownership for the fourth Name Table window and clears the
-// stored window pointer.  This is called by the child window as it closes.
-//
-// Parameters:
-//   None.
-//
-// Returns:
-//   Nothing.
-// -----------------------------------------------------------------------------
-void
-PretendoWindow::NameTable4WindowClosed()
-{
-	EndToolInput();
-	fNameTable4Window = nullptr;
 }
 
 
@@ -3683,7 +3717,6 @@ PretendoWindow::start_frame()
 	fBackBuffer.row_bytes = screen_size::WIDTH * fPixelWidth;
 }
 
-
 // -----------------------------------------------------------------------------
 // PretendoWindow::end_frame
 //
@@ -3696,54 +3729,47 @@ PretendoWindow::start_frame()
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void	
+void
 PretendoWindow::end_frame()
 {
 	size_t const bufferSize = nes::apu::frequency / nes::apu::frame_rate;
 	uint8 sampleBuffer[bufferSize];
 	size_t const bufferCount = nes::apu::read_samples(sampleBuffer, sizeof(sampleBuffer));
-	
+
 	BlitScreen();
+
 	fAudioStream->Stream(sampleBuffer, bufferCount);
 }
-
 
 // -----------------------------------------------------------------------------
 // PretendoWindow::emulator_thread
 //
-// Main emulator thread. In windowed mode, controller input is handled by
-// PretendoView key events. In fullscreen mode, global key polling is used
-// because normal BView keyboard focus may not be reliable.
+// Main emulator worker thread.
 //
-// Global polling is disabled while debugger input is active or while the
-// emulator is debugger-paused, preventing debugger shortcuts from leaking into
-// NES controller input.
-//
-// Execute BreakPoints are detected by the CPU core at instruction boundaries.
-// When a BreakPoint hit is latched, the emulator enters debugger pause mode
-// after the current frame finishes.
-//
-// A debugger BreakPoint pause is tracked with fDebuggerPausedEmulation rather
-// than fPaused. fPaused is reserved for the emulator's normal Pause command.
-//
-// The BreakPoint hit latch is intentionally left set so debugger views can
-// report the hit address and break reason.
+// A debugger BreakPoint pause is tracked using fDebuggerPausedEmulation.
+// fPaused remains reserved for the emulator's normal Pause command.
 //
 // Parameters:
 //   data - PretendoWindow pointer.
 //
 // Returns:
-//   B_OK when the thread exits.
+//   B_OK when the worker exits.
 // -----------------------------------------------------------------------------
 status_t
 PretendoWindow::emulator_thread(void *data)
 {
-	PretendoWindow *window
-		= reinterpret_cast<PretendoWindow *>(data);
+	PretendoWindow *window =
+		reinterpret_cast<PretendoWindow *>(data);
 
 	while (1) {
 		if (window->LockMutex() == false) {
 			break;
+		}
+
+		if (!window->fRunning) {
+			window->UnlockMutex();
+			snooze(10000);
+			continue;
 		}
 
 		bool breakpointHit = false;
@@ -3758,18 +3784,13 @@ PretendoWindow::emulator_thread(void *data)
 			if (nes::cpu::debug_breakpoint_hit()) {
 				breakpointHit = true;
 
-				/*
-				 * This is a debugger-controlled pause, not the
-				 * emulator's normal Pause state.
-				 */
 				nes::ppu::system_paused = true;
 				window->fDebuggerPausedEmulation = true;
 
 				window->MuteAudioForDebugging();
 			}
 
-			if (!breakpointHit
-				&& window->ShouldPollGlobalInput()) {
+			if (!breakpointHit && window->ShouldPollGlobalInput()) {
 				window->ReadKeyStates();
 			}
 		}
@@ -3780,9 +3801,7 @@ PretendoWindow::emulator_thread(void *data)
 			window->RedrawLastFrame();
 			window->InvalidateDebugViews();
 
-			InvalidateWindowContents(
-				window->fCPUDisasmWindow
-			);
+			InvalidateWindowContents(window->fCPUDisasmWindow);
 		}
 
 		if (nes::ppu::system_paused) {
@@ -3791,6 +3810,52 @@ PretendoWindow::emulator_thread(void *data)
 	}
 
 	return B_OK;
+}
+
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::DebugResumeExecution
+//
+// Resumes normal emulator execution after a debugger-controlled stop.
+//
+// If stopped on a debugger BreakPoint, the next BreakPoint check is skipped once
+// so execution can pass the instruction at the current BreakPoint address.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::DebugResumeExecution()
+{
+	if (!nes::cart.mapper()) {
+		return;
+	}
+
+	if (!fRunning) {
+		StartEmulatorForRunning();
+		InvalidateDebugViews();
+		return;
+	}
+
+	ClearControllerInput();
+
+	if (nes::cpu::debug_breakpoint_hit()) {
+		nes::cpu::debug_resume_past_breakpoint();
+	} else {
+		nes::cpu::debug_clear_breakpoint_hit();
+	}
+
+	fDebuggerPausedEmulation = false;
+	fPaused = false;
+
+	nes::ppu::system_paused = false;
+
+	ResumeAudioAfterDebugging();
+
+	InvalidateDebugViews();
 }
 
 
@@ -4086,7 +4151,7 @@ PretendoWindow::CountVisibleToolWindows() const
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-PretendoWindow::ShowToolWindowAfterFullScreen(BWindow *window, bool wasVisible)
+PretendoWindow::ShowToolWindowAfterFullScreen (BWindow *window, bool wasVisible)
 {
 	if (!window || !wasVisible) {
 		return;
@@ -4237,90 +4302,56 @@ PretendoWindow::RestoreToolWindowsAfterFullScreen()
 		return;
 	}
 
-	ShowToolWindowAfterFullScreen(
-		fROMInfoWindow,
-		fWasROMInfoWindowVisibleBeforeFullScreen
-	);
+	ShowToolWindowAfterFullScreen(fROMInfoWindow,
+								  fWasROMInfoWindowVisibleBeforeFullScreen);
 	
-	ShowToolWindowAfterFullScreen(
-		fPaletteWindow,
-		fWasPaletteWindowVisibleBeforeFullScreen
-	);
+	ShowToolWindowAfterFullScreen(fPaletteWindow,
+								  fWasPaletteWindowVisibleBeforeFullScreen);
 	
-	ShowToolWindowAfterFullScreen(
-		fInputWindow,
-		fWasInputWindowVisibleBeforeFullScreen
-	);
+	ShowToolWindowAfterFullScreen(fInputWindow,
+								  fWasInputWindowVisibleBeforeFullScreen);
 
-	ShowToolWindowAfterFullScreen(
-		fPatternTable1Window,
-		fWasPatternTable1WindowVisibleBeforeFullScreen
-	);
+	ShowToolWindowAfterFullScreen(fPatternTable1Window,
+								  fWasPatternTable1WindowVisibleBeforeFullScreen);
 	
-	ShowToolWindowAfterFullScreen(
-		fPatternTable2Window,
-		fWasPatternTable2WindowVisibleBeforeFullScreen
-	);
+	ShowToolWindowAfterFullScreen(fPatternTable2Window,
+								  fWasPatternTable2WindowVisibleBeforeFullScreen);
 
-	ShowToolWindowAfterFullScreen(
-		fNameTable1Window,
-		fWasNameTable1WindowVisibleBeforeFullScreen
-	);
+	ShowToolWindowAfterFullScreen(fNameTable1Window,
+								  fWasNameTable1WindowVisibleBeforeFullScreen);
 	
-	ShowToolWindowAfterFullScreen(
-		fNameTable2Window,
-		fWasNameTable2WindowVisibleBeforeFullScreen
-	);
+	ShowToolWindowAfterFullScreen(fNameTable2Window,
+								  fWasNameTable2WindowVisibleBeforeFullScreen);
 	
-	ShowToolWindowAfterFullScreen(
-		fNameTable3Window,
-		fWasNameTable3WindowVisibleBeforeFullScreen
-	);
+	ShowToolWindowAfterFullScreen(fNameTable3Window,
+								  fWasNameTable3WindowVisibleBeforeFullScreen);
 	
-	ShowToolWindowAfterFullScreen(
-		fNameTable4Window,
-		fWasNameTable4WindowVisibleBeforeFullScreen
-	);
+	ShowToolWindowAfterFullScreen(fNameTable4Window,
+							 	  fWasNameTable4WindowVisibleBeforeFullScreen);
 
-	ShowToolWindowAfterFullScreen(
-		fPaletteDebugWindow,
-		fWasPaletteDebugWindowVisibleBeforeFullScreen
-	);
+	ShowToolWindowAfterFullScreen(fPaletteDebugWindow,
+								  fWasPaletteDebugWindowVisibleBeforeFullScreen);
 	
-	ShowToolWindowAfterFullScreen(
-		fOAMDebugWindow,
-		fWasOAMDebugWindowVisibleBeforeFullScreen
-	);
+	ShowToolWindowAfterFullScreen(fOAMDebugWindow,
+								  fWasOAMDebugWindowVisibleBeforeFullScreen);
 
-	ShowToolWindowAfterFullScreen(
-		fPPUStatusWindow,
-		fWasPPUStatusWindowVisibleBeforeFullScreen
-	);
+	ShowToolWindowAfterFullScreen(fPPUStatusWindow,
+								  fWasPPUStatusWindowVisibleBeforeFullScreen);
 	
-	ShowToolWindowAfterFullScreen(
-		fPPUWriteLogWindow,
-		fWasPPUWriteLogWindowVisibleBeforeFullScreen
-	);
+	ShowToolWindowAfterFullScreen(fPPUWriteLogWindow,
+								  fWasPPUWriteLogWindowVisibleBeforeFullScreen);
 	
-	ShowToolWindowAfterFullScreen(
-		fPPUMemoryWindow,
-		fWasPPUMemoryWindowVisibleBeforeFullScreen
-	);
+	ShowToolWindowAfterFullScreen(fPPUMemoryWindow,
+								  fWasPPUMemoryWindowVisibleBeforeFullScreen);
 
-	ShowToolWindowAfterFullScreen(
-		fCPUStatusWindow,
-		fWasCPUStatusWindowVisibleBeforeFullScreen
-	);
+	ShowToolWindowAfterFullScreen(fCPUStatusWindow,
+								  fWasCPUStatusWindowVisibleBeforeFullScreen);
 	
-	ShowToolWindowAfterFullScreen(
-		fCPUDisasmWindow,
-		fWasCPUDisasmWindowVisibleBeforeFullScreen
-	);
+	ShowToolWindowAfterFullScreen(fCPUDisasmWindow,
+								  fWasCPUDisasmWindowVisibleBeforeFullScreen);
 	
-	ShowToolWindowAfterFullScreen(
-		fCPUMemoryWindow,
-		fWasCPUMemoryWindowVisibleBeforeFullScreen
-	);
+	ShowToolWindowAfterFullScreen(fCPUMemoryWindow,
+								  fWasCPUMemoryWindowVisibleBeforeFullScreen);
 
 	fToolInputDepth = CountVisibleToolWindows();
 
@@ -4357,8 +4388,11 @@ PretendoWindow::RestoreToolWindowsAfterFullScreen()
 // -----------------------------------------------------------------------------
 // PretendoWindow::ConnectDebugViews
 //
-// Reconnects open name table windows to the currently open pattern table
-// windows so cross-window highlighting remains valid.
+// Reconnects open debugger views to the currently open Pattern Table windows.
+//
+// Name Table windows and the OAM debugger receive the current PatternTableWindow
+// references so cross-window CHR highlighting remains valid when Pattern Table
+// windows are opened, closed, or recreated.
 //
 // Parameters:
 //   None.
@@ -4375,6 +4409,7 @@ PretendoWindow::ConnectDebugViews()
 	}
 
 	if (fNameTable2Window && fNameTable2Window->Lock()) {
+
 		fNameTable2Window->SetPatternTables(fPatternTable1Window, fPatternTable2Window);
 		fNameTable2Window->Unlock();
 	}
@@ -4388,24 +4423,22 @@ PretendoWindow::ConnectDebugViews()
 		fNameTable4Window->SetPatternTables(fPatternTable1Window, fPatternTable2Window);
 		fNameTable4Window->Unlock();
 	}
+
+	if (fOAMDebugWindow && fOAMDebugWindow->Lock()) {
+		fOAMDebugWindow->SetPatternTables(fPatternTable1Window, fPatternTable2Window);
+		fOAMDebugWindow->Unlock();
+	}
 }
 
 
 // -----------------------------------------------------------------------------
 // PretendoWindow::DebugStepInstruction
 //
-// Enters debugger step mode and advances one CPU instruction.  If a ROM is
-// loaded but the emulator has not entered run mode yet, the emulator session is
-// started in debugger-paused mode first.
+// Advances execution by one CPU instruction while preserving exact CPU/PPU/APU
+// timing.
 //
-// If the emulator was actively running before the step request, the emulator
-// mutex is acquired before stepping.  If the emulator was already paused, or was
-// just started for debugging, the debugger steps directly.
-//
-// Controller input is cleared before stepping so debugger shortcuts, such as S,
-// do not also act as emulator controller buttons.
-//
-// Audio output is muted while stepping.
+// If execution is currently stopped on a debugger BreakPoint, the hit is resumed
+// past once before stepping so the BreakPoint instruction itself can execute.
 //
 // Parameters:
 //   None.
@@ -4427,6 +4460,7 @@ PretendoWindow::DebugStepInstruction()
 	MuteAudioForDebugging();
 
 	nes::ppu::system_paused = true;
+
 	fPaused = true;
 	fDebuggerPausedEmulation = true;
 
@@ -4436,11 +4470,18 @@ PretendoWindow::DebugStepInstruction()
 
 	if (needsLock) {
 		if (!LockMutex(2000000)) {
-			puts("DebugStepInstruction: timed out waiting for emulator mutex");
+			puts(
+				"DebugStepInstruction: timed out waiting for emulator mutex"
+			);
+
 			return;
 		}
 
 		locked = true;
+	}
+
+	if (nes::cpu::debug_breakpoint_hit()) {
+		nes::cpu::debug_resume_past_breakpoint();
 	}
 
 	nes::debug_step_instruction();
@@ -4478,9 +4519,8 @@ PretendoWindow::LoadROMPath (const char *path)
 	OnFreeROM();
 
 	if (nes::cart.load(path) == false) {
-		(new BAlert("Error", "Error.  Couldn't load ROM Image.", "Okay", nullptr,
-					nullptr, B_WIDTH_AS_USUAL, B_STOP_ALERT))->Go();
-
+		(new BAlert("Error", "Error.  Couldn't load ROM Image.", "Okay", nullptr, nullptr, 
+					B_WIDTH_AS_USUAL, B_STOP_ALERT))->Go();
 		return;
 	}
 
@@ -4506,69 +4546,13 @@ PretendoWindow::LoadROMPath (const char *path)
 
 
 // -----------------------------------------------------------------------------
-// PretendoWindow::DebugResumeExecution
-//
-// Leaves debugger step mode, starts emulation if needed, clears controller input,
-// resumes cleanly from an execute-breakpoint hit when needed, unmutes audio,
-// clears stale host samples, resumes normal PPU execution, and refreshes
-// debugger windows.
-//
-// If execution is resumed from an execute breakpoint, the CPU is told to run
-// past the breakpoint address without immediately re-triggering the same
-// breakpoint while PC is still sitting there.
-//
-// Parameters:
-//   None.
-//
-// Returns:
-//   Nothing.
-// -----------------------------------------------------------------------------
-void
-PretendoWindow::DebugResumeExecution()
-{
-	if (!nes::cart.mapper()) {
-		return;
-	}
-
-	if (!fRunning) {
-		StartEmulatorForRunning();
-		InvalidateDebugViews();
-		return;
-	}
-
-	ClearControllerInput();
-
-	if (nes::cpu::debug_breakpoint_hit()) {
-		nes::cpu::debug_resume_past_breakpoint();
-	} else {
-		nes::cpu::debug_clear_breakpoint_hit();
-	}
-
-	ResumeAudioAfterDebugging();
-
-	fDebuggerPausedEmulation = false;
-	fPaused = false;
-	nes::ppu::system_paused = false;
-
-	InvalidateDebugViews();
-}
-
-
-// -----------------------------------------------------------------------------
 // PretendoWindow::DebugStepFrame
 //
-// Enters debugger frame-step mode and advances one full PPU frame.  If a ROM is
-// loaded but the emulator has not entered run mode yet, the emulator session is
-// started in debugger-paused mode first.
+// Advances execution by one PPU frame while preserving exact CPU/PPU/APU timing.
 //
-// If the emulator was actively running before the frame-step request, the
-// emulator mutex is acquired before stepping.  If the emulator was already
-// paused, or was just started for debugging, the debugger steps directly.
-//
-// Controller input is cleared before stepping so debugger shortcuts do not also
-// act as emulator controller buttons.
-//
-// Audio output is muted while stepping.
+// If execution is currently stopped on a debugger BreakPoint, the hit is resumed
+// past once before frame stepping so the BreakPoint instruction itself can
+// execute.
 //
 // Parameters:
 //   None.
@@ -4590,6 +4574,7 @@ PretendoWindow::DebugStepFrame()
 	MuteAudioForDebugging();
 
 	nes::ppu::system_paused = true;
+
 	fPaused = true;
 	fDebuggerPausedEmulation = true;
 
@@ -4599,11 +4584,18 @@ PretendoWindow::DebugStepFrame()
 
 	if (needsLock) {
 		if (!LockMutex(2000000)) {
-			puts("DebugStepFrame: timed out waiting for emulator mutex");
+			puts(
+				"DebugStepFrame: timed out waiting for emulator mutex"
+			);
+
 			return;
 		}
 
 		locked = true;
+	}
+
+	if (nes::cpu::debug_breakpoint_hit()) {
+		nes::cpu::debug_resume_past_breakpoint();
 	}
 
 	nes::debug_step_frame();
@@ -4614,7 +4606,7 @@ PretendoWindow::DebugStepFrame()
 
 	RedrawLastFrame();
 	InvalidateDebugViews();
-} 
+}
 
 
 // -----------------------------------------------------------------------------
@@ -4769,7 +4761,7 @@ PretendoWindow::StartEmulatorForDebugging()
 	fRunning = true;
 	fPaused = true;
 
-	fMutex->Unlock();
+	UnlockMutex();
 }
 
 

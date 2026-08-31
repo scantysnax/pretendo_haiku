@@ -113,9 +113,10 @@ PPUMemoryView::~PPUMemoryView()
 // -----------------------------------------------------------------------------
 // PPUMemoryView::AttachedToWindow
 //
-// Completes PPU memory view setup after attachment to a window.  The scrollbar
-// is laid out, keyboard focus is enabled, and pointer events are requested so
-// hover tracking works.
+// Completes PPU Memory view setup after attachment to a window.
+//
+// The base BView attachment hook is invoked first, then the scrollbar, event
+// mask, and keyboard focus are initialized.
 //
 // Parameters:
 //   None.
@@ -126,7 +127,10 @@ PPUMemoryView::~PPUMemoryView()
 void
 PPUMemoryView::AttachedToWindow()
 {
+	BView::AttachedToWindow();
+
 	SetViewColor(B_TRANSPARENT_COLOR);
+	SetLowColor(B_TRANSPARENT_COLOR);
 
 	LayoutScrollBar();
 	UpdateScrollBar();
@@ -140,11 +144,13 @@ PPUMemoryView::AttachedToWindow()
 // -----------------------------------------------------------------------------
 // PPUMemoryView::MouseDown
 //
-// Locks or unlocks the PPU memory byte under the mouse.  Clicking a byte locks
-// it for inspection.  Clicking the same locked byte again unlocks it.
+// Locks or unlocks the PPU memory byte under the mouse.
 //
-// Mouse clicks are allowed to focus the PPU Memory view, but mouse movement
-// alone is not allowed to update hover state while the window is inactive.
+// Clicking a byte locks it for inspection. Clicking the same locked byte again
+// unlocks it and returns the inspector to normal hover behavior.
+//
+// The view is given keyboard focus when clicked so navigation and freeze
+// shortcuts can be used immediately.
 //
 // Parameters:
 //   where - Mouse position in view coordinates.
@@ -153,7 +159,7 @@ PPUMemoryView::AttachedToWindow()
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-PPUMemoryView::MouseDown(BPoint where)
+PPUMemoryView::MouseDown (BPoint where)
 {
 	MakeFocus(true);
 
@@ -188,12 +194,10 @@ PPUMemoryView::MouseDown(BPoint where)
 // PPUMemoryView::MouseMoved
 //
 // Updates the hovered PPU memory byte while the pointer moves over the memory
-// grid, but only while the PPU Memory window is active.
+// grid.
 //
-// This prevents the byte inspector from updating while another debugger or the
-// main emulator window has focus.  Leaving the view, or moving over the view
-// while the window is inactive, clears transient hover state but preserves any
-// locked byte.
+// Hover inspection follows the pointer whenever it is inside the view.  Leaving
+// the view clears transient hover state but preserves any locked byte.
 //
 // Parameters:
 //   where       - Mouse position in view coordinates.
@@ -204,40 +208,31 @@ PPUMemoryView::MouseDown(BPoint where)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-PPUMemoryView::MouseMoved(BPoint where, uint32 transit, const BMessage *dragMessage)
+PPUMemoryView::MouseMoved (BPoint where, uint32 transit, const BMessage *dragMessage)
 {
-	(void)where;
-	(void)dragMessage;
+    (void)dragMessage;
 
-	BWindow *window = Window();
+    if (transit == B_ENTERED_VIEW) {
+        MakeFocus(true);
+    }
 
-	if (!window || !window->IsActive()) {
-		if (fHasHoveredAddress) {
-			fHasHoveredAddress = false;
-			fHoveredAddress = 0x0000;
-			Invalidate();
-		}
+    if (transit == B_EXITED_VIEW) {
+        if (fHasHoveredAddress) {
+            fHasHoveredAddress = false;
+            fHoveredAddress = 0x0000;
+            Invalidate();
+        }
 
-		return;
-	}
+        return;
+    }
 
-	if (transit == B_EXITED_VIEW) {
-		if (fHasHoveredAddress) {
-			fHasHoveredAddress = false;
-			fHoveredAddress = 0x0000;
-			Invalidate();
-		}
+    if (!HasROMLoaded()) {
+        return;
+    }
 
-		return;
-	}
-
-	if (!HasROMLoaded()) {
-		return;
-	}
-
-	if (HoverAddressForPoint(where)) {
-		Invalidate();
-	}
+    if (HoverAddressForPoint(where)) {
+        Invalidate();
+    }
 }
 
 
@@ -258,7 +253,7 @@ PPUMemoryView::MouseMoved(BPoint where, uint32 transit, const BMessage *dragMess
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-PPUMemoryView::MessageReceived(BMessage *message)
+PPUMemoryView::MessageReceived (BMessage *message)
 {
 	switch (message->what) {
 		case B_MOUSE_WHEEL_CHANGED:
@@ -293,15 +288,14 @@ PPUMemoryView::MessageReceived(BMessage *message)
 // -----------------------------------------------------------------------------
 // PPUMemoryView::Pulse
 //
-// Refreshes the PPU memory view and keeps the hover byte synchronized with the
-// current mouse position.
+// Refreshes the PPU Memory debugger.
 //
-// Hover polling is only active while the PPU Memory window is the active window.
-// This prevents the byte inspector from updating as if the window still had
-// focus when another debugger or emulator window is active.
+// When a ROM is first loaded, one initial full-memory snapshot is captured even
+// if the viewer is currently frozen.  In live mode, subsequent pulses refresh
+// that snapshot once per pulse.  Frozen mode preserves the current snapshot.
 //
-// Locked byte inspection is preserved across focus changes, but transient hover
-// state is cleared when the window is inactive.
+// Hover inspection remains synchronized with the current mouse position while
+// the pointer is inside the view.
 //
 // Parameters:
 //   None.
@@ -313,19 +307,24 @@ void
 PPUMemoryView::Pulse()
 {
 	if (!HasROMLoaded()) {
+		if (fHavePPUMemorySnapshot || fHasHoveredAddress || fHasLockedAddress || fBaseAddress != 0x0000) {
+			Clear();
+		}
+
 		return;
 	}
 
-	BWindow *window = Window();
-
-	if (!window || !window->IsActive()) {
-		if (fHasHoveredAddress) {
-			fHasHoveredAddress = false;
-			fHoveredAddress = 0x0000;
-		}
-
-		Invalidate();
-		return;
+	/*
+	 * A newly loaded ROM needs one valid snapshot even if the user
+	 * previously left this debugger frozen.
+	 */
+	if (!fHavePPUMemorySnapshot) {
+		CapturePPUMemorySnapshot();
+	} else if (!fFreezeUpdates) {
+		/*
+		 * Live mode: refresh exactly once per pulse.
+		 */
+		CapturePPUMemorySnapshot();
 	}
 
 	BPoint where;
@@ -352,9 +351,14 @@ PPUMemoryView::Pulse()
 // -----------------------------------------------------------------------------
 // PPUMemoryView::KeyDown
 //
-// Handles keyboard controls for the PPU memory viewer.  Arrow keys scroll by
-// one 16-byte row, Page Up/Page Down scroll by one 256-byte page, and any other
-// keys are passed to the base BView handler.
+// Handles keyboard controls for the PPU Memory viewer.
+//
+// Space toggles coherent PPU-memory freezing.  Entering freeze captures the
+// complete PPU address space immediately so the frozen image represents the
+// state at the moment Space was pressed.
+//
+// Address shortcuts and scrolling remain available while frozen so the user can
+// inspect any portion of the captured 16 KB PPU address space.
 //
 // Parameters:
 //   bytes    - Key bytes received from the keyboard event.
@@ -364,7 +368,7 @@ PPUMemoryView::Pulse()
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-PPUMemoryView::KeyDown (const char *bytes, int32 numBytes)
+PPUMemoryView::KeyDown(const char *bytes, int32 numBytes)
 {
 	if (numBytes <= 0) {
 		return;
@@ -383,7 +387,13 @@ PPUMemoryView::KeyDown (const char *bytes, int32 numBytes)
 
 	switch (bytes[0]) {
 		case ' ':
-			fFreezeUpdates = !fFreezeUpdates;
+			if (!fFreezeUpdates) {
+				CapturePPUMemorySnapshot();
+				fFreezeUpdates = true;
+			} else {
+				fFreezeUpdates = false;
+			}
+
 			Invalidate();
 			break;
 
@@ -475,10 +485,7 @@ PPUMemoryView::Draw (BRect updateRect)
 	DrawHeaderPanel();
 
 	const float rightEdge = (fScrollBar && !fScrollBar->IsHidden())
-		? fScrollBar->Frame().left - 4.0f
-		: Bounds().right - 4.0f;
-
-	
+						  ? fScrollBar->Frame().left - 4.0f : Bounds().right - 4.0f;
 
 	if (!hasROM) {
 		if (fBaseAddress != 0x0000) {
@@ -499,10 +506,11 @@ PPUMemoryView::Draw (BRect updateRect)
 // -----------------------------------------------------------------------------
 // PPUMemoryView::FrameResized
 //
-// Updates the PPU memory viewer layout after the view size changes.  The
-// scrollbar is repositioned, its range/value are refreshed, and the view is
-// invalidated so the memory grid, ASCII column, and byte inspector redraw using
-// the new bounds.
+// Updates the PPU Memory viewer layout after the view size changes.
+//
+// The vertical scrollbar is repositioned to match the new bounds, then the
+// resize event is forwarded to BView. The scrollbar's address range does not
+// depend on the window dimensions, so it does not need to be recalculated here.
 //
 // Parameters:
 //   width  - New view width.
@@ -658,6 +666,10 @@ PPUMemoryView::ScrollLines (int32 lines)
 //
 // Draws the title/help panel for the PPU memory viewer.
 //
+// The visible memory-window start address is labeled explicitly as "First" so
+// it is not confused with the currently hovered or locked byte.  The address is
+// drawn in a fixed-width font for easier hexadecimal reading.
+//
 // Parameters:
 //   None.
 //
@@ -668,23 +680,44 @@ void
 PPUMemoryView::DrawHeaderPanel()
 {
 	const float rightEdge = (fScrollBar && !fScrollBar->IsHidden())
-		? fScrollBar->Frame().left - 4.0f
-		: Bounds().right - 4.0f;
+						  ? fScrollBar->Frame().left - 4.0f : Bounds().right - 4.0f;
 
 	BRect panel(4.0f, 4.0f, rightEdge, 76.0f);
 	::DrawDebugPanel(this, panel, "PPU Memory");
 
-	SetFontSize(11.0f);
-	
-	BString line;
-	line.SetToFormat("Base: $%04X  %s   Space: %s", fBaseAddress, RegionName(fBaseAddress),
-					 fFreezeUpdates ? "resume live" : "freeze");
+	BFont previousFont;
+	GetFont(&previousFont);
 
+	BFont normal = previousFont;
+	normal.SetSize(11.0f);
+
+	BFont fixed(be_fixed_font);
+	fixed.SetSize(11.0f);
+
+	const float y = panel.top + 42.0f;
+	float x = panel.left + 8.0f;
+
+	SetFont(&normal);
 	SetHighColor(35, 35, 35);
-	DrawString(line.String(), BPoint(panel.left + 8.0f, panel.top + 42.0f));
 
+	DrawString("First: ", BPoint(x, y));
+	x += normal.StringWidth("First: ");
+
+	BString address;
+	address.SetToFormat("$%04X", fBaseAddress);
+
+	SetFont(&fixed);
+	DrawString(address.String(), BPoint(x, y));
+	x += fixed.StringWidth("$0000") + 10.0f;
+
+	SetFont(&normal);
+	BString state;state.SetToFormat("%s   Space: %s", RegionName(fBaseAddress), fFreezeUpdates
+									? "resume live" : "freeze");
+	DrawString(state.String(), BPoint(x, y));
 	DrawString("1/2 Pattern   N/M/,/. NTs   P Palette   Up/Down row   PgUp/PgDn page",
-				BPoint(panel.left + 8.0f, panel.top + 60.0f));
+			   BPoint(panel.left + 8.0f, panel.top + 60.0f));
+
+	SetFont(&previousFont);
 }
 
 
@@ -709,8 +742,7 @@ void
 PPUMemoryView::DrawMemoryPanel()
 {
 	const float rightEdge = (fScrollBar && !fScrollBar->IsHidden())
-		? fScrollBar->Frame().left - 4.0f
-		: Bounds().right - 4.0f;
+						  ? fScrollBar->Frame().left - 4.0f : Bounds().right - 4.0f;
 
 	BRect panel(4.0f, 88.0f, rightEdge, Bounds().bottom - 8.0f);
 	::DrawDebugPanel(this, panel, "PPU Memory");
@@ -727,20 +759,19 @@ PPUMemoryView::DrawMemoryPanel()
 	BFont prevFont;
 	GetFont(&prevFont);
 
-	BFont mono(be_fixed_font);
-	mono.SetSize(10.0f);
-	SetFont(&mono);
+	BFont fixed(be_fixed_font);
+	fixed.SetSize(10.0f);
+	SetFont(&fixed);
 
 	font_height fh;
 	GetFontHeight(&fh);
 	const float lineH = ceilf(fh.ascent + fh.descent + fh.leading) + 1.0f;
-	const float charW = mono.StringWidth("M");
+	const float charW = fixed.StringWidth("M");
 
 	const float addrX = panel.left + 8.0f;
 	const float byteX = addrX + 72.0f;
 	const float byteStep = 24.0f;
 	const float asciiX = byteX + byteStep * 16.0f + 12.0f;
-
 	float y = panel.top + 42.0f;
 
 	SetHighColor(80, 80, 80);
@@ -777,25 +808,17 @@ PPUMemoryView::DrawMemoryPanel()
 
 		for (uint32 col = 0; col < 16; col++) {
 			const uint16 cellAddress = static_cast<uint16>((address + col) & 0x3fff);
-			const uint8 value = nes::ppu::debug_read_ppu_memory(cellAddress);
+			const uint8 value = DisplayPPUMemory(cellAddress);
 			const char ascii = PPUMemoryPrintableChar(value);
 
 			const bool hovered = fHasHoveredAddress && (fHoveredAddress == cellAddress);
 			const bool locked = fHasLockedAddress && (fLockedAddress == cellAddress);
 
-			DrawByteCell(byteX + byteStep * col,
-							y,
-							cellAddress,
-							value,
-							hovered,
-							locked);
+			DrawByteCell(byteX + byteStep * col, y, cellAddress, value,
+						 hovered, locked);
 
-			DrawASCIICharCell(asciiX + charW * col,
-								y,
-								cellAddress,
-								ascii,
-								hovered,
-								locked);
+			DrawASCIICharCell(asciiX + charW * col, y, cellAddress, ascii,
+							  hovered, locked);
 		}
 
 		address = static_cast<uint16>((address + 16) & 0x3fff);
@@ -805,7 +828,8 @@ PPUMemoryView::DrawMemoryPanel()
 	SetFont(&prevFont);
 
 	SetHighColor(170, 170, 170);
-	StrokeLine(BPoint(panel.left + 8.0f, inspectorTop - 4.0f), BPoint(panel.right - 8.0f, inspectorTop - 4.0f));
+	StrokeLine(BPoint(panel.left + 8.0f, inspectorTop - 4.0f), 
+			   BPoint(panel.right - 8.0f, inspectorTop - 4.0f));
 	DrawSelectedByteInfo(panel.left + 8.0f, inspectorTop + 14.0f);
 }
 
@@ -841,7 +865,7 @@ PPUMemoryView::HasROMLoaded() const
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-PPUMemoryView::DrawNoROMMessage(BRect panel)
+PPUMemoryView::DrawNoROMMessage (BRect panel)
 {
 	BFont prevFont;
 	GetFont(&prevFont);
@@ -874,9 +898,12 @@ PPUMemoryView::DrawNoROMMessage(BRect panel)
 //
 // Sets the starting PPU address displayed by the memory viewer.
 //
+// The base is aligned to a 16-byte row boundary and clamped so a complete
+// 256-byte / 16-row page always remains within the $0000-$3FFF PPU address
+// space.  The final legal starting address is therefore $3F00.
+//
 // Parameters:
-//   address - New base PPU address.  The value is clamped to the PPU address
-//             range and aligned to a 16-byte row boundary.
+//   address - Requested PPU memory base address.
 //
 // Returns:
 //   Nothing.
@@ -884,7 +911,13 @@ PPUMemoryView::DrawNoROMMessage(BRect panel)
 void
 PPUMemoryView::SetBaseAddress (uint16 address)
 {
-	fBaseAddress = address & 0x3ff0;
+	uint32 newAddress = static_cast<uint32>(address) & 0x3ff0;
+
+	if (newAddress > 0x3f00) {
+		newAddress = 0x3f00;
+	}
+
+	fBaseAddress = static_cast<uint16>(newAddress);
 
 	UpdateScrollBar();
 	Invalidate();
@@ -894,11 +927,13 @@ PPUMemoryView::SetBaseAddress (uint16 address)
 // -----------------------------------------------------------------------------
 // PPUMemoryView::ScrollRows
 //
-// Scrolls the memory viewer by a signed number of 16-byte rows.  Scrolling is
-// clamped to the valid PPU memory range instead of wrapping around.
+// Scrolls the memory viewer by a signed number of 16-byte rows.
+//
+// Scrolling is clamped so the complete 16-row / 256-byte display always remains
+// inside the PPU address space.  The final legal base address is $3F00.
 //
 // Parameters:
-//   rows - Number of rows to scroll.  Negative values scroll upward; positive
+//   rows - Number of rows to scroll. Negative values scroll upward; positive
 //          values scroll downward.
 //
 // Returns:
@@ -914,8 +949,8 @@ PPUMemoryView::ScrollRows (int32 rows)
 		address = 0x0000;
 	}
 
-	if (address > 0x3ff0) {
-		address = 0x3ff0;
+	if (address > 0x3f00) {
+		address = 0x3f00;
 	}
 
 	fBaseAddress = static_cast<uint16>(address);
@@ -1023,10 +1058,11 @@ bool
 PPUMemoryView::AddressForPoint(BPoint where, uint16& address) const
 {
 	const float rightEdge = (fScrollBar && !fScrollBar->IsHidden())
-		? fScrollBar->Frame().left - 4.0f
-		: Bounds().right - 4.0f;
+						  ? fScrollBar->Frame().left - 4.0f
+						  : Bounds().right - 4.0f;
 
 	BRect panel(4.0f, 88.0f, rightEdge, Bounds().bottom - 8.0f);
+	
 	if (!panel.Contains(where)) {
 		return false;
 	}
@@ -1042,14 +1078,14 @@ PPUMemoryView::AddressForPoint(BPoint where, uint16& address) const
 	BFont prevFont;
 	const_cast<PPUMemoryView *>(this)->GetFont(&prevFont);
 
-	BFont mono(be_fixed_font);
-	mono.SetSize(10.0f);
-	const_cast<PPUMemoryView *>(this)->SetFont(&mono);
+	BFont fixed(be_fixed_font);
+	fixed.SetSize(10.0f);
+	const_cast<PPUMemoryView *>(this)->SetFont(&fixed);
 
 	font_height fh;
 	const_cast<PPUMemoryView *>(this)->GetFontHeight(&fh);
 	const float lineH = ceilf(fh.ascent + fh.descent + fh.leading) + 1.0f;
-	const float charW = mono.StringWidth("M");
+	const float charW = fixed.StringWidth("M");
 
 	const_cast<PPUMemoryView *>(this)->SetFont(&prevFont);
 
@@ -1057,8 +1093,8 @@ PPUMemoryView::AddressForPoint(BPoint where, uint16& address) const
 	const float byteX = addrX + 72.0f;
 	const float byteStep = 24.0f;
 	const float asciiX = byteX + byteStep * 16.0f + 12.0f;
-
 	float y = panel.top + 42.0f;
+	
 	y += lineH + 8.0f;
 	y += 4.0f;
 
@@ -1142,11 +1178,111 @@ PPUMemoryView::HoverAddressForPoint (BPoint where)
 
 
 // -----------------------------------------------------------------------------
+// PPUMemoryView::CapturePPUMemorySnapshot
+//
+// Captures the complete 16 KB PPU address space represented by the PPU Memory
+// debugger.
+//
+// A full-memory snapshot allows the viewer to remain coherent while frozen even
+// when the user scrolls to a different region after freezing.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PPUMemoryView::CapturePPUMemorySnapshot()
+{
+	if (!HasROMLoaded()) {
+		fHavePPUMemorySnapshot = false;
+		return;
+	}
+
+	for (uint32 address = 0; address < 0x4000; address++) {
+		fSnapshotPPUMemory[address] = nes::ppu::debug_read_ppu_memory(static_cast<uint16>(address));
+	}
+
+	fHavePPUMemorySnapshot = true;
+}
+
+
+// -----------------------------------------------------------------------------
+// PPUMemoryView::DisplayPPUMemory
+//
+// Reads one byte from the PPU memory state currently represented by the viewer.
+//
+// Once a valid snapshot exists, display and inspection use the captured value.
+// Before the first snapshot is available, the current live PPU memory value is
+// used as a fallback.
+//
+// Parameters:
+//   address - PPU memory address to read.
+//
+// Returns:
+//   Snapshot or live byte value at the requested PPU address.
+// -----------------------------------------------------------------------------
+uint8
+PPUMemoryView::DisplayPPUMemory (uint16 address) const
+{
+	address &= 0x3fff;
+
+	if (fHavePPUMemorySnapshot) {
+		return fSnapshotPPUMemory[address];
+	}
+
+	return nes::ppu::debug_read_ppu_memory(address);
+}
+
+
+// -----------------------------------------------------------------------------
+// PPUMemoryView::Clear
+//
+// Clears all ROM-specific PPU Memory debugger state while preserving the
+// viewer's freeze preference.
+//
+// The current 16 KB PPU-memory snapshot, hover/lock selection, and base address
+// are discarded so data from an unloaded cartridge cannot remain visible after
+// another ROM is loaded.
+//
+// Freeze mode is intentionally preserved.  If a new ROM is loaded while the
+// viewer is still frozen, Pulse() will capture one initialization snapshot
+// before preserving the frozen state.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PPUMemoryView::Clear()
+{
+	fHavePPUMemorySnapshot = false;
+	memset(fSnapshotPPUMemory, 0, sizeof(fSnapshotPPUMemory));
+
+	fHasHoveredAddress = false;
+	fHoveredAddress = 0x0000;
+
+	fHasLockedAddress = false;
+	fLockedAddress = 0x0000;
+
+	fBaseAddress = 0x0000;
+
+	UpdateScrollBar();
+	Invalidate();
+}
+
+
+// -----------------------------------------------------------------------------
 // PPUMemoryView::DrawByteCell
 //
-// Draws a single byte cell in the PPU memory grid.  Hovered bytes get a light
-// gray background.  Locked bytes get a black outline and take visual priority
-// over hover.
+// Draws one hexadecimal byte cell in the PPU memory grid.
+//
+// Hovered bytes receive a clearly visible light-gray fill and medium-gray
+// outline. Locked bytes use a brighter fill and black outline and take visual
+// priority over hover.
 //
 // Parameters:
 //   x       - Text x position.
@@ -1163,12 +1299,15 @@ void
 PPUMemoryView::DrawByteCell (float x, float y, uint16 address, uint8 value, bool hovered, bool locked)
 {
 	(void)address;
-
+	
 	BRect cell(x - 2.0f, y - 11.0f, x + 18.0f, y + 3.0f);
 
 	if (hovered && !locked) {
-		SetHighColor(220, 220, 220);
+		SetHighColor(240, 240, 240);
 		FillRect(cell);
+
+		SetHighColor(120, 120, 120);
+		StrokeRect(cell);
 	}
 
 	if (locked) {
@@ -1193,15 +1332,17 @@ PPUMemoryView::DrawByteCell (float x, float y, uint16 address, uint8 value, bool
 // -----------------------------------------------------------------------------
 // PPUMemoryView::DrawASCIICharCell
 //
-// Draws a single ASCII character cell in the PPU memory grid.  Hovered
-// characters get a light gray background.  Locked characters get a black outline.
-// This mirrors the visual behavior of the matching hex byte cell.
+// Draws one ASCII character cell in the PPU memory grid.
+//
+// Hovered characters receive the same visible hover treatment as their
+// corresponding hexadecimal byte. Locked characters use the stronger locked
+// appearance.
 //
 // Parameters:
 //   x       - Text x position.
 //   y       - Text baseline.
-//   address - PPU memory address for the cell.
-//   value   - Printable ASCII character to draw.
+//   address - PPU memory address represented by the character.
+//   value   - Printable ASCII character.
 //   hovered - Whether this byte is currently hovered.
 //   locked  - Whether this byte is currently locked.
 //
@@ -1209,7 +1350,7 @@ PPUMemoryView::DrawByteCell (float x, float y, uint16 address, uint8 value, bool
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-PPUMemoryView::DrawASCIICharCell(float x, float y, uint16 address, char value, bool hovered, bool locked)
+PPUMemoryView::DrawASCIICharCell (float x, float y, uint16 address, char value, bool hovered, bool locked)
 {
 	(void)address;
 
@@ -1217,12 +1358,14 @@ PPUMemoryView::DrawASCIICharCell(float x, float y, uint16 address, char value, b
 	GetFont(&font);
 
 	const float charW = font.StringWidth("M");
-
 	BRect cell(x - 1.0f, y - 11.0f, x + charW, y + 3.0f);
 
 	if (hovered && !locked) {
-		SetHighColor(220, 220, 220);
+		SetHighColor(240, 240, 240);
 		FillRect(cell);
+
+		SetHighColor(120, 120, 120);
+		StrokeRect(cell);
 	}
 
 	if (locked) {
@@ -1260,7 +1403,7 @@ PPUMemoryView::DrawASCIICharCell(float x, float y, uint16 address, char value, b
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-PPUMemoryView::DrawSelectedByteInfo(float x, float y)
+PPUMemoryView::DrawSelectedByteInfo (float x, float y)
 {
 	BFont prevFont;
 	GetFont(&prevFont);
@@ -1278,7 +1421,7 @@ PPUMemoryView::DrawSelectedByteInfo(float x, float y)
 		DrawString(text, BPoint(drawX, drawY));
 	};
 
-	auto drawFixed = [&](const char *text, float drawX, float drawY,rgb_color color) {
+	auto drawFixed = [&](const char *text, float drawX, float drawY, rgb_color color) {
 		SetFont(&fixed);
 		SetHighColor(color);
 		DrawString(text, BPoint(drawX, drawY));
@@ -1286,27 +1429,26 @@ PPUMemoryView::DrawSelectedByteInfo(float x, float y)
 
 	BString s;
 
-	drawNormal("Byte Inspector", x, y, rgb_color{0, 0, 0, 255});
+	drawNormal("Byte Inspector", x, y, rgb_color { 0, 0, 0, 255 });
 
 	y += 16.0f;
 
 	uint16 address = 0x0000;
 
 	if (!ActiveInspectAddress(address)) {
-		drawNormal("Hover a byte, or click to lock.", x, y, rgb_color{100, 100, 100, 255});
+		drawNormal("Hover a byte, or click to lock.", x, y, rgb_color {100, 100, 100, 255 });
 
 		SetFont(&prevFont);
 		return;
 	}
 
 	address &= 0x3fff;
-
-	const uint8 value = nes::ppu::debug_read_ppu_memory(address);
+	const uint8 value = DisplayPPUMemory(address);
 
 	if (fHasLockedAddress && (fLockedAddress == address)) {
-		drawNormal("State: locked", x, y, rgb_color{0, 0, 0, 255});
+		drawNormal("State: locked", x, y, rgb_color { 0, 0, 0, 255 });
 	} else {
-		drawNormal("State: hover", x, y, rgb_color{90, 90, 90, 255});
+		drawNormal("State: hover", x, y, rgb_color {90, 90, 90, 255 });
 	}
 
 	y += 14.0f;
@@ -1314,23 +1456,23 @@ PPUMemoryView::DrawSelectedByteInfo(float x, float y)
 	const float labelX = x;
 	const float valueX = x + 72.0f;
 
-	drawNormal("Address:", labelX, y, rgb_color{0, 0, 0, 255});
+	drawNormal("Address:", labelX, y, rgb_color { 0, 0, 0, 255 });
 	s.SetToFormat("$%04X", address);
-	drawFixed(s.String(), valueX, y, rgb_color{0, 0, 0, 255});
+	drawFixed(s.String(), valueX, y, rgb_color {0, 0, 0, 255 });
 
 	y += 14.0f;
 
-	drawNormal("Value:", labelX, y, rgb_color{0, 0, 0, 255});
+	drawNormal("Value:", labelX, y, rgb_color {0, 0, 0, 255 });
 	s.SetToFormat("$%02X", value);
-	drawFixed(s.String(), valueX, y, rgb_color{0, 0, 0, 255});
+	drawFixed(s.String(), valueX, y, rgb_color {0, 0, 0, 255 });
 
 	s.SetToFormat("  %u", value);
-	drawFixed(s.String(), valueX + fixed.StringWidth("$00"), y, rgb_color{80, 80, 80, 255});
+	drawFixed(s.String(), valueX + fixed.StringWidth("$00"), y, rgb_color { 80, 80, 80, 255 });
 
 	y += 14.0f;
 
-	drawNormal("Region:", labelX, y, rgb_color{0, 0, 0, 255});
-	drawNormal(PPUMemoryRegionLabel(address), valueX, y, rgb_color{0, 0, 0, 255});
+	drawNormal("Region:", labelX, y, rgb_color { 0, 0, 0, 255 });
+	drawNormal(PPUMemoryRegionLabel(address), valueX, y, rgb_color {0, 0, 0, 255 });
 
 	y += 14.0f;
 
@@ -1341,32 +1483,32 @@ PPUMemoryView::DrawSelectedByteInfo(float x, float y)
 		drawNormal("NT:", labelX, y, rgb_color{0, 0, 0, 255});
 
 		s.SetToFormat("%u", nameTable);
-		drawFixed(s.String(), valueX, y, rgb_color{0, 0, 0, 255});
-		drawNormal(" offset ", valueX + fixed.StringWidth("0") + 10.0f, y, rgb_color{0, 0, 0, 255});
+		drawFixed(s.String(), valueX, y, rgb_color { 0, 0, 0, 255 });
+		drawNormal(" offset ", valueX + fixed.StringWidth("0") + 10.0f, y, rgb_color { 0, 0, 0, 255 });
 
 		s.SetToFormat("$%03X", offset);
-		drawFixed(s.String(), valueX + fixed.StringWidth("0") + 58.0f, y, rgb_color{0, 0, 0, 255});
+		drawFixed(s.String(), valueX + fixed.StringWidth("0") + 58.0f, y, rgb_color {0, 0, 0, 255 });
 	} else if (address >= 0x3f00 && address <= 0x3fff) {
 		const uint16 paletteIndex = static_cast<uint16>((address - 0x3f00) & 0x1f);
 
-		drawNormal("Palette:", labelX, y, rgb_color{0, 0, 0, 255});
+		drawNormal("Palette:", labelX, y, rgb_color {0, 0, 0, 255 });
 
 		s.SetToFormat("index $%02X", paletteIndex);
-		drawFixed(s.String(), valueX, y, rgb_color{0, 0, 0, 255});
+		drawFixed(s.String(), valueX, y, rgb_color {0, 0, 0, 255 });
 	} else if (address <= 0x1fff) {
 		const uint16 table = static_cast<uint16>(address / 0x1000);
 		const uint16 tile = static_cast<uint16>((address & 0xfff) / 16);
 		const uint16 planeByte = static_cast<uint16>(address & 0xf);
 
-		drawNormal("CHR:", labelX, y, rgb_color{0, 0, 0, 255});
+		drawNormal("CHR:", labelX, y, rgb_color { 0, 0, 0, 255 });
 
 		s.SetToFormat("PT %u  tile $%02X  byte %u", table, tile, planeByte);
-		drawFixed(s.String(), valueX, y, rgb_color{0, 0, 0, 255});
+		drawFixed(s.String(), valueX, y, rgb_color {0, 0, 0, 255 });
 	} else {
-		drawNormal("Mirror:", labelX, y, rgb_color{0, 0, 0, 255});
+		drawNormal("Mirror:", labelX, y, rgb_color {0, 0, 0, 255 });
 
 		s.SetToFormat("$%04X", static_cast<uint16>(address & 0x2fff));
-		drawFixed(s.String(), valueX, y, rgb_color{0, 0, 0, 255});
+		drawFixed(s.String(), valueX, y, rgb_color {0, 0, 0, 255 });
 	}
 
 	SetFont(&prevFont);

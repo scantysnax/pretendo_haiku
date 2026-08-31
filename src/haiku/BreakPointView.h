@@ -43,38 +43,37 @@ class BreakPointView : public BView
 	virtual void MouseDown (BPoint where);
 
 	private:
-	enum BreakPointEntryMode {
+	enum breakpoint_entry_mode {
 		BREAKPOINT_ENTRY_NONE = 0,
 		BREAKPOINT_ENTRY_EXECUTE,
 		BREAKPOINT_ENTRY_READ,
 		BREAKPOINT_ENTRY_WRITE
 	};
 
-	enum WatchPointSelectionType {
+	enum watchpoint_selection_type {
 		WATCHPOINT_SELECTION_NONE = 0,
 		WATCHPOINT_SELECTION_READ,
 		WATCHPOINT_SELECTION_WRITE
 	};
 
-	struct ExecuteBreakPointEntry {
+	struct execute_breakpoint_entry_t {
 		uint16 address = 0x0000;
 		uint32 hitCount = 0;
 	};
 
-	struct ReadWatchPointEntry {
+	struct read_watchpoint_entry_t {
 		uint16 address = 0x0000;
 		uint32 hitCount = 0;
 		
 	};
 
-	struct WriteWatchPointEntry {
+	struct write_watchpoint_entry_t {
 		uint16 address = 0x0000;
 		uint32 hitCount = 0;
 	};
 
-	enum : int32 {
-		kMaximumDisplayedBreakPoints = 16
-	};
+	
+	static const int32 kMaximumDisplayedBreakPoints = 16;
 
 	private:
 	void DrawHeaderPanel();
@@ -85,9 +84,9 @@ class BreakPointView : public BView
 	void DrawNoROMMessage (BRect panel);
 
 	private:
-	int32 CaptureReadWatchPoints (ReadWatchPointEntry *entries, int32 capacity) const;
-	int32 CaptureWriteWatchPoints (WriteWatchPointEntry *entries, int32 capacity) const;
-	int32 CaptureExecuteBreakPoints (ExecuteBreakPointEntry *entries, int32 capacity) const;
+	int32 CaptureReadWatchPoints (read_watchpoint_entry_t *entries, int32 capacity) const;
+	int32 CaptureWriteWatchPoints (write_watchpoint_entry_t *entries, int32 capacity) const;
+	int32 CaptureExecuteBreakPoints (execute_breakpoint_entry_t *entries, int32 capacity) const;
 
 	private:
 	int32 ExecuteBreakPointCount() const;
@@ -103,7 +102,7 @@ class BreakPointView : public BView
 	bool ReadWatchPointAddressForPoint (BPoint where, uint16 &address) const;
 	bool WriteWatchPointAddressForPoint (BPoint where, uint16 &address) const;
 	bool SelectedExecuteBreakPoint (uint16 &address) const;
-	bool SelectedWatchPoint (WatchPointSelectionType &type, uint16 &address) const;
+	bool SelectedWatchPoint (watchpoint_selection_type &type, uint16 &address) const;
 	void MoveBreakPointSelection (int32 direction);
 
 	private:
@@ -112,10 +111,10 @@ class BreakPointView : public BView
 	bool fHasSelectedExecuteBreakPoint = false;
 	uint16 fSelectedExecuteBreakPoint = 0x0000;
 
-	WatchPointSelectionType fSelectedWatchPointType = WATCHPOINT_SELECTION_NONE;
+	watchpoint_selection_type fSelectedWatchPointType = WATCHPOINT_SELECTION_NONE;
 	uint16 fSelectedWatchPointAddress = 0x0000;
 
-	BreakPointEntryMode fEntryMode = BREAKPOINT_ENTRY_NONE;
+	breakpoint_entry_mode fEntryMode = BREAKPOINT_ENTRY_NONE;
 
 	uint16 fPendingBreakPointAddress = 0x0000;
 	int32 fPendingBreakPointDigits = 0;

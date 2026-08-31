@@ -120,10 +120,10 @@ OAMDebugWindow::QuitRequested()
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-OAMDebugWindow::SetPatternTables(PatternTableWindow *pt0, PatternTableWindow *pt1)
+OAMDebugWindow::SetPatternTables(PatternTableWindow *pt1, PatternTableWindow *pt2)
 {
 	if (fView) {
-		fView->SetPatternTables(pt0, pt1);
+		fView->SetPatternTables(pt1, pt2);
 	}
 }
 

@@ -22,7 +22,7 @@ class OAMDebugWindow : public BWindow
 	virtual bool QuitRequested();
 
 	public:
-	void SetPatternTables (PatternTableWindow *pt0, PatternTableWindow *pt1);
+	void SetPatternTables (PatternTableWindow *pt1, PatternTableWindow *pt2);
 	OAMDebugView *View() const;
 
 	private:

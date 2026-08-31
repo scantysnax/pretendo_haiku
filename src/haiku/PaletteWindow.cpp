@@ -71,6 +71,23 @@ PaletteWindow::QuitRequested()
 }
 
 
+// -----------------------------------------------------------------------------
+// PaletteWindow::LoadSettings
+//
+// Loads the Palette window position and palette-adjustment settings from the
+// application's configuration directory.
+//
+// If the settings file is empty, default palette values are created, stored,
+// applied to the PaletteView, and saved as the initial previous-state values.
+// If an existing settings file is present, its values are restored and applied
+// to both the window and palette controls.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PaletteWindow::LoadSettings()
 {
@@ -172,6 +189,22 @@ PaletteWindow::LoadSettings()
 }
 
 
+// -----------------------------------------------------------------------------
+// PaletteWindow::SaveSettings
+//
+// Saves the current Palette window position and palette-adjustment values to
+// the application's configuration directory.
+//
+// New settings are added when the settings file is empty; otherwise the existing
+// values are replaced with the current window position and PaletteView state.
+// The resulting settings message is then flattened to disk.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PaletteWindow::SaveSettings()
 {

@@ -106,7 +106,10 @@ CPUDisasmView::Pulse()
 //
 // Handles CPU disassembly viewer controls.
 //
-// Space freezes or unfreezes only the disassembly view.
+// Space freezes or unfreezes the disassembly view.  Freezing captures the CPU
+// registers and complete debugger-visible CPU memory snapshot so mapper changes
+// and subsequent CPU execution cannot alter the frozen disassembly.
+//
 // S enters debugger step mode and advances one CPU instruction.
 // V advances one full video frame while debugger-paused.
 // G resumes normal emulator execution.
@@ -114,8 +117,13 @@ CPUDisasmView::Pulse()
 // P returns the view to the current PC and clears row selection.
 // B toggles an execute breakpoint at the selected row, or at the current/frozen
 // PC if no row is selected.
+// C clears execute BreakPoints.
+// R jumps to the RESET vector.
+// N jumps to the NMI vector.
+// I jumps to the IRQ vector.
 // Enter centers the view around the selected row.
 // Esc clears the selected row.
+// Arrow/Page keys scroll through disassembly.
 //
 // Parameters:
 //   bytes    - Key bytes.
@@ -134,6 +142,11 @@ CPUDisasmView::KeyDown (const char *bytes, int32 numBytes)
 	if (!HasROMLoaded()) {
 		if (bytes[0] == ' ') {
 			fFreezeUpdates = !fFreezeUpdates;
+
+			if (!fFreezeUpdates) {
+				fHaveFrozenSnapshot = false;
+			}
+
 			Invalidate();
 			return;
 		}
@@ -146,9 +159,8 @@ CPUDisasmView::KeyDown (const char *bytes, int32 numBytes)
 		case ' ':
 		{
 			if (!fFreezeUpdates) {
-				nes::cpu::cpu_state_t state = nes::cpu::debug_cpu_state();
+				CaptureFrozenSnapshot();
 
-				fFrozenPC = state.pc;
 				fFreezeUpdates = true;
 
 				if (fFollowPC) {
@@ -157,10 +169,12 @@ CPUDisasmView::KeyDown (const char *bytes, int32 numBytes)
 				}
 			} else {
 				fFreezeUpdates = false;
+				fHaveFrozenSnapshot = false;
 
 				if (fFollowPC) {
 					nes::cpu::cpu_state_t state = nes::cpu::debug_cpu_state();
 					fBaseAddress = FindContextBase(state.pc, 5);
+
 					UpdateScrollBar();
 				}
 			}
@@ -172,6 +186,7 @@ CPUDisasmView::KeyDown (const char *bytes, int32 numBytes)
 		case B_ESCAPE:
 			fHasSelectedAddress = false;
 			fSelectedAddress = 0x0000;
+
 			Invalidate();
 			break;
 
@@ -191,6 +206,7 @@ CPUDisasmView::KeyDown (const char *bytes, int32 numBytes)
 		case 's':
 		case 'S':
 			fFreezeUpdates = false;
+			fHaveFrozenSnapshot = false;
 
 			if (nes::cpu::debug_breakpoint_hit()) {
 				nes::cpu::debug_skip_breakpoint_once();
@@ -207,6 +223,7 @@ CPUDisasmView::KeyDown (const char *bytes, int32 numBytes)
 		case 'v':
 		case 'V':
 			fFreezeUpdates = false;
+			fHaveFrozenSnapshot = false;
 
 			if (nes::cpu::debug_breakpoint_hit()) {
 				nes::cpu::debug_skip_breakpoint_once();
@@ -223,6 +240,7 @@ CPUDisasmView::KeyDown (const char *bytes, int32 numBytes)
 		case 'g':
 		case 'G':
 			fFreezeUpdates = false;
+			fHaveFrozenSnapshot = false;
 
 			if (fParent) {
 				fParent->DebugResumeExecution();
@@ -244,6 +262,7 @@ CPUDisasmView::KeyDown (const char *bytes, int32 numBytes)
 			if (fFreezeUpdates) {
 				fFollowPC = true;
 				fBaseAddress = FindContextBase(fFrozenPC, 5);
+
 				UpdateScrollBar();
 			} else {
 				JumpToCurrentPC();
@@ -275,7 +294,7 @@ CPUDisasmView::KeyDown (const char *bytes, int32 numBytes)
 			Invalidate();
 			break;
 		}
-		
+
 		case 'c':
 		case 'C':
 			nes::cpu::debug_clear_execute_breakpoints();
@@ -287,21 +306,27 @@ CPUDisasmView::KeyDown (const char *bytes, int32 numBytes)
 		case 'r':
 		case 'R':
 			fFreezeUpdates = false;
+			fHaveFrozenSnapshot = false;
 			fFollowPC = false;
+
 			JumpToVector(0xfffc);
 			break;
 
 		case 'n':
 		case 'N':
 			fFreezeUpdates = false;
+			fHaveFrozenSnapshot = false;
 			fFollowPC = false;
+
 			JumpToVector(0xfffa);
 			break;
 
 		case 'i':
 		case 'I':
 			fFreezeUpdates = false;
+			fHaveFrozenSnapshot = false;
 			fFollowPC = false;
+
 			JumpToVector(0xfffe);
 			break;
 
@@ -452,6 +477,11 @@ CPUDisasmView::ResetView()
 // follow state, selected row state, register summary, current instruction, and
 // debugger controls.
 //
+// In frozen mode, the displayed PC, CPU registers, processor status, and current
+// instruction all come from the captured disassembly snapshot.  This keeps the
+// header consistent with the frozen instruction listing while execution
+// continues in the emulator.
+//
 // Execute BreakPoints, READ watchpoints, and WRITE watchpoints maintain separate
 // hit counters.  The current debugger break reason therefore determines which
 // counter is displayed.
@@ -490,15 +520,28 @@ CPUDisasmView::DrawHeaderPanel()
 	}
 
 	nes::cpu::cpu_state_t state = nes::cpu::debug_cpu_state();
-
 	uint16 displayPC = state.pc;
+	uint8 displayA = state.a;
+	uint8 displayX = state.x;
+	uint8 displayY = state.y;
+	uint8 displayS = state.s;
+	uint8 displayP = state.p;
 
 	if (nes::cpu::debug_breakpoint_hit()) {
 		displayPC = nes::cpu::debug_breakpoint_hit_address();
 	}
 
-	if (fFreezeUpdates) {
+	/*
+	 * Frozen mode uses the complete CPU state captured with the disassembly
+	 * snapshot rather than mixing frozen instructions with live registers.
+	 */
+	if (fFreezeUpdates && fHaveFrozenSnapshot) {
 		displayPC = fFrozenPC;
+		displayA = fFrozenA;
+		displayX = fFrozenX;
+		displayY = fFrozenY;
+		displayS = fFrozenS;
+		displayP = fFrozenP;
 	}
 
 	const bool breakpointHit = nes::cpu::debug_breakpoint_hit();
@@ -533,14 +576,13 @@ CPUDisasmView::DrawHeaderPanel()
 	float y = panel.top + 20.0f;
 
 	drawText("PC: ", x, y, rgb_color{35, 35, 35, 255});
-	
+
 	value.SetToFormat("$%04X", displayPC);
 
 	drawFixed(value.String(), x, y, rgb_color{0, 0, 0, 255});
 
 	if (breakpointHit) {
 		uint32 hitCount = 0;
-
 		const auto breakReason = nes::cpu::debug_break_reason();
 
 		/*
@@ -616,11 +658,11 @@ CPUDisasmView::DrawHeaderPanel()
 
 	y = panel.top + 44.0f;
 
-	DrawRegisterSummary(BPoint(panel.left + 10.0f, y), state.a, state.x, state.y, state.s, state.p);
+	DrawRegisterSummary(BPoint(panel.left + 10.0f, y), displayA, displayX, displayY, displayS, displayP);
 
 	y = panel.top + 68.0f;
 
-	cpu_disasm_line_t line = DisassembleCPU(displayPC);
+	cpu_disasm_line_t line = DisassembleAddress(displayPC);
 
 	BString instructionText;
 
@@ -636,10 +678,9 @@ CPUDisasmView::DrawHeaderPanel()
 
 	SetFont(&normal);
 	SetHighColor(70, 70, 70);
-	DrawString(
-		"Space: freeze   S: step   V: frame   G: run   F: follow   P: PC   B: breakpoint"
-		"   C: clear BP   Enter: center   Esc: clear   R: reset N: NMI I: IRQ vectors", 
-		BPoint(panel.left + 10.0f, panel.top + 98.0f));
+	DrawString("Space: freeze   S: step   V: frame   G: run   F: follow   P: PC   B: breakpoint"
+				"   C: clear BP   Enter: center   Esc: clear   R: reset N: NMI I: IRQ vectors",
+				BPoint(panel.left + 10.0f, panel.top + 98.0f));
 
 	SetFont(&normal);
 }
@@ -662,6 +703,11 @@ CPUDisasmView::DrawHeaderPanel()
 // When follow-PC mode is active, the visible disassembly range follows the
 // effective display PC.
 //
+// Instruction-row traversal stops at the end of the 16-bit CPU address space.
+// An instruction beginning near $FFFF may fetch operand bytes using normal
+// 6502 address wrapping, but the disassembly list itself never wraps around and
+// begins displaying $0000 as the next sequential row.
+//
 // Parameters:
 //   None.
 //
@@ -671,8 +717,8 @@ CPUDisasmView::DrawHeaderPanel()
 void
 CPUDisasmView::DrawDisasmPanel()
 {
-	const float rightEdge = (fScrollBar && !fScrollBar->IsHidden())
-		? fScrollBar->Frame().left - 4.0f : Bounds().right - 4.0f;
+	const float rightEdge = (fScrollBar && !fScrollBar->IsHidden()) 
+							? fScrollBar->Frame().left - 4.0f : Bounds().right - 4.0f;
 
 	BRect panel(4.0f, 124.0f, rightEdge, Bounds().bottom - 8.0f);
 	::DrawDebugPanel(this, panel, "Instructions");
@@ -687,9 +733,9 @@ CPUDisasmView::DrawDisasmPanel()
 	BFont prevFont;
 	GetFont(&prevFont);
 
-	BFont mono(be_fixed_font);
-	mono.SetSize(10.0f);
-	SetFont(&mono);
+	BFont fixed(be_fixed_font);
+	fixed.SetSize(10.0f);
+	SetFont(&fixed);
 
 	font_height fh;
 	GetFontHeight(&fh);
@@ -721,6 +767,7 @@ CPUDisasmView::DrawDisasmPanel()
 
 	if (fFollowPC && !fFreezeUpdates) {
 		fBaseAddress = FindContextBase(displayPC, 5);
+
 		UpdateScrollBar();
 	}
 
@@ -729,7 +776,6 @@ CPUDisasmView::DrawDisasmPanel()
 	const float bytesX = addrX + 76.0f;
 	const float instrX = bytesX + 92.0f;
 	const float commentX = instrX + 108.0f;
-
 	float y = panel.top + 58.0f;
 
 	SetHighColor(80, 80, 80);
@@ -753,13 +799,22 @@ CPUDisasmView::DrawDisasmPanel()
 		const bool active = (address == displayPC);
 
 		DrawDisasmLine(y, address, active);
-		cpu_disasm_line_t line = DisassembleCPU(address);
+		cpu_disasm_line_t line = DisassembleAddress(address);
 
-		if (line.length == 0) {
-			address++;
-		} else {
-			address += line.length;
+		const uint32 length = (line.length == 0) ? 1 : line.length;
+		const uint32 nextAddress = static_cast<uint32>(address) + length;
+
+		/*
+		 * The instruction beginning at the current address is valid to
+		 * display, but there is no sequential CPU address after $FFFF.
+		 *
+		 * Do not allow the row traversal to wrap back to $0000.
+		 */
+		if (nextAddress > 0xffff) {
+			break;
 		}
+
+		address = static_cast<uint16>(nextAddress);
 
 		y += lineH;
 	}
@@ -777,6 +832,10 @@ CPUDisasmView::DrawDisasmPanel()
 // This follows the same panel geometry and row stepping used by
 // DrawDisasmPanel(), including variable instruction lengths.
 //
+// Row traversal stops at the end of the 16-bit CPU address space so mouse
+// selection cannot wrap from an instruction near $FFFF back to a synthetic
+// $0000 row.
+//
 // Parameters:
 //   where   - Mouse position in view coordinates.
 //   address - Receives the CPU address for the clicked row.
@@ -788,9 +847,8 @@ bool
 CPUDisasmView::AddressForPoint (BPoint where, uint16 &address)
 {
 	const float rightEdge = (fScrollBar && !fScrollBar->IsHidden())
-		? fScrollBar->Frame().left - 4.0f : Bounds().right - 4.0f;
-
-	BRect panel(4.0f, 124.0f, rightEdge, Bounds().bottom - 8.0);
+			? fScrollBar->Frame().left - 4.0f : Bounds().right - 4.0f;
+	BRect panel(4.0f, 124.0f, rightEdge, Bounds().bottom - 8.0f);
 
 	if (!panel.Contains(where)) {
 		return false;
@@ -803,12 +861,13 @@ CPUDisasmView::AddressForPoint (BPoint where, uint16 &address)
 	BFont prevFont;
 	GetFont(&prevFont);
 
-	BFont mono(be_fixed_font);
-	mono.SetSize(10.0f);
-	SetFont(&mono);
+	BFont fixed(be_fixed_font);
+	fixed.SetSize(10.0f);
+	SetFont(&fixed);
 
 	font_height fh;
 	GetFontHeight(&fh);
+
 	const float lineH = ceilf(fh.ascent + fh.descent + fh.leading) + 1.0f;
 
 	SetFont(&prevFont);
@@ -829,19 +888,28 @@ CPUDisasmView::AddressForPoint (BPoint where, uint16 &address)
 			return true;
 		}
 
-		cpu_disasm_line_t line = DisassembleCPU(rowAddress);
+		cpu_disasm_line_t line = DisassembleAddress(rowAddress);
 
-		if (line.length == 0) {
-			rowAddress++;
-		} else {
-			rowAddress += line.length;
+		const uint32 length = (line.length == 0) ? 1 : line.length;
+		const uint32 nextAddress = static_cast<uint32>(rowAddress) + length;
+
+		/*
+		 * Keep hit-testing synchronized with DrawDisasmPanel().
+		 *
+		 * Once the current instruction reaches the end of CPU address
+		 * space, no further visible sequential row exists.
+		 */
+		if (nextAddress > 0xffff) {
+			break;
 		}
 
+		rowAddress = static_cast<uint16>(nextAddress);
 		y += lineH;
 	}
 
 	return false;
 }
+
 
 // -----------------------------------------------------------------------------
 // CPUDisasmView::VisibleDisasmRows
@@ -861,15 +929,14 @@ CPUDisasmView::VisibleDisasmRows() const
 {
 	const float rightEdge = (fScrollBar && !fScrollBar->IsHidden())
 		? fScrollBar->Frame().left - 4.0f : Bounds().right - 4.0f;
-
 	BRect panel(4.0f, 124.0f, rightEdge, Bounds().bottom - 8.0f);
 
 	BFont prevFont;
 	const_cast<CPUDisasmView *>(this)->GetFont(&prevFont);
 
-	BFont mono(be_fixed_font);
-	mono.SetSize(10.0f);
-	const_cast<CPUDisasmView *>(this)->SetFont(&mono);
+	BFont fixed(be_fixed_font);
+	fixed.SetSize(10.0f);
+	const_cast<CPUDisasmView *>(this)->SetFont(&fixed);
 
 	font_height fh;
 	const_cast<CPUDisasmView *>(this)->GetFontHeight(&fh);
@@ -1082,9 +1149,9 @@ CPUDisasmView::DrawRegisterSummary (BPoint origin, uint8 a, uint8 x, uint8 y, ui
 // PC and is used as the preferred target for BreakPoint toggling.
 //
 // Opcode and operand bytes are drawn separately so the opcode stands out from
-// the instruction operands. Conditional branch comments are colored by their
-// live branch state: green when the branch would be taken, gray when it would
-// not be taken.
+// the instruction operands. Conditional branch comments are colored by the
+// branch state represented by the current disassembly state: green when the
+// branch would be taken, gray when it would not be taken.
 //
 // Parameters:
 //   y       - Text baseline.
@@ -1097,20 +1164,16 @@ CPUDisasmView::DrawRegisterSummary (BPoint origin, uint8 a, uint8 x, uint8 y, ui
 void
 CPUDisasmView::DrawDisasmLine (float y, uint16 address, bool active)
 {
-	cpu_disasm_line_t line = DisassembleCPU(address);
+	cpu_disasm_line_t line = DisassembleAddress(address);
 
 	const float pcX = 12.0f;
 	const float addrX = pcX + 42.0f;
 	const float bytesX = addrX + 76.0f;
 	const float instrX = bytesX + 92.0f;
 	const float commentX = instrX + 108.0f;
-
 	const float byteStep = 24.0f;
-
 	const float rowLeft = 8.0f;
-
-	const float rowRight
-		= (fScrollBar && !fScrollBar->IsHidden())
+	const float rowRight = (fScrollBar && !fScrollBar->IsHidden())
 			? fScrollBar->Frame().left - 12.0f : Bounds().right - 12.0f;
 
 	const bool executed = nes::cpu::debug_instruction_was_executed(line.address);
@@ -1125,15 +1188,7 @@ CPUDisasmView::DrawDisasmLine (float y, uint16 address, bool active)
 	const bool storeInstruction = IsStoreInstruction(line);
 	const bool undocumented = IsUndocumentedInstruction(line);
 	const bool jam = line.mnemonic == "jam";
-
-	const bool conditionalBranch = line.mnemonic == "bpl"
-			|| line.mnemonic == "bmi"
-			|| line.mnemonic == "bvc"
-			|| line.mnemonic == "bvs"
-			|| line.mnemonic == "bcc"
-			|| line.mnemonic == "bcs"
-			|| line.mnemonic == "bne"
-			|| line.mnemonic == "beq";
+	const bool conditionalBranch = IsConditionalBranchInstruction(line);
 
 	/*
 	 * Row background describes special debugger/hardware context.
@@ -1178,7 +1233,8 @@ CPUDisasmView::DrawDisasmLine (float y, uint16 address, bool active)
 
 		if (breakpoint) {
 			SetHighColor(170, 0, 0);
-			FillEllipse(BRect(markerX + 10.0f, markerY - 2.0f, markerX + 16.0f, markerY + 4.0f));
+			FillEllipse(BRect(markerX + 10.0f, markerY - 2.0f,
+				markerX + 16.0f, markerY + 4.0f));
 		}
 	} else {
 		const float markerX = pcX + 4.0f;
@@ -1186,13 +1242,16 @@ CPUDisasmView::DrawDisasmLine (float y, uint16 address, bool active)
 
 		if (breakpoint) {
 			SetHighColor(170, 0, 0);
-			FillEllipse(BRect(markerX - 1.0f, markerY - 1.0f, markerX + 7.0f, markerY + 7.0f));
+			FillEllipse(BRect(markerX - 1.0f, markerY - 1.0f,
+				markerX + 7.0f, markerY + 7.0f));
 		} else if (executed) {
 			SetHighColor(0, 135, 0);
-			FillEllipse(BRect(markerX, markerY, markerX + 6.0f, markerY + 6.0f));
+			FillEllipse(BRect(markerX, markerY,
+				markerX + 6.0f, markerY + 6.0f));
 		} else {
 			SetHighColor(145, 145, 145);
-			StrokeEllipse(BRect(markerX + 1.0f, markerY + 1.0f, markerX + 5.0f, markerY + 5.0f));
+			StrokeEllipse(BRect(markerX + 1.0f, markerY + 1.0f,
+				markerX + 5.0f, markerY + 5.0f));
 		}
 	}
 
@@ -1207,34 +1266,24 @@ CPUDisasmView::DrawDisasmLine (float y, uint16 address, bool active)
 	 */
 	if (jam) {
 		SetHighColor(130, 130, 130);
-
 	} else if (storeInstruction && undocumented) {
 		SetHighColor(155, 45, 125);
-
 	} else if (loadInstruction && undocumented) {
 		SetHighColor(45, 70, 175);
-
 	} else if (storeInstruction) {
 		SetHighColor(150, 60, 30);
-
 	} else if (loadInstruction) {
 		SetHighColor(40, 80, 170);
-
 	} else if (controlFlow) {
 		SetHighColor(170, 85, 0);
-
 	} else if (oamDMA) {
 		SetHighColor(120, 0, 120);
-
 	} else if (ppuWrite) {
 		SetHighColor(0, 80, 160);
-
 	} else if (apuOrController) {
 		SetHighColor(0, 110, 0);
-
 	} else if (undocumented) {
 		SetHighColor(95, 65, 145);
-
 	} else {
 		SetHighColor((active ? 0 : 80), (active ? 0 : 80), (active ? 0 : 80));
 	}
@@ -1276,34 +1325,24 @@ CPUDisasmView::DrawDisasmLine (float y, uint16 address, bool active)
 	 */
 	if (jam) {
 		SetHighColor(130, 130, 130);
-
 	} else if (storeInstruction && undocumented) {
 		SetHighColor(155, 45, 125);
-
 	} else if (loadInstruction && undocumented) {
 		SetHighColor(45, 70, 175);
-
 	} else if (storeInstruction) {
 		SetHighColor(150, 60, 30);
-
 	} else if (loadInstruction) {
 		SetHighColor(40, 80, 170);
-
 	} else if (controlFlow) {
 		SetHighColor(170, 85, 0);
-
 	} else if (oamDMA) {
 		SetHighColor(120, 0, 120);
-
 	} else if (ppuWrite) {
 		SetHighColor(0, 80, 160);
-
 	} else if (apuOrController) {
 		SetHighColor(0, 110, 0);
-
 	} else if (undocumented) {
 		SetHighColor(95, 65, 145);
-
 	} else {
 		SetHighColor((active ? 0 : 80), (active ? 0 : 80), (active ? 0 : 80));
 	}
@@ -1348,8 +1387,13 @@ CPUDisasmView::DrawDisasmLine (float y, uint16 address, bool active)
 //
 // Enables or disables follow-PC mode.
 //
+// In live mode, enabling follow recenters the disassembly around the current
+// CPU PC.  In frozen mode, enabling follow instead recenters around the PC
+// captured by the frozen snapshot so the view never jumps back into live CPU
+// state while frozen.
+//
 // Parameters:
-//   follow - true to keep the disassembly based at the live PC.
+//   follow - true to enable follow-PC mode.
 //
 // Returns:
 //   Nothing.
@@ -1357,15 +1401,23 @@ CPUDisasmView::DrawDisasmLine (float y, uint16 address, bool active)
 void
 CPUDisasmView::SetFollowPC (bool follow)
 {
-	fFollowPC = follow;
+    fFollowPC = follow;
 
-	if (fFollowPC) {
-		nes::cpu::cpu_state_t state = nes::cpu::debug_cpu_state();
-		fBaseAddress = FindContextBase(state.pc, 5);
-	}
+    if (fFollowPC) {
+        uint16 displayPC = 0x0000;
 
-	UpdateScrollBar();
-	Invalidate();
+        if (fFreezeUpdates && fHaveFrozenSnapshot) {
+			displayPC = fFrozenPC;
+        } else {
+            nes::cpu::cpu_state_t state = nes::cpu::debug_cpu_state();
+			displayPC = state.pc;
+        }
+
+        fBaseAddress = FindContextBase(displayPC, 5);
+    }
+
+    UpdateScrollBar();
+    Invalidate();
 }
 
 
@@ -1379,6 +1431,9 @@ CPUDisasmView::SetFollowPC (bool follow)
 // have variable lengths.  When viewing cartridge PRG-ROM, scrolling upward from
 // $8000 stops at $8000 instead of interpreting bytes below the cartridge ROM
 // region as an instruction that happens to cross the $8000 boundary.
+//
+// Frozen-mode scrolling uses the captured memory snapshot in both directions so
+// manual navigation remains consistent with the frozen disassembly state.
 //
 // Parameters:
 //   lines - Number of instruction rows to scroll.  Negative values move upward;
@@ -1398,7 +1453,7 @@ CPUDisasmView::ScrollLines (int32 lines)
 
 	if (lines > 0) {
 		for (int32 i = 0; i < lines; i++) {
-			cpu_disasm_line_t line = DisassembleCPU(fBaseAddress);
+			cpu_disasm_line_t line = DisassembleAddress(fBaseAddress);
 
 			const uint32 length = (line.length == 0) ? 1 : line.length;
 			const uint32 nextAddress = static_cast<uint32>(fBaseAddress) + length;
@@ -1561,30 +1616,34 @@ CPUDisasmView::IsUndocumentedInstruction (const cpu_disasm_line_t &line) const
 // -----------------------------------------------------------------------------
 // CPUDisasmView::IsPPURegisterWrite
 //
-// Returns whether a disassembled instruction appears to write directly to one of
-// the CPU-visible PPU registers at $2000-$2007.
+// Returns whether a disassembled instruction appears to write directly to a
+// CPU-visible PPU register.
+//
+// The eight PPU registers at $2000-$2007 are mirrored repeatedly throughout
+// $2008-$3FFF, so any absolute operand in the complete $2000-$3FFF range is
+// treated as a PPU-register access.
 //
 // Parameters:
 //   line - Disassembled instruction line.
 //
 // Returns:
-//   true if this instruction writes to $2000-$2007.
+//   true if this instruction writes to a PPU register or one of its mirrors.
 // -----------------------------------------------------------------------------
 bool
-CPUDisasmView::IsPPURegisterWrite (const cpu_disasm_line_t &line) const
+CPUDisasmView::IsPPURegisterWrite(const cpu_disasm_line_t &line) const
 {
-	if (!IsStoreInstruction(line)) {
-		return false;
-	}
+    if (!IsStoreInstruction(line)) {
+        return false;
+    }
 
-	uint16 address = 0;
-
+    uint16 address = 0;
 	if (!ParseOperandAddress(line, address)) {
-		return false;
-	}
+        return false;
+    }
 
-	return ((address >= 0x2000) && (address <= 0x2007));
+    return ((address >= 0x2000) && (address <= 0x3fff));
 }
+
 
 // -----------------------------------------------------------------------------
 // CPUDisasmView::IsOAMDMAWrite
@@ -1618,29 +1677,63 @@ CPUDisasmView::IsOAMDMAWrite (const cpu_disasm_line_t &line) const
 // -----------------------------------------------------------------------------
 // CPUDisasmView::IsAPUOrControllerRegister
 //
-// Returns whether a disassembled instruction uses a CPU-visible APU or
-// controller register operand.
+// Returns whether a disassembled instruction uses a meaningful CPU-visible APU
+// or controller register operand.
+//
+// The unused APU addresses $4009 and $400D are excluded.  OAM DMA at $4014 is
+// also excluded because it has its own dedicated disassembly classification.
 //
 // Parameters:
 //   line - Disassembled instruction line.
 //
 // Returns:
-//   true if this instruction references $4000-$4017, excluding OAM DMA $4014.
+//   true if this instruction references a functional APU or controller register.
 // -----------------------------------------------------------------------------
 bool
 CPUDisasmView::IsAPUOrControllerRegister (const cpu_disasm_line_t &line) const
 {
-	uint16 address = 0;
+    uint16 address = 0;
 
-	if (!ParseOperandAddress(line, address)) {
-		return false;
-	}
+    if (!ParseOperandAddress(line, address)) {
+        return false;
+    }
 
-	if (address == 0x4014) {
-		return false;
-	}
+    if (address == 0x4009 || address == 0x400d || address == 0x4014) {
 
-	return ((address >= 0x4000) && (address <= 0x4017));
+        return false;
+    }
+
+    return ((address >= 0x4000) && (address <= 0x4017));
+}
+
+
+// -----------------------------------------------------------------------------
+// CPUDisasmView::IsConditionalBranchInstruction
+//
+// Returns whether a disassembled instruction is one of the eight conditional
+// 6502 branch instructions.
+//
+// Keeping this classification in one helper avoids duplicating the complete
+// branch-mnemonic list in rendering, control-flow classification, and comment
+// generation.
+//
+// Parameters:
+//   line - Disassembled instruction line.
+//
+// Returns:
+//   true if the instruction is a conditional branch.
+// -----------------------------------------------------------------------------
+bool
+CPUDisasmView::IsConditionalBranchInstruction (const cpu_disasm_line_t &line) const
+{
+    return line.mnemonic == "bpl"
+		|| line.mnemonic == "bmi"
+		|| line.mnemonic == "bvc"
+		|| line.mnemonic == "bvs"
+		|| line.mnemonic == "bcc"
+		|| line.mnemonic == "bcs"
+		|| line.mnemonic == "bne"
+		|| line.mnemonic == "beq";
 }
 
 
@@ -1660,19 +1753,13 @@ CPUDisasmView::IsAPUOrControllerRegister (const cpu_disasm_line_t &line) const
 bool
 CPUDisasmView::IsControlFlowInstruction (const cpu_disasm_line_t &line) const
 {
-	return line.mnemonic == "bpl"
-		|| line.mnemonic == "bmi"
-		|| line.mnemonic == "bvc"
-		|| line.mnemonic == "bvs"
-		|| line.mnemonic == "bcc"
-		|| line.mnemonic == "bcs"
-		|| line.mnemonic == "bne"
-		|| line.mnemonic == "beq"
+	return IsConditionalBranchInstruction(line)
 		|| line.mnemonic == "jmp"
 		|| line.mnemonic == "jsr"
 		|| line.mnemonic == "rts"
 		|| line.mnemonic == "rti";
 }
+
 
 // -----------------------------------------------------------------------------
 // CPUDisasmView::ParseOperandAddress
@@ -1731,8 +1818,10 @@ CPUDisasmView::ParseOperandAddress (const cpu_disasm_line_t &line, uint16 &addre
 // CPUDisasmView::HardwareLabelForOperand
 //
 // Returns a short hardware-register label for CPU-visible IO/register operands.
-// This is used to annotate disassembly rows such as "sta $2000 ; PPUCTRL" and
-// "sta $4014 ; OAMDMA".
+//
+// The PPU registers at $2000-$2007 are mirrored throughout $2008-$3FFF.  PPU
+// operands in that complete range are normalized to their canonical register
+// before selecting a label.
 //
 // Parameters:
 //   line - Disassembled instruction line.
@@ -1742,116 +1831,118 @@ CPUDisasmView::ParseOperandAddress (const cpu_disasm_line_t &line, uint16 &addre
 //   hardware register.
 // -----------------------------------------------------------------------------
 const char*
-CPUDisasmView::HardwareLabelForOperand (const cpu_disasm_line_t &line) const
+CPUDisasmView::HardwareLabelForOperand(const cpu_disasm_line_t &line) const
 {
-	uint16 address = 0;
+    uint16 address = 0;
 
-	if (!ParseOperandAddress(line, address)) {
-		return nullptr;
-	}
+    if (!ParseOperandAddress(line, address)) {
+        return nullptr;
+    }
 
-	switch (address) {
-		case 0x2000:
-			return "PPUCTRL";
+    /*
+     * PPU registers $2000-$2007 are mirrored every eight bytes through
+     * $3FFF.
+     */
+    if (address >= 0x2000 && address <= 0x3fff) {
+		address = static_cast<uint16>(0x2000 + ((address - 0x2000) & 0x7));
+    }
 
-		case 0x2001:
-			return "PPUMASK";
+    switch (address) {
+        case 0x2000:
+            return "PPUCTRL";
 
-		case 0x2002:
-			return "PPUSTATUS";
+        case 0x2001:
+            return "PPUMASK";
 
-		case 0x2003:
-			return "OAMADDR";
+        case 0x2002:
+            return "PPUSTATUS";
 
-		case 0x2004:
-			return "OAMDATA";
+        case 0x2003:
+            return "OAMADDR";
 
-		case 0x2005:
-			return "PPUSCROLL";
+        case 0x2004:
+            return "OAMDATA";
 
-		case 0x2006:
-			return "PPUADDR";
+        case 0x2005:
+            return "PPUSCROLL";
 
-		case 0x2007:
-			return "PPUDATA";
+        case 0x2006:
+            return "PPUADDR";
 
-		case 0x4000:
-			return "SQ1_VOL";
+        case 0x2007:
+            return "PPUDATA";
 
-		case 0x4001:
-			return "SQ1_SWEEP";
+        case 0x4000:
+            return "SQ1_VOL";
 
-		case 0x4002:
-			return "SQ1_TIMER_LO";
+        case 0x4001:
+            return "SQ1_SWEEP";
 
-		case 0x4003:
-			return "SQ1_TIMER_HI";
+        case 0x4002:
+            return "SQ1_TIMER_LO";
 
-		case 0x4004:
-			return "SQ2_VOL";
+        case 0x4003:
+            return "SQ1_TIMER_HI";
 
-		case 0x4005:
-			return "SQ2_SWEEP";
+        case 0x4004:
+            return "SQ2_VOL";
 
-		case 0x4006:
-			return "SQ2_TIMER_LO";
+        case 0x4005:
+            return "SQ2_SWEEP";
 
-		case 0x4007:
-			return "SQ2_TIMER_HI";
+        case 0x4006:
+            return "SQ2_TIMER_LO";
 
-		case 0x4008:
-			return "TRI_LINEAR";
+        case 0x4007:
+            return "SQ2_TIMER_HI";
 
-		case 0x4009:
-			return "TRI_UNUSED";
+        case 0x4008:
+            return "TRI_LINEAR";
 
-		case 0x400A:
-			return "TRI_TIMER_LO";
+        case 0x400A:
+            return "TRI_TIMER_LO";
 
-		case 0x400B:
-			return "TRI_TIMER_HI";
+        case 0x400B:
+            return "TRI_TIMER_HI";
 
-		case 0x400C:
-			return "NOISE_VOL";
+        case 0x400C:
+            return "NOISE_VOL";
 
-		case 0x400D:
-			return "NOISE_UNUSED";
+        case 0x400E:
+            return "NOISE_PERIOD";
 
-		case 0x400E:
-			return "NOISE_PERIOD";
+        case 0x400F:
+            return "NOISE_LENGTH";
 
-		case 0x400F:
-			return "NOISE_LENGTH";
+        case 0x4010:
+            return "DMC_FREQ";
 
-		case 0x4010:
-			return "DMC_FREQ";
+        case 0x4011:
+            return "DMC_RAW";
 
-		case 0x4011:
-			return "DMC_RAW";
+        case 0x4012:
+            return "DMC_ADDR";
 
-		case 0x4012:
-			return "DMC_ADDR";
+        case 0x4013:
+            return "DMC_LEN";
 
-		case 0x4013:
-			return "DMC_LEN";
+        case 0x4014:
+            return "OAMDMA";
 
-		case 0x4014:
-			return "OAMDMA";
+        case 0x4015:
+            return "APUSTATUS";
 
-		case 0x4015:
-			return "APUSTATUS";
+        case 0x4016:
+            return "JOY1";
 
-		case 0x4016:
-			return "JOY1";
+        case 0x4017:
+            return "JOY2/APUFRAME";
 
-		case 0x4017:
-			return "JOY2/APUFRAME";
+        default:
+            break;
+    }
 
-		default:
-			break;
-	}
-
-	return nullptr;
+    return nullptr;
 }
 
 
@@ -1970,15 +2061,24 @@ CPUDisasmView::CPUIdiomCommentForLine (const cpu_disasm_line_t &line) const
 // -----------------------------------------------------------------------------
 // CPUDisasmView::BuildCommentForLine
 //
-// Builds the disassembly comment for one instruction.  Hardware register labels
-// have highest priority because they identify CPU-visible IO/register accesses.
-// Conditional branches include target direction, target address, and whether
-// the branch would currently be taken based on the live CPU flags.  Common CPU
-// idiom comments are used as a final fallback.
+// Builds the explanatory comment shown for one disassembled instruction.
+//
+// Hardware-register labels have the highest priority because they identify
+// CPU-visible PPU, APU, controller, and DMA register accesses.
+//
+// Conditional branches include the branch target, its direction relative to the
+// current instruction, and whether the branch condition is satisfied using the
+// processor-status flags represented by the current disassembly state.  Live
+// mode uses the current CPU flags, while frozen mode uses the processor-status
+// value captured with the frozen snapshot.
+//
+// Jumps, subroutine calls, and returns receive control-flow comments when
+// appropriate.  Common 6502 idioms are annotated only when no more specific
+// hardware-register or control-flow comment applies.
 //
 // Parameters:
-//   line    - Disassembled instruction line.
-//   comment - Receives the generated comment text.  Empty if no comment applies.
+//   line    - Disassembled CPU instruction line.
+//   comment - Receives the generated explanatory comment.
 //
 // Returns:
 //   Nothing.
@@ -1997,16 +2097,8 @@ CPUDisasmView::BuildCommentForLine (const cpu_disasm_line_t &line, BString &comm
 
 	uint16 target = 0;
 	const bool hasTarget = ParseOperandAddress(line, target);
-
-	const bool branch = line.mnemonic == "bpl"
-		|| line.mnemonic == "bmi"
-		|| line.mnemonic == "bvc"
-		|| line.mnemonic == "bvs"
-		|| line.mnemonic == "bcc"
-		|| line.mnemonic == "bcs"
-		|| line.mnemonic == "bne"
-		|| line.mnemonic == "beq";
-
+	const bool branch = IsConditionalBranchInstruction(line);
+	
 	if (branch) {
 		const char *takenText = BranchTakenForLine(line) ? "taken" : "not taken";
 
@@ -2066,20 +2158,29 @@ CPUDisasmView::BuildCommentForLine (const cpu_disasm_line_t &line, BString &comm
 // -----------------------------------------------------------------------------
 // CPUDisasmView::BranchTakenForLine
 //
-// Returns whether a conditional branch instruction would currently be taken
-// based on the live CPU processor status flags.
+// Returns whether a conditional branch instruction would be taken using the
+// processor-status flags represented by the current disassembly state.
+//
+// Live mode uses the current CPU processor-status flags.  Frozen mode uses the
+// processor-status value captured with the frozen disassembly snapshot.
 //
 // Parameters:
 //   line - Disassembled CPU instruction line.
 //
 // Returns:
-//   true if the branch condition is currently satisfied.
+//   true if the branch condition is satisfied.
 // -----------------------------------------------------------------------------
 bool
-CPUDisasmView::BranchTakenForLine (const cpu_disasm_line_t& line) const
+CPUDisasmView::BranchTakenForLine (const cpu_disasm_line_t &line) const
 {
-	nes::cpu::cpu_state_t state = nes::cpu::debug_cpu_state();
-	const uint8 p = state.p;
+	uint8 p = 0x00;
+
+	if (fFreezeUpdates && fHaveFrozenSnapshot) {
+		p = fFrozenP;
+	} else {
+		nes::cpu::cpu_state_t state = nes::cpu::debug_cpu_state();
+		p = state.p;
+	}
 
 	const bool n = (p & 0x80) != 0;
 	const bool v = (p & 0x40) != 0;
@@ -2125,37 +2226,50 @@ CPUDisasmView::BranchTakenForLine (const cpu_disasm_line_t& line) const
 // -----------------------------------------------------------------------------
 // CPUDisasmView::FindInstructionBefore
 //
-// Attempts to find the nearest valid 6502 instruction boundary immediately
-// before the supplied address.  Because 6502 instructions are variable-length,
-// this checks a small backward window and selects the closest instruction whose
-// length lands exactly on the target address.
+// Finds the most likely instruction start immediately preceding the supplied
+// CPU address.
+//
+// Because 6502 instructions are at most three bytes long, the function probes
+// up to three bytes backward and looks for an instruction whose decoded length
+// lands exactly on the requested address.
+//
+// Backward probing is clamped at $0000 so subtraction can never underflow and
+// wrap into the top of the 16-bit CPU address space.
 //
 // Parameters:
-//   address - Instruction boundary to search before.
+//   address - CPU address whose preceding instruction should be found.
 //
 // Returns:
-//   Best previous instruction address.
+//   Address of the best preceding instruction start.
 // -----------------------------------------------------------------------------
 uint16
 CPUDisasmView::FindInstructionBefore (uint16 address) const
 {
-	uint16 best = address - 1;
+    if (address == 0x0000) {
+        return 0x0000;
+    }
 
-	for (int32 back = 1; back <= 3; back++) {
-		uint16 candidate = address - back;
-		cpu_disasm_line_t line = DisassembleCPU(candidate);
+    uint16 best = static_cast<uint16>(address - 1);
 
-		if (line.length == 0) {
-			continue;
-		}
+    for (int32 back = 1; back <= 3; back++) {
 
-		if (static_cast<uint16>(candidate + line.length) == address) {
-			best = candidate;
-			break;
-		}
-	}
+        if (back > address) {
+            break;
+        }
 
-	return best;
+        const uint16 candidate = static_cast<uint16>(address - back);
+		cpu_disasm_line_t line = DisassembleAddress(candidate);
+
+        const uint32 length = (line.length == 0) ? 1 : line.length;
+		const uint32 nextAddress = static_cast<uint32>(candidate) + length;
+
+        if (nextAddress == static_cast<uint32>(address)) {
+
+            best = candidate;
+        }
+    }
+
+    return best;
 }
 
 
@@ -2241,8 +2355,11 @@ CPUDisasmView::JumpToAddress (uint16 address)
 // -----------------------------------------------------------------------------
 // CPUDisasmView::JumpToCurrentPC
 //
-// Jumps the disassembly view back to the current CPU PC.  This also re-enables
-// follow-PC mode.
+// Returns the disassembly view to the PC represented by its current display
+// state and enables follow-PC mode.
+//
+// Live mode uses the current CPU PC.  Frozen mode uses the PC captured by the
+// frozen snapshot so navigation cannot escape the frozen CPU state.
 //
 // Parameters:
 //   None.
@@ -2253,13 +2370,20 @@ CPUDisasmView::JumpToAddress (uint16 address)
 void
 CPUDisasmView::JumpToCurrentPC()
 {
-	nes::cpu::cpu_state_t state = nes::cpu::debug_cpu_state();
+    uint16 displayPC = 0x0000;
 
-	fFollowPC = true;
-	fBaseAddress = FindContextBase(state.pc, 5);
+    if (fFreezeUpdates && fHaveFrozenSnapshot) {
+		displayPC = fFrozenPC;
+    } else {
+        nes::cpu::cpu_state_t state = nes::cpu::debug_cpu_state();
+		displayPC = state.pc;
+    }
 
-	UpdateScrollBar();
-	Invalidate();
+    fFollowPC = true;
+	fBaseAddress = FindContextBase(displayPC, 5);
+
+    UpdateScrollBar();
+    Invalidate();
 }
 
 
@@ -2381,5 +2505,80 @@ CPUDisasmView::ScrollBarChanged (float value)
 	fBaseAddress = static_cast<uint16>(address);
 
 	Invalidate();
+}
+
+
+// -----------------------------------------------------------------------------
+// CPUDisasmView::CaptureFrozenSnapshot
+//
+// Captures the CPU state and complete CPU-visible address space for frozen
+// disassembly mode.
+//
+// Memory is read through the debugger-safe memory path so the snapshot does not
+// cause CPU bus side effects or trigger debugger memory watchpoints.  Keeping a
+// complete 64 KB image allows the user to navigate through disassembly while
+// frozen without later mapper changes altering the displayed instructions.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+CPUDisasmView::CaptureFrozenSnapshot()
+{
+	nes::cpu::cpu_state_t state = nes::cpu::debug_cpu_state();
+
+	fFrozenPC = state.pc;
+	fFrozenA = state.a;
+	fFrozenX = state.x;
+	fFrozenY = state.y;
+	fFrozenS = state.s;
+	fFrozenP = state.p;
+
+	for (uint32 address = 0; address <= 0xffff; address++) {
+		fFrozenMemory[address] = nes::bus::debug_read_memory(static_cast<uint16>(address));
+	}
+
+	fHaveFrozenSnapshot = true;
+}
+
+
+// -----------------------------------------------------------------------------
+// CPUDisasmView::DisassembleAddress
+//
+// Disassembles one CPU address using the memory source represented by the
+// current disassembly state.
+//
+// Live mode reads normally through the CPU disassembler. Frozen mode instead
+// decodes bytes captured in the frozen 64 KB memory snapshot so mapper changes,
+// RAM writes, and other memory changes that occur after freezing cannot alter
+// the displayed disassembly.
+//
+// Frozen decoding uses DisassembleCPUBytes() so mapper changes that occur after
+// the snapshot do not affect interpretation of the captured bytes.
+//
+// Parameters:
+//   address - CPU address to disassemble.
+//
+// Returns:
+//   Decoded disassembly line.
+// -----------------------------------------------------------------------------
+cpu_disasm_line_t
+CPUDisasmView::DisassembleAddress (uint16 address) const
+{
+	if (!fFreezeUpdates || !fHaveFrozenSnapshot) {
+		return DisassembleCPU(address);
+	}
+
+	uint8 bytes[3];
+
+	for (uint32 i = 0; i < 3; i++) {
+		const uint16 byteAddress = static_cast<uint16>(address + static_cast<uint16>(i));
+		bytes[i] = fFrozenMemory[byteAddress];
+	}
+
+	return DisassembleCPUBytes(address, bytes);
 }
 
