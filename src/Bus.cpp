@@ -16,23 +16,60 @@ namespace {
 
 uint8_t ram_[0x800];
 
-//------------------------------------------------------------------------------
-// Name: write_0
-//------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// write_0
+//
+// Writes a byte to internal CPU RAM in the $0000-$0FFF address range.
+//
+// The NES contains 2 KB of internal RAM mirrored throughout this range, so the
+// supplied address is masked to the physical $0000-$07FF RAM area.
+//
+// Parameters:
+//   address - CPU address being written.
+//   value   - Byte value to store.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void write_0(uint_least16_t address, uint8_t value) {
 	ram_[address & 0x7ff] = value;
 }
 
-//------------------------------------------------------------------------------
-// Name: write_1
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// write_1
+//
+// Writes a byte to internal CPU RAM in the $1000-$1FFF address range.
+//
+// This region mirrors the same 2 KB internal RAM used by $0000-$07FF.
+//
+// Parameters:
+//   address - CPU address being written.
+//   value   - Byte value to store.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void write_1(uint_least16_t address, uint8_t value) {
 	ram_[address & 0x7ff] = value;
 }
 
-//------------------------------------------------------------------------------
-// Name: write_2
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// write_2
+//
+// Writes to the $2000-$2FFF CPU address range.
+//
+// The write is first exposed to the active cartridge mapper, then routed to the
+// appropriate mirrored PPU register according to the low three address bits.
+//
+// Parameters:
+//   address - CPU address being written.
+//   value   - Byte value to write.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void write_2(uint_least16_t address, uint8_t value) {
 
 	nes::cart.mapper()->write_2(address, value);
@@ -66,9 +103,23 @@ void write_2(uint_least16_t address, uint8_t value) {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: write_3
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// write_3
+//
+// Writes to the $3000-$3FFF CPU address range.
+//
+// This region mirrors the PPU register range.  The write is first exposed to the
+// cartridge mapper, then routed to the appropriate PPU register using the low
+// three address bits.
+//
+// Parameters:
+//   address - CPU address being written.
+//   value   - Byte value to write.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void write_3(uint_least16_t address, uint8_t value) {
 
 	nes::cart.mapper()->write_3(address, value);
@@ -102,9 +153,23 @@ void write_3(uint_least16_t address, uint8_t value) {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: Write4
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// write_4
+//
+// Writes to the $4000-$4FFF CPU address range.
+//
+// The write is exposed to the cartridge mapper and then dispatched to the APU,
+// PPU DMA, controller, or frame-counter register when the address corresponds to
+// a standard NES I/O register.
+//
+// Parameters:
+//   address - CPU address being written.
+//   value   - Byte value to write.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void write_4(uint_least16_t address, uint8_t value) {
 
 	nes::cart.mapper()->write_4(address, value);
@@ -178,100 +243,256 @@ void write_4(uint_least16_t address, uint8_t value) {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: write_5
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// write_5
+//
+// Forwards writes in the $5000-$5FFF CPU address range to the active cartridge
+// mapper.
+//
+// Parameters:
+//   address - CPU address being written.
+//   value   - Byte value to write.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void write_5(uint_least16_t address, uint8_t value) {
 	nes::cart.mapper()->write_5(address, value);
 }
 
-//------------------------------------------------------------------------------
-// Name: write_6
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// write_6
+//
+// Forwards writes in the $6000-$6FFF CPU address range to the active cartridge
+// mapper.
+//
+// Parameters:
+//   address - CPU address being written.
+//   value   - Byte value to write.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void write_6(uint_least16_t address, uint8_t value) {
 	nes::cart.mapper()->write_6(address, value);
 }
 
-//------------------------------------------------------------------------------
-// Name: write_7
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// write_7
+//
+// Forwards writes in the $7000-$7FFF CPU address range to the active cartridge
+// mapper.
+//
+// Parameters:
+//   address - CPU address being written.
+//   value   - Byte value to write.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void write_7(uint_least16_t address, uint8_t value) {
 	nes::cart.mapper()->write_7(address, value);
 }
 
-//------------------------------------------------------------------------------
-// Name: write_8
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// write_8
+//
+// Forwards writes in the $8000-$8FFF CPU address range to the active cartridge
+// mapper.
+//
+// Parameters:
+//   address - CPU address being written.
+//   value   - Byte value to write.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void write_8(uint_least16_t address, uint8_t value) {
 	nes::cart.mapper()->write_8(address, value);
 }
 
-//------------------------------------------------------------------------------
-// Name: write_9
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// write_9
+//
+// Forwards writes in the $9000-$9FFF CPU address range to the active cartridge
+// mapper.
+//
+// Parameters:
+//   address - CPU address being written.
+//   value   - Byte value to write.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void write_9(uint_least16_t address, uint8_t value) {
 	nes::cart.mapper()->write_9(address, value);
 }
 
-//------------------------------------------------------------------------------
-// Name: write_a
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// write_a
+//
+// Forwards writes in the $A000-$AFFF CPU address range to the active cartridge
+// mapper.
+//
+// Parameters:
+//   address - CPU address being written.
+//   value   - Byte value to write.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void write_a(uint_least16_t address, uint8_t value) {
 	nes::cart.mapper()->write_a(address, value);
 }
 
-//------------------------------------------------------------------------------
-// Name: write_b
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// write_b
+//
+// Forwards writes in the $B000-$BFFF CPU address range to the active cartridge
+// mapper.
+//
+// Parameters:
+//   address - CPU address being written.
+//   value   - Byte value to write.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void write_b(uint_least16_t address, uint8_t value) {
 	nes::cart.mapper()->write_b(address, value);
 }
 
-//------------------------------------------------------------------------------
-// Name: write_c
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// write_c
+//
+// Forwards writes in the $C000-$CFFF CPU address range to the active cartridge
+// mapper.
+//
+// Parameters:
+//   address - CPU address being written.
+//   value   - Byte value to write.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void write_c(uint_least16_t address, uint8_t value) {
 	nes::cart.mapper()->write_c(address, value);
 }
 
-//------------------------------------------------------------------------------
-// Name: write_d
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// write_d
+//
+// Forwards writes in the $D000-$DFFF CPU address range to the active cartridge
+// mapper.
+//
+// Parameters:
+//   address - CPU address being written.
+//   value   - Byte value to write.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void write_d(uint_least16_t address, uint8_t value) {
 	nes::cart.mapper()->write_d(address, value);
 }
 
-//------------------------------------------------------------------------------
-// Name: write_e
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// write_e
+//
+// Forwards writes in the $E000-$EFFF CPU address range to the active cartridge
+// mapper.
+//
+// Parameters:
+//   address - CPU address being written.
+//   value   - Byte value to write.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void write_e(uint_least16_t address, uint8_t value) {
 	nes::cart.mapper()->write_e(address, value);
 }
 
-//------------------------------------------------------------------------------
-// Name: write_f
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// write_f
+//
+// Forwards writes in the $F000-$FFFF CPU address range to the active cartridge
+// mapper.
+//
+// Parameters:
+//   address - CPU address being written.
+//   value   - Byte value to write.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void write_f(uint_least16_t address, uint8_t value) {
 	nes::cart.mapper()->write_f(address, value);
 }
 
-//------------------------------------------------------------------------------
-// Name: read_0
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// read_0
+//
+// Reads a byte from internal CPU RAM in the $0000-$0FFF address range.
+//
+// The address is mirrored into the physical 2 KB internal RAM area.
+//
+// Parameters:
+//   address - CPU address being read.
+//
+// Returns:
+//   Byte stored at the corresponding internal RAM location.
+// -----------------------------------------------------------------------------
 uint8_t read_0(uint_least16_t address) {
 	return ram_[address & 0x7ff];
 }
 
-//------------------------------------------------------------------------------
-// Name: read_1
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// read_1
+//
+// Reads a byte from internal CPU RAM in the $1000-$1FFF address range.
+//
+// This region mirrors the same physical 2 KB internal RAM used by $0000-$07FF.
+//
+// Parameters:
+//   address - CPU address being read.
+//
+// Returns:
+//   Byte stored at the corresponding internal RAM location.
+// -----------------------------------------------------------------------------
 uint8_t read_1(uint_least16_t address) {
 	return ram_[address & 0x7ff];
 }
 
-//------------------------------------------------------------------------------
-// Name: read_2
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// read_2
+//
+// Reads from the mirrored PPU-register range at $2000-$2FFF.
+//
+// Registers $2002, $2004, and $2007 use their dedicated read handlers.  Reads
+// from the remaining mirrored register addresses use the generic PPU register
+// read behavior.
+//
+// Parameters:
+//   address - CPU address being read.
+//
+// Returns:
+//   Value returned by the selected PPU register.
+// -----------------------------------------------------------------------------
 uint8_t read_2(uint_least16_t address) {
 
 	switch (address & 0x07) {
@@ -286,9 +507,22 @@ uint8_t read_2(uint_least16_t address) {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: read_3
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// read_3
+//
+// Reads from the mirrored PPU-register range at $3000-$3FFF.
+//
+// Registers $2002, $2004, and $2007 use their dedicated read handlers.  Reads
+// from the remaining mirrored register addresses use the generic PPU register
+// read behavior.
+//
+// Parameters:
+//   address - CPU address being read.
+//
+// Returns:
+//   Value returned by the selected PPU register.
+// -----------------------------------------------------------------------------
 uint8_t read_3(uint_least16_t address) {
 	switch (address & 0x07) {
 	case 0x02:
@@ -302,9 +536,21 @@ uint8_t read_3(uint_least16_t address) {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: read_4
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// read_4
+//
+// Reads from the $4000-$4FFF CPU address range.
+//
+// Standard APU and controller status registers are handled directly.  Other
+// addresses are delegated to the active cartridge mapper.
+//
+// Parameters:
+//   address - CPU address being read.
+//
+// Returns:
+//   Value returned by the selected I/O device or cartridge mapper.
+// -----------------------------------------------------------------------------
 uint8_t read_4(uint_least16_t address) {
 
 	switch (address) {
@@ -319,87 +565,212 @@ uint8_t read_4(uint_least16_t address) {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: read_5
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// read_5
+//
+// Reads from the $5000-$5FFF CPU address range through the active cartridge
+// mapper.
+//
+// Parameters:
+//   address - CPU address being read.
+//
+// Returns:
+//   Value supplied by the cartridge mapper.
+// -----------------------------------------------------------------------------
 uint8_t read_5(uint_least16_t address) {
 	return nes::cart.mapper()->read_5(address);
 }
 
-//------------------------------------------------------------------------------
-// Name: read_6
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// read_6
+//
+// Reads from the $6000-$6FFF CPU address range through the active cartridge
+// mapper.
+//
+// Parameters:
+//   address - CPU address being read.
+//
+// Returns:
+//   Value supplied by the cartridge mapper.
+// -----------------------------------------------------------------------------
 uint8_t read_6(uint_least16_t address) {
 	return nes::cart.mapper()->read_6(address);
 }
 
-//------------------------------------------------------------------------------
-// Name: read_7
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// read_7
+//
+// Reads from the $7000-$7FFF CPU address range through the active cartridge
+// mapper.
+//
+// Parameters:
+//   address - CPU address being read.
+//
+// Returns:
+//   Value supplied by the cartridge mapper.
+// -----------------------------------------------------------------------------
 uint8_t read_7(uint_least16_t address) {
 	return nes::cart.mapper()->read_7(address);
 }
 
-//------------------------------------------------------------------------------
-// Name: read_8
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// read_8
+//
+// Reads from the $8000-$8FFF CPU address range through the active cartridge
+// mapper.
+//
+// Parameters:
+//   address - CPU address being read.
+//
+// Returns:
+//   Value supplied by the cartridge mapper.
+// -----------------------------------------------------------------------------
 uint8_t read_8(uint_least16_t address) {
 	return nes::cart.mapper()->read_8(address);
 }
 
-//------------------------------------------------------------------------------
-// Name: read_9
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// read_9
+//
+// Reads from the $9000-$9FFF CPU address range through the active cartridge
+// mapper.
+//
+// Parameters:
+//   address - CPU address being read.
+//
+// Returns:
+//   Value supplied by the cartridge mapper.
+// -----------------------------------------------------------------------------
 uint8_t read_9(uint_least16_t address) {
 	return nes::cart.mapper()->read_9(address);
 }
 
-//------------------------------------------------------------------------------
-// Name: read_a
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// read_a
+//
+// Reads from the $A000-$AFFF CPU address range through the active cartridge
+// mapper.
+//
+// Parameters:
+//   address - CPU address being read.
+//
+// Returns:
+//   Value supplied by the cartridge mapper.
+// -----------------------------------------------------------------------------
 uint8_t read_a(uint_least16_t address) {
 	return nes::cart.mapper()->read_a(address);
 }
 
-//------------------------------------------------------------------------------
-// Name: read_b
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// read_b
+//
+// Reads from the $B000-$BFFF CPU address range through the active cartridge
+// mapper.
+//
+// Parameters:
+//   address - CPU address being read.
+//
+// Returns:
+//   Value supplied by the cartridge mapper.
+// -----------------------------------------------------------------------------
 uint8_t read_b(uint_least16_t address) {
 	return nes::cart.mapper()->read_b(address);
 }
 
-//------------------------------------------------------------------------------
-// Name: read_c
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// read_c
+//
+// Reads from the $C000-$CFFF CPU address range through the active cartridge
+// mapper.
+//
+// Parameters:
+//   address - CPU address being read.
+//
+// Returns:
+//   Value supplied by the cartridge mapper.
+// -----------------------------------------------------------------------------
 uint8_t read_c(uint_least16_t address) {
 	return nes::cart.mapper()->read_c(address);
 }
 
-//------------------------------------------------------------------------------
-// Name: read_d
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// read_d
+//
+// Reads from the $D000-$DFFF CPU address range through the active cartridge
+// mapper.
+//
+// Parameters:
+//   address - CPU address being read.
+//
+// Returns:
+//   Value supplied by the cartridge mapper.
+// -----------------------------------------------------------------------------
 uint8_t read_d(uint_least16_t address) {
 	return nes::cart.mapper()->read_d(address);
 }
 
-//------------------------------------------------------------------------------
-// Name: read_e
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// read_e
+//
+// Reads from the $E000-$EFFF CPU address range through the active cartridge
+// mapper.
+//
+// Parameters:
+//   address - CPU address being read.
+//
+// Returns:
+//   Value supplied by the cartridge mapper.
+// -----------------------------------------------------------------------------
 uint8_t read_e(uint_least16_t address) {
 	return nes::cart.mapper()->read_e(address);
 }
 
-//------------------------------------------------------------------------------
-// Name: read_f
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// read_f
+//
+// Reads from the $F000-$FFFF CPU address range through the active cartridge
+// mapper.
+//
+// Parameters:
+//   address - CPU address being read.
+//
+// Returns:
+//   Value supplied by the cartridge mapper.
+// -----------------------------------------------------------------------------
 uint8_t read_f(uint_least16_t address) {
 	return nes::cart.mapper()->read_f(address);
 }
+
+
 }
 
-//------------------------------------------------------------------------------
-// Name:
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// write_memory
+//
+// Dispatches a CPU memory write according to the upper four address bits.
+//
+// Each 4 KB CPU address region is routed to its corresponding write handler,
+// which then performs RAM, PPU, APU, controller, DMA, or mapper-specific work.
+//
+// Parameters:
+//   address - CPU address being written.
+//   value   - Byte value to write.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void write_memory(uint_least16_t address, uint8_t value) {
 	switch ((address >> 12) & 0xf) {
 	case 0x0000:
@@ -455,9 +826,22 @@ void write_memory(uint_least16_t address, uint8_t value) {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name:
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// read_memory
+//
+// Dispatches a CPU memory read according to the upper four address bits.
+//
+// Each 4 KB CPU address region is routed to its corresponding read handler,
+// which performs the appropriate RAM, PPU, APU, controller, or cartridge-mapper
+// access.
+//
+// Parameters:
+//   address - CPU address being read.
+//
+// Returns:
+//   Byte value read from the selected CPU memory region.
+// -----------------------------------------------------------------------------
 uint8_t read_memory(uint_least16_t address) {
 	switch ((address >> 12) & 0xf) {
 	case 0x0000:
@@ -498,6 +882,22 @@ uint8_t read_memory(uint_least16_t address) {
 }
 
 
+// -----------------------------------------------------------------------------
+// debug_read_memory
+//
+// Reads CPU memory for debugger inspection without triggering side effects from
+// hardware registers.
+//
+// Internal RAM may be read normally.  PPU registers and standard APU/controller
+// I/O registers return zero rather than invoking side-effectful hardware reads.
+// Cartridge-backed regions are read through the mapper when one is available.
+//
+// Parameters:
+//   address - CPU address to inspect.
+//
+// Returns:
+//   Debug-safe byte value for the requested address.
+// -----------------------------------------------------------------------------
 uint8_t
 debug_read_memory(uint_least16_t address)
 {
@@ -608,9 +1008,20 @@ debug_read_memory(uint_least16_t address)
 	}
 }
 
-//-------------------------------------------------------------------
-// Name: trash_ram
-//-------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// trash_ram
+//
+// Clears the NES internal 2 KB CPU RAM.
+//
+// A deterministic zero-filled pattern is used instead of random power-on data.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void trash_ram() {
 	// NOTE(eteran): this could be "random" bytes, but all zeros
 	// is just an good as any other patterns

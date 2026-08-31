@@ -3,9 +3,20 @@
 
 namespace nes::apu {
 
-//------------------------------------------------------------------------------
-// Name: volume
-//------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// Envelope::volume
+//
+// Returns the current envelope output volume.
+//
+// When constant-volume mode is enabled, the low four control bits are returned.
+// Otherwise, the current envelope decay counter supplies the output volume.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Current 4-bit envelope volume.
+// -----------------------------------------------------------------------------
 uint8_t Envelope::volume() const {
 	if (control_ & 0x10) {
 		return control_ & 0x0f;
@@ -14,23 +25,53 @@ uint8_t Envelope::volume() const {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: set_loop
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Envelope::set_control
+//
+// Stores the envelope control register value.
+//
+// Parameters:
+//   value - Envelope control value.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Envelope::set_control(uint8_t value) {
 	control_ = value;
 }
 
-//------------------------------------------------------------------------------
-// Name: start
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Envelope::start
+//
+// Requests that the envelope restart on the next envelope clock.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Envelope::start() {
 	start_ = true;
 }
 
-//------------------------------------------------------------------------------
-// Name: clock
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Envelope::clock
+//
+// Advances the envelope generator by one envelope clock.
+//
+// A pending restart resets the decay counter and divider.  Otherwise, the
+// existing divider and decay state are advanced normally.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Envelope::clock() {
 	if (!start_) {
 		clock_divider();
@@ -41,9 +82,22 @@ void Envelope::clock() {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: clock_divider
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Envelope::clock_divider
+//
+// Advances the envelope divider and decay counter.
+//
+// When the divider expires, it is reloaded from the envelope period.  The decay
+// counter is then decremented, or reloaded to 15 when envelope looping is
+// enabled.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Envelope::clock_divider() {
 
 	if (--divider_ == 0) {
@@ -55,6 +109,7 @@ void Envelope::clock_divider() {
 		}
 	}
 }
+
 
 }
 

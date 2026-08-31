@@ -805,7 +805,6 @@ void
 BreakPointView::DrawConditionPanel()
 {
 	BRect panel(4.0f, 76.0f, Bounds().right - 4.0f, 170.0f);
-
 	::DrawDebugPanel(this, panel, "Break Conditions");
 
 	SetFontSize(11.0f);
@@ -1522,14 +1521,14 @@ BreakPointView::MoveBreakPointSelection (int32 direction)
 		return;
 	}
 
-	enum SelectionGroup {
+	enum selection_group {
 		SELECTION_GROUP_NONE = 0,
 		SELECTION_GROUP_READ,
 		SELECTION_GROUP_WRITE,
 		SELECTION_GROUP_EXECUTE
 	};
 
-	SelectionGroup currentGroup = SELECTION_GROUP_NONE;
+	selection_group currentGroup = SELECTION_GROUP_NONE;
 	uint16 currentAddress = 0x0000;
 
 	/*

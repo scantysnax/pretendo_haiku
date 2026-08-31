@@ -24,9 +24,21 @@ const uint8_t length_table[32] = {
 	0x20, 0x1e};
 }
 
-//------------------------------------------------------------------------------
-// Name: load
-//------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// LengthCounter::load
+//
+// Schedules a new length-counter value from the NES length lookup table.
+//
+// If a previous reload is still pending, that value is first committed.  The
+// new reload value and the current APU cycle are then recorded so the hardware
+// timing rules can be applied when the counter is next clocked.
+//
+// Parameters:
+//   index - Length-table index from the channel register value.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void LengthCounter::load(uint8_t index) {
 
 	if (reload_) {
@@ -38,35 +50,80 @@ void LengthCounter::load(uint8_t index) {
 	reload_cycle_ = nes::apu::cycle_count();
 }
 
-//------------------------------------------------------------------------------
-// Name: clear
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// LengthCounter::clear
+//
+// Schedules the length counter to be cleared.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void LengthCounter::clear() {
 	reload_value_ = 0;
 	reload_       = true;
 }
 
-//------------------------------------------------------------------------------
-// Name: halt
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// LengthCounter::halt
+//
+// Requests that the length counter stop decrementing.
+//
+// The previous halt state and current APU cycle are recorded so the one-cycle
+// delay in applying the halt state can be emulated correctly.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void LengthCounter::halt() {
 	prev_halt_  = halt_;
 	halt_       = true;
 	halt_cycle_ = nes::apu::cycle_count();
 }
 
-//------------------------------------------------------------------------------
-// Name: resume
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// LengthCounter::resume
+//
+// Requests that the length counter resume decrementing.
+//
+// The previous halt state and current APU cycle are recorded so the one-cycle
+// delay in applying the new halt state can be emulated correctly.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void LengthCounter::resume() {
 	prev_halt_  = halt_;
 	halt_       = false;
 	halt_cycle_ = nes::apu::cycle_count();
 }
 
-//------------------------------------------------------------------------------
-// Name: value
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// LengthCounter::value
+//
+// Returns the current length-counter value.
+//
+// If a reload is pending, the pending value is committed before the counter is
+// returned.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Current length-counter value.
+// -----------------------------------------------------------------------------
 uint8_t LengthCounter::value() const {
 	if (reload_) {
 		value_  = reload_value_;
@@ -76,9 +133,22 @@ uint8_t LengthCounter::value() const {
 	return value_;
 }
 
-//------------------------------------------------------------------------------
-// Name: clock
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// LengthCounter::clock
+//
+// Advances the length counter by one half-frame clock.
+//
+// Pending reloads are applied according to their APU-cycle timing rules.  The
+// counter is decremented only when the effective halt state is clear, with
+// same-cycle halt changes delayed by one cycle to match hardware behavior.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void LengthCounter::clock() {
 
 	bool prevent_decrement       = false;
@@ -113,4 +183,6 @@ void LengthCounter::clock() {
 	reload_ = false;
 }
 
+
 }
+

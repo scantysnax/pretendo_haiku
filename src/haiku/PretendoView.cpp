@@ -37,6 +37,22 @@ KeyCodeFromCurrentMessage (BView *view)
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoView::PretendoView
+//
+// Constructs the main Pretendo display view and associates it with the parent
+// Pretendo window.
+//
+// The view follows all window edges, supports custom drawing and frame-resize
+// events, and uses a transparent background.
+//
+// Parameters:
+//   frame  - Initial view frame rectangle.
+//   parent - Parent Pretendo window.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 PretendoView::PretendoView (BRect frame, PretendoWindow *parent)
 	: BView (frame, "pretendo_view", B_FOLLOW_ALL_SIDES, B_WILL_DRAW | B_FRAME_EVENTS)
 {
@@ -45,12 +61,38 @@ PretendoView::PretendoView (BRect frame, PretendoWindow *parent)
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoView::~PretendoView
+//
+// Destroys the Pretendo display view and releases the cached last-frame bitmap.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 PretendoView::~PretendoView()
 {
 	delete fLastFrameBitmap;
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoView::MessageReceived
+//
+// Handles messages delivered to the Pretendo display view.
+//
+// Dropped filesystem references are converted into ROM-load messages containing
+// the resolved file path and forwarded to the parent Pretendo window.  All
+// messages are then passed to the base BView implementation.
+//
+// Parameters:
+//   message - Message delivered to the view.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void 
 PretendoView::MessageReceived (BMessage *message)
 {

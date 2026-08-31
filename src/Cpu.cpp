@@ -275,7 +275,7 @@ check_debug_stack_break()
 {
 	if (sDebugStackWrapBreakEnabled && sDebugHavePreviousBoundaryS) {
 		const int32_t delta = static_cast<int32_t>(S) - static_cast<int32_t>(sDebugPreviousBoundaryS);
-		const bool largeTransition = delta < -128 || delta > 128;
+		const bool largeTransition = (delta < -128) || (delta > 128);
 
 		/*
 		 * TXS ($9A) directly loads S from X.  Such a change is not a
@@ -337,33 +337,68 @@ check_debug_stack_break()
 }
 
 
-/**
- * @brief sync_handler
- */
+// -----------------------------------------------------------------------------
+// sync_handler
+//
+// Synchronizes the CPU with the active cartridge mapper.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Whatever value is returned by the mapper's cpu_sync() implementation.
+// -----------------------------------------------------------------------------
 void sync_handler() {
 	return nes::cart.mapper()->cpu_sync();
 }
 
-/**
- * @brief set_flag - sets the given flag to true
- */
+
+// -----------------------------------------------------------------------------
+// set_flag
+//
+// Sets the processor-status flag represented by template mask M.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 template <uint8_t M>
 void set_flag() {
 	P |= M;
 }
 
-/**
- * @brief clear_flag - sets the given flag to false
- */
+
+// -----------------------------------------------------------------------------
+// clear_flag
+//
+// Clears the processor-status flag represented by template mask M.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 template <uint8_t M>
 void clear_flag() {
 	P &= ~M;
 }
 
-/**
- * @brief set_flag_condition - sets the given flag based on the given condition
- * @param cond
- */
+
+// -----------------------------------------------------------------------------
+// set_flag_condition
+//
+// Sets or clears the processor-status flag represented by template mask M
+// according to the supplied condition.
+//
+// Parameters:
+//   cond - true to set the flag, false to clear it.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 template <uint8_t M>
 void set_flag_condition(bool cond) {
 	if (cond) {
@@ -373,10 +408,19 @@ void set_flag_condition(bool cond) {
 	}
 }
 
-/**
- * @brief update_nz_flags - sets the Negative and Zero flags based on the value given
- * @param value
- */
+
+// -----------------------------------------------------------------------------
+// update_nz_flags
+//
+// Updates the processor Negative and Zero flags from the supplied value using
+// the precomputed flag lookup table.
+//
+// Parameters:
+//   value - Value used to determine the Negative and Zero flag states.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void update_nz_flags(uint8_t value) {
 
 	// basically no bits set = 0x02
@@ -387,10 +431,27 @@ void update_nz_flags(uint8_t value) {
 	P |= flag_table_[value];
 }
 
+
 // opcode implementation
 #include "memory.h"
 #include "opcodes.h"
 
+
+// -----------------------------------------------------------------------------
+// cycle_0
+//
+// Handles the first CPU cycle of an instruction.
+//
+// Selects reset, NMI, or IRQ processing when one of those conditions is active.
+// Otherwise, the fetched opcode becomes the current instruction and the program
+// counter advances past the opcode byte.
+//
+// Parameters:
+//   next_op - Opcode byte fetched from the current program-counter address.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void cycle_0(uint8_t next_op) {
 	// first cycle is always instruction fetch
 	// or do we force an interrupt?
@@ -409,9 +470,21 @@ void cycle_0(uint8_t next_op) {
 
 #include "address_modes.h"
 
-/**
- * @brief execute_opcode
- */
+
+// -----------------------------------------------------------------------------
+// execute_opcode
+//
+// Executes the current CPU instruction cycle through the opcode dispatch table.
+//
+// The table contains handlers for all 256 6502 opcode values plus the internal
+// reset, NMI, and IRQ pseudo-instructions used by the CPU core.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void execute_opcode() {
 
 	using fptr_t = void (*)();
@@ -684,9 +757,23 @@ void execute_opcode() {
 	table[instruction_]();
 }
 
-/**
- * @brief clock - steps the emulation 1 cycle
- */
+
+// -----------------------------------------------------------------------------
+// clock
+//
+// Advances the CPU emulation by one clock cycle.
+//
+// DMA activity has priority over normal instruction execution.  DMC DMA and
+// sprite DMA perform their required delay, alignment, read, and write cycles
+// before normal CPU execution resumes.  When no DMA is active, cycle zero
+// fetches the next opcode and subsequent cycles execute the current instruction.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void clock() {
 
 	if (UNLIKELY(dmc_dma_count_)) {
@@ -756,6 +843,7 @@ void clock() {
 		++cycle_;
 	}
 }
+
 
 }
 
@@ -841,9 +929,20 @@ tick()
 }
 
 
-/**
- * @brief nmi
- */
+// -----------------------------------------------------------------------------
+// nmi
+//
+// Asserts the CPU's non-maskable interrupt input.
+//
+// The interrupt is recorded here and serviced by the CPU at the appropriate
+// instruction boundary.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void nmi() {
 	nmi_asserted_ = true;
 }
@@ -903,12 +1002,21 @@ reset()
 }
 
 
-/**
- * @brief clear_nmi
- */
+// -----------------------------------------------------------------------------
+// clear_nmi
+//
+// Clears the CPU's non-maskable interrupt input.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void clear_nmi() {
 	nmi_asserted_ = false;
 }
+
 
 // -----------------------------------------------------------------------------
 // nes::cpu::stop
@@ -961,10 +1069,20 @@ stop()
 }
 
 
-/**
- * @brief reset
- * @param reset_type
- */
+// -----------------------------------------------------------------------------
+// reset
+//
+// Resets the CPU.
+//
+// A hard reset stops the CPU and trashes system RAM before performing the common
+// CPU reset sequence.
+//
+// Parameters:
+//   reset_type - Type of reset to perform.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void reset(Reset reset_type) {
 
 	if (reset_type == Reset::Hard) {
@@ -976,10 +1094,21 @@ void reset(Reset reset_type) {
 	std::cout << "CPU reset complete" << std::endl;
 }
 
-/**
- * @brief irq
- * @param source
- */
+
+// -----------------------------------------------------------------------------
+// irq
+//
+// Asserts one CPU IRQ source.
+//
+// The supplied source is added to the active IRQ-source mask.  The CPU IRQ line
+// remains asserted while at least one IRQ source is active.
+//
+// Parameters:
+//   source - IRQ source to assert.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void irq(irq_source source) {
 
 	irq_sources_ |= source;
@@ -989,10 +1118,20 @@ void irq(irq_source source) {
 	}
 }
 
-/**
- * @brief clear_irq
- * @param source
- */
+
+// -----------------------------------------------------------------------------
+// clear_irq
+//
+// Clears one CPU IRQ source.
+//
+// The CPU IRQ line is deasserted only when no IRQ sources remain active.
+//
+// Parameters:
+//   source - IRQ source to clear.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void clear_irq(irq_source source) {
 
 	irq_sources_ &= ~source;
@@ -1002,12 +1141,23 @@ void clear_irq(irq_source source) {
 	}
 }
 
-/**
- * @brief schedule_spr_dma
- * @param dma_handler
- * @param source_address
- * @param count
- */
+
+// -----------------------------------------------------------------------------
+// schedule_spr_dma
+//
+// Schedules a sprite DMA transfer.
+//
+// The requested transfer count is converted into alternating DMA read/write
+// cycles, and an initial one-cycle delay is inserted before the transfer begins.
+//
+// Parameters:
+//   dma_handler    - Callback that receives each transferred byte.
+//   source_address - Initial CPU source address.
+//   count          - Number of bytes to transfer.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void schedule_spr_dma(dma_handler_t dma_handler, uint_least16_t source_address, uint_least16_t count) {
 	spr_dma_handler_        = dma_handler;
 	spr_dma_source_address_ = source_address;
@@ -1015,12 +1165,23 @@ void schedule_spr_dma(dma_handler_t dma_handler, uint_least16_t source_address, 
 	spr_dma_delay_          = 1;
 }
 
-/**
- * @brief schedule_dmc_dma
- * @param dma_handler
- * @param source_address
- * @param count
- */
+
+// -----------------------------------------------------------------------------
+// schedule_dmc_dma
+//
+// Schedules a DMC DMA transfer.
+//
+// The requested transfer count is converted into alternating DMA read/write
+// cycles beginning at the supplied CPU source address.
+//
+// Parameters:
+//   dma_handler    - Callback that receives each transferred byte.
+//   source_address - Initial CPU source address.
+//   count          - Number of bytes to transfer.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void schedule_dmc_dma(dma_handler_t dma_handler, uint_least16_t source_address, uint_least16_t count) {
 	dmc_dma_handler_        = dma_handler;
 	dmc_dma_source_address_ = source_address;
@@ -1028,15 +1189,35 @@ void schedule_dmc_dma(dma_handler_t dma_handler, uint_least16_t source_address, 
 	dmc_dma_delay_          = 0;
 }
 
-/**
- * @brief cycle_count
- * @return
- */
+
+// -----------------------------------------------------------------------------
+// cycle_count
+//
+// Returns the total number of CPU cycles that have been executed.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Total executed CPU cycle count.
+// -----------------------------------------------------------------------------
 uint64_t cycle_count() {
 	return executed_cycles_;
 }
 
 
+// -----------------------------------------------------------------------------
+// debug_cpu_state
+//
+// Captures the current CPU register, instruction, cycle, and execution-count
+// state for debugger inspection.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Snapshot of the current CPU state.
+// -----------------------------------------------------------------------------
 cpu_state_t
 debug_cpu_state() {
 	cpu_state_t state{};
@@ -1055,12 +1236,22 @@ debug_cpu_state() {
 }
 
 
+// -----------------------------------------------------------------------------
+// debug_instruction_boundary
+//
+// Reports whether the CPU is currently positioned at an instruction boundary.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   true when the CPU is at cycle zero of an instruction.
+// -----------------------------------------------------------------------------
 bool
 debug_instruction_boundary()
 {
 	return cycle_ == 0;
 }
-
 
 // -----------------------------------------------------------------------------
 // nes::cpu::debug_instruction_was_executed
@@ -1118,6 +1309,21 @@ debug_add_execute_breakpoint(uint16_t address)
 }
 
 
+// -----------------------------------------------------------------------------
+// debug_remove_execute_breakpoint
+//
+// Removes an execute breakpoint from the specified CPU address and clears its
+// accumulated hit count.
+//
+// If the removed breakpoint is also the breakpoint that currently has the CPU
+// stopped, the active debugger breakpoint-hit state is cleared.
+//
+// Parameters:
+//   address - CPU address whose execute breakpoint should be removed.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 debug_remove_execute_breakpoint(uint16_t address)
 {
@@ -1130,6 +1336,19 @@ debug_remove_execute_breakpoint(uint16_t address)
 }
 
 
+// -----------------------------------------------------------------------------
+// debug_clear_execute_breakpoints
+//
+// Removes all CPU execute breakpoints and clears their accumulated hit counts.
+//
+// Any currently active debugger breakpoint-hit state is also cleared.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 debug_clear_execute_breakpoints()
 {
@@ -1447,6 +1666,17 @@ debug_clear_cpu_trace()
 }
 
 
+// -----------------------------------------------------------------------------
+// debug_s
+//
+// Returns the CPU stack-pointer register value for debugger inspection.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Current 8-bit stack-pointer value.
+// -----------------------------------------------------------------------------
 uint8_t debug_s() {
 	return S;
 }

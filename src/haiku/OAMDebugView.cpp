@@ -2124,5 +2124,3 @@ OAMDebugView::DisplayPaletteByte(uint32 address) const
 	return nes::ppu::palette_ram(0x3f00 + offset);
 }
 
-
-

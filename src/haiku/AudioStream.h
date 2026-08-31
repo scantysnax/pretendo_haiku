@@ -14,8 +14,7 @@
 class AudioStream 
 {
 	public:
-			AudioStream (float sampleRate, int32 sampleBits, int32 channels, 
-						 size_t bufferSize);
+			AudioStream (float sampleRate, int32 sampleBits, int32 channels, size_t bufferSize);
 	virtual ~AudioStream();
 	
 	public:

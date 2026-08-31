@@ -1,17 +1,31 @@
+#ifndef _SWEEP_H_
+#define _SWEEP_H_
 
-#ifndef SWEEP_20130502_H_
-#define SWEEP_20130502_H_
 
 #include <cstdint>
 
+
 namespace nes::apu {
+
 
 template <int Channel>
 class Square;
 
+
 template <int Channel>
 class Sweep {
 public:
+	// -------------------------------------------------------------------------
+	// Sweep::Sweep
+	//
+	// Constructs a sweep unit associated with the supplied square-wave channel.
+	//
+	// Parameters:
+	//   square - Square channel controlled by this sweep unit.
+	//
+	// Returns:
+	//   Nothing.
+	// -------------------------------------------------------------------------
 	explicit Sweep(Square<Channel> *square)
 		: square_(square) {
 	}
@@ -21,6 +35,22 @@ public:
 	Sweep &operator=(const Sweep &) = delete;
 
 public:
+	// -------------------------------------------------------------------------
+	// Sweep::clock
+	//
+	// Advances the sweep-unit divider and applies a frequency adjustment when
+	// the divider expires under the active sweep configuration.
+	//
+	// Reload requests reset the divider immediately.  When an adjustment is
+	// required, the target period is calculated and applied only if it remains
+	// within the valid 11-bit pulse-period range.
+	//
+	// Parameters:
+	//   None.
+	//
+	// Returns:
+	//   Nothing.
+	// -------------------------------------------------------------------------
 	void clock() {
 		// If the reload flag flag is set, the divider's counter is set to the
 		// period P. If the divider's counter was zero before the reload, the
@@ -61,28 +91,101 @@ public:
 		}
 	}
 
+	// -------------------------------------------------------------------------
+	// Sweep::set_control
+	//
+	// Stores a new sweep control value and requests that the divider reload on
+	// the next sweep clock.
+	//
+	// Parameters:
+	//   value - Sweep enable, period, negate, and shift control bits.
+	//
+	// Returns:
+	//   Nothing.
+	// -------------------------------------------------------------------------
 	void set_control(uint8_t value) {
 		control_ = value;
 		reload_  = true;
 	}
 
+	// -------------------------------------------------------------------------
+	// Sweep::set_pulse_period
+	//
+	// Updates the raw pulse timer period used as the basis for sweep
+	// calculations.
+	//
+	// Parameters:
+	//   value - Current 11-bit pulse timer period.
+	//
+	// Returns:
+	//   Nothing.
+	// -------------------------------------------------------------------------
 	void set_pulse_period(uint16_t value) {
 		pulse_period_ = value;
 	}
 
+	// -------------------------------------------------------------------------
+	// Sweep::silenced
+	//
+	// Reports whether the sweep unit currently silences the square channel.
+	//
+	// Parameters:
+	//   None.
+	//
+	// Returns:
+	//   true if the sweep unit is silencing the channel.
+	// -------------------------------------------------------------------------
 	bool silenced() const {
 		return silenced_;
 	}
 
 private:
+	// -------------------------------------------------------------------------
+	// Sweep::enabled
+	//
+	// Reports whether sweep processing is enabled by the control register.
+	//
+	// Parameters:
+	//   None.
+	//
+	// Returns:
+	//   true if the sweep unit is enabled.
+	// -------------------------------------------------------------------------
 	bool enabled() const {
 		return control_ & 0x80;
 	}
 
+	// -------------------------------------------------------------------------
+	// Sweep::negate
+	//
+	// Reports whether the sweep calculation subtracts the frequency delta
+	// instead of adding it.
+	//
+	// Parameters:
+	//   None.
+	//
+	// Returns:
+	//   true when negate mode is selected.
+	// -------------------------------------------------------------------------
 	bool negate() const {
 		return control_ & 0x08;
 	}
 
+	// -------------------------------------------------------------------------
+	// Sweep::target_period
+	//
+	// Calculates the target timer period produced by the current sweep settings.
+	//
+	// The current period is shifted to form the sweep delta.  Positive sweeps add
+	// that delta, while negative sweeps subtract it.  Pulse channel 1 applies the
+	// NES one's-complement correction by subtracting one additional count.
+	//
+	// Parameters:
+	//   None.
+	//
+	// Returns:
+	//   Calculated target pulse timer period.
+	// -------------------------------------------------------------------------
 	uint16_t target_period() const {
 		// The channel's 11-bit raw timer period is shifted right by the shift count
 		// (using a barrel shifter), then either added to or subtracted from the
@@ -100,10 +203,32 @@ private:
 		}
 	}
 
+	// -------------------------------------------------------------------------
+	// Sweep::period
+	//
+	// Extracts the sweep divider period from the control register.
+	//
+	// Parameters:
+	//   None.
+	//
+	// Returns:
+	//   Three-bit sweep divider period.
+	// -------------------------------------------------------------------------
 	uint8_t period() const {
 		return (control_ >> 4) & 0x07;
 	}
 
+	// -------------------------------------------------------------------------
+	// Sweep::shift
+	//
+	// Extracts the sweep shift count from the control register.
+	//
+	// Parameters:
+	//   None.
+	//
+	// Returns:
+	//   Three-bit sweep shift count.
+	// -------------------------------------------------------------------------
 	uint8_t shift() const {
 		return control_ & 0x07;
 	}
@@ -119,4 +244,4 @@ private:
 
 }
 
-#endif
+#endif	// _SWEEP_H_

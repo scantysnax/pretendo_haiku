@@ -5,6 +5,21 @@
 class CPUDisasmScrollBar : public BScrollBar
 {
 	public:
+	// -------------------------------------------------------------------------
+	// CPUDisasmScrollBar::CPUDisasmScrollBar
+	//
+	// Constructs the vertical scrollbar used by the CPU disassembly view.
+	//
+	// The scrollbar covers the CPU address range from $8000 through $FFFF and
+	// forwards position changes to its owning CPUDisasmView.
+	//
+	// Parameters:
+	//   frame - Scrollbar frame rectangle.
+	//   owner - CPU disassembly view that receives scrollbar changes.
+	//
+	// Returns:
+	//   Nothing.
+	// -------------------------------------------------------------------------
 	CPUDisasmScrollBar (BRect frame, CPUDisasmView *owner)
 		: BScrollBar(frame, "cpu_disasm_scrollbar", owner, 0x8000, 0xffff, B_VERTICAL)
 	{
@@ -14,6 +29,18 @@ class CPUDisasmScrollBar : public BScrollBar
 	}
 
 	public:
+	// -------------------------------------------------------------------------
+	// CPUDisasmScrollBar::ValueChanged
+	//
+	// Handles a scrollbar position change and forwards the new value to the
+	// owning CPU disassembly view.
+	//
+	// Parameters:
+	//   value - New scrollbar value.
+	//
+	// Returns:
+	//   Nothing.
+	// -------------------------------------------------------------------------
 	virtual void ValueChanged (float value)
 	{
 		if (fOwner) {
@@ -26,6 +53,22 @@ class CPUDisasmScrollBar : public BScrollBar
 };
 
 
+// -----------------------------------------------------------------------------
+// CPUDisasmView::CPUDisasmView
+//
+// Constructs the CPU disassembly view and associates it with the parent
+// Pretendo window.
+//
+// The view is configured for transparent drawing, pulse notifications, and
+// frame-resize events.
+//
+// Parameters:
+//   frame  - Initial view frame rectangle.
+//   parent - Parent Pretendo window.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 CPUDisasmView::CPUDisasmView (BRect frame, PretendoWindow *parent)
 	: BView(frame, "cpu_disasm_view", B_FOLLOW_ALL_SIDES,
 			B_WILL_DRAW | B_PULSE_NEEDED | B_FRAME_EVENTS)
@@ -37,6 +80,17 @@ CPUDisasmView::CPUDisasmView (BRect frame, PretendoWindow *parent)
 }
 
 
+// -----------------------------------------------------------------------------
+// CPUDisasmView::~CPUDisasmView
+//
+// Destroys the CPU disassembly view.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 CPUDisasmView::~CPUDisasmView()
 {
 }
@@ -76,6 +130,21 @@ CPUDisasmView::AttachedToWindow()
 }
 
 
+// -----------------------------------------------------------------------------
+// CPUDisasmView::FrameResized
+//
+// Handles changes to the CPU disassembly view dimensions.
+//
+// The vertical scrollbar is repositioned to match the new view bounds before
+// the resize event is passed to the base BView implementation.
+//
+// Parameters:
+//   width  - New view width.
+//   height - New view height.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 CPUDisasmView::FrameResized (float width, float height)
 {
@@ -88,6 +157,20 @@ CPUDisasmView::FrameResized (float width, float height)
 }
 
 
+// -----------------------------------------------------------------------------
+// CPUDisasmView::Pulse
+//
+// Handles periodic view updates from the Haiku pulse mechanism.
+//
+// No work is performed until a ROM is loaded.  While live updates are enabled,
+// the view is invalidated so the disassembly and debugger state are refreshed.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 CPUDisasmView::Pulse()
 {

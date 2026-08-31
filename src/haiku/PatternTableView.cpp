@@ -131,6 +131,23 @@ PatternTableView::AttachedToWindow()
 }
 
 
+// -----------------------------------------------------------------------------
+// PatternTableView::Draw
+//
+// Draws the complete pattern-table debugger view.
+//
+// The header and bitmap panel are drawn first, followed by either the no-ROM
+// state or the current pattern-table contents.  When a ROM is loaded, the debug
+// palette and CHR snapshot are refreshed once per redraw so all rendered tiles
+// use one coherent source image.  Overlays and the pattern-state panel are then
+// drawn on top.
+//
+// Parameters:
+//   updateRect - Region of the view that Haiku requested to redraw.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PatternTableView::Draw (BRect updateRect)
 {

@@ -7,22 +7,45 @@
 #include "Apu.h"
 #include "Bus.h"
 
-// Needed because we call window->submit_scanline(...)
-#include "PretendoWindow.h"
-
 namespace nes {
 
 // Define this exactly once in the program
 Cart cart;
 
+alignas(512) static uint32_t sFrameScanlineBuffer[256] = {};
+
+// -----------------------------------------------------------------------------
+// reset
+//
+// Resets the major NES subsystems using the requested reset type.
+//
+// The CPU, APU, and PPU are reset in sequence so each subsystem returns to its
+// appropriate startup state.
+//
+// Parameters:
+//   reset_type - Type of reset to perform.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void reset(Reset reset_type) {
     cpu::reset(reset_type);
     apu::reset(reset_type);
     ppu::reset(reset_type);
 }
 
-alignas(512) static uint32_t sFrameScanlineBuffer[256] = {};
 
+// -----------------------------------------------------------------------------
+// frame_scanline_buffer
+//
+// Returns the persistent scanline buffer used while rendering a frame.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Pointer to the shared 32-bit scanline pixel buffer.
+// -----------------------------------------------------------------------------
 uint32_t*
 frame_scanline_buffer()
 {
@@ -43,16 +66,17 @@ frame_scanline_buffer()
 // continue rendering into the same 256-pixel buffer after debugger resume.
 //
 // Parameters:
-//   window - Main emulator window receiving completed rendered scanlines.
+//   output - Host video-output interface receiving completed scanlines and the
+//            frame-latched scroll position.
 //
 // Returns:
 //   true  - A complete NES frame finished.
 //   false - Execution stopped before the frame finished.
 // -----------------------------------------------------------------------------
 bool
-run_frame(PretendoWindow *window)
+run_frame(FrameOutput *output)
 {
-	if (!window) {
+	if (!output) {
 		return false;
 	}
 
@@ -88,10 +112,13 @@ run_frame(PretendoWindow *window)
 				const int32_t ntX = (v & 0x400) ? 256 : 0;
 				const int32_t ntY = (v & 0x800) ? 240 : 0;
 
-				const uint32_t scrollX = static_cast<uint32>((ntX + coarseX * 8 + fineX) & 0x1ff);
-				const uint32_t scrollY = static_cast<uint32_t>((ntY + coarseY * 8 + fineY) % 480);
+				const uint32_t scrollX = static_cast<uint32_t>(
+					(ntX + coarseX * 8 + fineX) & 0x1ff);
 
-				window->SetLatchedScroll(scrollX, scrollY);
+				const uint32_t scrollY = static_cast<uint32_t>(
+					(ntY + coarseY * 8 + fineY) % 480);
+
+				output->SetLatchedScroll(scrollX, scrollY);
 			}
 
 			continue;
@@ -105,14 +132,16 @@ run_frame(PretendoWindow *window)
 		if (scanline >= 1 && scanline <= 240) {
 			const int32_t y = static_cast<int32_t>(scanline - 1);
 
-			if (!nes::ppu::execute_scanline(nes::ppu::scanline_render(sFrameScanlineBuffer))) {
+			if (!nes::ppu::execute_scanline(
+					nes::ppu::scanline_render(sFrameScanlineBuffer))) {
+
 				return false;
 			}
 
 			/*
 			 * Only submit a completely rendered scanline.
 			 */
-			window->submit_scanline(y, sFrameScanlineBuffer);
+			output->SubmitScanline(y, sFrameScanlineBuffer);
 			continue;
 		}
 
@@ -120,7 +149,9 @@ run_frame(PretendoWindow *window)
 		 * Postrender scanline.
 		 */
 		if (scanline == 241) {
-			if (!nes::ppu::execute_scanline(nes::ppu::scanline_postrender{})) {
+			if (!nes::ppu::execute_scanline(
+					nes::ppu::scanline_postrender{})) {
+
 				return false;
 			}
 
@@ -131,7 +162,9 @@ run_frame(PretendoWindow *window)
 		 * VBlank scanlines.
 		 */
 		if (scanline >= 242 && scanline <= 261) {
-			if (!nes::ppu::execute_scanline(nes::ppu::scanline_vblank{})) {
+			if (!nes::ppu::execute_scanline(
+					nes::ppu::scanline_vblank{})) {
+
 				return false;
 			}
 

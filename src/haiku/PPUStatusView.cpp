@@ -274,16 +274,16 @@ PPUStatusView::DrawRegisterPanel()
 	};
 
 	auto drawRightLV = [&](const char *label, const char *value) {
-			SetHighColor(80, 80, 80);
-			SetFont(&prevFont);
-			DrawString(label, BPoint(rightLabelX, rightY));
+		SetHighColor(80, 80, 80);
+		SetFont(&prevFont);
+		DrawString(label, BPoint(rightLabelX, rightY));
 
-			SetHighColor(0, 0, 0);
-			SetFont(&fixed);
-			DrawString(value, BPoint(rightValueX, rightY));
+		SetHighColor(0, 0, 0);
+		SetFont(&fixed);
+		DrawString(value, BPoint(rightValueX, rightY));
 
-			rightY += lineH;
-		};
+		rightY += lineH;
+	};
 
 	BString s;
 

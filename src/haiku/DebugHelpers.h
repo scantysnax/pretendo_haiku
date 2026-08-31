@@ -1,3 +1,4 @@
+
 #ifndef _DEBUG_HELPERS_H_
 #define _DEBUG_HELPERS_H_
 
@@ -5,6 +6,23 @@
 #include <Rect.h>
 #include <View.h>
 
+// -----------------------------------------------------------------------------
+// StrokeRectTriple
+//
+// Draws a three-layer rectangular outline around the supplied rectangle.
+//
+// The outer border is black, the middle border uses the supplied color, and the
+// inner border is white.  This produces a high-contrast debugger selection or
+// highlight frame.
+//
+// Parameters:
+//   v   - View used for drawing.
+//   r   - Rectangle to outline.
+//   mid - Color used for the middle outline.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 static inline void
 StrokeRectTriple (BView *v, BRect r, rgb_color mid)
 {
@@ -23,6 +41,23 @@ StrokeRectTriple (BView *v, BRect r, rgb_color mid)
 }
 
 
+// -----------------------------------------------------------------------------
+// FillAndStrokeRectTriple
+//
+// Fills a rectangle using alpha blending and then draws a three-layer debugger
+// outline around it.
+//
+// Drawing state is preserved across the operation.
+//
+// Parameters:
+//   v      - View used for drawing.
+//   r      - Rectangle to fill and outline.
+//   fill   - Fill color.
+//   stroke - Color used for the middle outline.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 static inline void
 FillAndStrokeRectTriple (BView *v, BRect r, rgb_color fill, rgb_color stroke)
 {
@@ -44,6 +79,20 @@ FillAndStrokeRectTriple (BView *v, BRect r, rgb_color fill, rgb_color stroke)
 }
 
 
+// -----------------------------------------------------------------------------
+// DrawDebugPanel
+//
+// Draws the common background, border, title, and divider used by debugger
+// information panels.
+//
+// Parameters:
+//   view  - View used for drawing.
+//   rect  - Panel rectangle.
+//   title - Text displayed at the top of the panel.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 static inline void
 DrawDebugPanel (BView *view, BRect rect, const char *title)
 {

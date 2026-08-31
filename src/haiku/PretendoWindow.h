@@ -85,7 +85,7 @@ struct latched_scroll_t {
 };
 
 
-class PretendoWindow : public BWindow
+class PretendoWindow : public BWindow, public nes::FrameOutput
 {
 	public:
 	typedef enum : uint32 {
@@ -185,13 +185,15 @@ class PretendoWindow : public BWindow
 	
 	// inherited from BWindow
 	public:
-	virtual void MessageReceived (BMessage *message);
-	virtual bool QuitRequested();
-	virtual void ResizeTo (float width, float height);
-	virtual void Zoom (BPoint origin, float width, float height);
-	virtual void WindowActivated (bool flag);
-	virtual void MenusBeginning();
-	virtual void MenusEnded();
+	void MessageReceived (BMessage *message) override;
+	bool QuitRequested() override;
+
+	void Zoom (BPoint origin, float width, float height) override;
+	void WindowActivated (bool flag) override;
+	void MenusBeginning() override;
+	void MenusEnded() override;
+	void ResizeTo (float x, float y);
+
 	
 	// menu
 	private:
@@ -406,19 +408,21 @@ class PretendoWindow : public BWindow
 		return fMutex->Unlock();
 	}
 	
+	void SubmitScanline(int32_t y, const uint32_t *pixels) override;
+	
 	private:
 	latched_scroll_t fLatchedScroll;
 	
 	public:
 	// called by emulator thread
-	void SetLatchedScroll (uint32 x, uint32 y) {
+	void SetLatchedScroll (uint32_t x, uint32_t y) override {
 		fLatchedScroll.scroll_x.store(x, std::memory_order_relaxed);
 		fLatchedScroll.scroll_y.store(y, std::memory_order_relaxed);
 		fLatchedScroll.frame_id.fetch_add(1, std::memory_order_release);
 	}
     
-	public:
-    // called by ui thread
+public:
+	// called by ui thread
 	bool GetLatchedScroll (uint32 &x, uint32 &y, uint32 &frameId) const {
 		frameId = fLatchedScroll.frame_id.load(std::memory_order_acquire);
 		x = fLatchedScroll.scroll_x.load(std::memory_order_relaxed);

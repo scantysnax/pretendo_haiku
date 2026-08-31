@@ -30,17 +30,36 @@ const uint16_t frequency_table[16] = {
  * This problem has been fixed on the 2A07 and PAL NES is exempt of this bug.
  */
 
-//------------------------------------------------------------------------------
-// Name: load_sample_buffer
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// DMC::load_sample_buffer
+//
+// Loads a newly fetched sample byte into the DMC sample buffer and marks the
+// buffer as containing valid data.
+//
+// Parameters:
+//   value - Sample byte fetched from CPU memory.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void DMC::load_sample_buffer(uint8_t value) {
 	sample_buffer_       = value;
 	sample_buffer_empty_ = false;
 }
 
-//------------------------------------------------------------------------------
-// Name: set_enabled
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// DMC::set_enabled
+//
+// Enables or disables the DMC channel.
+//
+// Parameters:
+//   value - true to enable the channel, false to disable it.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void DMC::set_enabled(bool value) {
 	if (value) {
 		enable();
@@ -49,9 +68,21 @@ void DMC::set_enabled(bool value) {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: enable
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// DMC::enable
+//
+// Enables DMC sample playback.
+//
+// If no sample bytes remain, the current sample length is reloaded.  If the
+// output unit is ready for a new cycle, sample playback is started immediately.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void DMC::enable() {
 
 	if (bytes_remaining_ == 0) {
@@ -63,16 +94,37 @@ void DMC::enable() {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name:
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// DMC::disable
+//
+// Disables DMC sample playback by clearing the remaining sample-byte count.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void DMC::disable() {
 	bytes_remaining_ = 0;
 }
 
-//------------------------------------------------------------------------------
-// Name: write_reg0
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// DMC::write_reg0
+//
+// Writes the DMC control register.
+//
+// Updates the playback frequency, resets the timer, and clears any pending DMC
+// IRQ state when DMC interrupt generation is disabled.
+//
+// Parameters:
+//   value - Value written to DMC register $4010.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void DMC::write_reg0(uint8_t value) {
 
 	control_.value = value;
@@ -88,24 +140,59 @@ void DMC::write_reg0(uint8_t value) {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: write_reg1
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// DMC::write_reg1
+//
+// Writes the DMC direct-load output register.
+//
+// Only the low seven bits are used for the DMC output level.
+//
+// Parameters:
+//   value - Value written to DMC register $4011.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void DMC::write_reg1(uint8_t value) {
 	output_ = value & 0x7f;
 }
 
-//------------------------------------------------------------------------------
-// Name: write_reg2
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// DMC::write_reg2
+//
+// Writes the DMC sample-address register.
+//
+// The register value is converted into the corresponding CPU sample address,
+// and the current sample pointer is reset to that address.
+//
+// Parameters:
+//   value - Value written to DMC register $4012.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void DMC::write_reg2(uint8_t value) {
 	sample_address_ = 0xc000 | (value << 6);
 	sample_pointer_ = sample_address_;
 }
 
-//------------------------------------------------------------------------------
-// Name: write_reg3
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// DMC::write_reg3
+//
+// Writes the DMC sample-length register.
+//
+// The encoded register value is converted into a byte count.  If no sample is
+// currently active, the remaining-byte counter is initialized immediately.
+//
+// Parameters:
+//   value - Value written to DMC register $4013.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void DMC::write_reg3(uint8_t value) {
 	sample_length_ = (value << 4) | 1;
 	if (bytes_remaining_ == 0) {
@@ -113,16 +200,38 @@ void DMC::write_reg3(uint8_t value) {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: bytes_remaining
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// DMC::bytes_remaining
+//
+// Returns the number of sample bytes still remaining in the current DMC sample.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Number of sample bytes remaining.
+// -----------------------------------------------------------------------------
 uint16_t DMC::bytes_remaining() const {
 	return bytes_remaining_;
 }
 
-//------------------------------------------------------------------------------
-// Name: output_clock
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// DMC::output_clock
+//
+// Advances the DMC output unit by one output bit.
+//
+// When active, the low bit of the shift register adjusts the output level up or
+// down by two while remaining within the valid 0-127 range.  The shift register
+// and bit counter are then advanced.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   true when a new output cycle should be started.
+// -----------------------------------------------------------------------------
 bool DMC::output_clock() {
 	if (bits_remaining_ != 0) {
 
@@ -153,9 +262,22 @@ bool DMC::output_clock() {
 	return true;
 }
 
-//------------------------------------------------------------------------------
-// Name: start_cycle
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// DMC::start_cycle
+//
+// Begins a new DMC output cycle.
+//
+// Eight output bits are scheduled.  If a sample byte is available it is loaded
+// into the shift register; otherwise the output unit enters its muted state.
+// The sample buffer is then refilled from CPU memory when more data remains.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void DMC::start_cycle() {
 
 	// immediate load the first byte if the shift counter is empty
@@ -180,9 +302,22 @@ void DMC::start_cycle() {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: refill_sample_buffer
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// DMC::refill_sample_buffer
+//
+// Requests the next DMC sample byte from CPU memory.
+//
+// A DMC DMA transfer is scheduled for the current sample address.  The sample
+// pointer and remaining-byte count are then advanced.  At the end of a sample,
+// playback either loops or raises a DMC IRQ according to the control flags.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void DMC::refill_sample_buffer() {
 
 	if (bytes_remaining_ != 0) {
@@ -218,9 +353,21 @@ void DMC::refill_sample_buffer() {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: tick
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// DMC::tick
+//
+// Advances the DMC timer by one APU clock.
+//
+// Whenever the timer expires, the output unit is clocked and a new output cycle
+// is started when the current byte has been fully consumed.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void DMC::tick() {
 
 	timer_.tick([this]() {
@@ -230,9 +377,21 @@ void DMC::tick() {
 	});
 }
 
-//------------------------------------------------------------------------------
-// Name: output
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// DMC::output
+//
+// Returns the current DMC output level.
+//
+// A channel-level mute overrides the current DMC DAC value and produces zero
+// output without altering the underlying playback state.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Current 7-bit DMC output level.
+// -----------------------------------------------------------------------------
 uint8_t DMC::output() const {
 	
 	if (channel_muted_) {
@@ -242,16 +401,34 @@ uint8_t DMC::output() const {
 	return output_ & 0x7f;
 }
 
-//------------------------------------------------------------------------------
-// Name: irq_enabled
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// DMC::irq_enabled
+//
+// Reports whether DMC sample-completion IRQ generation is enabled.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   true when the DMC IRQ-enable flag is set.
+// -----------------------------------------------------------------------------
 bool DMC::irq_enabled() const {
 	return control_.irq;
 }
 
-//------------------------------------------------------------------------------
-// Name: loop
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// DMC::loop
+//
+// Reports whether DMC sample looping is enabled.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   true when the DMC loop flag is set.
+// -----------------------------------------------------------------------------
 bool DMC::loop() const {
 	return control_.loop;
 }

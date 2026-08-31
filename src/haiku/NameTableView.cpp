@@ -304,6 +304,7 @@ NameTableView::AttachedToWindow()
 	Invalidate();
 }
 
+
 // -----------------------------------------------------------------------------
 // NameTableView::DetachedFromWindow
 //
@@ -2250,12 +2251,7 @@ NameTableView::DrawDebugPanel()
 			sy += badgeH + 4.0f;
 		}
 
-		BRect r(
-			sx,
-			sy,
-			sx + badgeW,
-			sy + badgeH
-		);
+		BRect r(sx, sy, sx + badgeW, sy + badgeH);
 
 		if (enabled) {
 			SetHighColor(210, 235, 210);
@@ -2279,13 +2275,7 @@ NameTableView::DrawDebugPanel()
 			SetHighColor(105, 105, 105);
 		}
 
-		DrawString(
-			label,
-			BPoint(
-				sx + padX,
-				sy + 11.0f
-			)
-		);
+		DrawString(label, BPoint(sx + padX, sy + 11.0f));
 
 		sx += badgeW + gap;
 	};
@@ -2379,6 +2369,22 @@ NameTableView::DrawNoROMMessage()
 }
 
 
+// -----------------------------------------------------------------------------
+// NameTableView::CapturePPUSnapshot
+//
+// Captures the current PPU control state and a complete snapshot of the PPU
+// address space for use by the name-table debugger view.
+//
+// If no cartridge mapper is available, the snapshot is marked invalid.  When
+// successful, PPUCTRL and the full $0000-$3FFF PPU memory range are copied into
+// the view's snapshot storage.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 NameTableView::CapturePPUSnapshot()
 {

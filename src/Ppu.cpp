@@ -115,23 +115,51 @@ const uint8_t powerup_palette[32] = {
 	0x09, 0x01, 0x00, 0x01, 0x00, 0x02, 0x02, 0x0D, 0x08, 0x10, 0x08, 0x24, 0x00, 0x00, 0x04, 0x2C,
 	0x09, 0x01, 0x34, 0x03, 0x00, 0x04, 0x00, 0x14, 0x08, 0x3A, 0x00, 0x02, 0x00, 0x20, 0x2C, 0x08};
 
-//------------------------------------------------------------------------------
-// Name: attribute_bits
-//------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// attribute_bits
+//
+// Extracts the two-bit background palette attribute selected by the current
+// nametable VRAM address from an attribute-table byte.
+//
+// Parameters:
+//   vram_address - Current nametable VRAM address.
+//   attr_byte    - Attribute-table byte.
+//
+// Returns:
+//   Two-bit palette attribute.
+// -----------------------------------------------------------------------------
 constexpr uint8_t attribute_bits(uint_least16_t vram_address, uint8_t attr_byte) {
 	return (attr_byte >> (((vram_address & 0x40) >> 4) | (vram_address & 0x02))) & 0x03;
 }
 
-//------------------------------------------------------------------------------
-// Name: attribute_address
-//------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// attribute_address
+//
+// Calculates the attribute-table address corresponding to a nametable VRAM
+// address.
+//
+// Parameters:
+//   vram_address - Current nametable VRAM address.
+//
+// Returns:
+//   PPU attribute-table address.
+// -----------------------------------------------------------------------------
 constexpr uint_least16_t attribute_address(uint_least16_t vram_address) {
 	return 0x23c0 | (vram_address & 0x0c00) | ((vram_address >> 4) & 0x38) | ((vram_address >> 2) & 0x07);
 }
 
-//------------------------------------------------------------------------------
-// Name: tile_address
-//------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// tile_address
+//
+// Calculates the nametable tile-index address corresponding to the current VRAM
+// address.
+//
+// Parameters:
+//   vram_address - Current PPU VRAM address.
+//
+// Returns:
+//   Nametable tile-index address.
+// -----------------------------------------------------------------------------
 constexpr uint_least16_t tile_address(uint_least16_t vram_address) {
 	return 0x2000 | (vram_address & 0x0fff);
 }
@@ -203,16 +231,32 @@ static uint32_t write_log_next_ = 0;
 static uint32_t write_log_count_ = 0;
 static uint8_t write_log_write_index_ = 0;
 
-//------------------------------------------------------------------------------
-// Name: sprite_pattern_table
-//------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// sprite_pattern_table
+//
+// Returns the base address of the sprite pattern table selected by PPUCTRL.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Sprite pattern-table base address.
+// -----------------------------------------------------------------------------
 uint_least16_t sprite_pattern_table() {
 	return ppu_control_.sprite_pattern_table ? 0x1000 : 0x0000;
 }
 
-//------------------------------------------------------------------------------
-// Name: background_pattern_table
-//------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// background_pattern_table
+//
+// Returns the base address of the background pattern table selected by PPUCTRL.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Background pattern-table base address.
+// -----------------------------------------------------------------------------
 uint_least16_t background_pattern_table() {
 	return ppu_control_.background_pattern_table ? 0x1000 : 0x0000;
 }
@@ -221,24 +265,71 @@ uint_least16_t background_pattern_table() {
 // Sprite pattern address helpers
 //------------------------------------------------------------------------------
 template <class Pattern>
+// -----------------------------------------------------------------------------
+// sprite_pattern_address
+//
+// Calculates a CHR address for the requested sprite pattern plane, sprite
+// size, tile index, and line.
+//
+// Parameters:
+//   index       - Sprite tile index.
+//   sprite_line - Row within the sprite.
+//
+// Returns:
+//   PPU CHR address for the requested sprite pattern byte.
+// -----------------------------------------------------------------------------
 constexpr uint_least16_t sprite_pattern_address(uint8_t index, uint8_t sprite_line, const size_8px &) {
 	return (sprite_pattern_table() | (index << 4) | Pattern::offset | sprite_line) & 0xffff;
 }
 
 template <class Pattern>
+// -----------------------------------------------------------------------------
+// sprite_pattern_address
+//
+// Calculates a CHR address for the requested sprite pattern plane, sprite
+// size, tile index, and line.
+//
+// Parameters:
+//   index       - Sprite tile index.
+//   sprite_line - Row within the sprite.
+//
+// Returns:
+//   PPU CHR address for the requested sprite pattern byte.
+// -----------------------------------------------------------------------------
 constexpr uint_least16_t sprite_pattern_address(uint8_t index, uint8_t sprite_line, const size_16px &) {
 	return (((index & 1) << 12) | ((index & 0xfe) << 4) | Pattern::offset | (sprite_line & 7) |
 	        ((sprite_line & 0x08) << 1)) & 0xffff;
 }
 
 template <class Size, class Pattern>
+// -----------------------------------------------------------------------------
+// sprite_pattern_address
+//
+// Calculates a CHR address for the requested sprite pattern plane, sprite
+// size, tile index, and line.
+//
+// Parameters:
+//   index       - Sprite tile index.
+//   sprite_line - Row within the sprite.
+//
+// Returns:
+//   PPU CHR address for the requested sprite pattern byte.
+// -----------------------------------------------------------------------------
 constexpr uint_least16_t sprite_pattern_address(uint8_t index, uint8_t sprite_line) {
 	return sprite_pattern_address<Pattern>(index, sprite_line, Size());
 }
 
-//------------------------------------------------------------------------------
-// Name: render_blank_pixel
-//------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// render_blank_pixel
+//
+// Returns the palette value produced while normal rendering is disabled.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Current blank-rendering palette value.
+// -----------------------------------------------------------------------------
 uint8_t render_blank_pixel() {
 	if (UNLIKELY((vram_address_ & 0x3f00) == 0x3f00)) {
 		return palette_[vram_address_ & 0x1f] & monochrome_mask_;
@@ -246,9 +337,18 @@ uint8_t render_blank_pixel() {
 	return palette_[0x00] & monochrome_mask_;
 }
 
-//------------------------------------------------------------------------------
-// Name: select_bg_pixel
-//------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// select_bg_pixel
+//
+// Selects the background pixel for the requested horizontal position using the
+// background pattern and attribute shift registers.
+//
+// Parameters:
+//   index - Horizontal pixel index.
+//
+// Returns:
+//   Encoded background pixel value.
+// -----------------------------------------------------------------------------
 uint8_t select_bg_pixel(uint_least16_t index) {
 
 	if (LIKELY(index >= 8 || ppu_mask_.background_clipping) && ppu_mask_.background_visible) {
@@ -264,9 +364,18 @@ uint8_t select_bg_pixel(uint_least16_t index) {
 	return 0x00;
 }
 
-//------------------------------------------------------------------------------
-// Name: select_pixel
-//------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// select_pixel
+//
+// Combines background and sprite data for the requested horizontal position,
+// including sprite priority, clipping, and sprite-zero-hit behavior.
+//
+// Parameters:
+//   index - Horizontal pixel index.
+//
+// Returns:
+//   Encoded final pixel value.
+// -----------------------------------------------------------------------------
 uint8_t select_pixel(uint_least16_t index) {
 
 	const uint8_t pixel = select_bg_pixel(index);
@@ -314,9 +423,18 @@ uint8_t select_pixel(uint_least16_t index) {
 	return pixel;
 }
 
-//------------------------------------------------------------------------------
-// Name: clock_x
-//------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// clock_x
+//
+// Advances the coarse horizontal loopy scroll position by one tile, including
+// nametable wrapping at the right edge.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void clock_x() {
 	if (UNLIKELY((vram_address_ & 0x1f) == 0x1f)) {
 		vram_address_ ^= 0x41f;
@@ -325,9 +443,18 @@ void clock_x() {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: clock_y
-//------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// clock_y
+//
+// Advances the fine/coarse vertical loopy scroll position according to NES PPU
+// scrolling rules.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void clock_y() {
 	if (UNLIKELY((vram_address_ & 0x7000) == 0x7000)) {
 
@@ -351,6 +478,18 @@ void clock_y() {
 }
 
 template <class Pattern>
+// -----------------------------------------------------------------------------
+// open_background_pattern
+//
+// Prepares the mapper-visible CHR address for the next background pattern
+// fetch.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void open_background_pattern() {
 	const uint8_t tile_line = (vram_address_ & 0x7000) >> 12;
 	next_ppu_fetch_address_ =
@@ -359,29 +498,99 @@ void open_background_pattern() {
 }
 
 template <class Pattern>
+// -----------------------------------------------------------------------------
+// read_background_pattern
+//
+// Reads the currently opened background pattern byte into the pending pattern
+// latch.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void read_background_pattern() {
 	next_pattern_[Pattern::index] = nes::cart.mapper()->read_vram(next_ppu_fetch_address_);
 }
 
+// -----------------------------------------------------------------------------
+// open_background_attribute
+//
+// Prepares the mapper-visible attribute-table address for the next background
+// attribute fetch.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void open_background_attribute() {
 	next_ppu_fetch_address_ = attribute_address(vram_address_);
 	nes::cart.mapper()->vram_change_hook(next_ppu_fetch_address_);
 }
 
+// -----------------------------------------------------------------------------
+// read_background_attribute
+//
+// Reads the current attribute byte and extracts the palette bits for the
+// current background tile.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void read_background_attribute() {
 	const uint8_t attr_byte = nes::cart.mapper()->read_vram(next_ppu_fetch_address_);
 	next_attribute_         = attribute_bits(vram_address_, attr_byte);
 }
 
+// -----------------------------------------------------------------------------
+// open_tile_index
+//
+// Prepares the mapper-visible nametable address for the next tile-index fetch.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void open_tile_index() {
 	next_ppu_fetch_address_ = tile_address(vram_address_);
 	nes::cart.mapper()->vram_change_hook(next_ppu_fetch_address_);
 }
 
+// -----------------------------------------------------------------------------
+// read_tile_index
+//
+// Reads the currently opened nametable byte into the pending tile-index latch.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void read_tile_index() {
 	next_tile_index_ = nes::cart.mapper()->read_vram(next_ppu_fetch_address_);
 }
 
+// -----------------------------------------------------------------------------
+// sprite_in_range
+//
+// Tests whether the supplied sprite Y coordinate intersects the scanline being
+// evaluated.
+//
+// Parameters:
+//   y - Sprite OAM Y coordinate.
+//
+// Returns:
+//   true if the sprite intersects the current scanline.
+// -----------------------------------------------------------------------------
 bool sprite_in_range(uint8_t y) {
 	const uint_least16_t sprite_line = (vpos_ - 1) - y;
 	return ppu_control_.large_sprites ? (sprite_line < 16) : (sprite_line < 8);
@@ -392,6 +601,18 @@ uint8_t &sprite_index(uint8_t index) { return sprite_data_[index * 4 + 1]; }
 uint8_t &sprite_attr(uint8_t index) { return sprite_data_[index * 4 + 2]; }
 uint8_t &sprite_x(uint8_t index) { return sprite_data_[index * 4 + 3]; }
 
+// -----------------------------------------------------------------------------
+// evaluate_sprites_even
+//
+// Performs the even-dot half of secondary-OAM clearing and sprite evaluation
+// for the next scanline.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void evaluate_sprites_even() {
 	if (hpos_ <= 64) {
 		sprite_data_[(hpos_ >> 1) - 1] = sprite_read_buffer_;
@@ -487,6 +708,18 @@ void evaluate_sprites_even() {
 	}
 }
 
+// -----------------------------------------------------------------------------
+// evaluate_sprites_odd
+//
+// Performs the odd-dot half of sprite evaluation by reading primary OAM into
+// the sprite-evaluation buffer.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void evaluate_sprites_odd() {
 	if (hpos_ < 64) {
 		sprite_read_buffer_ = 0xff;
@@ -501,6 +734,18 @@ void evaluate_sprites_odd() {
 	}
 }
 
+// -----------------------------------------------------------------------------
+// enter_vblank
+//
+// Sets the vblank status flag unless a precisely timed PPUSTATUS read suppresses
+// the transition.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void enter_vblank() {
 	if (UNLIKELY(ppu_cycle_ != (ppu_read_2002_cycle_ + 1))) {
 		status_.vblank = true;
@@ -508,6 +753,18 @@ void enter_vblank() {
 }
 
 template <class Size, class Pattern>
+// -----------------------------------------------------------------------------
+// open_sprite_pattern
+//
+// Prepares the mapper-visible CHR address for one sprite pattern-plane fetch,
+// including sprite size and vertical-flip handling.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void open_sprite_pattern() {
 
 	current_sprite_index_ = ((hpos_ - 1) >> 3) & 0x07;
@@ -534,6 +791,18 @@ void open_sprite_pattern() {
 }
 
 template <class Size, class Pattern>
+// -----------------------------------------------------------------------------
+// read_sprite_pattern
+//
+// Reads one sprite pattern plane and applies horizontal bit reversal when the
+// sprite is horizontally flipped.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void read_sprite_pattern() {
 
 	uint8_t pattern = nes::cart.mapper()->read_vram(next_ppu_fetch_address_);
@@ -547,6 +816,18 @@ void read_sprite_pattern() {
 	sprite_patterns_[current_sprite_index_].patterns[Pattern::index] = pattern;
 }
 
+// -----------------------------------------------------------------------------
+// render_pixel
+//
+// Renders the current visible pixel, advances the background shift registers, and
+// resolves the selected palette entry.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Current NES palette value.
+// -----------------------------------------------------------------------------
 uint8_t render_pixel() {
 
 	const uint8_t pixel = select_pixel(hpos_ - 1);
@@ -560,6 +841,18 @@ uint8_t render_pixel() {
 	return palette_[pixel & mask] & monochrome_mask_;
 }
 
+// -----------------------------------------------------------------------------
+// update_shift_registers_render
+//
+// Loads newly fetched background pattern and attribute data into the rendering
+// shift registers.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void update_shift_registers_render() {
 	pattern_queue_[0] |= next_pattern_[0];
 	pattern_queue_[1] |= next_pattern_[1];
@@ -567,6 +860,18 @@ void update_shift_registers_render() {
 	attribute_queue_[1] |= ((next_attribute_ >> 1) & 0x01) * 0xff;
 }
 
+// -----------------------------------------------------------------------------
+// update_shift_registers_idle
+//
+// Advances the background shift registers by one tile and loads newly fetched
+// pattern and attribute data.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void update_shift_registers_idle() {
 	pattern_queue_[0] <<= 8;
 	pattern_queue_[1] <<= 8;
@@ -575,22 +880,81 @@ void update_shift_registers_idle() {
 	update_shift_registers_render();
 }
 
+// -----------------------------------------------------------------------------
+// update_x_scroll
+//
+// Copies the horizontal scroll bits from the temporary loopy register into the
+// current VRAM address.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void update_x_scroll() {
 	vram_address_ = (vram_address_ & ~0b00000100'00011111) | (nametable_ & 0b00000100'00011111);
 }
 
+// -----------------------------------------------------------------------------
+// update_sprite_registers
+//
+// Resets OAMADDR during the PPU sprite-fetch portion of a rendering scanline.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void update_sprite_registers() {
 	sprite_address_ = 0;
 }
 
+// -----------------------------------------------------------------------------
+// update_vram_address
+//
+// Copies the vertical scroll bits from the temporary loopy register into the
+// current VRAM address.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void update_vram_address() {
 	vram_address_ = (vram_address_ & ~0b01111011'11100000) | (nametable_ & 0b01111011'11100000);
 }
 
+// -----------------------------------------------------------------------------
+// rendering
+//
+// Reports whether the PPU is currently within the prerender/visible rendering
+// scanline range.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   true while the PPU is in the rendering range.
+// -----------------------------------------------------------------------------
 bool rendering() {
 	return vpos_ <= 240;
 }
 
+// -----------------------------------------------------------------------------
+// increment_vram_address
+//
+// Advances the current VRAM address using rendering scroll rules or the
+// PPUCTRL-selected linear increment when rendering is inactive.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void increment_vram_address() {
 	if (rendering() && ppu_mask_.screen_enabled) {
 		if (ppu_control_.address_increment) {
@@ -606,6 +970,18 @@ void increment_vram_address() {
 //------------------------------------------------------------------------------
 // clock_ppu overloads
 //------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// clock_ppu
+//
+// Executes one PPU dot for the supplied scanline type, performing the rendering,
+// fetch, scroll, sprite, or vblank work appropriate to that scanline.
+//
+// Parameters:
+//   target - Scanline-type tag or visible rendering target.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void clock_ppu(const nes::ppu::scanline_prerender &) {
 
 	if (UNLIKELY(hpos_ == 0)) {
@@ -754,6 +1130,18 @@ void clock_ppu(const nes::ppu::scanline_prerender &) {
 	}
 }
 
+// -----------------------------------------------------------------------------
+// clock_ppu
+//
+// Executes one PPU dot for the supplied scanline type, performing the rendering,
+// fetch, scroll, sprite, or vblank work appropriate to that scanline.
+//
+// Parameters:
+//   target - Scanline-type tag or visible rendering target.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void clock_ppu(const nes::ppu::scanline_render &target) {
 
 	if (UNLIKELY(!ppu_mask_.screen_enabled)) {
@@ -854,10 +1242,34 @@ void clock_ppu(const nes::ppu::scanline_render &target) {
 	}
 }
 
+// -----------------------------------------------------------------------------
+// clock_ppu
+//
+// Executes one PPU dot for the supplied scanline type, performing the rendering,
+// fetch, scroll, sprite, or vblank work appropriate to that scanline.
+//
+// Parameters:
+//   target - Scanline-type tag or visible rendering target.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void clock_ppu(const nes::ppu::scanline_postrender &) {
 	// no-op
 }
 
+// -----------------------------------------------------------------------------
+// clock_ppu
+//
+// Executes one PPU dot for the supplied scanline type, performing the rendering,
+// fetch, scroll, sprite, or vblank work appropriate to that scanline.
+//
+// Parameters:
+//   target - Scanline-type tag or visible rendering target.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void clock_ppu(const nes::ppu::scanline_vblank &) {
 
 	// You kept this offset in your original code:
@@ -876,6 +1288,18 @@ void clock_ppu(const nes::ppu::scanline_vblank &) {
 	}
 }
 
+// -----------------------------------------------------------------------------
+// start_frame
+//
+// Begins a new PPU frame by advancing the frame counter, resetting the scanline
+// position, and notifying the APU frame hook.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void start_frame() {
 	
 	frame_counter_++;
@@ -884,6 +1308,18 @@ void start_frame() {
 	nes::apu::start_frame();
 }
 
+// -----------------------------------------------------------------------------
+// end_frame
+//
+// Completes the current PPU frame, toggles odd/even frame state, advances the
+// I/O-latch decay value, and notifies the active mapper.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void end_frame() {
 
 	odd_frame_ = !odd_frame_;
@@ -1058,6 +1494,19 @@ execute_scanline_impl(const T &target)
 //------------------------------------------------------------------------------
 namespace nes::ppu {
 
+// -----------------------------------------------------------------------------
+// nes::ppu::reset
+//
+// Resets the PPU using the requested reset type.
+// A hard reset also clears OAM, secondary OAM, sprite pattern state, and
+// restores the power-up palette.
+//
+// Parameters:
+//   reset_type - Type of reset to perform.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void reset(nes::Reset reset_type) {
 
 	if (reset_type == Reset::Hard) {
@@ -1106,6 +1555,18 @@ void reset(nes::Reset reset_type) {
 	std::cout << "PPU reset complete" << std::endl;
 }
 
+// -----------------------------------------------------------------------------
+// nes::ppu::write2000
+//
+// Writes PPUCTRL, updating control state, nametable selection, and vblank NMI
+// behavior.
+//
+// Parameters:
+//   value - Value written by the CPU.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void write2000(uint8_t value) {
 
 	log_ppu_write(0x2000, value);
@@ -1129,6 +1590,18 @@ void write2000(uint8_t value) {
 	}
 }
 
+// -----------------------------------------------------------------------------
+// nes::ppu::write2001
+//
+// Writes PPUMASK, updating rendering enables, clipping, emphasis, and
+// monochrome state.
+//
+// Parameters:
+//   value - Value written by the CPU.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void write2001(uint8_t value) {
 	
 	log_ppu_write(0x2001, value);
@@ -1143,6 +1616,18 @@ void write2001(uint8_t value) {
 	monochrome_mask_  = (ppu_mask_.monochrome) ? 0x30 : 0xff;
 }
 
+// -----------------------------------------------------------------------------
+// nes::ppu::write2002
+//
+// Updates the PPU I/O latch for a CPU write directed at the normally read-only
+// PPUSTATUS address.
+//
+// Parameters:
+//   value - Value written by the CPU.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void write2002(uint8_t value) { 
 	log_ppu_write(0x2002, value);
 	
@@ -1150,6 +1635,17 @@ void write2002(uint8_t value) {
 }
 
 
+// -----------------------------------------------------------------------------
+// nes::ppu::write2003
+//
+// Writes OAMADDR and updates the PPU I/O latch.
+//
+// Parameters:
+//   value - Value written by the CPU.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void write2003(uint8_t value) {
 	
 	log_ppu_write(0x2003, value);
@@ -1158,11 +1654,33 @@ void write2003(uint8_t value) {
 	sprite_address_ = value;
 }
 
+// -----------------------------------------------------------------------------
+// nes::ppu::write2004
+//
+// Writes one OAM byte at OAMADDR and advances OAMADDR.
+//
+// Parameters:
+//   value - Value written by the CPU.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void write2004(uint8_t value) {
 	latch_ = value;
 	sprite_ram_[sprite_address_++] = value;
 }
 
+// -----------------------------------------------------------------------------
+// nes::ppu::write2005
+//
+// Processes one PPUSCROLL write using the shared first/second-write latch.
+//
+// Parameters:
+//   value - Value written by the CPU.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void write2005(uint8_t value) {
 	
 	log_ppu_write(0x2005, value);
@@ -1186,6 +1704,17 @@ void write2005(uint8_t value) {
 	}
 }
 
+// -----------------------------------------------------------------------------
+// nes::ppu::write2006
+//
+// Processes one PPUADDR write using the shared first/second-write latch.
+//
+// Parameters:
+//   value - Value written by the CPU.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void write2006(uint8_t value) {
 	
 	log_ppu_write(0x2006, value);
@@ -1209,6 +1738,18 @@ void write2006(uint8_t value) {
 	}
 }
 
+// -----------------------------------------------------------------------------
+// nes::ppu::write2007
+//
+// Writes PPUDATA to palette RAM or mapper VRAM at the current PPU address,
+// then advances the VRAM address.
+//
+// Parameters:
+//   value - Value written by the CPU.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void write2007(uint8_t value) {
 	
 	log_ppu_write(0x2007, value);
@@ -1234,8 +1775,32 @@ void write2007(uint8_t value) {
 	}
 }
 
+// -----------------------------------------------------------------------------
+// nes::ppu::read200x
+//
+// Returns the current PPU I/O latch value for reads from write-only PPU
+// registers.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Current PPU I/O latch value.
+// -----------------------------------------------------------------------------
 uint8_t read200x() { return static_cast<uint8_t>(latch_); }
 
+// -----------------------------------------------------------------------------
+// nes::ppu::read2002
+//
+// Reads PPUSTATUS, clears vblank, and resets the shared $2005/$2006 write
+// latch.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Current PPUSTATUS/open-bus value.
+// -----------------------------------------------------------------------------
 uint8_t read2002() {
 
 	const uint8_t ret =
@@ -1249,6 +1814,18 @@ uint8_t read2002() {
 	return ret;
 }
 
+// -----------------------------------------------------------------------------
+// nes::ppu::read2004
+//
+// Reads OAMDATA according to the current OAM address when rendering permits
+// direct OAM access.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Current OAMDATA value.
+// -----------------------------------------------------------------------------
 uint8_t read2004() {
 
 	if (!rendering() || !ppu_mask_.screen_enabled) {
@@ -1268,6 +1845,18 @@ uint8_t read2004() {
 	return 0x00;
 }
 
+// -----------------------------------------------------------------------------
+// nes::ppu::read2007
+//
+// Reads PPUDATA using the PPU read-buffer rules, including immediate palette
+// reads and automatic VRAM-address incrementing.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Current PPUDATA value.
+// -----------------------------------------------------------------------------
 uint8_t read2007() {
 
 	if (write_block_) {
@@ -1294,6 +1883,17 @@ uint8_t read2007() {
 	return latch_ & 0xff;
 }
 
+// -----------------------------------------------------------------------------
+// nes::ppu::write4014
+//
+// Starts the 256-byte OAM DMA transfer selected by the value written to $4014.
+//
+// Parameters:
+//   value - High byte of the CPU source address.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void write4014(uint8_t value) {
 	
 	log_ppu_write(0x4014, value);
@@ -1315,6 +1915,17 @@ execute_scanline(const scanline_vblank &target)
 }
 
 
+// -----------------------------------------------------------------------------
+// nes::ppu::execute_scanline
+//
+// Executes or resumes one PPU scanline using the resumable scanline engine.
+//
+// Parameters:
+//   target - Scanline-type tag or visible rendering target.
+//
+// Returns:
+//   true if the scanline completed; false if debugger execution interrupted it.
+// -----------------------------------------------------------------------------
 bool
 execute_scanline(const scanline_prerender &target)
 {
@@ -1322,6 +1933,17 @@ execute_scanline(const scanline_prerender &target)
 }
 
 
+// -----------------------------------------------------------------------------
+// nes::ppu::execute_scanline
+//
+// Executes or resumes one PPU scanline using the resumable scanline engine.
+//
+// Parameters:
+//   target - Scanline-type tag or visible rendering target.
+//
+// Returns:
+//   true if the scanline completed; false if debugger execution interrupted it.
+// -----------------------------------------------------------------------------
 bool
 execute_scanline(const scanline_postrender &target)
 {
@@ -1329,6 +1951,17 @@ execute_scanline(const scanline_postrender &target)
 }
 
 
+// -----------------------------------------------------------------------------
+// nes::ppu::execute_scanline
+//
+// Executes or resumes one PPU scanline using the resumable scanline engine.
+//
+// Parameters:
+//   target - Scanline-type tag or visible rendering target.
+//
+// Returns:
+//   true if the scanline completed; false if debugger execution interrupted it.
+// -----------------------------------------------------------------------------
 bool
 execute_scanline(const scanline_render &target)
 {
@@ -1337,6 +1970,18 @@ execute_scanline(const scanline_render &target)
 //------------------------------------------------------------------------------
 // Debug helpers
 //------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// nes::ppu::scroll_state
+//
+// Captures the current loopy scroll registers, fine-X value, and PPUCTRL state
+// for debugger inspection.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Snapshot of the current PPU scroll state.
+// -----------------------------------------------------------------------------
 scroll_state_t
 scroll_state()
 {
@@ -1350,39 +1995,204 @@ scroll_state()
 	return s;
 }
 
+// -----------------------------------------------------------------------------
+// nes::ppu::vram_address
+//
+// Returns the current loopy-v PPU VRAM address.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Current VRAM address.
+// -----------------------------------------------------------------------------
 uint16_t vram_address() { return static_cast<uint16_t>(vram_address_); }
+// -----------------------------------------------------------------------------
+// nes::ppu::temp_address
+//
+// Returns the current loopy-t temporary PPU VRAM address.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Current temporary VRAM address.
+// -----------------------------------------------------------------------------
 uint16_t temp_address() { return static_cast<uint16_t>(nametable_); }
+// -----------------------------------------------------------------------------
+// nes::ppu::fine_x
+//
+// Returns the current fine-X scroll value.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Current fine-X scroll value.
+// -----------------------------------------------------------------------------
 uint8_t  fine_x()       { return tile_offset_; }
 
 //------------------------------------------------------------------------------
 // Misc getters
 //------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// nes::ppu::cycle_count
+//
+// Returns the total PPU cycle count.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Current PPU cycle count.
+// -----------------------------------------------------------------------------
 uint64_t cycle_count() 	{ return ppu_cycle_; 					}
+// -----------------------------------------------------------------------------
+// nes::ppu::hpos
+//
+// Returns the current horizontal PPU dot position.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Current horizontal dot.
+// -----------------------------------------------------------------------------
 uint_least16_t hpos()  	{ return hpos_; 					  	}
+// -----------------------------------------------------------------------------
+// nes::ppu::vpos
+//
+// Returns the current PPU scanline position.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Current scanline.
+// -----------------------------------------------------------------------------
 uint_least16_t vpos()  	{ return vpos_; 						}
+// -----------------------------------------------------------------------------
+// nes::ppu::ppuctrl
+//
+// Returns the current raw PPUCTRL register value.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Current PPUCTRL value.
+// -----------------------------------------------------------------------------
 uint8_t ppuctrl() 		{ return ppu_control_.raw;				}
+// -----------------------------------------------------------------------------
+// nes::ppu::ppumask
+//
+// Returns the current raw PPUMASK register value.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Current PPUMASK value.
+// -----------------------------------------------------------------------------
 uint8_t ppumask() 		{ return ppu_mask_.raw; 				}
+// -----------------------------------------------------------------------------
+// nes::ppu::ppustatus
+//
+// Returns the current raw PPUSTATUS register value.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Current PPUSTATUS value.
+// -----------------------------------------------------------------------------
 uint8_t ppustatus() 	{ return status_.raw;					}
+// -----------------------------------------------------------------------------
+// nes::ppu::ppu_dot
+//
+// Returns the current PPU dot position for debugger inspection.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Current PPU dot.
+// -----------------------------------------------------------------------------
 uint16_t ppu_dot()		{ return static_cast<uint16_t>(hpos_); 	}
+// -----------------------------------------------------------------------------
+// nes::ppu::ppu_scanline
+//
+// Returns the current PPU scanline number for debugger inspection.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Current PPU scanline.
+// -----------------------------------------------------------------------------
 uint16_t ppu_scanline() { return static_cast<uint16_t>(vpos_);	}
 
 
+// -----------------------------------------------------------------------------
+// nes::ppu::palette_ram
+//
+// Reads one byte from the internal 32-byte PPU palette RAM array.
+//
+// Parameters:
+//   address - Palette RAM address.
+//
+// Returns:
+//   Palette value at the requested address.
+// -----------------------------------------------------------------------------
 uint8_t palette_ram(uint32_t address) {
 	return palette_[address & 0x1f];
 }
 
 
+// -----------------------------------------------------------------------------
+// nes::ppu::set_palette_ram
+//
+// Writes one six-bit color value into internal PPU palette RAM.
+//
+// Parameters:
+//   address - Palette RAM address.
+//   data    - Palette value to store.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void set_palette_ram(uint32_t address, uint8_t data) {
 	palette_[address & 0x1f] = data & 0x3f;
 }
 
 
+// -----------------------------------------------------------------------------
+// nes::ppu::oam_ram
+//
+// Reads one byte directly from primary OAM for debugger/display inspection.
+//
+// Parameters:
+//   address - OAM byte address.
+//
+// Returns:
+//   OAM byte at the requested address.
+// -----------------------------------------------------------------------------
 uint8_t oam_ram(uint32_t address) {
 	return sprite_ram_[address & 0xff];
 }
 
 
-
+// -----------------------------------------------------------------------------
+// nes::ppu::oamaddr
+//
+// Returns the current OAMADDR register value.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Current OAM address.
+// -----------------------------------------------------------------------------
 uint8_t oamaddr() {
 	return sprite_address_;
 }
@@ -1436,6 +2246,18 @@ log_ppu_write(uint16_t address, uint8_t value)
 }
 
 
+// -----------------------------------------------------------------------------
+// nes::ppu::ppu_write_log_count
+//
+// Returns the number of valid entries currently stored in the rolling PPU
+// register-write log.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Current PPU write-log entry count.
+// -----------------------------------------------------------------------------
 uint32_t
 ppu_write_log_count()
 {
@@ -1443,6 +2265,17 @@ ppu_write_log_count()
 }
 
 
+// -----------------------------------------------------------------------------
+// nes::ppu::ppu_write_log_entry
+//
+// Returns one logical PPU write-log entry in oldest-to-newest order.
+//
+// Parameters:
+//   index - Logical write-log entry index.
+//
+// Returns:
+//   Requested entry, or an empty entry if the index is invalid.
+// -----------------------------------------------------------------------------
 ppu_write_log_entry_t
 ppu_write_log_entry(uint32_t index)
 {
@@ -1463,6 +2296,17 @@ ppu_write_log_entry(uint32_t index)
 }
 
 
+// -----------------------------------------------------------------------------
+// nes::ppu::clear_ppu_write_log
+//
+// Clears the rolling PPU register-write log and resets its sequence state.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 clear_ppu_write_log()
 {
@@ -1470,6 +2314,7 @@ clear_ppu_write_log()
 	write_log_count_ = 0;
 	write_log_write_index_ = 0;
 }
+
 
 // -----------------------------------------------------------------------------
 // ppu_write_log_snapshot
@@ -1528,12 +2373,35 @@ ppu_write_log_snapshot(ppu_write_log_entry_t *entries, uint32_t capacity)
 }
 
 
+// -----------------------------------------------------------------------------
+// ppu_frame_counter
+//
+// Returns the current PPU frame counter value.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Number of PPU frames completed so far.
+// -----------------------------------------------------------------------------
 uint64_t ppu_frame_counter()
 {
 	return frame_counter_;
 }
 
 
+// -----------------------------------------------------------------------------
+// nes::ppu::debug_read_ppu_memory
+//
+// Reads PPU memory for debugger inspection without CPU-facing PPU register side
+// effects.
+//
+// Parameters:
+//   address - PPU address to inspect.
+//
+// Returns:
+//   Debug-safe byte value from PPU memory.
+// -----------------------------------------------------------------------------
 uint8_t
 debug_read_ppu_memory(uint16_t address)
 {

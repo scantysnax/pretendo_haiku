@@ -65,6 +65,20 @@ size_t sample_buffer_end   = 0;
 static uint8_t sLastOutputSample = silence;
 
 
+// -----------------------------------------------------------------------------
+// clock_linear
+//
+// Clocks the APU components that advance on each quarter-frame event.
+//
+// This updates the triangle linear counter and the envelope units for both
+// square channels and the noise channel.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void clock_linear() {
 	triangle.linear_counter.clock();
 
@@ -74,6 +88,20 @@ void clock_linear() {
 }
 
 
+// -----------------------------------------------------------------------------
+// clock_length
+//
+// Clocks the APU components that advance on each half-frame event.
+//
+// This updates the length counters for the square, triangle, and noise channels,
+// and advances the sweep units for both square channels.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void clock_length() {
 	square_0.length_counter.clock();
 	square_1.length_counter.clock();
@@ -85,6 +113,22 @@ void clock_length() {
 }
 
 
+// -----------------------------------------------------------------------------
+// clock_frame_mode_0
+//
+// Advances the APU frame counter through its 4-step sequence.
+//
+// Quarter-frame events clock envelopes and the triangle linear counter.
+// Half-frame events additionally clock length counters and square-channel
+// sweeps.  Frame IRQ state is asserted at the appropriate sequence points when
+// frame IRQ generation is enabled.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void clock_frame_mode_0() {
 
 	// 4 step sequence
@@ -136,6 +180,21 @@ void clock_frame_mode_0() {
 }
 
 
+// -----------------------------------------------------------------------------
+// clock_frame_mode_1
+//
+// Advances the APU frame counter through its 5-step sequence.
+//
+// Quarter-frame events clock envelopes and the triangle linear counter.
+// Half-frame events additionally clock length counters and square-channel
+// sweeps.  Unlike mode 0, this sequence does not generate a frame IRQ.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void clock_frame_mode_1() {
 
 	// 5 step sequence
@@ -169,7 +228,6 @@ void clock_frame_mode_1() {
 	
 	clock_step_ = (clock_step_ + 1) % 5;
 }
-
 
 // -----------------------------------------------------------------------------
 // mix_channels
@@ -210,11 +268,11 @@ mix_channels()
 	 * preserving the audible waveform.
 	 */
 	
-	constexpr double R = 0.995;
+	constexpr double R = 0.995;	// R = dc decay/feedback coefficient
 	const double output = input - sDCBlockPreviousInput + R * sDCBlockPreviousOutput;
 	sDCBlockPreviousInput = input;
 	sDCBlockPreviousOutput = output;
-	const int sample = static_cast<int>(output + 128.0);
+	const int32_t sample = static_cast<int32_t>(output + 128.0);
 
 	return static_cast<uint8_t>(std::clamp(sample, 0, 255));
 }
@@ -299,97 +357,312 @@ reset(Reset reset_type)
 }
 
 
+// -----------------------------------------------------------------------------
+// write4000
+//
+// Writes the first square channel's control register.
+//
+// Parameters:
+//   value - Value written to APU register $4000.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void write4000(uint8_t value) {
 	square_0.write_reg0(value);
 }
 
 
-
+// -----------------------------------------------------------------------------
+// write4001
+//
+// Writes the first square channel's sweep register.
+//
+// Parameters:
+//   value - Value written to APU register $4001.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void write4001(uint8_t value) {
 	square_0.write_reg1(value);
 }
 
 
+// -----------------------------------------------------------------------------
+// write4002
+//
+// Writes the low timer byte for the first square channel.
+//
+// Parameters:
+//   value - Value written to APU register $4002.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void write4002(uint8_t value) {
 	square_0.write_reg2(value);
 }
 
 
+// -----------------------------------------------------------------------------
+// write4003
+//
+// Writes the high timer bits and length-counter load value for the first square
+// channel.
+//
+// Parameters:
+//   value - Value written to APU register $4003.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void write4003(uint8_t value) {
 	square_0.write_reg3(value);
 }
 
 
+// -----------------------------------------------------------------------------
+// write4004
+//
+// Writes the second square channel's control register.
+//
+// Parameters:
+//   value - Value written to APU register $4004.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void write4004(uint8_t value) {
 	square_1.write_reg0(value);
 }
 
 
+// -----------------------------------------------------------------------------
+// write4005
+//
+// Writes the second square channel's sweep register.
+//
+// Parameters:
+//   value - Value written to APU register $4005.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void write4005(uint8_t value) {
 	square_1.write_reg1(value);
 }
 
 
+// -----------------------------------------------------------------------------
+// write4006
+//
+// Writes the low timer byte for the second square channel.
+//
+// Parameters:
+//   value - Value written to APU register $4006.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void write4006(uint8_t value) {
 	square_1.write_reg2(value);
 }
 
 
+// -----------------------------------------------------------------------------
+// write4007
+//
+// Writes the high timer bits and length-counter load value for the second square
+// channel.
+//
+// Parameters:
+//   value - Value written to APU register $4007.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void write4007(uint8_t value) {
 	square_1.write_reg3(value);
 }
 
 
+// -----------------------------------------------------------------------------
+// write4008
+//
+// Writes the triangle channel's linear-counter control register.
+//
+// Parameters:
+//   value - Value written to APU register $4008.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void write4008(uint8_t value) {
 	triangle.write_reg0(value);
 }
 
 
+// -----------------------------------------------------------------------------
+// write400A
+//
+// Writes the low timer byte for the triangle channel.
+//
+// Parameters:
+//   value - Value written to APU register $400A.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void write400A(uint8_t value) {
 	triangle.write_reg2(value);
 }
 
 
+// -----------------------------------------------------------------------------
+// write400B
+//
+// Writes the high timer bits and length-counter load value for the triangle
+// channel.
+//
+// Parameters:
+//   value - Value written to APU register $400B.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void write400B(uint8_t value) {
 	triangle.write_reg3(value);
 }
 
 
+// -----------------------------------------------------------------------------
+// write400C
+//
+// Writes the noise channel's envelope and length-counter control register.
+//
+// Parameters:
+//   value - Value written to APU register $400C.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void write400C(uint8_t value) {
 	noise.write_reg0(value);
 }
 
 
+// -----------------------------------------------------------------------------
+// write400E
+//
+// Writes the noise channel's mode and timer-period register.
+//
+// Parameters:
+//   value - Value written to APU register $400E.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void write400E(uint8_t value) {
 	noise.write_reg2(value);
 }
 
 
+// -----------------------------------------------------------------------------
+// write400F
+//
+// Writes the noise channel's length-counter load register.
+//
+// Parameters:
+//   value - Value written to APU register $400F.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void write400F(uint8_t value) {
 	noise.write_reg3(value);
 }
 
 
+// -----------------------------------------------------------------------------
+// write4010
+//
+// Writes the DMC control register.
+//
+// Parameters:
+//   value - Value written to APU register $4010.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void write4010(uint8_t value) {
 	dmc.write_reg0(value);
 }
 
 
+// -----------------------------------------------------------------------------
+// write4011
+//
+// Writes the DMC direct-load output register.
+//
+// Parameters:
+//   value - Value written to APU register $4011.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void write4011(uint8_t value) {
 	dmc.write_reg1(value);
 }
 
 
+// -----------------------------------------------------------------------------
+// write4012
+//
+// Writes the DMC sample start-address register.
+//
+// Parameters:
+//   value - Value written to APU register $4012.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void write4012(uint8_t value) {
 	dmc.write_reg2(value);
 }
 
 
+// -----------------------------------------------------------------------------
+// write4013
+//
+// Writes the DMC sample-length register.
+//
+// Parameters:
+//   value - Value written to APU register $4013.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void write4013(uint8_t value) {
 	dmc.write_reg3(value);
 }
 
 
+// -----------------------------------------------------------------------------
+// write4015
+//
+// Writes the APU channel-enable and DMC control register.
+//
+// This enables or disables each audio channel according to the corresponding
+// status bits.  Writing this register also clears the DMC interrupt flag and,
+// when no other APU interrupt remains active, clears the CPU APU IRQ source.
+//
+// Parameters:
+//   value - Value written to APU register $4015.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void write4015(uint8_t value) {
 
 	// writing to this register clears the DMC interrupt flag.
@@ -407,6 +680,21 @@ void write4015(uint8_t value) {
 }
 
 
+// -----------------------------------------------------------------------------
+// read4015
+//
+// Reads the APU status register.
+//
+// The returned value reports active channel length/sample state together with
+// the DMC and frame interrupt flags.  Reading this register clears the frame IRQ
+// flag and clears the CPU APU IRQ source when no APU interrupt remains active.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Current APU status-register value.
+// -----------------------------------------------------------------------------
 uint8_t read4015() {
 	uint8_t ret = status.raw & (apu_status::DMC_IRQ | apu_status::FRAME_IRQ);
 
@@ -441,6 +729,21 @@ uint8_t read4015() {
 }
 
 
+// -----------------------------------------------------------------------------
+// write4017
+//
+// Writes the APU frame-counter control register.
+//
+// This selects the frame-counter sequence mode, controls frame IRQ inhibition,
+// resets the frame-sequence step, and schedules the next frame-counter event
+// according to the current APU-cycle parity.
+//
+// Parameters:
+//   value - Value written to APU register $4017.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void write4017(uint8_t value) {
 
 	frame_counter_.raw  = value;
@@ -597,11 +900,23 @@ start_frame()
 	// sample_buffer_start = sample_buffer_end;
 	
 	
-	// That discars queued samples at every video-frame boundary and was one 
+	// that discards queued samples at every video-frame boundary and is one 
 	// of the causes of audio discontinuities.
 }
 
 
+// -----------------------------------------------------------------------------
+// mute_channel
+//
+// Mutes one APU sound channel without changing its enabled state or internal
+// timing.
+//
+// Parameters:
+//   channel - Sound-channel identifier from sound_channel.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 mute_channel (int const channel)
 {	
@@ -629,6 +944,18 @@ mute_channel (int const channel)
 }
 
 
+// -----------------------------------------------------------------------------
+// unmute_channel
+//
+// Restores audible output for one APU sound channel that was previously muted,
+// without changing its enabled state or internal timing.
+//
+// Parameters:
+//   channel - Sound-channel identifier from sound_channel.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 unmute_channel (int const channel)
 {

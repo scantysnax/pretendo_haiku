@@ -10,6 +10,24 @@
 	#include <unistd.h>
 #endif // (__linux__ || __HAIKU__)
 
+
+// -----------------------------------------------------------------------------
+// MemoryMappedFile::MemoryMappedFile
+//
+// Opens or creates a backing file and maps it into memory for persistent SRAM
+// storage.
+//
+// On Linux and Haiku, the file is resized to the requested length and mapped
+// with shared read/write access.  If memory mapping fails, or when building on
+// an unsupported platform, a heap-allocated buffer is used instead.
+//
+// Parameters:
+//   filename - Path to the backing file.
+//   size     - Requested mapped-buffer size in bytes.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 MemoryMappedFile::MemoryMappedFile(const std::string &filename, size_t size) {
 	(void)filename;
 
@@ -46,16 +64,55 @@ MemoryMappedFile::MemoryMappedFile(const std::string &filename, size_t size) {
 #endif
 }
 
+
+// -----------------------------------------------------------------------------
+// MemoryMappedFile::~MemoryMappedFile
+//
+// Releases the mapped or heap-allocated buffer using the deleter selected when
+// the object was constructed.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 MemoryMappedFile::~MemoryMappedFile() {
 	if (deleter_) {
 		deleter_(ptr_);
 	}
 }
 
+
+// -----------------------------------------------------------------------------
+// MemoryMappedFile::operator[]
+//
+// Returns the byte stored at the specified position in the mapped buffer.
+//
+// Parameters:
+//   index - Zero-based byte index.
+//
+// Returns:
+//   Byte value at the requested position.
+// -----------------------------------------------------------------------------
 uint8_t MemoryMappedFile::operator[](size_t index) const {
 	return ptr_[index];
 }
 
+
+// -----------------------------------------------------------------------------
+// MemoryMappedFile::operator[]
+//
+// Returns a writable reference to the byte at the specified position in the
+// mapped buffer.
+//
+// Parameters:
+//   index - Zero-based byte index.
+//
+// Returns:
+//   Reference to the byte at the requested position.
+// -----------------------------------------------------------------------------
 uint8_t &MemoryMappedFile::operator[](size_t index) {
 	return ptr_[index];
 }
+

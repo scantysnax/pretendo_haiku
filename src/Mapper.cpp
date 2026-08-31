@@ -3,6 +3,7 @@
 #include "Compiler.h"
 #include "Mapper.h"
 #include "Nes.h"
+#include "Ppu.h"
 #include "Settings.h"
 
 #include <algorithm>
@@ -14,9 +15,21 @@
 #include <string>
 #include <cstdio>
 
-//------------------------------------------------------------------------------
-// Name: Mapper
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::Mapper
+//
+// Initializes the base mapper state.
+//
+// Nametable RAM is cleared and the cartridge's initial mirroring mode is applied.
+// Mapper-controlled mirroring is left for the derived mapper implementation.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 Mapper::Mapper() {
 
 	// NOTE: we're not supporting trainers anymore, that's why the code is gone
@@ -45,9 +58,18 @@ Mapper::Mapper() {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: create_mapper
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::create_mapper
+//
+// Creates the mapper implementation associated with an iNES mapper number.
+//
+// Parameters:
+//   num - iNES mapper number.
+//
+// Returns:
+//   Newly created mapper instance, or nullptr if the mapper is unsupported.
+// -----------------------------------------------------------------------------
 std::unique_ptr<Mapper> Mapper::create_mapper(int num) {
 
 	create_func f = nullptr;
@@ -64,9 +86,20 @@ std::unique_ptr<Mapper> Mapper::create_mapper(int num) {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: read_memory
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::read_memory
+//
+// Reads a byte through the mapper's CPU page table.
+//
+// Unmapped pages return a simulated open-bus value derived from the address.
+//
+// Parameters:
+//   address - CPU address being read.
+//
+// Returns:
+//   Mapped byte value or simulated open-bus value.
+// -----------------------------------------------------------------------------
 uint8_t Mapper::read_memory(uint_least16_t address) {
 	if (LIKELY(page_[address >> PageShift])) {
 		return page_[address >> PageShift][address & PageMask];
@@ -76,217 +109,499 @@ uint8_t Mapper::read_memory(uint_least16_t address) {
 	return (address >> 8) & 0xff;
 }
 
-//------------------------------------------------------------------------------
-// Name: write_2
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::write_2
+//
+// Default mapper write handler for the $2000-$2FFF CPU address range.
+//
+// Parameters:
+//   address - CPU address being written.
+//   value   - Byte value being written.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Mapper::write_2(uint_least16_t address, uint8_t value) {
 	(void)address;
 	(void)value;
 }
 
-//------------------------------------------------------------------------------
-// Name: write_3
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::write_3
+//
+// Default mapper write handler for the $3000-$3FFF CPU address range.
+//
+// Parameters:
+//   address - CPU address being written.
+//   value   - Byte value being written.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Mapper::write_3(uint_least16_t address, uint8_t value) {
 	(void)address;
 	(void)value;
 }
 
-//------------------------------------------------------------------------------
-// Name: Write4
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::write_4
+//
+// Default mapper write handler for the $4000-$4FFF CPU address range.
+//
+// Parameters:
+//   address - CPU address being written.
+//   value   - Byte value being written.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Mapper::write_4(uint_least16_t address, uint8_t value) {
 	(void)address;
 	(void)value;
 }
 
-//------------------------------------------------------------------------------
-// Name: write_5
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::write_5
+//
+// Default mapper write handler for the $5000-$5FFF CPU address range.
+//
+// Parameters:
+//   address - CPU address being written.
+//   value   - Byte value being written.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Mapper::write_5(uint_least16_t address, uint8_t value) {
 	(void)address;
 	(void)value;
 }
 
-//------------------------------------------------------------------------------
-// Name: write_6
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::write_6
+//
+// Default mapper write handler for the $6000-$6FFF CPU address range.
+//
+// Parameters:
+//   address - CPU address being written.
+//   value   - Byte value being written.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Mapper::write_6(uint_least16_t address, uint8_t value) {
 	(void)address;
 	(void)value;
 }
 
-//------------------------------------------------------------------------------
-// Name: write_7
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::write_7
+//
+// Default mapper write handler for the $7000-$7FFF CPU address range.
+//
+// Parameters:
+//   address - CPU address being written.
+//   value   - Byte value being written.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Mapper::write_7(uint_least16_t address, uint8_t value) {
 	(void)address;
 	(void)value;
 }
 
-//------------------------------------------------------------------------------
-// Name: write_8
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::write_8
+//
+// Default mapper write handler for the $8000-$8FFF CPU address range.
+//
+// Parameters:
+//   address - CPU address being written.
+//   value   - Byte value being written.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Mapper::write_8(uint_least16_t address, uint8_t value) {
 	(void)address;
 	(void)value;
 }
 
-//------------------------------------------------------------------------------
-// Name: write_9
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::write_9
+//
+// Default mapper write handler for the $9000-$9FFF CPU address range.
+//
+// Parameters:
+//   address - CPU address being written.
+//   value   - Byte value being written.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Mapper::write_9(uint_least16_t address, uint8_t value) {
 	(void)address;
 	(void)value;
 }
 
-//------------------------------------------------------------------------------
-// Name: write_a
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::write_a
+//
+// Default mapper write handler for the $A000-$AFFF CPU address range.
+//
+// Parameters:
+//   address - CPU address being written.
+//   value   - Byte value being written.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Mapper::write_a(uint_least16_t address, uint8_t value) {
 	(void)address;
 	(void)value;
 }
 
-//------------------------------------------------------------------------------
-// Name: write_b
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::write_b
+//
+// Default mapper write handler for the $B000-$BFFF CPU address range.
+//
+// Parameters:
+//   address - CPU address being written.
+//   value   - Byte value being written.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Mapper::write_b(uint_least16_t address, uint8_t value) {
 	(void)address;
 	(void)value;
 }
 
-//------------------------------------------------------------------------------
-// Name: write_c
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::write_c
+//
+// Default mapper write handler for the $C000-$CFFF CPU address range.
+//
+// Parameters:
+//   address - CPU address being written.
+//   value   - Byte value being written.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Mapper::write_c(uint_least16_t address, uint8_t value) {
 	(void)address;
 	(void)value;
 }
 
-//------------------------------------------------------------------------------
-// Name: write_d
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::write_d
+//
+// Default mapper write handler for the $D000-$DFFF CPU address range.
+//
+// Parameters:
+//   address - CPU address being written.
+//   value   - Byte value being written.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Mapper::write_d(uint_least16_t address, uint8_t value) {
 	(void)address;
 	(void)value;
 }
 
-//------------------------------------------------------------------------------
-// Name: write_e
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::write_e
+//
+// Default mapper write handler for the $E000-$EFFF CPU address range.
+//
+// Parameters:
+//   address - CPU address being written.
+//   value   - Byte value being written.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Mapper::write_e(uint_least16_t address, uint8_t value) {
 	(void)address;
 	(void)value;
 }
 
-//------------------------------------------------------------------------------
-// Name: write_f
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::write_f
+//
+// Default mapper write handler for the $F000-$FFFF CPU address range.
+//
+// Parameters:
+//   address - CPU address being written.
+//   value   - Byte value being written.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Mapper::write_f(uint_least16_t address, uint8_t value) {
 	(void)address;
 	(void)value;
 }
 
-//------------------------------------------------------------------------------
-// Name: read_2
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::read_2
+//
+// Reads the $2000-$2FFF CPU address range through the mapper page table.
+//
+// Parameters:
+//   address - CPU address being read.
+//
+// Returns:
+//   Mapped byte value.
+// -----------------------------------------------------------------------------
 uint8_t Mapper::read_2(uint_least16_t address) {
 	return read_memory(address);
 }
 
-//------------------------------------------------------------------------------
-// Name: read_3
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::read_3
+//
+// Reads the $3000-$3FFF CPU address range through the mapper page table.
+//
+// Parameters:
+//   address - CPU address being read.
+//
+// Returns:
+//   Mapped byte value.
+// -----------------------------------------------------------------------------
 uint8_t Mapper::read_3(uint_least16_t address) {
 	return read_memory(address);
 }
 
-//------------------------------------------------------------------------------
-// Name: read_4
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::read_4
+//
+// Reads the $4000-$4FFF CPU address range through the mapper page table.
+//
+// Parameters:
+//   address - CPU address being read.
+//
+// Returns:
+//   Mapped byte value.
+// -----------------------------------------------------------------------------
 uint8_t Mapper::read_4(uint_least16_t address) {
 	return read_memory(address);
 }
 
-//------------------------------------------------------------------------------
-// Name: read_5
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::read_5
+//
+// Reads the $5000-$5FFF CPU address range through the mapper page table.
+//
+// Parameters:
+//   address - CPU address being read.
+//
+// Returns:
+//   Mapped byte value.
+// -----------------------------------------------------------------------------
 uint8_t Mapper::read_5(uint_least16_t address) {
 	return read_memory(address);
 }
 
-//------------------------------------------------------------------------------
-// Name: read_6
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::read_6
+//
+// Reads the $6000-$6FFF CPU address range through the mapper page table.
+//
+// Parameters:
+//   address - CPU address being read.
+//
+// Returns:
+//   Mapped byte value.
+// -----------------------------------------------------------------------------
 uint8_t Mapper::read_6(uint_least16_t address) {
 	return read_memory(address);
 }
 
-//------------------------------------------------------------------------------
-// Name: read_7
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::read_7
+//
+// Reads the $7000-$7FFF CPU address range through the mapper page table.
+//
+// Parameters:
+//   address - CPU address being read.
+//
+// Returns:
+//   Mapped byte value.
+// -----------------------------------------------------------------------------
 uint8_t Mapper::read_7(uint_least16_t address) {
 	return read_memory(address);
 }
 
-//------------------------------------------------------------------------------
-// Name: read_8
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::read_8
+//
+// Reads the $8000-$8FFF CPU address range through the mapper page table.
+//
+// Parameters:
+//   address - CPU address being read.
+//
+// Returns:
+//   Mapped byte value.
+// -----------------------------------------------------------------------------
 uint8_t Mapper::read_8(uint_least16_t address) {
 	return read_memory(address);
 }
 
-//------------------------------------------------------------------------------
-// Name: read_9
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::read_9
+//
+// Reads the $9000-$9FFF CPU address range through the mapper page table.
+//
+// Parameters:
+//   address - CPU address being read.
+//
+// Returns:
+//   Mapped byte value.
+// -----------------------------------------------------------------------------
 uint8_t Mapper::read_9(uint_least16_t address) {
 	return read_memory(address);
 }
 
-//------------------------------------------------------------------------------
-// Name: read_a
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::read_a
+//
+// Reads the $A000-$AFFF CPU address range through the mapper page table.
+//
+// Parameters:
+//   address - CPU address being read.
+//
+// Returns:
+//   Mapped byte value.
+// -----------------------------------------------------------------------------
 uint8_t Mapper::read_a(uint_least16_t address) {
 	return read_memory(address);
 }
 
-//------------------------------------------------------------------------------
-// Name: read_b
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::read_b
+//
+// Reads the $B000-$BFFF CPU address range through the mapper page table.
+//
+// Parameters:
+//   address - CPU address being read.
+//
+// Returns:
+//   Mapped byte value.
+// -----------------------------------------------------------------------------
 uint8_t Mapper::read_b(uint_least16_t address) {
 	return read_memory(address);
 }
 
-//------------------------------------------------------------------------------
-// Name: read_c
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::read_c
+//
+// Reads the $C000-$CFFF CPU address range through the mapper page table.
+//
+// Parameters:
+//   address - CPU address being read.
+//
+// Returns:
+//   Mapped byte value.
+// -----------------------------------------------------------------------------
 uint8_t Mapper::read_c(uint_least16_t address) {
 	return read_memory(address);
 }
 
-//------------------------------------------------------------------------------
-// Name: read_d
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::read_d
+//
+// Reads the $D000-$DFFF CPU address range through the mapper page table.
+//
+// Parameters:
+//   address - CPU address being read.
+//
+// Returns:
+//   Mapped byte value.
+// -----------------------------------------------------------------------------
 uint8_t Mapper::read_d(uint_least16_t address) {
 	return read_memory(address);
 }
 
-//------------------------------------------------------------------------------
-// Name: read_e
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::read_e
+//
+// Reads the $E000-$EFFF CPU address range through the mapper page table.
+//
+// Parameters:
+//   address - CPU address being read.
+//
+// Returns:
+//   Mapped byte value.
+// -----------------------------------------------------------------------------
 uint8_t Mapper::read_e(uint_least16_t address) {
 	return read_memory(address);
 }
 
-//------------------------------------------------------------------------------
-// Name: read_f
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::read_f
+//
+// Reads the $F000-$FFFF CPU address range through the mapper page table.
+//
+// Parameters:
+//   address - CPU address being read.
+//
+// Returns:
+//   Mapped byte value.
+// -----------------------------------------------------------------------------
 uint8_t Mapper::read_f(uint_least16_t address) {
 	return read_memory(address);
 }
 
 
+// -----------------------------------------------------------------------------
+// Mapper::write_vram
+//
+// Writes a byte through the mapper's PPU address space.
+//
+// PPU address mirroring and palette mirroring are applied before the access.
+// Palette writes are directed to PPU palette RAM; other accesses are written to
+// the currently mapped VRAM/CHR bank when that bank is writable.
+//
+// Parameters:
+//   address - PPU address being written.
+//   value   - Byte value to write.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void 
 Mapper::write_vram(uint_least16_t address, uint8_t value)
 {
@@ -333,6 +648,21 @@ Mapper::write_vram(uint_least16_t address, uint8_t value)
 }
 
 
+// -----------------------------------------------------------------------------
+// Mapper::read_vram
+//
+// Reads a byte through the mapper's PPU address space.
+//
+// PPU and palette mirroring are applied before the access.  Palette reads are
+// returned directly from palette RAM; other reads use the currently mapped
+// VRAM/CHR bank.  Unmapped banks return a simulated open-bus value.
+//
+// Parameters:
+//   address - PPU address being read.
+//
+// Returns:
+//   Byte value from the mapped PPU address.
+// -----------------------------------------------------------------------------
 uint8_t
 Mapper::read_vram (uint_least16_t address)
 {
@@ -379,54 +709,108 @@ Mapper::read_vram (uint_least16_t address)
 	return (address >> 8) & 0xff;
 }
 
-//------------------------------------------------------------------------------
-// Name: set_prg_67
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::set_prg_67
+//
+// Maps an 8 KB PRG ROM bank into CPU address range $6000-$7FFF.
+//
+// Parameters:
+//   num - 8 KB PRG bank number.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Mapper::set_prg_67(int num) {
 	num *= (8 * 1024);
 	const uint32_t mask = nes::cart.prg_mask();
 	swap_67(nes::cart.prg() + (num & mask));
 }
 
-//------------------------------------------------------------------------------
-// Name: set_prg_89
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::set_prg_89
+//
+// Maps an 8 KB PRG ROM bank into CPU address range $8000-$9FFF.
+//
+// Parameters:
+//   num - 8 KB PRG bank number.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Mapper::set_prg_89(int num) {
 	num *= (8 * 1024);
 	const uint32_t mask = nes::cart.prg_mask();
 	swap_89(nes::cart.prg() + (num & mask));
 }
 
-//------------------------------------------------------------------------------
-// Name: set_prg_ab
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::set_prg_ab
+//
+// Maps an 8 KB PRG ROM bank into CPU address range $A000-$BFFF.
+//
+// Parameters:
+//   num - 8 KB PRG bank number.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Mapper::set_prg_ab(int num) {
 	num *= (8 * 1024);
 	const uint32_t mask = nes::cart.prg_mask();
 	swap_ab(nes::cart.prg() + (num & mask));
 }
 
-//------------------------------------------------------------------------------
-// Name: set_prg_cd
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::set_prg_cd
+//
+// Maps an 8 KB PRG ROM bank into CPU address range $C000-$DFFF.
+//
+// Parameters:
+//   num - 8 KB PRG bank number.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Mapper::set_prg_cd(int num) {
 	num *= (8 * 1024);
 	const uint32_t mask = nes::cart.prg_mask();
 	swap_cd(nes::cart.prg() + (num & mask));
 }
 
-//------------------------------------------------------------------------------
-// Name: set_prg_ef
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::set_prg_ef
+//
+// Maps an 8 KB PRG ROM bank into CPU address range $E000-$FFFF.
+//
+// Parameters:
+//   num - 8 KB PRG bank number.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Mapper::set_prg_ef(int num) {
 	num *= (8 * 1024);
 	const uint32_t mask = nes::cart.prg_mask();
 	swap_ef(nes::cart.prg() + (num & mask));
 }
 
-//------------------------------------------------------------------------------
-// Name: set_prg_89ab
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::set_prg_89ab
+//
+// Maps a 16 KB PRG ROM bank into CPU address range $8000-$BFFF.
+//
+// Parameters:
+//   num - 16 KB PRG bank number.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Mapper::set_prg_89ab(int num) {
 	num *= (16 * 1024);
 	const uint32_t mask = nes::cart.prg_mask();
@@ -434,9 +818,18 @@ void Mapper::set_prg_89ab(int num) {
 	swap_ab(nes::cart.prg() + ((num + 0x2000) & mask));
 }
 
-//------------------------------------------------------------------------------
-// Name: set_prg_cdef
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::set_prg_cdef
+//
+// Maps a 16 KB PRG ROM bank into CPU address range $C000-$FFFF.
+//
+// Parameters:
+//   num - 16 KB PRG bank number.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Mapper::set_prg_cdef(int num) {
 	num *= (16 * 1024);
 	const uint32_t mask = nes::cart.prg_mask();
@@ -444,9 +837,18 @@ void Mapper::set_prg_cdef(int num) {
 	swap_ef(nes::cart.prg() + ((num + 0x2000) & mask));
 }
 
-//------------------------------------------------------------------------------
-// Name: set_prg_89abcdef
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::set_prg_89abcdef
+//
+// Maps a 32 KB PRG ROM bank into CPU address range $8000-$FFFF.
+//
+// Parameters:
+//   num - 32 KB PRG bank number.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Mapper::set_prg_89abcdef(int num) {
 	num *= (32 * 1024);
 	const uint32_t mask = nes::cart.prg_mask();
@@ -456,9 +858,18 @@ void Mapper::set_prg_89abcdef(int num) {
 	swap_ef(nes::cart.prg() + ((num + 0x6000) & mask));
 }
 
-//------------------------------------------------------------------------------
-// Name: set_chr_0000_03ff
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::set_chr_0000_03ff
+//
+// Maps a 1 KB CHR ROM bank into PPU address range $0000-$03FF.
+//
+// Parameters:
+//   num - 1 KB CHR bank number.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Mapper::set_chr_0000_03ff(int num) {
 	if (LIKELY(nes::cart.has_chr_rom())) {
 		num *= (1 * 1024);
@@ -467,9 +878,18 @@ void Mapper::set_chr_0000_03ff(int num) {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: set_chr_0400_07ff
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::set_chr_0400_07ff
+//
+// Maps a 1 KB CHR ROM bank into PPU address range $0400-$07FF.
+//
+// Parameters:
+//   num - 1 KB CHR bank number.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Mapper::set_chr_0400_07ff(int num) {
 	if (LIKELY(nes::cart.has_chr_rom())) {
 		num *= (1 * 1024);
@@ -478,9 +898,18 @@ void Mapper::set_chr_0400_07ff(int num) {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: set_chr_0800_0bff
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::set_chr_0800_0bff
+//
+// Maps a 1 KB CHR ROM bank into PPU address range $0800-$0BFF.
+//
+// Parameters:
+//   num - 1 KB CHR bank number.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Mapper::set_chr_0800_0bff(int num) {
 	if (LIKELY(nes::cart.has_chr_rom())) {
 		num *= (1 * 1024);
@@ -489,9 +918,18 @@ void Mapper::set_chr_0800_0bff(int num) {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: set_chr_0c00_0fff
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::set_chr_0c00_0fff
+//
+// Maps a 1 KB CHR ROM bank into PPU address range $0C00-$0FFF.
+//
+// Parameters:
+//   num - 1 KB CHR bank number.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Mapper::set_chr_0c00_0fff(int num) {
 	if (LIKELY(nes::cart.has_chr_rom())) {
 		num *= (1 * 1024);
@@ -500,9 +938,18 @@ void Mapper::set_chr_0c00_0fff(int num) {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: set_chr_1000_13ff
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::set_chr_1000_13ff
+//
+// Maps a 1 KB CHR ROM bank into PPU address range $1000-$13FF.
+//
+// Parameters:
+//   num - 1 KB CHR bank number.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Mapper::set_chr_1000_13ff(int num) {
 	if (LIKELY(nes::cart.has_chr_rom())) {
 		num *= (1 * 1024);
@@ -511,9 +958,18 @@ void Mapper::set_chr_1000_13ff(int num) {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: set_chr_1400_17ff
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::set_chr_1400_17ff
+//
+// Maps a 1 KB CHR ROM bank into PPU address range $1400-$17FF.
+//
+// Parameters:
+//   num - 1 KB CHR bank number.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Mapper::set_chr_1400_17ff(int num) {
 	if (LIKELY(nes::cart.has_chr_rom())) {
 		num *= (1 * 1024);
@@ -522,9 +978,18 @@ void Mapper::set_chr_1400_17ff(int num) {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: set_chr_1800_1bff
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::set_chr_1800_1bff
+//
+// Maps a 1 KB CHR ROM bank into PPU address range $1800-$1BFF.
+//
+// Parameters:
+//   num - 1 KB CHR bank number.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Mapper::set_chr_1800_1bff(int num) {
 	if (LIKELY(nes::cart.has_chr_rom())) {
 		num *= (1 * 1024);
@@ -533,9 +998,18 @@ void Mapper::set_chr_1800_1bff(int num) {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: set_chr_1c00_1fff
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::set_chr_1c00_1fff
+//
+// Maps a 1 KB CHR ROM bank into PPU address range $1C00-$1FFF.
+//
+// Parameters:
+//   num - 1 KB CHR bank number.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Mapper::set_chr_1c00_1fff(int num) {
 	if (LIKELY(nes::cart.has_chr_rom())) {
 		num *= (1 * 1024);
@@ -544,9 +1018,18 @@ void Mapper::set_chr_1c00_1fff(int num) {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: set_chr_0000_07ff
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::set_chr_0000_07ff
+//
+// Maps a 2 KB CHR ROM bank into PPU address range $0000-$07FF.
+//
+// Parameters:
+//   num - 2 KB CHR bank number.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Mapper::set_chr_0000_07ff(int num) {
 	if (LIKELY(nes::cart.has_chr_rom())) {
 		num *= (2 * 1024);
@@ -556,9 +1039,18 @@ void Mapper::set_chr_0000_07ff(int num) {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: set_chr_0800_0fff
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::set_chr_0800_0fff
+//
+// Maps a 2 KB CHR ROM bank into PPU address range $0800-$0FFF.
+//
+// Parameters:
+//   num - 2 KB CHR bank number.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Mapper::set_chr_0800_0fff(int num) {
 	if (LIKELY(nes::cart.has_chr_rom())) {
 		num *= (2 * 1024);
@@ -568,9 +1060,18 @@ void Mapper::set_chr_0800_0fff(int num) {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: set_chr_1000_17ff
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::set_chr_1000_17ff
+//
+// Maps a 2 KB CHR ROM bank into PPU address range $1000-$17FF.
+//
+// Parameters:
+//   num - 2 KB CHR bank number.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Mapper::set_chr_1000_17ff(int num) {
 	if (LIKELY(nes::cart.has_chr_rom())) {
 		num *= (2 * 1024);
@@ -580,9 +1081,18 @@ void Mapper::set_chr_1000_17ff(int num) {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: set_chr_1800_1fff
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::set_chr_1800_1fff
+//
+// Maps a 2 KB CHR ROM bank into PPU address range $1800-$1FFF.
+//
+// Parameters:
+//   num - 2 KB CHR bank number.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Mapper::set_chr_1800_1fff(int num) {
 	if (LIKELY(nes::cart.has_chr_rom())) {
 		num *= (2 * 1024);
@@ -592,9 +1102,18 @@ void Mapper::set_chr_1800_1fff(int num) {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: set_chr_0000_0fff
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::set_chr_0000_0fff
+//
+// Maps a 4 KB CHR ROM bank into PPU address range $0000-$0FFF.
+//
+// Parameters:
+//   num - 4 KB CHR bank number.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Mapper::set_chr_0000_0fff(int num) {
 	if (LIKELY(nes::cart.has_chr_rom())) {
 		num *= (4 * 1024);
@@ -606,9 +1125,18 @@ void Mapper::set_chr_0000_0fff(int num) {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: set_chr_1000_1fff
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::set_chr_1000_1fff
+//
+// Maps a 4 KB CHR ROM bank into PPU address range $1000-$1FFF.
+//
+// Parameters:
+//   num - 4 KB CHR bank number.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Mapper::set_chr_1000_1fff(int num) {
 	if (LIKELY(nes::cart.has_chr_rom())) {
 		num *= (4 * 1024);
@@ -620,9 +1148,18 @@ void Mapper::set_chr_1000_1fff(int num) {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name: set_chr_0000_1fff
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::set_chr_0000_1fff
+//
+// Maps an 8 KB CHR ROM bank across the entire PPU pattern-table range.
+//
+// Parameters:
+//   num - 8 KB CHR bank number.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Mapper::set_chr_0000_1fff(int num) {
 	if (LIKELY(nes::cart.has_chr_rom())) {
 		num *= (8 * 1024);
@@ -638,109 +1175,239 @@ void Mapper::set_chr_0000_1fff(int num) {
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name:
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::set_chr_0000_03ff_ram
+//
+// Maps a writable 1 KB CHR RAM bank into PPU address range $0000-$03FF.
+//
+// Parameters:
+//   p   - Base pointer to CHR RAM.
+//   num - 1 KB CHR RAM bank number.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Mapper::set_chr_0000_03ff_ram(uint8_t *p, int num) {
 	num *= (1 * 1024);
 	vram_banks_[0x00] = {p + num + 0x0000, VRAMBank::Ram};
 }
 
-//------------------------------------------------------------------------------
-// Name:
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::set_chr_0400_07ff_ram
+//
+// Maps a writable 1 KB CHR RAM bank into PPU address range $0400-$07FF.
+//
+// Parameters:
+//   p   - Base pointer to CHR RAM.
+//   num - 1 KB CHR RAM bank number.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Mapper::set_chr_0400_07ff_ram(uint8_t *p, int num) {
 	num *= (1 * 1024);
 	vram_banks_[0x01] = {p + num + 0x0000, VRAMBank::Ram};
 }
 
-//------------------------------------------------------------------------------
-// Name:
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::set_chr_0800_0bff_ram
+//
+// Maps a writable 1 KB CHR RAM bank into PPU address range $0800-$0BFF.
+//
+// Parameters:
+//   p   - Base pointer to CHR RAM.
+//   num - 1 KB CHR RAM bank number.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Mapper::set_chr_0800_0bff_ram(uint8_t *p, int num) {
 	num *= (1 * 1024);
 	vram_banks_[0x02] = {p + num + 0x0000, VRAMBank::Ram};
 }
 
-//------------------------------------------------------------------------------
-// Name:
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::set_chr_0c00_0fff_ram
+//
+// Maps a writable 1 KB CHR RAM bank into PPU address range $0C00-$0FFF.
+//
+// Parameters:
+//   p   - Base pointer to CHR RAM.
+//   num - 1 KB CHR RAM bank number.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Mapper::set_chr_0c00_0fff_ram(uint8_t *p, int num) {
 	num *= (1 * 1024);
 	vram_banks_[0x03] = {p + num + 0x0000, VRAMBank::Ram};
 }
 
-//------------------------------------------------------------------------------
-// Name:
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::set_chr_1000_13ff_ram
+//
+// Maps a writable 1 KB CHR RAM bank into PPU address range $1000-$13FF.
+//
+// Parameters:
+//   p   - Base pointer to CHR RAM.
+//   num - 1 KB CHR RAM bank number.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Mapper::set_chr_1000_13ff_ram(uint8_t *p, int num) {
 	num *= (1 * 1024);
 	vram_banks_[0x04] = {p + num + 0x0000, VRAMBank::Ram};
 }
 
-//------------------------------------------------------------------------------
-// Name:
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::set_chr_1400_17ff_ram
+//
+// Maps a writable 1 KB CHR RAM bank into PPU address range $1400-$17FF.
+//
+// Parameters:
+//   p   - Base pointer to CHR RAM.
+//   num - 1 KB CHR RAM bank number.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Mapper::set_chr_1400_17ff_ram(uint8_t *p, int num) {
 	num *= (1 * 1024);
 	vram_banks_[0x05] = {p + num + 0x0000, VRAMBank::Ram};
 }
 
-//------------------------------------------------------------------------------
-// Name:
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::set_chr_1800_1bff_ram
+//
+// Maps a writable 1 KB CHR RAM bank into PPU address range $1800-$1BFF.
+//
+// Parameters:
+//   p   - Base pointer to CHR RAM.
+//   num - 1 KB CHR RAM bank number.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Mapper::set_chr_1800_1bff_ram(uint8_t *p, int num) {
 	num *= (1 * 1024);
 	vram_banks_[0x06] = {p + num + 0x0000, VRAMBank::Ram};
 }
 
-//------------------------------------------------------------------------------
-// Name:
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::set_chr_1c00_1fff_ram
+//
+// Maps a writable 1 KB CHR RAM bank into PPU address range $1C00-$1FFF.
+//
+// Parameters:
+//   p   - Base pointer to CHR RAM.
+//   num - 1 KB CHR RAM bank number.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Mapper::set_chr_1c00_1fff_ram(uint8_t *p, int num) {
 	num *= (1 * 1024);
 	vram_banks_[0x07] = {p + num + 0x0000, VRAMBank::Ram};
 }
 
-//------------------------------------------------------------------------------
-// Name:
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::set_chr_0000_07ff_ram
+//
+// Maps a writable 2 KB CHR RAM bank into PPU address range $0000-$07FF.
+//
+// Parameters:
+//   p   - Base pointer to CHR RAM.
+//   num - 2 KB CHR RAM bank number.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Mapper::set_chr_0000_07ff_ram(uint8_t *p, int num) {
 	num *= (2 * 1024);
 	vram_banks_[0x00] = {p + num + 0x0000, VRAMBank::Ram};
 	vram_banks_[0x01] = {p + num + 0x0400, VRAMBank::Ram};
 }
 
-//------------------------------------------------------------------------------
-// Name:
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::set_chr_0800_0fff_ram
+//
+// Maps a writable 2 KB CHR RAM bank into PPU address range $0800-$0FFF.
+//
+// Parameters:
+//   p   - Base pointer to CHR RAM.
+//   num - 2 KB CHR RAM bank number.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Mapper::set_chr_0800_0fff_ram(uint8_t *p, int num) {
 	num *= (2 * 1024);
 	vram_banks_[0x02] = {p + num + 0x0000, VRAMBank::Ram};
 	vram_banks_[0x03] = {p + num + 0x0400, VRAMBank::Ram};
 }
 
-//------------------------------------------------------------------------------
-// Name:
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::set_chr_1000_17ff_ram
+//
+// Maps a writable 2 KB CHR RAM bank into PPU address range $1000-$17FF.
+//
+// Parameters:
+//   p   - Base pointer to CHR RAM.
+//   num - 2 KB CHR RAM bank number.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Mapper::set_chr_1000_17ff_ram(uint8_t *p, int num) {
 	num *= (2 * 1024);
 	vram_banks_[0x04] = {p + num + 0x0000, VRAMBank::Ram};
 	vram_banks_[0x05] = {p + num + 0x0400, VRAMBank::Ram};
 }
 
-//------------------------------------------------------------------------------
-// Name:
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::set_chr_1800_1fff_ram
+//
+// Maps a writable 2 KB CHR RAM bank into PPU address range $1800-$1FFF.
+//
+// Parameters:
+//   p   - Base pointer to CHR RAM.
+//   num - 2 KB CHR RAM bank number.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Mapper::set_chr_1800_1fff_ram(uint8_t *p, int num) {
 	num *= (2 * 1024);
 	vram_banks_[0x06] = {p + num + 0x0000, VRAMBank::Ram};
 	vram_banks_[0x07] = {p + num + 0x0400, VRAMBank::Ram};
 }
 
-//------------------------------------------------------------------------------
-// Name:
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::set_chr_0000_0fff_ram
+//
+// Maps a writable 4 KB CHR RAM bank into PPU address range $0000-$0FFF.
+//
+// Parameters:
+//   p   - Base pointer to CHR RAM.
+//   num - 4 KB CHR RAM bank number.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Mapper::set_chr_0000_0fff_ram(uint8_t *p, int num) {
 	num *= (4 * 1024);
 	vram_banks_[0x00] = {p + num + 0x0000, VRAMBank::Ram};
@@ -749,9 +1416,19 @@ void Mapper::set_chr_0000_0fff_ram(uint8_t *p, int num) {
 	vram_banks_[0x03] = {p + num + 0x0c00, VRAMBank::Ram};
 }
 
-//------------------------------------------------------------------------------
-// Name:
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::set_chr_1000_1fff_ram
+//
+// Maps a writable 4 KB CHR RAM bank into PPU address range $1000-$1FFF.
+//
+// Parameters:
+//   p   - Base pointer to CHR RAM.
+//   num - 4 KB CHR RAM bank number.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Mapper::set_chr_1000_1fff_ram(uint8_t *p, int num) {
 	num *= (4 * 1024);
 	vram_banks_[0x04] = {p + num + 0x0000, VRAMBank::Ram};
@@ -760,9 +1437,19 @@ void Mapper::set_chr_1000_1fff_ram(uint8_t *p, int num) {
 	vram_banks_[0x07] = {p + num + 0x0c00, VRAMBank::Ram};
 }
 
-//------------------------------------------------------------------------------
-// Name:
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::set_chr_0000_1fff_ram
+//
+// Maps a writable 8 KB CHR RAM bank across the entire PPU pattern-table range.
+//
+// Parameters:
+//   p   - Base pointer to CHR RAM.
+//   num - 8 KB CHR RAM bank number.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Mapper::set_chr_0000_1fff_ram(uint8_t *p, int num) {
 	num *= (8 * 1024);
 	vram_banks_[0x00] = {p + num + 0x0000, VRAMBank::Ram};
@@ -775,9 +1462,22 @@ void Mapper::set_chr_0000_1fff_ram(uint8_t *p, int num) {
 	vram_banks_[0x07] = {p + num + 0x1c00, VRAMBank::Ram};
 }
 
-//------------------------------------------------------------------------------
-// Name: set_mirroring
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::set_mirroring
+//
+// Configures nametable mirroring using the mapper mirroring-control byte.
+//
+// Each two-bit field selects the backing 1 KB nametable RAM page for one PPU
+// nametable region.  The $3000-$3FFF VRAM banks are then mapped as mirrors of
+// the corresponding $2000-$2FFF banks.
+//
+// Parameters:
+//   mir - Encoded nametable mirroring control value.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Mapper::set_mirroring(uint8_t mir) {
 	// utilizes the concept of a mirroring control byte
 	// each pair of bits represents a table to be mirrored from
@@ -805,39 +1505,94 @@ void Mapper::set_mirroring(uint8_t mir) {
 	vram_banks_[0x0f] = vram_banks_[0x0b];
 }
 
-//------------------------------------------------------------------------------
-// Name: cpu_sync
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::cpu_sync
+//
+// Provides a mapper hook for CPU-cycle synchronization.
+//
+// The base mapper implementation performs no work.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Mapper::cpu_sync() {
 	// default does nothing
 }
 
-//------------------------------------------------------------------------------
-// Name: ppu_end_frame
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::ppu_end_frame
+//
+// Provides a mapper hook called at the end of each PPU frame.
+//
+// The base mapper implementation performs no work.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Mapper::ppu_end_frame() {
 	// default does nothing
 }
 
-//------------------------------------------------------------------------------
-// Name: vram_change_hook
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::vram_change_hook
+//
+// Provides a mapper hook for changes to the current PPU VRAM address.
+//
+// The base mapper implementation ignores the address.
+//
+// Parameters:
+//   vram_address - Current PPU VRAM address.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Mapper::vram_change_hook(uint_least16_t vram_address) {
 	(void)vram_address;
 	// default does nothing
 }
 
-//------------------------------------------------------------------------------
-// Name:
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::register_mapper
+//
+// Registers a mapper factory function for an iNES mapper number.
+//
+// Parameters:
+//   num        - iNES mapper number.
+//   create_ptr - Factory function used to create the mapper.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Mapper::register_mapper(int num, create_func create_ptr) {
 	assert(create_ptr);
 	registered_mappers_ines().emplace(num, create_ptr);
 }
 
-//------------------------------------------------------------------------------
-// Name:
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Mapper::open_sram
+//
+// Opens or creates the persistent save-RAM file associated with the current ROM.
+//
+// The save filename is derived from the ROM hash and placed in the emulator's
+// cache directory.
+//
+// Parameters:
+//   size - Requested save-RAM file size in bytes.
+//
+// Returns:
+//   Memory-mapped save-RAM file.
+// -----------------------------------------------------------------------------
 MemoryMappedFile Mapper::open_sram(size_t size) {
 
 	const std::filesystem::path cache_path = Settings::cacheDirectory();
@@ -849,3 +1604,4 @@ MemoryMappedFile Mapper::open_sram(size_t size) {
 
 	return MemoryMappedFile(save_file.string(), size);
 }
+

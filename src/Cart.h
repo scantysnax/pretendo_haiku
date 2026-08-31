@@ -11,7 +11,7 @@
 
 
 class Cart {
-public:
+	public:
 	enum Mirroring {
 		MIR_VERTICAL,
 		MIR_HORIZONTAL,
@@ -21,7 +21,7 @@ public:
 		MIR_MAPPER
 	};
 
-public:
+	public:
 	const std::string &filename() const;
 	bool load(const std::string &s);
 	void unload();
@@ -37,7 +37,7 @@ public:
 	Mapper *mapper() const { return mapper_.get(); }
 	std::vector<uint8_t> raw_image() const;
 
-private:
+	private:
 	std::unique_ptr<iNES::Rom> rom_;
 	uint32_t prg_mask_   = 0;
 	uint32_t chr_mask_   = 0;
@@ -49,4 +49,6 @@ private:
 	std::string filename_;
 };
 
+
 #endif
+

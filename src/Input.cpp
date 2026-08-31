@@ -32,16 +32,38 @@ Controller controller4;
  * 4 player position and 2. whether a DMC sample fetch caused a bit deletion.
  */
 
-//------------------------------------------------------------------------------
-// Name: reset
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// reset
+//
+// Resets the controller input strobe state.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void reset() {
 	strobe_ = 0;
 }
 
-//------------------------------------------------------------------------------
-// Name: write4016
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// write4016
+//
+// Writes the controller strobe register.
+//
+// The low bit controls the controller latch signal.  On a high-to-low
+// transition, the current state of all connected controllers is latched for
+// subsequent serial reads.
+//
+// Parameters:
+//   value - Value written to controller register $4016.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void write4016(uint8_t value) {
 
 	/*
@@ -69,9 +91,21 @@ void write4016(uint8_t value) {
 	strobe_ = value;
 }
 
-//------------------------------------------------------------------------------
-// Name: read4016
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// read4016
+//
+// Reads serial controller data from the first controller port.
+//
+// The controller data bit is returned in bit 0 together with the fixed upper
+// bits used by the NES controller port read behavior.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Current value of controller register $4016.
+// -----------------------------------------------------------------------------
 uint8_t read4016() {
 	// The ouput looks like this for NES:
 	// OOOxxxxD
@@ -82,9 +116,21 @@ uint8_t read4016() {
 	return (controller1.read() & 0x1f) | 0x40;
 }
 
-//------------------------------------------------------------------------------
-// Name: read4017
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// read4017
+//
+// Reads serial controller data from the second controller port.
+//
+// The controller data bit is returned in bit 0 together with the fixed upper
+// bits used by the NES controller port read behavior.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Current value of controller register $4017.
+// -----------------------------------------------------------------------------
 uint8_t read4017() {
 	// The ouput looks like this for NES:
 	// OOOxxxxD
@@ -94,5 +140,6 @@ uint8_t read4017() {
 	// D = data
 	return (controller2.read() & 0x1f) | 0x40;
 }
+
 
 }

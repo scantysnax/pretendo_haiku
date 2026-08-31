@@ -1,8 +1,6 @@
 
 #include "AudioStream.h"
 
-#include <cstdio>
-
 
 // -----------------------------------------------------------------------------
 // AudioStream::AudioStream
@@ -231,7 +229,7 @@ AudioStream::ResetPacing()
 	sem_id const locker = fMutex->Locker();
 
 	while (acquire_sem_etc(locker, 1, B_RELATIVE_TIMEOUT, 0) == B_OK) {
-		// Drain all currently available pacing permits.
+		// drain all currently available pacing permits.
 	}
 }
 

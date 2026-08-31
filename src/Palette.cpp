@@ -9,25 +9,85 @@
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
-
 namespace {
 
+// -----------------------------------------------------------------------------
+// bound
+//
+// Clamps a value to the inclusive range defined by the supplied lower and upper
+// bounds.
+//
+// Parameters:
+//   lower - Minimum permitted value.
+//   value - Value to clamp.
+//   upper - Maximum permitted value.
+//
+// Returns:
+//   Clamped value within the requested range.
+// -----------------------------------------------------------------------------
 template <class T>
 constexpr T bound(T lower, T value, T upper) {
 	return std::max(lower, std::min(value, upper));
 }
 
 
+// -----------------------------------------------------------------------------
+// wave
+//
+// Computes the NES NTSC square-wave state for a given pixel phase and color
+// index.
+//
+// Parameters:
+//   p     - Current phase position within the 12-cycle color waveform.
+//   color - NES color index used to select the waveform phase.
+//
+// Returns:
+//   1 when the waveform is in its high state, otherwise 0.
+// -----------------------------------------------------------------------------
 constexpr int wave(int p, int color) {
 	return (color + p + 8) % 12 < 6;
 }
 
 
+// -----------------------------------------------------------------------------
+// gamma_fix
+//
+// Applies gamma correction to a normalized color component.
+//
+// Negative input values are clamped to zero before the gamma curve is applied.
+//
+// Parameters:
+//   f     - Normalized color-component value.
+//   gamma - Target gamma value.
+//
+// Returns:
+//   Gamma-corrected component value.
+// -----------------------------------------------------------------------------
 constexpr float gamma_fix(float f, float gamma) {
 	return f < 0.f ? 0.f : std::pow(f, 2.2f / gamma);
 }
 
 
+// -----------------------------------------------------------------------------
+// make_rgb_color
+//
+// Converts a NES palette entry into an RGB color.
+//
+// The NES color index, including emphasis bits, is converted into an emulated
+// NTSC waveform.  The waveform is demodulated into YIQ, adjusted for saturation,
+// hue, contrast, brightness, and gamma, and finally converted to RGB.
+//
+// Parameters:
+//   pixel      - NES palette index including color-emphasis bits.
+//   saturation - Chroma saturation adjustment.
+//   hue        - Hue phase adjustment.
+//   contrast   - Contrast adjustment.
+//   brightness - Brightness adjustment.
+//   gamma      - Output gamma correction value.
+//
+// Returns:
+//   RGB color corresponding to the supplied NES palette entry.
+// -----------------------------------------------------------------------------
 rgb_color_t 
 make_rgb_color (uint16_t pixel, float saturation, float hue, float contrast, float brightness, float gamma) 
 {
@@ -99,6 +159,25 @@ make_rgb_color (uint16_t pixel, float saturation, float hue, float contrast, flo
 }
 
 
+// -----------------------------------------------------------------------------
+// Palette::Generate
+//
+// Generates the emulator's 64-color NES RGB palette.
+//
+// Each NES palette index is converted through the NTSC color model using the
+// supplied saturation, hue, contrast, brightness, and gamma adjustments.  The
+// generated colors are stored in a persistent static palette array.
+//
+// Parameters:
+//   saturation - Chroma saturation adjustment.
+//   hue        - Hue phase adjustment.
+//   contrast   - Contrast adjustment.
+//   brightness - Brightness adjustment.
+//   gamma      - Output gamma correction value.
+//
+// Returns:
+//   Pointer to the generated 64-entry RGB color palette.
+// -----------------------------------------------------------------------------
 const rgb_color_t *Palette::Generate (float saturation, float hue, float contrast, float brightness, float gamma)
 {
 

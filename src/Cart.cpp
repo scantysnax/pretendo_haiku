@@ -8,9 +8,21 @@
 
 namespace {
 
-//------------------------------------------------------------------------------
-// Name: create_mask
-//------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// create_mask
+//
+// Creates a bit mask large enough to cover the supplied size.
+//
+// If the size is not already a power of two, it is rounded up to the next power
+// of two.  The returned mask is one less than that power-of-two size, making it
+// suitable for wrapping or masking addresses.
+//
+// Parameters:
+//   size - Size for which to create the address mask.
+//
+// Returns:
+//   Bit mask equal to the selected power-of-two size minus one.
+// -----------------------------------------------------------------------------
 uint32_t create_mask(uint32_t size) {
 
 	// returns 1 less than closest fitting power of 2
@@ -31,19 +43,41 @@ uint32_t create_mask(uint32_t size) {
 	return --size;
 }
 
-//------------------------------------------------------------------------------
-// Name: is_power_of_2
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// is_power_of_2
+//
+// Determines whether the supplied size is a power of two.
+//
+// Parameters:
+//   size - Value to test.
+//
+// Returns:
+//   true if the supplied value is a power of two.
+// -----------------------------------------------------------------------------
 constexpr bool is_power_of_2(size_t size) {
 	return (size & (size - 1)) == 0;
 }
 
+
 }
 
 
-//------------------------------------------------------------------------------
-// Name: load
-//------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// Cart::load
+//
+// Loads an iNES ROM image from disk and initializes cartridge metadata.
+//
+// The ROM image is parsed, PRG and CHR address masks are created, mirroring and
+// hash values are recorded, and the appropriate cartridge mapper is created.
+// Any iNES loading error clears the partially initialized cartridge state.
+//
+// Parameters:
+//   s - Path to the ROM image to load.
+//
+// Returns:
+//   true if the ROM was loaded and initialized successfully.
+// -----------------------------------------------------------------------------
 bool Cart::load(const std::string &s) {
 
 	std::cout << "[Cart::load] loading '" << s << "'...";
@@ -105,81 +139,182 @@ bool Cart::load(const std::string &s) {
 	return false;
 }
 
-//------------------------------------------------------------------------------
-// Name: unload
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Cart::unload
+//
+// Unloads the current cartridge and clears its ROM, mapper, and filename state.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void Cart::unload() {
 	rom_    = nullptr;
 	mapper_ = nullptr;
 	filename_.clear();
 }
 
-//------------------------------------------------------------------------------
-// Name: has_chr_rom
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Cart::has_chr_rom
+//
+// Reports whether the loaded cartridge contains CHR ROM.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   true if the loaded cartridge provides CHR ROM.
+// -----------------------------------------------------------------------------
 bool Cart::has_chr_rom() const {
 	return rom_->chr_rom();
 }
 
-//------------------------------------------------------------------------------
-// Name: prg_mask
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Cart::prg_mask
+//
+// Returns the address mask used for PRG ROM accesses.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Current PRG address mask.
+// -----------------------------------------------------------------------------
 uint32_t Cart::prg_mask() const {
 	return prg_mask_;
 }
 
-//------------------------------------------------------------------------------
-// Name: chr_mask
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Cart::chr_mask
+//
+// Returns the address mask used for CHR ROM accesses.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Current CHR address mask.
+// -----------------------------------------------------------------------------
 uint32_t Cart::chr_mask() const {
 	return chr_mask_;
 }
 
-//------------------------------------------------------------------------------
-// Name: prg
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Cart::prg
+//
+// Returns a pointer to the loaded cartridge's PRG ROM data.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Pointer to the PRG ROM byte array.
+// -----------------------------------------------------------------------------
 uint8_t *Cart::prg() const {
 	return rom_->prg_rom();
 }
 
-//------------------------------------------------------------------------------
-// Name: chr
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Cart::chr
+//
+// Returns a pointer to the loaded cartridge's CHR ROM data.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Pointer to the CHR ROM byte array, or nullptr when no CHR ROM is present.
+// -----------------------------------------------------------------------------
 uint8_t *Cart::chr() const {
 	return rom_->chr_rom();
 }
 
-//------------------------------------------------------------------------------
-// Name: mirroring
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Cart::mirroring
+//
+// Returns the cartridge's configured nametable mirroring mode.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Current cartridge mirroring mode.
+// -----------------------------------------------------------------------------
 Cart::Mirroring Cart::mirroring() const {
 	return mirroring_;
 }
 
-//------------------------------------------------------------------------------
-// Name: prg_hash
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Cart::prg_hash
+//
+// Returns the stored hash of the cartridge PRG ROM data.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   PRG ROM hash value.
+// -----------------------------------------------------------------------------
 uint32_t Cart::prg_hash() const {
 	return prg_hash_;
 }
 
-//------------------------------------------------------------------------------
-// Name: chr_hash
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Cart::chr_hash
+//
+// Returns the stored hash of the cartridge CHR ROM data.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   CHR ROM hash value.
+// -----------------------------------------------------------------------------
 uint32_t Cart::chr_hash() const {
 	return chr_hash_;
 }
 
-//------------------------------------------------------------------------------
-// Name: rom_hash
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Cart::rom_hash
+//
+// Returns the stored hash of the complete cartridge ROM image.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   ROM image hash value.
+// -----------------------------------------------------------------------------
 uint32_t Cart::rom_hash() const {
 	return rom_hash_;
 }
 
-//------------------------------------------------------------------------------
-// Name: raw_image
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Cart::raw_image
+//
+// Builds a contiguous copy of the cartridge ROM image from its PRG and CHR data.
+//
+// PRG data is copied first, followed by CHR data when CHR ROM is present.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Vector containing the combined PRG and CHR ROM image.
+// -----------------------------------------------------------------------------
 std::vector<uint8_t> Cart::raw_image() const {
 
 	const uint8_t *const prg_rom = prg();
@@ -196,9 +331,20 @@ std::vector<uint8_t> Cart::raw_image() const {
 	return image;
 }
 
-//------------------------------------------------------------------------------
-// Name: filename
-//------------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// Cart::filename
+//
+// Returns the filename of the currently loaded cartridge ROM.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Reference to the stored ROM filename.
+// -----------------------------------------------------------------------------
 const std::string &Cart::filename() const {
 	return filename_;
 }
+
+
