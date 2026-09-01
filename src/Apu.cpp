@@ -982,6 +982,109 @@ unmute_channel (int const channel)
 	}			
 }
 
+
+// -----------------------------------------------------------------------------
+// nes::apu::debug_state
+//
+// Returns a side-effect-free snapshot of the current APU state for debugger
+// views.
+//
+// This function intentionally avoids read4015(), because reading $4015 has
+// emulation-visible side effects, including clearing the frame IRQ flag.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Snapshot of the current APU and channel state.
+// -----------------------------------------------------------------------------
+apu_debug_state_t
+debug_state()
+{
+	apu_debug_state_t state;
+
+	state.cycle = apu_cycles_;
+
+	state.five_step_mode = frame_counter_.mode;
+	state.frame_irq_inhibit = frame_counter_.inihibit_frame_irq;
+	state.frame_step = clock_step_;
+
+	state.next_frame_cycle = next_clock_;
+
+	state.status = status.raw;
+	state.frame_irq = status.frame_irq;
+	state.dmc_irq = status.dmc_irq;
+
+	state.audio_muted = debug_audio_is_muted();
+
+	// square 1
+	state.square1.enabled = square_0.enabled();
+	state.square1.muted = square_0.debug_muted();
+	state.square1.timer_period = square_0.debug_timer_period();
+	state.square1.timer_frequency = square_0.debug_timer_frequency();
+	state.square1.duty = square_0.debug_duty();
+	state.square1.sequence_index = square_0.debug_sequence_index();
+	state.square1.length_counter = square_0.length_counter.debug_value();
+	state.square1.envelope_volume = square_0.envelope.debug_volume();
+	state.square1.sweep_enabled = square_0.sweep.debug_enabled();
+	state.square1.sweep_period = square_0.sweep.debug_period();
+	state.square1.sweep_negate = square_0.sweep.debug_negate();
+	state.square1.sweep_shift = square_0.sweep.debug_shift();
+	state.square1.sweep_silenced = square_0.sweep.debug_silenced();
+	state.square1.output = square_0.debug_output();
+
+	// square 2
+	state.square2.enabled = square_1.enabled();
+	state.square2.muted = square_1.debug_muted();
+	state.square2.timer_period = square_1.debug_timer_period();
+	state.square2.timer_frequency = square_1.debug_timer_frequency();
+	state.square2.duty = square_1.debug_duty();
+	state.square2.sequence_index = square_1.debug_sequence_index();
+	state.square2.length_counter = square_1.length_counter.debug_value();
+	state.square2.envelope_volume = square_1.envelope.debug_volume();
+	state.square2.sweep_enabled = square_1.sweep.debug_enabled();
+	state.square2.sweep_period = square_1.sweep.debug_period();
+	state.square2.sweep_negate = square_1.sweep.debug_negate();
+	state.square2.sweep_shift = square_1.sweep.debug_shift();
+	state.square2.sweep_silenced = square_1.sweep.debug_silenced();
+	state.square2.output = square_1.debug_output();
+
+	// triangle
+	state.triangle.enabled = triangle.enabled();
+	state.triangle.muted = triangle.debug_muted();
+	state.triangle.timer_period = triangle.debug_timer_period();
+	state.triangle.timer_frequency = triangle.debug_timer_frequency();
+	state.triangle.length_counter = triangle.length_counter.debug_value();
+	state.triangle.linear_counter = triangle.linear_counter.value();
+	state.triangle.sequence_index = triangle.debug_sequence_index();
+	state.triangle.output = triangle.output();
+
+	// noise
+	state.noise.enabled = noise.enabled();
+	state.noise.muted = noise.debug_muted();
+	state.noise.timer_period = noise.debug_timer_period();
+	state.noise.length_counter = noise.length_counter.debug_value();
+	state.noise.envelope_volume = noise.envelope.debug_volume();
+	state.noise.output = noise.debug_output();
+
+	// dmc
+	state.dmc.active = dmc.debug_active();
+	state.dmc.muted = dmc.debug_muted();
+	state.dmc.timer_period = dmc.debug_timer_period();
+	state.dmc.irq_enabled = dmc.debug_irq_enabled();
+	state.dmc.loop = dmc.debug_loop();
+	state.dmc.output = dmc.output();
+	state.dmc.sample_address = dmc.debug_sample_address();
+	state.dmc.current_address = dmc.debug_current_address();
+	state.dmc.sample_length = dmc.debug_sample_length();
+	state.dmc.bytes_remaining = dmc.bytes_remaining();
+	state.dmc.bits_remaining = dmc.debug_bits_remaining();
+	state.dmc.sample_buffer_empty = dmc.debug_sample_buffer_empty();
+
+	return state;
+}
+
+
 // -----------------------------------------------------------------------------
 // nes::apu::debug_set_audio_muted
 //

@@ -1,8 +1,8 @@
-
-#ifndef LENGTH_COUNTER_20130206_H_
-#define LENGTH_COUNTER_20130206_H_
+#ifndef _LENGTH_COUNTER_H_
+#define _LENGTH_COUNTER_H_
 
 #include <cstdint>
+
 
 namespace nes::apu {
 
@@ -16,6 +16,7 @@ public:
 
 public:
 	uint8_t value() const;
+	uint8_t debug_value() const;
 
 private:
 	uint64_t halt_cycle_   = static_cast<uint64_t>(-1);
@@ -27,6 +28,8 @@ private:
 	mutable bool reload_   = false;
 };
 
+
 }
 
-#endif
+
+#endif	// _LENGTH_COUNTER_H_

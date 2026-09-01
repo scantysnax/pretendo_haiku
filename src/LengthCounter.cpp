@@ -135,6 +135,33 @@ uint8_t LengthCounter::value() const {
 
 
 // -----------------------------------------------------------------------------
+// LengthCounter::debug_value
+//
+// Returns the effective length-counter value for debugger inspection without
+// modifying emulation state.
+//
+// If a reload is pending, the pending reload value is returned without committing
+// it and without clearing the reload flag.  This allows debugger views to inspect
+// the counter without affecting APU timing or length-counter behavior.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Effective current length-counter value.
+// -----------------------------------------------------------------------------
+uint8_t
+LengthCounter::debug_value() const
+{
+	if (reload_) {
+		return reload_value_;
+	}
+
+	return value_;
+}
+
+
+// -----------------------------------------------------------------------------
 // LengthCounter::clock
 //
 // Advances the length counter by one half-frame clock.

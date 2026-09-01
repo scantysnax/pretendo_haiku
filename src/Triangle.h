@@ -39,6 +39,24 @@ public:
 	void unmute() {
 		channel_muted_ = false;
 	}
+	
+public:
+	uint16_t debug_timer_period() const {
+		return timer_load_;
+	}
+
+	uint16_t debug_timer_frequency() const {
+		return timer_.frequency;
+	}
+
+	uint8_t debug_sequence_index() const {
+		return static_cast<uint8_t>(sequence_index_);
+	}
+
+	bool debug_muted() const {
+		return channel_muted_;
+	}
+	
 		
 
 private:

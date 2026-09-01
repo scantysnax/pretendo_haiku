@@ -263,6 +263,59 @@ public:
 		}
 	}
 
+// debug things...	
+public:
+	uint16_t debug_timer_period() const {
+		return timer_reload_;
+	}
+
+	uint16_t debug_timer_frequency() const {
+		return timer_.frequency;
+	}
+
+	uint8_t debug_duty() const {
+		return duty_;
+	}
+
+	uint8_t debug_sequence_index() const {
+		return sequence_index_;
+	}
+
+	bool debug_muted() const {
+		return channel_muted_;
+	}
+
+	uint8_t debug_output() const {
+		static const uint8_t sequence[4][8] = {
+			{0, 1, 0, 0, 0, 0, 0, 0},
+			{0, 1, 1, 0, 0, 0, 0, 0},
+			{0, 1, 1, 1, 1, 0, 0, 0},
+			{1, 0, 0, 1, 1, 1, 1, 1},
+		};
+
+		if (channel_muted_) {
+			return 0;
+		}
+
+		if ((timer_.frequency - 1) < 8) {
+			return 0;
+		}
+
+		if (sequence[duty_][sequence_index_] == 0) {
+			return 0;
+		}
+
+		if (sweep.silenced()) {
+			return 0;
+		}
+
+		if (length_counter.debug_value() == 0) {
+			return 0;
+		}
+
+		return envelope.volume();
+	}
+
 public:
 	LengthCounter length_counter;
 	Envelope envelope;

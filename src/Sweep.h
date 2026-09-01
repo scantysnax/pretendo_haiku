@@ -138,6 +138,40 @@ public:
 	bool silenced() const {
 		return silenced_;
 	}
+	
+	public:
+	bool debug_enabled() const {
+		return enabled();
+	}
+
+	bool debug_negate() const {
+		return negate();
+	}
+
+	uint8_t debug_period() const {
+		return period();
+	}
+
+	uint8_t debug_shift() const {
+		return shift();
+	}
+
+	bool debug_silenced() const {
+		return silenced_;
+	}
+
+	uint16_t debug_pulse_period() const {
+		return pulse_period_;
+	}
+
+	uint8_t debug_counter() const {
+		return counter_;
+	}
+
+	bool debug_reload_pending() const {
+		return reload_;
+	}
+	
 
 private:
 	// -------------------------------------------------------------------------

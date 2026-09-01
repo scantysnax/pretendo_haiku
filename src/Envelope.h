@@ -1,8 +1,9 @@
+#ifndef _ENVELOPE_H_
+#define _ENVELOPE_H_
 
-#ifndef ENVELOPE_20130501_H_
-#define ENVELOPE_20130501_H_
 
 #include <cstdint>
+
 
 namespace nes::apu {
 
@@ -12,6 +13,27 @@ public:
 	void start();
 	void set_control(uint8_t value);
 	uint8_t volume() const;
+
+public:
+	uint8_t debug_volume() const {
+		return volume();	// 4-bit volume
+	}
+
+	uint8_t debug_control() const {
+		return control_;	// envelope
+	}
+
+	uint8_t debug_counter() const {
+		return counter_;	// decay
+	}
+
+	uint8_t debug_divider() const {
+		return divider_;	// envelope divider
+	}
+
+	bool debug_start_pending() const {
+		return start_;	// pending envelope restart
+	}
 
 private:
 	void clock_divider();
@@ -23,7 +45,9 @@ private:
 	uint8_t control_ = 0;
 };
 
+
 }
 
 
 #endif
+

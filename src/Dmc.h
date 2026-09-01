@@ -33,6 +33,48 @@ public:
 	void load_sample_buffer(uint8_t value);
 
 public:
+	bool debug_active() const {
+		return bytes_remaining_ != 0;
+	}
+
+	bool debug_muted() const {
+		return channel_muted_;
+	}
+
+	uint16_t debug_timer_period() const {
+		return timer_.frequency;
+	}
+
+	bool debug_irq_enabled() const {
+		return irq_enabled();
+	}
+
+	bool debug_loop() const {
+		return loop();
+	}
+
+	uint16_t debug_sample_address() const {
+		return sample_address_;
+	}
+
+	uint16_t debug_current_address() const {
+		return sample_pointer_;
+	}
+
+	uint16_t debug_sample_length() const {
+		return sample_length_;
+	}
+
+	uint8_t debug_bits_remaining() const {
+		return bits_remaining_;
+	}
+
+	bool debug_sample_buffer_empty() const {
+		return sample_buffer_empty_;
+	}
+
+
+public:
 	void tick();
 	uint8_t output() const;
 	

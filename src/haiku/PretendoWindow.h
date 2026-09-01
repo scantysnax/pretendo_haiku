@@ -185,14 +185,14 @@ class PretendoWindow : public BWindow, public nes::FrameOutput
 	
 	// inherited from BWindow
 	public:
-	void MessageReceived (BMessage *message) override;
-	bool QuitRequested() override;
+	virtual void MessageReceived (BMessage *message);
+	virtual bool QuitRequested();
 
-	void Zoom (BPoint origin, float width, float height) override;
-	void WindowActivated (bool flag) override;
-	void MenusBeginning() override;
-	void MenusEnded() override;
-	void ResizeTo (float x, float y);
+	virtual void Zoom (BPoint origin, float width, float height);
+	virtual void WindowActivated (bool flag);
+	virtual void MenusBeginning();
+	virtual void MenusEnded();
+	virtual void ResizeTo (float x, float y);
 
 	// menu
 	private:
@@ -263,6 +263,10 @@ class PretendoWindow : public BWindow, public nes::FrameOutput
 	void set_palette (const color_emphasis_t *intensity, const rgb_color_t *pal);
 	void start_frame();
 	void end_frame();
+	
+	public:
+	virtual void SubmitScanline(int32_t y, const uint32_t *pixels);
+	
 	
 	// settings
 	private:
@@ -407,14 +411,12 @@ class PretendoWindow : public BWindow, public nes::FrameOutput
 		return fMutex->Unlock();
 	}
 	
-	void SubmitScanline(int32_t y, const uint32_t *pixels) override;
-	
 	private:
 	latched_scroll_t fLatchedScroll;
 	
 	public:
 	// called by emulator thread
-	void SetLatchedScroll (uint32_t x, uint32_t y) override {
+	virtual void SetLatchedScroll (uint32_t x, uint32_t y) {
 		fLatchedScroll.scroll_x.store(x, std::memory_order_relaxed);
 		fLatchedScroll.scroll_y.store(y, std::memory_order_relaxed);
 		fLatchedScroll.frame_id.fetch_add(1, std::memory_order_release);

@@ -36,8 +36,30 @@ public:
 		channel_muted_ = false;
 	}
 	
-	
 
+public:
+	uint16_t debug_timer_period() const {
+		return timer_.frequency;
+	}
+
+	bool debug_muted() const {
+		return channel_muted_;
+	}
+
+	uint8_t debug_output() const {
+		if (channel_muted_) {
+			return 0;
+		}
+
+		if (length_counter.debug_value() == 0 ||
+			((lfsr_.value() & 1) == 0)) {
+			return 0;
+		}
+
+		return envelope.volume();
+	}
+	
+	
 public:
 	LengthCounter length_counter;
 	Envelope envelope;
