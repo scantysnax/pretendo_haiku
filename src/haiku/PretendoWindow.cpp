@@ -1,7 +1,6 @@
 
 #include "PretendoWindow.h"
 
-#include <cstdio>
 
 // -----------------------------------------------------------------------------
 // InvalidateWindowContents
@@ -313,13 +312,15 @@ PretendoWindow::~PretendoWindow()
 	// note: calling  Quit() requires the window to be locked 
 	
 	if (fCPUDisasmWindow != nullptr) {
-		fCPUDisasmWindow->Lock();
-		fCPUDisasmWindow->Quit();
+		if (fCPUDisasmWindow->Lock()) {
+			fCPUDisasmWindow->Quit();
+		}
 	}
 	
 	if (fCPUStatusWindow != nullptr) {
-		fCPUStatusWindow->Lock();
-		fCPUStatusWindow->Quit();
+		if (fCPUStatusWindow->Lock()) {
+			fCPUStatusWindow->Quit();
+		}
 	}
 	
 	if (fInputWindow != nullptr) {
@@ -353,13 +354,15 @@ PretendoWindow::~PretendoWindow()
 	}
 	
 	if (fOAMDebugWindow != nullptr) {
-		fOAMDebugWindow->Lock();
-		fOAMDebugWindow->Quit();
+		if (fOAMDebugWindow->Lock()) {
+			fOAMDebugWindow->Quit();
+		}
 	}
 	
 	if (fPaletteDebugWindow != nullptr) {
-		fPaletteDebugWindow->Lock();
-		fPaletteDebugWindow->Quit();
+		if (fPaletteDebugWindow->Lock()) {
+			fPaletteDebugWindow->Quit();
+		}
 	}
 	
 	if (fPaletteWindow != nullptr) {
@@ -381,19 +384,22 @@ PretendoWindow::~PretendoWindow()
 	}
 	
 	if (fPPUMemoryWindow != nullptr) {
-		fPPUMemoryWindow->Lock();
-		fPPUMemoryWindow->Quit();
+		if (fPPUMemoryWindow->Lock()) {
+			fPPUMemoryWindow->Quit();
+		}
 	}
 	
 	
 	if (fPPUStatusWindow != nullptr) {
-		fPPUStatusWindow->Lock();
-		fPPUStatusWindow->Quit();
+		if (fPPUStatusWindow->Lock()) {
+			fPPUStatusWindow->Quit();
+		}
 	}
 	
 	if (fPPUWriteLogWindow != nullptr) {
-		fPPUWriteLogWindow->Lock();
-		fPPUWriteLogWindow->Quit();
+		if (fPPUWriteLogWindow->Lock()) {
+			fPPUWriteLogWindow->Quit();
+		}
 	}
 	
 	if (fROMInfoWindow != nullptr) {
@@ -402,6 +408,36 @@ PretendoWindow::~PretendoWindow()
 		}
 	}
 	
+	if (fCPUMemoryWindow != nullptr) {
+		if (fCPUMemoryWindow->Lock()) {
+			fCPUMemoryWindow->Quit();
+		}
+	}
+	
+	if (fCPUTraceWindow != nullptr) {
+		if (fCPUTraceWindow->Lock()) {
+			fCPUTraceWindow->Quit();
+		}
+	}
+	
+	if (fStackWindow != nullptr) {
+		if (fStackWindow->Lock()) {
+			fStackWindow->Quit();
+		}
+	}
+	
+	if (fZeroPageWindow != nullptr) {
+		if (fZeroPageWindow->Lock()) {
+			fZeroPageWindow->Quit();
+		}
+	}
+	
+	if (fBreakPointWindow != nullptr) {
+		if (fBreakPointWindow->Lock()) {
+			fBreakPointWindow->Quit();
+		}
+	}
+
 	// long day.
 	
 	fMutex->Unlock();
@@ -444,8 +480,7 @@ PretendoWindow::MessageReceived (BMessage *message)
 			break;
 		
 		case messages::CHANGE_RENDER:
-			ChangeFramework(
-				static_cast<video_framework>(fVideoMenu->IndexOf(fVideoMenu->FindMarked())));
+			ChangeFramework(static_cast<video_framework>(fVideoMenu->IndexOf(fVideoMenu->FindMarked())));
 			break;
 		
 		case messages::LEAVE_FULLSCREEN:
@@ -599,11 +634,31 @@ PretendoWindow::MessageReceived (BMessage *message)
 			OnViewCPUDisasmWindow();
 			break;
 			
+		case messages::VIEW_CPUMEM:
+			OnViewCPUMemoryWindow();
+			break;
+			
+		case messages::VIEW_CPUTRACE:
+			OnViewCPUTraceWindow();
+			break;
+			
+		case messages::VIEW_ZERO_PAGE:
+			OnViewZeroPageWindow();
+			break;
+			
+		case messages::VIEW_STACK:
+			OnViewStackWindow();
+			break;
+			
+		case messages::VIEW_BREAKPOINTS:
+			OnViewBreakPointWindow();
+			break;
+			
 		default:
 			break;
 	}
 		
-	BWindow::MessageReceived (message);
+	BWindow::MessageReceived(message);
 }
 
 
@@ -1383,8 +1438,9 @@ PretendoWindow::OnViewNameTable1()
 {
 	if (fNameTable1Window) {
 		if (fNameTable1Window->Lock()) {
-			if (fNameTable1Window->IsHidden())
+			if (fNameTable1Window->IsHidden()) {
 				fNameTable1Window->Show();
+			}
 
 			fNameTable1Window->Activate(true);
 			fNameTable1Window->Unlock();
@@ -1393,12 +1449,7 @@ PretendoWindow::OnViewNameTable1()
 		return;
 	}
 
-	fNameTable1Window = new NameTableWindow(
-		this,
-		0,
-		fPatternTable1Window,
-		fPatternTable2Window
-	);
+	fNameTable1Window = new NameTableWindow(this, 0, fPatternTable1Window, fPatternTable2Window);
 
 	BeginToolInput();
 	fNameTable1Window->Show();
@@ -1425,8 +1476,9 @@ PretendoWindow::OnViewNameTable2()
 {
 	if (fNameTable2Window) {
 		if (fNameTable2Window->Lock()) {
-			if (fNameTable2Window->IsHidden())
+			if (fNameTable2Window->IsHidden()) {
 				fNameTable2Window->Show();
+			}
 
 			fNameTable2Window->Activate(true);
 			fNameTable2Window->Unlock();
@@ -1435,12 +1487,7 @@ PretendoWindow::OnViewNameTable2()
 		return;
 	}
 
-	fNameTable2Window = new NameTableWindow(
-		this,
-		1,
-		fPatternTable1Window,
-		fPatternTable2Window
-	);
+	fNameTable2Window = new NameTableWindow(this, 1, fPatternTable1Window, fPatternTable2Window);
 
 	BeginToolInput();
 	fNameTable2Window->Show();
@@ -1467,8 +1514,9 @@ PretendoWindow::OnViewNameTable3()
 {
 	if (fNameTable3Window) {
 		if (fNameTable3Window->Lock()) {
-			if (fNameTable3Window->IsHidden())
+			if (fNameTable3Window->IsHidden()) {
 				fNameTable3Window->Show();
+			}
 
 			fNameTable3Window->Activate(true);
 			fNameTable3Window->Unlock();
@@ -1477,12 +1525,7 @@ PretendoWindow::OnViewNameTable3()
 		return;
 	}
 	
-	fNameTable3Window = new NameTableWindow(
-		this,
-		2,
-		fPatternTable1Window,
-		fPatternTable2Window
-	);
+	fNameTable3Window = new NameTableWindow(this, 2, fPatternTable1Window, fPatternTable2Window);
 
 	BeginToolInput();
 	fNameTable3Window->Show();
@@ -1509,8 +1552,9 @@ PretendoWindow::OnViewNameTable4()
 {
 	if (fNameTable4Window) {
 		if (fNameTable4Window->Lock()) {
-			if (fNameTable4Window->IsHidden())
+			if (fNameTable4Window->IsHidden()) {
 				fNameTable4Window->Show();
+			}
 
 			fNameTable4Window->Activate(true);
 			fNameTable4Window->Unlock();
@@ -1519,12 +1563,7 @@ PretendoWindow::OnViewNameTable4()
 		return;
 	}
 
-	fNameTable4Window = new NameTableWindow(
-		this,
-		3,
-		fPatternTable1Window,
-		fPatternTable2Window
-	);
+	fNameTable4Window = new NameTableWindow(this, 3, fPatternTable1Window, fPatternTable2Window);
 
 	BeginToolInput();
 	fNameTable4Window->Show();
@@ -1713,8 +1752,9 @@ PretendoWindow::OnViewPaletteDebugger()
 	// Bring it forward instead.
 	if (fPaletteDebugWindow) {
 		if (fPaletteDebugWindow->Lock()) {
-			if (fPaletteDebugWindow->IsHidden())
+			if (fPaletteDebugWindow->IsHidden()) {
 				fPaletteDebugWindow->Show();
+			}
 
 			fPaletteDebugWindow->Activate(true);
 			fPaletteDebugWindow->Unlock();
@@ -1747,8 +1787,9 @@ PretendoWindow::OnViewOAMDebugger()
 {
 	if (fOAMDebugWindow) {
 		if (fOAMDebugWindow->Lock()) {
-			if (fOAMDebugWindow->IsHidden())
+			if (fOAMDebugWindow->IsHidden()) {
 				fOAMDebugWindow->Show();
+			}
 
 			fOAMDebugWindow->Activate(true);
 			fOAMDebugWindow->Unlock();
@@ -1781,8 +1822,9 @@ PretendoWindow::OnViewPPUStatusWindow()
 {
 	if (fPPUStatusWindow) {
 		if (fPPUStatusWindow->Lock()) {
-			if (fPPUStatusWindow->IsHidden())
+			if (fPPUStatusWindow->IsHidden()) {
 				fPPUStatusWindow->Show();
+			}
 
 			fPPUStatusWindow->Activate(true);
 			fPPUStatusWindow->Unlock();
@@ -1815,8 +1857,9 @@ PretendoWindow::OnViewPPUWriteLogWindow()
 {
 	if (fPPUWriteLogWindow) {
 		if (fPPUWriteLogWindow->Lock()) {
-			if (fPPUWriteLogWindow->IsHidden())
+			if (fPPUWriteLogWindow->IsHidden()) {
 				fPPUWriteLogWindow->Show();
+			}
 
 			fPPUWriteLogWindow->Activate(true);
 			fPPUWriteLogWindow->Unlock();
@@ -1849,8 +1892,9 @@ PretendoWindow::OnViewPPUMemoryWindow()
 {
 	if (fPPUMemoryWindow) {
 		if (fPPUMemoryWindow->Lock()) {
-			if (fPPUMemoryWindow->IsHidden())
+			if (fPPUMemoryWindow->IsHidden()) {
 				fPPUMemoryWindow->Show();
+			}
 
 			fPPUMemoryWindow->Activate(true);
 			fPPUMemoryWindow->Unlock();
@@ -1883,8 +1927,9 @@ PretendoWindow::OnViewCPUStatusWindow()
 {
 	if (fCPUStatusWindow) {
 		if (fCPUStatusWindow->Lock()) {
-			if (fCPUStatusWindow->IsHidden())
+			if (fCPUStatusWindow->IsHidden()) {
 				fCPUStatusWindow->Show();
+			}
 
 			fCPUStatusWindow->Activate(true);
 			fCPUStatusWindow->Unlock();
@@ -1917,8 +1962,9 @@ PretendoWindow::OnViewCPUDisasmWindow()
 {
 	if (fCPUDisasmWindow) {
 		if (fCPUDisasmWindow->Lock()) {
-			if (fCPUDisasmWindow->IsHidden())
+			if (fCPUDisasmWindow->IsHidden()) {
 				fCPUDisasmWindow->Show();
+			}
 
 			fCPUDisasmWindow->Activate(true);
 			fCPUDisasmWindow->Unlock();
@@ -1945,6 +1991,86 @@ PretendoWindow::OnViewCPUDisasmWindow()
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::OnViewCPUMemoryWindow()
+{
+	if (fCPUMemoryWindow) {
+		if (fCPUMemoryWindow->Lock()) {
+			if (fCPUMemoryWindow->IsHidden()) {
+				fCPUMemoryWindow->Show();
+			}
+
+			fCPUMemoryWindow->Activate(true);
+			fCPUMemoryWindow->Unlock();
+		}
+
+		return;
+	}
+
+	fCPUMemoryWindow = new CPUMemoryWindow(this);
+	BeginToolInput();
+	fCPUMemoryWindow->Show();
+}
+
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::OnViewCPUTraceWindow()
+{
+	if (fCPUTraceWindow) {
+		fCPUTraceWindow->Activate(true);
+		return;
+	}
+
+	fCPUTraceWindow = new CPUTraceWindow(this);
+	fCPUTraceWindow->Show();
+}
+
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::OnViewStackWindow()
+{
+	if (fStackWindow) {
+		fStackWindow->Activate(true);
+		return;
+	}
+
+	fStackWindow = new StackWindow(this);
+	fStackWindow->Show();
+}
+
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::OnViewZeroPageWindow()
+{
+	if (fZeroPageWindow) {
+		fZeroPageWindow->Activate(true);
+		return;
+	}
+
+	fZeroPageWindow = new ZeroPageWindow(this);
+	fZeroPageWindow->Show();
+}
+
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::OnViewBreakPointWindow()
+{
+	if (fBreakPointWindow) {
+		if (fBreakPointWindow->Lock()) {
+			fBreakPointWindow->Show();
+			fBreakPointWindow->Activate(true);
+			fBreakPointWindow->Unlock();
+		}
+
+		return;
+	}
+
+	fBreakPointWindow = new BreakPointWindow(this);
+	fBreakPointWindow->Show();
+}
+
+
 void
 PretendoWindow::ROMInfoWindowClosed()
 {
@@ -2620,6 +2746,8 @@ PretendoWindow::FinishExitFullScreen()
 	ForceFullBitmapRedraw();
 	ForceFullRedraw();
 
+	RestoreToolWindowsAfterFullScreen();
+
 	InvalidateDebugViews();
 }
 
@@ -2711,11 +2839,12 @@ PretendoWindow::ChangeFramework (video_framework fw)
 			
 		case video_framework::FULLSCREEN:
 			ClearControllerInput();
+			SuspendToolWindowsForFullScreen();
 
 			fVideoScreen = new VideoScreen(this);
 			fVideoScreen->Show();
 
-			snooze(1000000);	// Wait a little while for the screen to connect.
+			snooze(1000000);
 
 			SetFrontBuffer(
 				fVideoScreen->Bits(),
@@ -2754,9 +2883,9 @@ PretendoWindow::ChangeFramework (video_framework fw)
 void
 PretendoWindow::DrawBitmap()
 {
-	uint8* dest = fBitmapBits;
-	uint8* source = fBackBuffer.bits;
-	uint8* dirty = fDirtyBuffer.bits;
+	uint8 *dest = fBitmapBits;
+	uint8 *source = fBackBuffer.bits;
+	uint8 *dirty = fDirtyBuffer.bits;
 	
 	size_t const size = screen_size::WIDTH;
 	size_t height = screen_size::HEIGHT;
@@ -3430,6 +3559,254 @@ PretendoWindow::ShouldPollGlobalInput() const
 
 
 // -----------------------------------------------------------------------------
+int32
+PretendoWindow::CountVisibleToolWindows() const
+{
+	int32 count = 0;
+
+	auto countWindow = [&count](BWindow *window)
+	{
+		if (!window) {
+			return;
+		}
+
+		if (!window->Lock()) {
+			return;
+		}
+
+		if (!window->IsHidden()) {
+			count++;
+		}
+
+		window->Unlock();
+	};
+
+	countWindow(fROMInfoWindow);
+	countWindow(fPaletteWindow);
+	countWindow(fInputWindow);
+
+	countWindow(fPatternTable1Window);
+	countWindow(fPatternTable2Window);
+
+	countWindow(fNameTable1Window);
+	countWindow(fNameTable2Window);
+	countWindow(fNameTable3Window);
+	countWindow(fNameTable4Window);
+
+	countWindow(fPaletteDebugWindow);
+	countWindow(fOAMDebugWindow);
+
+	countWindow(fPPUStatusWindow);
+	countWindow(fPPUWriteLogWindow);
+	countWindow(fPPUMemoryWindow);
+
+	countWindow(fCPUStatusWindow);
+	countWindow(fCPUDisasmWindow);
+	countWindow(fCPUMemoryWindow);
+
+	return count;
+}
+
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::ShowToolWindowAfterFullScreen(BWindow *window, bool wasVisible)
+{
+	if (!window || !wasVisible) {
+		return;
+	}
+
+	if (!window->Lock()) {
+		return;
+	}
+
+	if (window->IsHidden()) {
+		window->Show();
+	}
+
+	window->Unlock();
+}
+
+// -----------------------------------------------------------------------------
+bool
+PretendoWindow::HideToolWindowForFullScreen (BWindow *window)
+{
+	if (!window) {
+		return false;
+	}
+
+	if (!window->Lock()) {
+		return false;
+	}
+
+	const bool wasVisible = !window->IsHidden();
+
+	if (wasVisible) {
+		window->Hide();
+	}
+
+	window->Unlock();
+
+	return wasVisible;
+}
+
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::SuspendToolWindowsForFullScreen()
+{
+	if (fToolWindowsSuspendedForFullScreen) {
+		return;
+	}
+
+	fToolWindowsSuspendedForFullScreen = true;
+
+	fWasROMInfoWindowVisibleBeforeFullScreen =
+		HideToolWindowForFullScreen(fROMInfoWindow);
+	
+	fWasPaletteWindowVisibleBeforeFullScreen =
+		HideToolWindowForFullScreen(fPaletteWindow);
+	
+	fWasInputWindowVisibleBeforeFullScreen =
+		HideToolWindowForFullScreen(fInputWindow);
+
+	fWasPatternTable1WindowVisibleBeforeFullScreen =
+		HideToolWindowForFullScreen(fPatternTable1Window);
+	
+	fWasPatternTable2WindowVisibleBeforeFullScreen =
+		HideToolWindowForFullScreen(fPatternTable2Window);
+
+	fWasNameTable1WindowVisibleBeforeFullScreen =
+		HideToolWindowForFullScreen(fNameTable1Window);
+	
+	fWasNameTable2WindowVisibleBeforeFullScreen =
+		HideToolWindowForFullScreen(fNameTable2Window);
+	
+	fWasNameTable3WindowVisibleBeforeFullScreen =
+		HideToolWindowForFullScreen(fNameTable3Window);
+	
+	fWasNameTable4WindowVisibleBeforeFullScreen =
+		HideToolWindowForFullScreen(fNameTable4Window);
+
+	fWasPaletteDebugWindowVisibleBeforeFullScreen =
+		HideToolWindowForFullScreen(fPaletteDebugWindow);
+	
+	fWasOAMDebugWindowVisibleBeforeFullScreen =
+		HideToolWindowForFullScreen(fOAMDebugWindow);
+
+	fWasPPUStatusWindowVisibleBeforeFullScreen =
+		HideToolWindowForFullScreen(fPPUStatusWindow);
+	
+	fWasPPUWriteLogWindowVisibleBeforeFullScreen =
+		HideToolWindowForFullScreen(fPPUWriteLogWindow);
+	
+	fWasPPUMemoryWindowVisibleBeforeFullScreen =
+		HideToolWindowForFullScreen(fPPUMemoryWindow);
+
+	fWasCPUStatusWindowVisibleBeforeFullScreen =
+		HideToolWindowForFullScreen(fCPUStatusWindow);
+	
+	fWasCPUDisasmWindowVisibleBeforeFullScreen =
+		HideToolWindowForFullScreen(fCPUDisasmWindow);
+
+	fWasCPUMemoryWindowVisibleBeforeFullScreen =
+		HideToolWindowForFullScreen(fCPUMemoryWindow);
+
+	fToolInputDepth = 0;
+
+	ClearControllerInput();
+}
+
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::RestoreToolWindowsAfterFullScreen()
+{
+	if (!fToolWindowsSuspendedForFullScreen) {
+		return;
+	}
+
+	ShowToolWindowAfterFullScreen(fROMInfoWindow,
+								  fWasROMInfoWindowVisibleBeforeFullScreen);
+	
+	ShowToolWindowAfterFullScreen(fPaletteWindow,
+								  fWasPaletteWindowVisibleBeforeFullScreen);
+	
+	ShowToolWindowAfterFullScreen(fInputWindow,
+								  fWasInputWindowVisibleBeforeFullScreen);
+
+	ShowToolWindowAfterFullScreen(fPatternTable1Window,
+								  fWasPatternTable1WindowVisibleBeforeFullScreen);
+	
+	ShowToolWindowAfterFullScreen(fPatternTable2Window,
+								  fWasPatternTable2WindowVisibleBeforeFullScreen);
+
+	ShowToolWindowAfterFullScreen(fNameTable1Window,
+								  fWasNameTable1WindowVisibleBeforeFullScreen);
+	
+	ShowToolWindowAfterFullScreen(fNameTable2Window,
+								  fWasNameTable2WindowVisibleBeforeFullScreen);
+	
+	ShowToolWindowAfterFullScreen(fNameTable3Window,
+								  fWasNameTable3WindowVisibleBeforeFullScreen);
+	
+	ShowToolWindowAfterFullScreen(fNameTable4Window,
+							 	  fWasNameTable4WindowVisibleBeforeFullScreen);
+
+	ShowToolWindowAfterFullScreen(fPaletteDebugWindow,
+								  fWasPaletteDebugWindowVisibleBeforeFullScreen);
+	
+	ShowToolWindowAfterFullScreen(fOAMDebugWindow,
+								  fWasOAMDebugWindowVisibleBeforeFullScreen);
+
+	ShowToolWindowAfterFullScreen(fPPUStatusWindow,
+								  fWasPPUStatusWindowVisibleBeforeFullScreen);
+	
+	ShowToolWindowAfterFullScreen(fPPUWriteLogWindow,
+								  fWasPPUWriteLogWindowVisibleBeforeFullScreen);
+	
+	ShowToolWindowAfterFullScreen(fPPUMemoryWindow,
+								  fWasPPUMemoryWindowVisibleBeforeFullScreen);
+
+	ShowToolWindowAfterFullScreen(fCPUStatusWindow,
+								  fWasCPUStatusWindowVisibleBeforeFullScreen);
+	
+	ShowToolWindowAfterFullScreen(fCPUDisasmWindow,
+								  fWasCPUDisasmWindowVisibleBeforeFullScreen);
+	
+	ShowToolWindowAfterFullScreen(fCPUMemoryWindow,
+								  fWasCPUMemoryWindowVisibleBeforeFullScreen);
+
+	fToolInputDepth = CountVisibleToolWindows();
+
+	fWasROMInfoWindowVisibleBeforeFullScreen = false;
+	fWasPaletteWindowVisibleBeforeFullScreen = false;
+	fWasInputWindowVisibleBeforeFullScreen = false;
+
+	fWasPatternTable1WindowVisibleBeforeFullScreen = false;
+	fWasPatternTable2WindowVisibleBeforeFullScreen = false;
+
+	fWasNameTable1WindowVisibleBeforeFullScreen = false;
+	fWasNameTable2WindowVisibleBeforeFullScreen = false;
+	fWasNameTable3WindowVisibleBeforeFullScreen = false;
+	fWasNameTable4WindowVisibleBeforeFullScreen = false;
+
+	fWasPaletteDebugWindowVisibleBeforeFullScreen = false;
+	fWasOAMDebugWindowVisibleBeforeFullScreen = false;
+
+	fWasPPUStatusWindowVisibleBeforeFullScreen = false;
+	fWasPPUWriteLogWindowVisibleBeforeFullScreen = false;
+	fWasPPUMemoryWindowVisibleBeforeFullScreen = false;
+
+	fWasCPUStatusWindowVisibleBeforeFullScreen = false;
+	fWasCPUDisasmWindowVisibleBeforeFullScreen = false;
+	fWasCPUMemoryWindowVisibleBeforeFullScreen = false;
+
+	fToolWindowsSuspendedForFullScreen = false;
+
+	ClearControllerInput();
+	InvalidateDebugViews();
+}
+
+
+// -----------------------------------------------------------------------------
 // PretendoWindow::ConnectDebugViews
 //
 // Reconnects open name table windows to the currently open pattern table
@@ -3485,6 +3862,140 @@ PretendoWindow::ConnectDebugViews()
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::MuteAudioForDebugging()
+{
+	nes::apu::debug_set_audio_muted(true);
+
+	if (fAudioStream) {
+		fAudioStream->SetMuted(true);
+		fAudioStream->ClearBuffer();
+		fAudioStream->ResetPacing();
+	}
+}
+
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::ResumeAudioAfterDebugging()
+{
+	nes::apu::debug_set_audio_muted(false);
+
+	if (fAudioStream) {
+		fAudioStream->ClearBuffer();
+		fAudioStream->ResetPacing();
+		fAudioStream->SetMuted(false);
+	}
+}
+
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::StartEmulatorForRunning()
+{
+	if (fRunning) {
+		return;
+	}
+
+	if (!nes::cart.mapper()) {
+		return;
+	}
+
+	reset(nes::Reset::Hard);
+
+	nes::cpu::debug_clear_breakpoint_hit();
+	nes::apu::debug_set_audio_muted(false);
+	nes::ppu::system_paused = false;
+
+	ClearControllerInput();
+
+	if (fAudioStream) {
+		fAudioStream->ClearBuffer();
+		fAudioStream->ResetPacing();
+		fAudioStream->SetMuted(false);
+		fAudioStream->Start();
+	}
+
+	if (fVideoMenu && fVideoMenu->ItemAt(video_framework::FULLSCREEN)) {
+		fVideoMenu->ItemAt(video_framework::FULLSCREEN)->SetEnabled(true);
+	}
+
+	fDebuggerPausedEmulation = false;
+	fPaused = false;
+	fRunning = true;
+
+	fMutex->Unlock();
+}
+
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::EnsureDebugSessionStarted()
+{
+	if (fRunning) {
+		return;
+	}
+
+	if (!nes::cart.mapper()) {
+		return;
+	}
+
+	reset(nes::Reset::Hard);
+
+	nes::cpu::debug_clear_breakpoint_hit();
+	nes::apu::debug_set_audio_muted(true);
+	nes::ppu::system_paused = true;
+
+	if (fAudioStream) {
+		fAudioStream->ClearBuffer();
+		fAudioStream->ResetPacing();
+		fAudioStream->SetMuted(true);
+	}
+
+	ClearControllerInput();
+
+	fRunning = true;
+
+	if (fVideoMenu && fVideoMenu->ItemAt(video_framework::FULLSCREEN)) {
+		fVideoMenu->ItemAt(video_framework::FULLSCREEN)->SetEnabled(true);
+	}
+
+	fMutex->Unlock();
+}
+
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::StartEmulatorForDebugging()
+{
+	if (fRunning) {
+		return;
+	}
+
+	if (!nes::cart.mapper()) {
+		return;
+	}
+
+	reset(nes::Reset::Hard);
+
+	nes::cpu::debug_clear_breakpoint_hit();
+	nes::ppu::system_paused = true;
+	
+	MuteAudioForDebugging();
+	ClearControllerInput();
+
+	if (fAudioStream) {
+		fAudioStream->Start();
+	}
+
+	if (fVideoMenu && fVideoMenu->ItemAt(video_framework::FULLSCREEN)) {
+		fVideoMenu->ItemAt(video_framework::FULLSCREEN)->SetEnabled(true);
+	}
+
+	fRunning = true;
+	fPaused = true;
+
+	fMutex->Unlock();
+}
+
+
 void
 PretendoWindow::DebugStepInstruction()
 {
@@ -3539,15 +4050,8 @@ PretendoWindow::LoadROMPath(const char* path)
 	OnFreeROM();
 
 	if (nes::cart.load(path) == false) {
-		(new BAlert(
-			"Error",
-			"Error.  Couldn't load ROM Image.",
-			"Okay",
-			nullptr,
-			nullptr,
-			B_WIDTH_AS_USUAL,
-			B_STOP_ALERT
-		))->Go();
+		(new BAlert("Error", "Error.  Couldn't load ROM Image.", "Okay", nullptr,
+					nullptr, B_WIDTH_AS_USUAL, B_STOP_ALERT))->Go();
 
 		return;
 	}
@@ -3753,7 +4257,7 @@ PretendoWindow::IsEmulatorRunning() const
 bool
 PretendoWindow::IsEmulatorPaused() const
 {
-	return fPaused || fDebuggerPausedEmulation;
+	return (fPaused || fDebuggerPausedEmulation);
 }
 
 
@@ -3797,9 +4301,20 @@ PretendoWindow::InvalidateDebugViews()
 	InvalidateWindowContents(fPPUMemoryWindow);
 
 	InvalidateWindowContents(fCPUStatusWindow);
+	InvalidateWindowContents(fCPUMemoryWindow);
+	InvalidateWindowContents(fCPUTraceWindow);
 
-	// Do not invalidate fCPUDisasmWindow here.
-	// CPUDisasmView::KeyDown() updates and invalidates itself after stepping.
+	InvalidateWindowContents(fStackWindow);
+	InvalidateWindowContents(fZeroPageWindow);
+
+	/*
+	 * Do not invalidate fCPUDisasmWindow here.
+	 *
+	 * CPUDisasmView normally manages its own PC/follow state and redraw
+	 * after debugger operations.
+	 */
+	 
+	InvalidateWindowContents(fBreakPointWindow);
 }
 
 

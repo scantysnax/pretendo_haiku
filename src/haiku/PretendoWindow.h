@@ -194,7 +194,6 @@ class PretendoWindow : public BWindow, public nes::FrameOutput
 	void MenusEnded() override;
 	void ResizeTo (float x, float y);
 
-	
 	// menu
 	private:
 	void AddMenu();
