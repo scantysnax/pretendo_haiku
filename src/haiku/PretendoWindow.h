@@ -16,6 +16,7 @@
 #include <atomic>
 #include <cstdio>
 
+#include "APUStatusWindow.h"
 #include "AudioStream.h"
 #include "BreakPointWindow.h"
 #include "Controller.h"
@@ -60,6 +61,7 @@
 #include "asm/blitters.h"
 #include "asm/copies.h"
 
+class APUStatusWindow;
 class BreakPointWindow;
 class CPUTraceWindow;
 class CPUDisasmWindow;
@@ -138,7 +140,8 @@ class PretendoWindow : public BWindow, public nes::FrameOutput
 		VIEW_CPUTRACE = 	'CPUT',
 		VIEW_ZERO_PAGE = 	'ZPAG',
 		VIEW_STACK = 		'VSTK',
-		VIEW_BREAKPOINTS =	'BRPT'
+		VIEW_BREAKPOINTS =	'BRPT',
+		VIEW_APUSTATUS = 	'APUS'
 	} messages;	
 	
 	private:
@@ -236,6 +239,7 @@ class PretendoWindow : public BWindow, public nes::FrameOutput
 	void OnViewStackWindow();
 	void OnViewZeroPageWindow();
 	void OnViewBreakPointWindow();
+	void OnViewAPUStatusWindow();
 
 	// video stuff
 	private:
@@ -286,6 +290,7 @@ class PretendoWindow : public BWindow, public nes::FrameOutput
 	BMenu *fToolMenu = nullptr;
 	BMenu *fCPUToolMenu = nullptr;
 	BMenu *fPPUToolMenu = nullptr;
+	BMenu *fAPUToolMenu = nullptr;
 	BMenu *fPatternTableMenu = nullptr;
 	BMenu *fNameTableMenu = nullptr;
 	MenuBarIcon *fMenuBarIcon = nullptr;
@@ -369,6 +374,7 @@ class PretendoWindow : public BWindow, public nes::FrameOutput
 	StackWindow *fStackWindow = nullptr;
 	ZeroPageWindow *fZeroPageWindow = nullptr;
 	BreakPointWindow *fBreakPointWindow = nullptr;
+	APUStatusWindow *fAPUStatusWindow = nullptr;
 
 	private:
 	BString fROMDirectory = nullptr;
@@ -460,12 +466,7 @@ public:
 	void InputWindowClosed();
 	void PatternTable1WindowClosed();
 	void PatternTable2WindowClosed();
-	//void NameTable1WindowClosed();
-	//void NameTable2WindowClosed();
-	//void NameTable3WindowClosed();
-	//void NameTable4WindowClosed();
 	void NameTableWindowClosed (int32 which);
-	
 	void PaletteDebugWindowClosed();
 	void OAMDebugWindowClosed();
 	void PPUStatusWindowClosed();
@@ -478,6 +479,7 @@ public:
 	void StackWindowClosed();
 	void ZeroPageWindowClosed();
 	void BreakPointWindowClosed();
+	void APUStatusWindowClosed();
     
     public:
 	void HighlightPaletteDebugger (bool sprites, int32 palette, int32 entry = -1);
@@ -511,35 +513,37 @@ public:
 	bool HideToolWindowForFullScreen (BWindow *window);
 	void ShowToolWindowAfterFullScreen (BWindow *window, bool wasVisible);
 	
+
 	// debug children things
 	private:
 	bool fWasROMInfoWindowVisibleBeforeFullScreen = false;
 	bool fWasPaletteWindowVisibleBeforeFullScreen = false;
 	bool fWasInputWindowVisibleBeforeFullScreen = false;
 
-	private:
 	bool fWasPatternTable1WindowVisibleBeforeFullScreen = false;
 	bool fWasPatternTable2WindowVisibleBeforeFullScreen = false;
 
-	private:
 	bool fWasNameTable1WindowVisibleBeforeFullScreen = false;
 	bool fWasNameTable2WindowVisibleBeforeFullScreen = false;
 	bool fWasNameTable3WindowVisibleBeforeFullScreen = false;
 	bool fWasNameTable4WindowVisibleBeforeFullScreen = false;
 
-	private:
 	bool fWasPaletteDebugWindowVisibleBeforeFullScreen = false;
 	bool fWasOAMDebugWindowVisibleBeforeFullScreen = false;
 
-	private:
 	bool fWasPPUStatusWindowVisibleBeforeFullScreen = false;
 	bool fWasPPUWriteLogWindowVisibleBeforeFullScreen = false;
 	bool fWasPPUMemoryWindowVisibleBeforeFullScreen = false;
-	
-	private:
+
 	bool fWasCPUStatusWindowVisibleBeforeFullScreen = false;
 	bool fWasCPUDisasmWindowVisibleBeforeFullScreen = false;
 	bool fWasCPUMemoryWindowVisibleBeforeFullScreen = false;
+	bool fWasCPUTraceWindowVisibleBeforeFullScreen = false;
+	bool fWasZeroPageWindowVisibleBeforeFullScreen = false;
+	bool fWasStackWindowVisibleBeforeFullScreen = false;
+	bool fWasBreakPointWindowVisibleBeforeFullScreen = false;
+
+	bool fWasAPUStatusWindowVisibleBeforeFullScreen = false;
 	
     // keys
 	private:

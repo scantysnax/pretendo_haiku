@@ -115,6 +115,8 @@ CPP_FILES := \
 	src/mappers/Mapper245.cpp \
 	\
 	src/haiku/AboutWindow.cpp \
+	src/haiku/APUStatusView.cpp \
+	src/haiku/APUStatusWindow.cpp \
 	src/haiku/AudioStream.cpp \
 	src/haiku/BreakPointView.cpp \
 	src/haiku/BreakPointWindow.cpp \

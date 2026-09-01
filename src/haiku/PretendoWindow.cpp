@@ -289,88 +289,151 @@ PretendoWindow::PretendoWindow()
 //   Nothing.
 // -----------------------------------------------------------------------------
 PretendoWindow::~PretendoWindow()
-{	
+{
 	// break everything down and clean up
 	fRunning = false;
 	fThread = B_BAD_THREAD_ID;
-	
-	fAudioStream->Stop();
-	delete fAudioStream;
 
-	if (fBitmap->IsValid()) {
-		delete fBitmap;
+
+	// -------------------------------------------------------------------------
+	// Audio
+	// -------------------------------------------------------------------------
+
+	if (fAudioStream) {
+		fAudioStream->Stop();
+		delete fAudioStream;
+		fAudioStream = nullptr;
 	}
-	
-	if (fOverlayBitmap->IsValid()) {
-		delete fOverlayBitmap;
-	}
-	
-	delete_area(fBitsArea);
-	delete_area(fDirtyArea);
-	
-	// we don't delete BWindows, we call Quit()
-	// note: calling  Quit() requires the window to be locked 
-	
-	if (fCPUDisasmWindow != nullptr) {
-		if (fCPUDisasmWindow->Lock()) {
-			fCPUDisasmWindow->Quit();
+
+
+	// -------------------------------------------------------------------------
+	// Video resources
+	// -------------------------------------------------------------------------
+
+	if (fBitmap) {
+		if (fBitmap->IsValid()) {
+			delete fBitmap;
 		}
+
+		fBitmap = nullptr;
 	}
-	
+
+	if (fOverlayBitmap) {
+		if (fOverlayBitmap->IsValid()) {
+			delete fOverlayBitmap;
+		}
+
+		fOverlayBitmap = nullptr;
+	}
+
+	if (fBitsArea >= 0) {
+		delete_area(fBitsArea);
+	}
+
+	if (fDirtyArea >= 0) {
+		delete_area(fDirtyArea);
+	}
+
+
+	// -------------------------------------------------------------------------
+	// Tool/debug windows
+	//
+	// BWindows are not deleted directly.  They must be locked and Quit().
+	// -------------------------------------------------------------------------
+
+
+	// CPU tools
+
 	if (fCPUStatusWindow != nullptr) {
 		if (fCPUStatusWindow->Lock()) {
 			fCPUStatusWindow->Quit();
 		}
 	}
-	
-	if (fInputWindow != nullptr) {
-		if (fInputWindow->Lock()) {
-			fInputWindow->Quit();
+
+	if (fCPUDisasmWindow != nullptr) {
+		if (fCPUDisasmWindow->Lock()) {
+			fCPUDisasmWindow->Quit();
 		}
 	}
-	
-	if (fNameTable1Window != nullptr) {
-		if (fNameTable1Window->Lock()) {
-			fNameTable1Window->Quit();
+
+	if (fCPUMemoryWindow != nullptr) {
+		if (fCPUMemoryWindow->Lock()) {
+			fCPUMemoryWindow->Quit();
 		}
 	}
-	
-	if (fNameTable2Window != nullptr) {
-		if (fNameTable2Window->Lock()) {
-			fNameTable2Window->Quit();
+
+	if (fCPUTraceWindow != nullptr) {
+		if (fCPUTraceWindow->Lock()) {
+			fCPUTraceWindow->Quit();
 		}
 	}
-	
-	if (fNameTable3Window != nullptr) {
-		if (fNameTable3Window->Lock()) {
-			fNameTable3Window->Quit();
+
+	if (fZeroPageWindow != nullptr) {
+		if (fZeroPageWindow->Lock()) {
+			fZeroPageWindow->Quit();
 		}
 	}
-	
-	if (fNameTable4Window != nullptr) {
-		if (fNameTable4Window->Lock()) {
-			fNameTable4Window->Quit();
+
+	if (fStackWindow != nullptr) {
+		if (fStackWindow->Lock()) {
+			fStackWindow->Quit();
 		}
 	}
-	
-	if (fOAMDebugWindow != nullptr) {
-		if (fOAMDebugWindow->Lock()) {
-			fOAMDebugWindow->Quit();
+
+	if (fBreakPointWindow != nullptr) {
+		if (fBreakPointWindow->Lock()) {
+			fBreakPointWindow->Quit();
 		}
 	}
-	
+
+
+	// APU tools
+
+	if (fAPUStatusWindow != nullptr) {
+		if (fAPUStatusWindow->Lock()) {
+			fAPUStatusWindow->Quit();
+		}
+	}
+
+
+	// PPU tools
+
+	if (fPPUStatusWindow != nullptr) {
+		if (fPPUStatusWindow->Lock()) {
+			fPPUStatusWindow->Quit();
+		}
+	}
+
+	if (fPPUWriteLogWindow != nullptr) {
+		if (fPPUWriteLogWindow->Lock()) {
+			fPPUWriteLogWindow->Quit();
+		}
+	}
+
+	if (fPPUMemoryWindow != nullptr) {
+		if (fPPUMemoryWindow->Lock()) {
+			fPPUMemoryWindow->Quit();
+		}
+	}
+
+
+	// Graphics/debugger tools
+
 	if (fPaletteDebugWindow != nullptr) {
 		if (fPaletteDebugWindow->Lock()) {
 			fPaletteDebugWindow->Quit();
 		}
 	}
-	
-	if (fPaletteWindow != nullptr) {
-		if (fPaletteWindow->Lock()) {
-			fPaletteWindow->Quit();
+
+	if (fOAMDebugWindow != nullptr) {
+		if (fOAMDebugWindow->Lock()) {
+			fOAMDebugWindow->Quit();
 		}
 	}
-	
+
+
+	// Pattern Table tools
+
 	if (fPatternTable1Window != nullptr) {
 		if (fPatternTable1Window->Lock()) {
 			fPatternTable1Window->Quit();
@@ -382,74 +445,77 @@ PretendoWindow::~PretendoWindow()
 			fPatternTable2Window->Quit();
 		}
 	}
-	
-	if (fPPUMemoryWindow != nullptr) {
-		if (fPPUMemoryWindow->Lock()) {
-			fPPUMemoryWindow->Quit();
+
+
+	// Name Table tools
+
+	if (fNameTable1Window != nullptr) {
+		if (fNameTable1Window->Lock()) {
+			fNameTable1Window->Quit();
 		}
 	}
-	
-	
-	if (fPPUStatusWindow != nullptr) {
-		if (fPPUStatusWindow->Lock()) {
-			fPPUStatusWindow->Quit();
+
+	if (fNameTable2Window != nullptr) {
+		if (fNameTable2Window->Lock()) {
+			fNameTable2Window->Quit();
 		}
 	}
-	
-	if (fPPUWriteLogWindow != nullptr) {
-		if (fPPUWriteLogWindow->Lock()) {
-			fPPUWriteLogWindow->Quit();
+
+	if (fNameTable3Window != nullptr) {
+		if (fNameTable3Window->Lock()) {
+			fNameTable3Window->Quit();
 		}
 	}
-	
+
+	if (fNameTable4Window != nullptr) {
+		if (fNameTable4Window->Lock()) {
+			fNameTable4Window->Quit();
+		}
+	}
+
+
+	// General tools
+
 	if (fROMInfoWindow != nullptr) {
 		if (fROMInfoWindow->Lock()) {
 			fROMInfoWindow->Quit();
 		}
 	}
-	
-	if (fCPUMemoryWindow != nullptr) {
-		if (fCPUMemoryWindow->Lock()) {
-			fCPUMemoryWindow->Quit();
-		}
-	}
-	
-	if (fCPUTraceWindow != nullptr) {
-		if (fCPUTraceWindow->Lock()) {
-			fCPUTraceWindow->Quit();
-		}
-	}
-	
-	if (fStackWindow != nullptr) {
-		if (fStackWindow->Lock()) {
-			fStackWindow->Quit();
-		}
-	}
-	
-	if (fZeroPageWindow != nullptr) {
-		if (fZeroPageWindow->Lock()) {
-			fZeroPageWindow->Quit();
-		}
-	}
-	
-	if (fBreakPointWindow != nullptr) {
-		if (fBreakPointWindow->Lock()) {
-			fBreakPointWindow->Quit();
+
+	if (fPaletteWindow != nullptr) {
+		if (fPaletteWindow->Lock()) {
+			fPaletteWindow->Quit();
 		}
 	}
 
-	// long day.
-	
-	fMutex->Unlock();
-	
+	if (fInputWindow != nullptr) {
+		if (fInputWindow->Lock()) {
+			fInputWindow->Quit();
+		}
+	}
+
+
+	// -------------------------------------------------------------------------
+	// Remaining main-window resources
+	// -------------------------------------------------------------------------
+
+	if (fMutex) {
+		fMutex->Unlock();
+	}
+
 	SaveSettings();
-	
+
 	delete fSettingsMessage;
+	fSettingsMessage = nullptr;
+
 	delete fOpenPanel;
+	fOpenPanel = nullptr;
+
 	delete fROMDirectoryPanel;
-	
+	fROMDirectoryPanel = nullptr;
+
 	Hide();
-	Sync();	
+	Sync();
 }
 
 
@@ -652,6 +718,10 @@ PretendoWindow::MessageReceived (BMessage *message)
 			
 		case messages::VIEW_BREAKPOINTS:
 			OnViewBreakPointWindow();
+			break;
+			
+		case messages::VIEW_APUSTATUS:
+			OnViewAPUStatusWindow();
 			break;
 			
 		default:
@@ -912,6 +982,10 @@ PretendoWindow::AddMenu()
 	fPPUToolMenu->AddItem(new BMenuItem("View Palettes", new BMessage(messages::VIEW_PALDBG)));
 	fPPUToolMenu->AddItem(new BMenuItem("View OAM", new BMessage(messages::VIEW_OAMDBG)));
 	fPPUToolMenu->AddSeparatorItem();
+	
+	fAPUToolMenu = new BMenu("APU");
+	fToolMenu->AddItem(fAPUToolMenu);
+	fAPUToolMenu->AddItem(new BMenuItem("View APU Status" B_UTF8_ELLIPSIS, new BMessage(messages::VIEW_APUSTATUS)));
 
 	fPatternTableMenu = new BMenu("View Pattern Tables");
 	fPatternTableMenu->AddItem(new BMenuItem("1 ($0000)", new BMessage(messages::VIEW_PTNTBL1)));
@@ -2071,6 +2145,39 @@ PretendoWindow::OnViewBreakPointWindow()
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::OnViewAPUStatusWindow
+//
+// Opens the APU Status debugger window or brings the existing window to the
+// front if it is already open.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::OnViewAPUStatusWindow()
+{
+	if (fAPUStatusWindow) {
+		if (fAPUStatusWindow->Lock()) {
+			if (fAPUStatusWindow->IsHidden()) {
+				fAPUStatusWindow->Show();
+			}
+
+			fAPUStatusWindow->Activate(true);
+			fAPUStatusWindow->Unlock();
+		}
+
+		return;
+	}
+
+	fAPUStatusWindow = new APUStatusWindow(this);
+	fAPUStatusWindow->Show();
+}
+
+
 void
 PretendoWindow::ROMInfoWindowClosed()
 {
@@ -2473,6 +2580,24 @@ void
 PretendoWindow::BreakPointWindowClosed()
 {
 	fBreakPointWindow = nullptr;
+}
+
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::APUStatusWindowClosed
+//
+// Clears the stored APU Status window pointer after the debugger window closes.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::APUStatusWindowClosed()
+{
+	fAPUStatusWindow = nullptr;
 }
 
 
@@ -3559,6 +3684,20 @@ PretendoWindow::ShouldPollGlobalInput() const
 
 
 // -----------------------------------------------------------------------------
+// PretendoWindow::CountVisibleToolWindows
+//
+// Counts the debugger and utility windows that currently exist and are visible.
+//
+// Each window is locked before its hidden state is inspected.  Missing windows
+// and windows that cannot be locked are ignored.  The resulting count is used
+// to rebuild tool-input ownership after fullscreen tool windows are restored.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Number of currently visible debugger and utility windows.
+// -----------------------------------------------------------------------------
 int32
 PretendoWindow::CountVisibleToolWindows() const
 {
@@ -3603,10 +3742,32 @@ PretendoWindow::CountVisibleToolWindows() const
 	countWindow(fCPUStatusWindow);
 	countWindow(fCPUDisasmWindow);
 	countWindow(fCPUMemoryWindow);
+	countWindow(fCPUTraceWindow);
+	countWindow(fZeroPageWindow);
+	countWindow(fStackWindow);
+	countWindow(fBreakPointWindow);
+
+	countWindow(fAPUStatusWindow);
 
 	return count;
 }
 
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::ShowToolWindowAfterFullScreen
+//
+// Restores a debugger or utility window after leaving fullscreen mode when that
+// window had been visible before fullscreen was entered.
+//
+// The window is left unchanged when it was previously hidden.  Otherwise, it is
+// locked and shown only if it is currently hidden.
+//
+// Parameters:
+//   window     - Tool or debugger window to restore.
+//   wasVisible - true if the window was visible before entering fullscreen.
+//
+// Returns:
+//   Nothing.
 // -----------------------------------------------------------------------------
 void
 PretendoWindow::ShowToolWindowAfterFullScreen(BWindow *window, bool wasVisible)
@@ -3626,6 +3787,22 @@ PretendoWindow::ShowToolWindowAfterFullScreen(BWindow *window, bool wasVisible)
 	window->Unlock();
 }
 
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::HideToolWindowForFullScreen
+//
+// Hides a debugger or utility window before entering fullscreen mode and reports
+// whether the window had been visible.
+//
+// The window is locked before its visibility state is inspected.  Visible
+// windows are hidden, while windows that are already hidden are left unchanged.
+// The previous visibility state is returned so it can later be restored.
+//
+// Parameters:
+//   window - Tool or debugger window to inspect and optionally hide.
+//
+// Returns:
+//   true if the window was visible before being hidden, false otherwise.
 // -----------------------------------------------------------------------------
 bool
 PretendoWindow::HideToolWindowForFullScreen (BWindow *window)
@@ -3649,6 +3826,23 @@ PretendoWindow::HideToolWindowForFullScreen (BWindow *window)
 	return wasVisible;
 }
 
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::SuspendToolWindowsForFullScreen
+//
+// Hides debugger and utility windows before entering fullscreen mode while
+// remembering which windows were visible.
+//
+// Each tool window is inspected and hidden through HideToolWindowForFullScreen(),
+// with its previous visibility state stored for later restoration.  Tool-input
+// ownership is then cleared and controller input is reset so hidden debugger
+// windows cannot continue to affect fullscreen input handling.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
 // -----------------------------------------------------------------------------
 void
 PretendoWindow::SuspendToolWindowsForFullScreen()
@@ -3659,62 +3853,132 @@ PretendoWindow::SuspendToolWindowsForFullScreen()
 
 	fToolWindowsSuspendedForFullScreen = true;
 
+
+	// -------------------------------------------------------------------------
+	// General tools
+	// -------------------------------------------------------------------------
+
 	fWasROMInfoWindowVisibleBeforeFullScreen =
 		HideToolWindowForFullScreen(fROMInfoWindow);
-	
+
 	fWasPaletteWindowVisibleBeforeFullScreen =
 		HideToolWindowForFullScreen(fPaletteWindow);
-	
+
 	fWasInputWindowVisibleBeforeFullScreen =
 		HideToolWindowForFullScreen(fInputWindow);
 
+
+	// -------------------------------------------------------------------------
+	// Pattern Tables
+	// -------------------------------------------------------------------------
+
 	fWasPatternTable1WindowVisibleBeforeFullScreen =
 		HideToolWindowForFullScreen(fPatternTable1Window);
-	
+
 	fWasPatternTable2WindowVisibleBeforeFullScreen =
 		HideToolWindowForFullScreen(fPatternTable2Window);
 
+
+	// -------------------------------------------------------------------------
+	// Name Tables
+	// -------------------------------------------------------------------------
+
 	fWasNameTable1WindowVisibleBeforeFullScreen =
 		HideToolWindowForFullScreen(fNameTable1Window);
-	
+
 	fWasNameTable2WindowVisibleBeforeFullScreen =
 		HideToolWindowForFullScreen(fNameTable2Window);
-	
+
 	fWasNameTable3WindowVisibleBeforeFullScreen =
 		HideToolWindowForFullScreen(fNameTable3Window);
-	
+
 	fWasNameTable4WindowVisibleBeforeFullScreen =
 		HideToolWindowForFullScreen(fNameTable4Window);
 
+
+	// -------------------------------------------------------------------------
+	// Graphics debuggers
+	// -------------------------------------------------------------------------
+
 	fWasPaletteDebugWindowVisibleBeforeFullScreen =
 		HideToolWindowForFullScreen(fPaletteDebugWindow);
-	
+
 	fWasOAMDebugWindowVisibleBeforeFullScreen =
 		HideToolWindowForFullScreen(fOAMDebugWindow);
 
+
+	// -------------------------------------------------------------------------
+	// PPU tools
+	// -------------------------------------------------------------------------
+
 	fWasPPUStatusWindowVisibleBeforeFullScreen =
 		HideToolWindowForFullScreen(fPPUStatusWindow);
-	
+
 	fWasPPUWriteLogWindowVisibleBeforeFullScreen =
 		HideToolWindowForFullScreen(fPPUWriteLogWindow);
-	
+
 	fWasPPUMemoryWindowVisibleBeforeFullScreen =
 		HideToolWindowForFullScreen(fPPUMemoryWindow);
 
+
+	// -------------------------------------------------------------------------
+	// CPU tools
+	// -------------------------------------------------------------------------
+
 	fWasCPUStatusWindowVisibleBeforeFullScreen =
 		HideToolWindowForFullScreen(fCPUStatusWindow);
-	
+
 	fWasCPUDisasmWindowVisibleBeforeFullScreen =
 		HideToolWindowForFullScreen(fCPUDisasmWindow);
 
 	fWasCPUMemoryWindowVisibleBeforeFullScreen =
 		HideToolWindowForFullScreen(fCPUMemoryWindow);
 
+	fWasCPUTraceWindowVisibleBeforeFullScreen =
+		HideToolWindowForFullScreen(fCPUTraceWindow);
+
+	fWasZeroPageWindowVisibleBeforeFullScreen =
+		HideToolWindowForFullScreen(fZeroPageWindow);
+
+	fWasStackWindowVisibleBeforeFullScreen =
+		HideToolWindowForFullScreen(fStackWindow);
+
+	fWasBreakPointWindowVisibleBeforeFullScreen =
+		HideToolWindowForFullScreen(fBreakPointWindow);
+
+
+	// -------------------------------------------------------------------------
+	// APU tools
+	// -------------------------------------------------------------------------
+
+	fWasAPUStatusWindowVisibleBeforeFullScreen =
+		HideToolWindowForFullScreen(fAPUStatusWindow);
+
+
+	// No tool window owns fullscreen keyboard input while suspended.
 	fToolInputDepth = 0;
 
 	ClearControllerInput();
 }
 
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::RestoreToolWindowsAfterFullScreen
+//
+// Restores debugger and utility windows that were visible before entering
+// fullscreen mode.
+//
+// Each tool window is shown only if it was visible before fullscreen was
+// activated.  After the windows are restored, tool-input ownership is rebuilt
+// from the number of currently visible tool windows, the saved visibility flags
+// are cleared, fullscreen tool-window suspension is ended, controller input is
+// cleared, and debugger views are refreshed.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
 // -----------------------------------------------------------------------------
 void
 PretendoWindow::RestoreToolWindowsAfterFullScreen()
@@ -3723,88 +3987,202 @@ PretendoWindow::RestoreToolWindowsAfterFullScreen()
 		return;
 	}
 
-	ShowToolWindowAfterFullScreen(fROMInfoWindow,
-								  fWasROMInfoWindowVisibleBeforeFullScreen);
-	
-	ShowToolWindowAfterFullScreen(fPaletteWindow,
-								  fWasPaletteWindowVisibleBeforeFullScreen);
-	
-	ShowToolWindowAfterFullScreen(fInputWindow,
-								  fWasInputWindowVisibleBeforeFullScreen);
 
-	ShowToolWindowAfterFullScreen(fPatternTable1Window,
-								  fWasPatternTable1WindowVisibleBeforeFullScreen);
-	
-	ShowToolWindowAfterFullScreen(fPatternTable2Window,
-								  fWasPatternTable2WindowVisibleBeforeFullScreen);
+	// -------------------------------------------------------------------------
+	// General tools
+	// -------------------------------------------------------------------------
 
-	ShowToolWindowAfterFullScreen(fNameTable1Window,
-								  fWasNameTable1WindowVisibleBeforeFullScreen);
-	
-	ShowToolWindowAfterFullScreen(fNameTable2Window,
-								  fWasNameTable2WindowVisibleBeforeFullScreen);
-	
-	ShowToolWindowAfterFullScreen(fNameTable3Window,
-								  fWasNameTable3WindowVisibleBeforeFullScreen);
-	
-	ShowToolWindowAfterFullScreen(fNameTable4Window,
-							 	  fWasNameTable4WindowVisibleBeforeFullScreen);
+	ShowToolWindowAfterFullScreen(
+		fROMInfoWindow,
+		fWasROMInfoWindowVisibleBeforeFullScreen);
 
-	ShowToolWindowAfterFullScreen(fPaletteDebugWindow,
-								  fWasPaletteDebugWindowVisibleBeforeFullScreen);
-	
-	ShowToolWindowAfterFullScreen(fOAMDebugWindow,
-								  fWasOAMDebugWindowVisibleBeforeFullScreen);
+	ShowToolWindowAfterFullScreen(
+		fPaletteWindow,
+		fWasPaletteWindowVisibleBeforeFullScreen);
 
-	ShowToolWindowAfterFullScreen(fPPUStatusWindow,
-								  fWasPPUStatusWindowVisibleBeforeFullScreen);
-	
-	ShowToolWindowAfterFullScreen(fPPUWriteLogWindow,
-								  fWasPPUWriteLogWindowVisibleBeforeFullScreen);
-	
-	ShowToolWindowAfterFullScreen(fPPUMemoryWindow,
-								  fWasPPUMemoryWindowVisibleBeforeFullScreen);
+	ShowToolWindowAfterFullScreen(
+		fInputWindow,
+		fWasInputWindowVisibleBeforeFullScreen);
 
-	ShowToolWindowAfterFullScreen(fCPUStatusWindow,
-								  fWasCPUStatusWindowVisibleBeforeFullScreen);
-	
-	ShowToolWindowAfterFullScreen(fCPUDisasmWindow,
-								  fWasCPUDisasmWindowVisibleBeforeFullScreen);
-	
-	ShowToolWindowAfterFullScreen(fCPUMemoryWindow,
-								  fWasCPUMemoryWindowVisibleBeforeFullScreen);
 
+	// -------------------------------------------------------------------------
+	// Pattern Tables
+	// -------------------------------------------------------------------------
+
+	ShowToolWindowAfterFullScreen(
+		fPatternTable1Window,
+		fWasPatternTable1WindowVisibleBeforeFullScreen);
+
+	ShowToolWindowAfterFullScreen(
+		fPatternTable2Window,
+		fWasPatternTable2WindowVisibleBeforeFullScreen);
+
+
+	// -------------------------------------------------------------------------
+	// Name Tables
+	// -------------------------------------------------------------------------
+
+	ShowToolWindowAfterFullScreen(
+		fNameTable1Window,
+		fWasNameTable1WindowVisibleBeforeFullScreen);
+
+	ShowToolWindowAfterFullScreen(
+		fNameTable2Window,
+		fWasNameTable2WindowVisibleBeforeFullScreen);
+
+	ShowToolWindowAfterFullScreen(
+		fNameTable3Window,
+		fWasNameTable3WindowVisibleBeforeFullScreen);
+
+	ShowToolWindowAfterFullScreen(
+		fNameTable4Window,
+		fWasNameTable4WindowVisibleBeforeFullScreen);
+
+
+	// -------------------------------------------------------------------------
+	// Graphics debuggers
+	// -------------------------------------------------------------------------
+
+	ShowToolWindowAfterFullScreen(
+		fPaletteDebugWindow,
+		fWasPaletteDebugWindowVisibleBeforeFullScreen);
+
+	ShowToolWindowAfterFullScreen(
+		fOAMDebugWindow,
+		fWasOAMDebugWindowVisibleBeforeFullScreen);
+
+
+	// -------------------------------------------------------------------------
+	// PPU tools
+	// -------------------------------------------------------------------------
+
+	ShowToolWindowAfterFullScreen(
+		fPPUStatusWindow,
+		fWasPPUStatusWindowVisibleBeforeFullScreen);
+
+	ShowToolWindowAfterFullScreen(
+		fPPUWriteLogWindow,
+		fWasPPUWriteLogWindowVisibleBeforeFullScreen);
+
+	ShowToolWindowAfterFullScreen(
+		fPPUMemoryWindow,
+		fWasPPUMemoryWindowVisibleBeforeFullScreen);
+
+
+	// -------------------------------------------------------------------------
+	// CPU tools
+	// -------------------------------------------------------------------------
+
+	ShowToolWindowAfterFullScreen(
+		fCPUStatusWindow,
+		fWasCPUStatusWindowVisibleBeforeFullScreen);
+
+	ShowToolWindowAfterFullScreen(
+		fCPUDisasmWindow,
+		fWasCPUDisasmWindowVisibleBeforeFullScreen);
+
+	ShowToolWindowAfterFullScreen(
+		fCPUMemoryWindow,
+		fWasCPUMemoryWindowVisibleBeforeFullScreen);
+
+	ShowToolWindowAfterFullScreen(
+		fCPUTraceWindow,
+		fWasCPUTraceWindowVisibleBeforeFullScreen);
+
+	ShowToolWindowAfterFullScreen(
+		fZeroPageWindow,
+		fWasZeroPageWindowVisibleBeforeFullScreen);
+
+	ShowToolWindowAfterFullScreen(
+		fStackWindow,
+		fWasStackWindowVisibleBeforeFullScreen);
+
+	ShowToolWindowAfterFullScreen(
+		fBreakPointWindow,
+		fWasBreakPointWindowVisibleBeforeFullScreen);
+
+
+	// -------------------------------------------------------------------------
+	// APU tools
+	// -------------------------------------------------------------------------
+
+	ShowToolWindowAfterFullScreen(
+		fAPUStatusWindow,
+		fWasAPUStatusWindowVisibleBeforeFullScreen);
+
+
+	// Rebuild ownership from the windows that actually survived fullscreen.
 	fToolInputDepth = CountVisibleToolWindows();
+
+
+	// -------------------------------------------------------------------------
+	// Clear saved general-tool visibility
+	// -------------------------------------------------------------------------
 
 	fWasROMInfoWindowVisibleBeforeFullScreen = false;
 	fWasPaletteWindowVisibleBeforeFullScreen = false;
 	fWasInputWindowVisibleBeforeFullScreen = false;
 
+
+	// -------------------------------------------------------------------------
+	// Clear saved Pattern Table visibility
+	// -------------------------------------------------------------------------
+
 	fWasPatternTable1WindowVisibleBeforeFullScreen = false;
 	fWasPatternTable2WindowVisibleBeforeFullScreen = false;
+
+
+	// -------------------------------------------------------------------------
+	// Clear saved Name Table visibility
+	// -------------------------------------------------------------------------
 
 	fWasNameTable1WindowVisibleBeforeFullScreen = false;
 	fWasNameTable2WindowVisibleBeforeFullScreen = false;
 	fWasNameTable3WindowVisibleBeforeFullScreen = false;
 	fWasNameTable4WindowVisibleBeforeFullScreen = false;
 
+
+	// -------------------------------------------------------------------------
+	// Clear saved graphics-debugger visibility
+	// -------------------------------------------------------------------------
+
 	fWasPaletteDebugWindowVisibleBeforeFullScreen = false;
 	fWasOAMDebugWindowVisibleBeforeFullScreen = false;
+
+
+	// -------------------------------------------------------------------------
+	// Clear saved PPU-tool visibility
+	// -------------------------------------------------------------------------
 
 	fWasPPUStatusWindowVisibleBeforeFullScreen = false;
 	fWasPPUWriteLogWindowVisibleBeforeFullScreen = false;
 	fWasPPUMemoryWindowVisibleBeforeFullScreen = false;
 
+
+	// -------------------------------------------------------------------------
+	// Clear saved CPU-tool visibility
+	// -------------------------------------------------------------------------
+
 	fWasCPUStatusWindowVisibleBeforeFullScreen = false;
 	fWasCPUDisasmWindowVisibleBeforeFullScreen = false;
 	fWasCPUMemoryWindowVisibleBeforeFullScreen = false;
+	fWasCPUTraceWindowVisibleBeforeFullScreen = false;
+	fWasZeroPageWindowVisibleBeforeFullScreen = false;
+	fWasStackWindowVisibleBeforeFullScreen = false;
+	fWasBreakPointWindowVisibleBeforeFullScreen = false;
+
+
+	// -------------------------------------------------------------------------
+	// Clear saved APU-tool visibility
+	// -------------------------------------------------------------------------
+
+	fWasAPUStatusWindowVisibleBeforeFullScreen = false;
 
 	fToolWindowsSuspendedForFullScreen = false;
 
 	ClearControllerInput();
 	InvalidateDebugViews();
 }
-
 
 // -----------------------------------------------------------------------------
 // PretendoWindow::ConnectDebugViews
@@ -3844,24 +4222,19 @@ PretendoWindow::ConnectDebugViews()
 
 
 // -----------------------------------------------------------------------------
-// PretendoWindow::DebugStepInstruction
+// PretendoWindow::MuteAudioForDebugging
 //
-// Enters debugger step mode and advances one CPU instruction.  Controller input
-// is cleared before stepping so debugger shortcuts, such as S, do not also act
-// as emulator controller buttons.
+// Mutes emulator audio while execution is under debugger control.
 //
-// The debugger pause is tracked separately from the emulator's normal Pause
-// command so closing the debugger can safely resume execution only when the
-// debugger itself caused the pause.
-//
-// Audio output is muted while debugger stepping is active.
+// Debugger-level APU muting is enabled, and the host audio stream is muted,
+// cleared, and repaced so no stale or partially buffered samples are emitted
+// while the emulator is paused or stepped by the debugger.
 //
 // Parameters:
 //   None.
 //
 // Returns:
 //   Nothing.
-// -----------------------------------------------------------------------------
 // -----------------------------------------------------------------------------
 void
 PretendoWindow::MuteAudioForDebugging()
@@ -3875,6 +4248,21 @@ PretendoWindow::MuteAudioForDebugging()
 	}
 }
 
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::ResumeAudioAfterDebugging
+//
+// Restores normal audio output after debugger-controlled execution.
+//
+// Debugger-level APU muting is disabled, and the host audio stream is cleared,
+// repaced, and unmuted so stale buffered samples do not produce clicks or resume
+// from an outdated audio position.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
 // -----------------------------------------------------------------------------
 void
 PretendoWindow::ResumeAudioAfterDebugging()
@@ -3888,6 +4276,24 @@ PretendoWindow::ResumeAudioAfterDebugging()
 	}
 }
 
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::StartEmulatorForRunning
+//
+// Starts the emulator in normal running mode.
+//
+// If a ROM is loaded and emulation has not yet started, a hard reset is
+// performed, previous debugger breakpoint-hit state is cleared, debugger audio
+// muting is disabled, and PPU execution is resumed.  Controller input is cleared,
+// the host audio stream is reset and started, fullscreen mode is re-enabled, and
+// all debugger/normal pause state is cleared before the emulator mutex is
+// released to begin continuous execution.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
 // -----------------------------------------------------------------------------
 void
 PretendoWindow::StartEmulatorForRunning()
@@ -3926,6 +4332,24 @@ PretendoWindow::StartEmulatorForRunning()
 	fMutex->Unlock();
 }
 
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::EnsureDebugSessionStarted
+//
+// Ensures that a valid debugger-controlled emulation session is running.
+//
+// If emulation has not yet started, a hard reset is performed, any previous
+// breakpoint-hit state is cleared, debugger audio is muted, and PPU execution is
+// paused.  The host audio stream is also cleared, repaced, and muted before
+// controller input is reset.  The emulator is then marked as running, fullscreen
+// mode is re-enabled, and the emulator mutex is released so debugger-controlled
+// stepping can proceed.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
 // -----------------------------------------------------------------------------
 void
 PretendoWindow::EnsureDebugSessionStarted()
@@ -3961,6 +4385,24 @@ PretendoWindow::EnsureDebugSessionStarted()
 	fMutex->Unlock();
 }
 
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::StartEmulatorForDebugging
+//
+// Starts the emulator in a debugger-controlled paused state.
+//
+// A hard reset is performed when a ROM is loaded but emulation has not yet
+// started.  Any previous debugger breakpoint-hit state is cleared, PPU execution
+// is paused, debugger audio is muted, controller input is cleared, and the host
+// audio stream is started.  Fullscreen mode is re-enabled, the emulator is marked
+// as running and paused, and the emulator mutex is released so the worker thread
+// can begin servicing debugger-controlled execution.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
 // -----------------------------------------------------------------------------
 void
 PretendoWindow::StartEmulatorForDebugging()
@@ -3996,6 +4438,23 @@ PretendoWindow::StartEmulatorForDebugging()
 }
 
 
+// -----------------------------------------------------------------------------
+// PretendoWindow::DebugStepInstruction
+//
+// Executes exactly one CPU instruction while the emulator is under debugger
+// control.
+//
+// Debugger audio is muted before stepping, the emulator is placed into its
+// debugger-paused state, controller input is cleared, and the emulator mutex is
+// acquired before the core step is performed.  After the instruction completes,
+// the last rendered frame and open debugger views are refreshed.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PretendoWindow::DebugStepInstruction()
 {
@@ -4301,20 +4760,17 @@ PretendoWindow::InvalidateDebugViews()
 	InvalidateWindowContents(fPPUMemoryWindow);
 
 	InvalidateWindowContents(fCPUStatusWindow);
+
+	// Do not invalidate fCPUDisasmWindow here.
+	// CPUDisasmView handles debugger stepping/frozen-state redraw itself.
+
 	InvalidateWindowContents(fCPUMemoryWindow);
 	InvalidateWindowContents(fCPUTraceWindow);
-
-	InvalidateWindowContents(fStackWindow);
 	InvalidateWindowContents(fZeroPageWindow);
-
-	/*
-	 * Do not invalidate fCPUDisasmWindow here.
-	 *
-	 * CPUDisasmView normally manages its own PC/follow state and redraw
-	 * after debugger operations.
-	 */
-	 
+	InvalidateWindowContents(fStackWindow);
 	InvalidateWindowContents(fBreakPointWindow);
+
+	InvalidateWindowContents(fAPUStatusWindow);
 }
 
 
