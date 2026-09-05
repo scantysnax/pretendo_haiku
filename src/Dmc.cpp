@@ -14,7 +14,7 @@ const uint16_t frequency_table[16] = {
 	0x0be, 0x0a0, 0x08e, 0x080,
 	0x06a, 0x054, 0x048, 0x036};
 
-}
+};
 
 /* NOTE:
  * The following is speculation, and thus not necessarily 100% accurate. It does accurately predict observed behavior.
@@ -83,7 +83,9 @@ void DMC::set_enabled(bool value) {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void DMC::enable() {
+void DMC::enable()
+{
+	enabled_ = true;
 
 	if (bytes_remaining_ == 0) {
 		bytes_remaining_ = sample_length_;
@@ -106,7 +108,9 @@ void DMC::enable() {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void DMC::disable() {
+void DMC::disable()
+{
+	enabled_ = false;
 	bytes_remaining_ = 0;
 }
 

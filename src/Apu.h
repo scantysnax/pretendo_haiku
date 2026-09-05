@@ -87,6 +87,7 @@ struct noise_debug_state_t {
 
 
 struct dmc_debug_state_t {
+	bool enabled = false;
 	bool active = false;
 	bool muted = false;
 

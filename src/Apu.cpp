@@ -30,7 +30,7 @@ typedef enum {
 
 union APUFrameCounter {
 	uint8_t raw;
-	BitField<uint8_t, 6> inihibit_frame_irq;
+	BitField<uint8_t, 6> inhibit_frame_irq;
 	BitField<uint8_t, 7> mode;
 };
 
@@ -150,7 +150,7 @@ void clock_frame_mode_0() {
 		break;
 
 	case 3:
-		if (!(frame_counter_.inihibit_frame_irq)) {
+		if (!(frame_counter_.inhibit_frame_irq)) {
 			status.frame_irq = true;
 		}
 
@@ -160,7 +160,7 @@ void clock_frame_mode_0() {
 	case 4:
 		clock_linear();
 		clock_length();
-		if (!(frame_counter_.inihibit_frame_irq)) {
+		if (!(frame_counter_.inhibit_frame_irq)) {
 			status.frame_irq = true;
 		}
 
@@ -168,7 +168,7 @@ void clock_frame_mode_0() {
 		break;
 
 	case 5:
-		if (!(frame_counter_.inihibit_frame_irq)) {
+		if (!(frame_counter_.inhibit_frame_irq)) {
 			status.frame_irq = true;
 		}
 
@@ -728,7 +728,6 @@ uint8_t read4015() {
 	return ret;
 }
 
-
 // -----------------------------------------------------------------------------
 // write4017
 //
@@ -744,13 +743,15 @@ uint8_t read4015() {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void write4017(uint8_t value) {
-
+void
+write4017(uint8_t value)
+{
 	frame_counter_.raw  = value;
 	last_frame_counter_ = value;
 
-	if (frame_counter_.inihibit_frame_irq) {
+	if (frame_counter_.inhibit_frame_irq) {
 		status.frame_irq = false;
+
 		if (!status.irq_firing) {
 			cpu::clear_irq(cpu::APU_IRQ);
 		}
@@ -783,7 +784,7 @@ void write4017(uint8_t value) {
 void
 tick()
 {
-	if (!(frame_counter_.inihibit_frame_irq) && (status.frame_irq)) {
+	if (!(frame_counter_.inhibit_frame_irq) && (status.frame_irq)) {
 		cpu::irq(cpu::APU_IRQ);
 	}
 
@@ -815,6 +816,17 @@ tick()
 }
 
 
+// -----------------------------------------------------------------------------
+// cycle_count
+//
+// Returns the current number of APU cycles that have elapsed.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Current APU cycle count.
+// -----------------------------------------------------------------------------
 uint64_t cycle_count() {
 	return apu_cycles_;
 }
@@ -1004,14 +1016,10 @@ debug_state()
 	apu_debug_state_t state;
 
 	state.cycle = apu_cycles_;
-
 	state.five_step_mode = frame_counter_.mode;
-	state.frame_irq_inhibit = frame_counter_.inihibit_frame_irq;
+	state.frame_irq_inhibit = frame_counter_.inhibit_frame_irq;
 	state.frame_step = clock_step_;
-
 	state.next_frame_cycle = next_clock_;
-
-	state.status = status.raw;
 	state.frame_irq = status.frame_irq;
 	state.dmc_irq = status.dmc_irq;
 
@@ -1068,6 +1076,7 @@ debug_state()
 	state.noise.output = noise.debug_output();
 
 	// dmc
+	state.dmc.enabled = dmc.debug_enabled();
 	state.dmc.active = dmc.debug_active();
 	state.dmc.muted = dmc.debug_muted();
 	state.dmc.timer_period = dmc.debug_timer_period();
@@ -1080,6 +1089,39 @@ debug_state()
 	state.dmc.bytes_remaining = dmc.bytes_remaining();
 	state.dmc.bits_remaining = dmc.debug_bits_remaining();
 	state.dmc.sample_buffer_empty = dmc.debug_sample_buffer_empty();
+	
+	// apu status (rebuilt from $4015 without reading it)
+	uint8_t status = 0x0;
+
+	if (state.square1.length_counter != 0) {
+		status |= 0x1;
+	}
+
+	if (state.square2.length_counter != 0) {
+		status |= 0x2;
+	}
+
+	if (state.triangle.length_counter != 0) {
+		status |= 0x4;
+	}
+
+	if (state.noise.length_counter != 0) {
+		status |= 0x8;
+	}
+
+	if (state.dmc.bytes_remaining != 0) {
+		status |= 0x10;
+	}
+
+	if (state.frame_irq) {
+		status |= 0x40;
+	}
+
+	if (state.dmc_irq) {
+		status |= 0x80;
+	}
+
+	state.status = status;
 
 	return state;
 }

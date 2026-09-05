@@ -6,8 +6,8 @@
 
 namespace {
 
-constexpr float kWindowWidth = 710.0f;
-constexpr float kWindowHeight = 470.0f;
+constexpr float kWindowWidth = 850.0f;
+constexpr float kWindowHeight = 620.0f;
 
 }
 
@@ -24,15 +24,9 @@ constexpr float kWindowHeight = 470.0f;
 //   Nothing.
 // -----------------------------------------------------------------------------
 APUStatusWindow::APUStatusWindow(PretendoWindow *mainWindow)
-	: BWindow(
-		BRect(
-			100.0f,
-			100.0f,
-			100.0f + kWindowWidth,
-			100.0f + kWindowHeight),
-		"APU Status",
-		B_TITLED_WINDOW,
-		B_NOT_ZOOMABLE | B_NOT_RESIZABLE | B_AUTO_UPDATE_SIZE_LIMITS),
+	: BWindow(BRect(100.0f, 100.0f, 100.0f + kWindowWidth, 100.0f + kWindowHeight),"APU Status",
+			   B_FLOATING_WINDOW_LOOK, B_NORMAL_WINDOW_FEEL, B_NOT_RESIZABLE | B_NOT_ZOOMABLE), 		  
+	  
 	  fMainWindow(mainWindow)
 {
 	BRect bounds = Bounds();
@@ -40,6 +34,23 @@ APUStatusWindow::APUStatusWindow(PretendoWindow *mainWindow)
 	fView = new APUStatusView(bounds);
 	AddChild(fView);
 }
+
+
+// -----------------------------------------------------------------------------
+// APUStatusWindow::~APUStatusWindow
+//
+// Destroys the APU debugger window.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Destructor; no return value.
+// -----------------------------------------------------------------------------
+APUStatusWindow::~APUStatusWindow()
+{
+}
+
 
 
 // -----------------------------------------------------------------------------
@@ -63,3 +74,57 @@ APUStatusWindow::QuitRequested()
 
 	return true;
 }
+
+
+// -----------------------------------------------------------------------------
+// APUStatusWindow::MessageReceived
+//
+// Handles messages sent to the APU Status window.  Channel enable/disable
+// messages from the APU Status checkboxes are forwarded to PretendoWindow so
+// the existing audio menu handlers remain the single point responsible for
+// muting and unmuting APU channels.
+//
+// Parameters:
+//   message - Message received by the window.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+APUStatusWindow::MessageReceived (BMessage *message)
+{
+	switch (message->what) {
+		case PretendoWindow::messages::ENABLE_SQ1:
+			if (fMainWindow) {
+				fMainWindow->PostMessage(PretendoWindow::messages::ENABLE_SQ1);
+			}
+			break;
+		
+		case PretendoWindow::messages::ENABLE_SQ2:
+			if (fMainWindow) {
+				fMainWindow->PostMessage(PretendoWindow::messages::ENABLE_SQ2);
+			}
+			break;
+			
+		case PretendoWindow::messages::ENABLE_TRI:
+			if (fMainWindow) {
+				fMainWindow->PostMessage(PretendoWindow::messages::ENABLE_TRI);
+			}
+			break;
+			
+		case PretendoWindow::messages::ENABLE_NOISE:
+			if (fMainWindow) {
+				fMainWindow->PostMessage(PretendoWindow::messages::ENABLE_NOISE);
+			}
+			break;
+		
+		case PretendoWindow::messages::ENABLE_DMC:
+			if (fMainWindow) {
+				fMainWindow->PostMessage(PretendoWindow::messages::ENABLE_DMC);
+			}
+			break;	
+	}	
+	
+	BWindow::MessageReceived(message);
+}
+

@@ -81,9 +81,9 @@ class ZeroPageWindow;
 
 
 struct latched_scroll_t {
-    std::atomic<uint32> scroll_x{0};
-    std::atomic<uint32> scroll_y{0};
-    std::atomic<uint32> frame_id{0};
+    std::atomic<uint32> scroll_x {0};
+    std::atomic<uint32> scroll_y {0};
+    std::atomic<uint32> frame_id {0};
 };
 
 
@@ -203,6 +203,7 @@ class PretendoWindow : public BWindow, public nes::FrameOutput
 	
 	// handlers for ui
 	private:
+	void LoadROMPath (const char *path);
 	void OnLoadROM (BMessage *message);
 	void OnFreeROM();
 	void OnROMInfo();
@@ -428,7 +429,7 @@ class PretendoWindow : public BWindow, public nes::FrameOutput
 		fLatchedScroll.frame_id.fetch_add(1, std::memory_order_release);
 	}
     
-public:
+	public:
 	// called by ui thread
 	bool GetLatchedScroll (uint32 &x, uint32 &y, uint32 &frameId) const {
 		frameId = fLatchedScroll.frame_id.load(std::memory_order_acquire);
@@ -436,13 +437,10 @@ public:
 		y = fLatchedScroll.scroll_y.load(std::memory_order_relaxed);
 		return true;
 	}
-    
-    // for the chr explorer
-    private:
-	void ConnectDebugViews();
-    
-    // for debugging
+	
+	// debug things
 	public:
+	void ConnectDebugViews();
 	void DebugStepInstruction();
 	void DebugResumeExecution();
 	void DebugStepFrame();
@@ -455,6 +453,7 @@ public:
 	void StartEmulatorForDebugging();
 	bool fDebuggerPausedEmulation = false;
 	
+	 // emulator state
 	public:
 	bool IsEmulatorRunning() const;
 	bool IsEmulatorPaused() const;
@@ -484,7 +483,6 @@ public:
     public:
 	void HighlightPaletteDebugger (bool sprites, int32 palette, int32 entry = -1);
     void ClearPaletteDebuggerHighlight();
-    void LoadROMPath (const char *path);
     
     // keyboard/input
     public:

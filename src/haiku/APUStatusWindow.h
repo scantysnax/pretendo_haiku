@@ -10,10 +10,12 @@ class PretendoWindow;
 
 class APUStatusWindow : public BWindow {
 	public:
-	APUStatusWindow(PretendoWindow *mainWindow);
-
+			APUStatusWindow(PretendoWindow *mainWindow);
+	virtual ~APUStatusWindow();
+	
 	public:
 	virtual bool QuitRequested();
+	virtual void MessageReceived (BMessage *message);
 
 	private:
 	PretendoWindow *fMainWindow = nullptr;

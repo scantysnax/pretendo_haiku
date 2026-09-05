@@ -33,6 +33,10 @@ public:
 	void load_sample_buffer(uint8_t value);
 
 public:
+	bool debug_enabled() const {
+		return enabled_;
+	}
+	
 	bool debug_active() const {
 		return bytes_remaining_ != 0;
 	}
@@ -94,6 +98,7 @@ private:
 	void refill_sample_buffer();
 
 private:
+	bool enabled_			  = false;
 	bool muted_               = false;
 	bool sample_buffer_empty_ = true;
 	uint16_t sample_pointer_  = 0xc000;

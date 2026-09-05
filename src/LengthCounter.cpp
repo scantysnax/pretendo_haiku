@@ -5,6 +5,7 @@
 namespace nes::apu {
 
 namespace {
+
 const uint8_t length_table[32] = {
 	0x0a, 0xfe,
 	0x14, 0x02,
@@ -22,7 +23,7 @@ const uint8_t length_table[32] = {
 	0x48, 0x1a,
 	0x10, 0x1c,
 	0x20, 0x1e};
-}
+};
 
 // -----------------------------------------------------------------------------
 // LengthCounter::load
