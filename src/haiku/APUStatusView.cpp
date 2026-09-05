@@ -1304,15 +1304,15 @@ APUStatusView::Draw(BRect updateRect)
 	const float overallHeight = PanelHeightForLines(9);
 	const float squareHeight = PanelHeightForLines(15);
 	const float topPanelHeight = overallHeight > squareHeight ? overallHeight : squareHeight;
-	const float lowerY = topY + topPanelHeight + kSectionGap;
+	const float bottomY = topY + topPanelHeight + kSectionGap;
 	const float lowerPanelHeight = PanelHeightForLines(15);
 	
 	const BRect apuPanel(kColumn1X, topY, kColumn1X + kAPUPanelWidth, topY + topPanelHeight);
 	const BRect square1Panel(kColumn2X, topY, kColumn2X + kPanelWidth, topY + topPanelHeight);
 	const BRect square2Panel(kColumn3X, topY, kColumn3X + kPanelWidth, topY + topPanelHeight);
-	const BRect trianglePanel(kColumn1X, lowerY, kColumn1X + kAPUPanelWidth, lowerY + lowerPanelHeight);
-	const BRect noisePanel(kColumn2X, lowerY, kColumn2X + kPanelWidth, lowerY + lowerPanelHeight);
-	const BRect dmcPanel(kColumn3X, lowerY, kColumn3X + kPanelWidth, lowerY + lowerPanelHeight);
+	const BRect trianglePanel(kColumn1X, bottomY, kColumn1X + kAPUPanelWidth, bottomY + lowerPanelHeight);
+	const BRect noisePanel(kColumn2X, bottomY, kColumn2X + kPanelWidth, bottomY + lowerPanelHeight);
+	const BRect dmcPanel(kColumn3X, bottomY, kColumn3X + kPanelWidth, bottomY + lowerPanelHeight);
 
 	// =========================================================================
 	// Draw panel backgrounds
