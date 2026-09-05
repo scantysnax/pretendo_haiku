@@ -17,6 +17,7 @@
 #include <cstdio>
 
 #include "APUStatusWindow.h"
+#include "APUWriteLogWindow.h"
 #include "AudioStream.h"
 #include "BreakPointWindow.h"
 #include "Controller.h"
@@ -62,6 +63,7 @@
 #include "asm/copies.h"
 
 class APUStatusWindow;
+class APUWriteLogWindow;
 class BreakPointWindow;
 class CPUTraceWindow;
 class CPUDisasmWindow;
@@ -141,7 +143,8 @@ class PretendoWindow : public BWindow, public nes::FrameOutput
 		VIEW_ZERO_PAGE = 	'ZPAG',
 		VIEW_STACK = 		'VSTK',
 		VIEW_BREAKPOINTS =	'BRPT',
-		VIEW_APUSTATUS = 	'APUS'
+		VIEW_APUSTATUS = 	'APUS',
+		VIEW_APULOG = 		'APUW'
 	} messages;	
 	
 	private:
@@ -241,6 +244,7 @@ class PretendoWindow : public BWindow, public nes::FrameOutput
 	void OnViewZeroPageWindow();
 	void OnViewBreakPointWindow();
 	void OnViewAPUStatusWindow();
+	void OnViewAPUWriteLogWindow();
 
 	// video stuff
 	private:
@@ -376,6 +380,7 @@ class PretendoWindow : public BWindow, public nes::FrameOutput
 	ZeroPageWindow *fZeroPageWindow = nullptr;
 	BreakPointWindow *fBreakPointWindow = nullptr;
 	APUStatusWindow *fAPUStatusWindow = nullptr;
+	APUWriteLogWindow *fAPUWriteLogWindow = nullptr;
 
 	private:
 	BString fROMDirectory = nullptr;
@@ -479,6 +484,7 @@ class PretendoWindow : public BWindow, public nes::FrameOutput
 	void ZeroPageWindowClosed();
 	void BreakPointWindowClosed();
 	void APUStatusWindowClosed();
+    void APUWriteLogWindowClosed();
     
     public:
 	void HighlightPaletteDebugger (bool sprites, int32 palette, int32 entry = -1);
@@ -542,6 +548,7 @@ class PretendoWindow : public BWindow, public nes::FrameOutput
 	bool fWasBreakPointWindowVisibleBeforeFullScreen = false;
 
 	bool fWasAPUStatusWindowVisibleBeforeFullScreen = false;
+	bool fWasAPUWriteLogWindowVisibleBeforeFullScreen = false;
 	
     // keys
 	private:

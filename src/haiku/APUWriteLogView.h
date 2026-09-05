@@ -1,5 +1,5 @@
-#ifndef _PPU_WRITE_LOG_VIEW_H_
-#define _PPU_WRITE_LOG_VIEW_H_
+#ifndef _APU_WRITE_LOG_VIEW_H_
+#define _APU_WRITE_LOG_VIEW_H_
 
 #include <ScrollBar.h>
 #include <View.h>
@@ -7,34 +7,31 @@
 #include <cmath>
 #include <vector>
 
+#include "Apu.h"
 #include "Cart.h"
 #include "DebugHelpers.h"
 #include "PretendoWindow.h"
-#include "Ppu.h"
 
 
-class PPUWriteLogScrollBar;
+class APUWriteLogScrollBar;
 
 
 // -----------------------------------------------------------------------------
-// PPUWriteLogView
+// APUWriteLogView
 //
-// Debugger view for inspecting recent CPU writes to PPU-facing registers.  The
-// view displays a rolling log of writes to PPUCTRL, PPUMASK, OAMADDR, OAMDATA,
-// PPUSCROLL, PPUADDR, PPUDATA, and OAM DMA.
-//
-// The log is useful for debugging palette uploads, scroll writes, nametable
-// updates, sprite DMA, mid-frame effects, and status bar/split-screen behavior.
+// Debugger view for inspecting recent CPU writes to APU registers.  The view
+// displays a rolling log of writes to the Square, Triangle, Noise, DMC, status,
+// and frame-counter registers.
 //
 // The emulator's write log is copied into debugger-owned storage before it is
 // displayed.  This gives the view stable redraws and allows freeze mode to
 // preserve the exact visible log state.
 // -----------------------------------------------------------------------------
-class PPUWriteLogView : public BView
+class APUWriteLogView : public BView
 {
 	public:
-			PPUWriteLogView(BRect frame, PretendoWindow *parent);
-	virtual ~PPUWriteLogView();
+			APUWriteLogView(BRect frame, PretendoWindow *parent);
+	virtual ~APUWriteLogView();
 
 	public:
 	virtual void AttachedToWindow();
@@ -44,10 +41,12 @@ class PPUWriteLogView : public BView
 	virtual void Pulse();
 
 	private:
-	friend class PPUWriteLogScrollBar;
-
+	friend class APUWriteLogScrollBar;
+	
+	private:
 	void CaptureLogSnapshot();
 
+	private:
 	void DrawHeaderPanel();
 	void DrawLogPanel();
 
@@ -56,28 +55,32 @@ class PPUWriteLogView : public BView
 	void ScrollRows (int32 rows);
 	void ScrollPages (int32 pages);
 	void FollowNewest();
-
+	
+	private:
 	void UpdateScrollBar();
 	void ScrollBarValueChanged (float value);
 
 	private:
 	const char *RegisterName (uint16 address) const;
-	void DescribeWrite (const nes::ppu::ppu_write_log_entry_t &entry, BString &text) const;
+	const char *ChannelName (uint16 address) const;
+	void DescribeWrite (const nes::apu::apu_write_log_entry_t &entry, BString &text) const;
 
 	private:
 	bool HasROMLoaded() const;
-	void DrawNoROMMessage(BRect panel);
+	void DrawNoROMMessage (BRect panel);
 
 	private:
 	bool fFreezeUpdates = false;
 	bool fFollowNewest = true;
-
 	int32 fFirstVisibleRow = 0;
 
+	private:
 	BScrollBar *fScrollBar = nullptr;
 
-	std::vector<nes::ppu::ppu_write_log_entry_t> fLogSnapshot;
+	private:
+	std::vector<nes::apu::apu_write_log_entry_t> fLogSnapshot;
 };
 
 
-#endif // _PPU_WRITE_LOG_VIEW_H_
+#endif // _APU_WRITE_LOG_VIEW_H_
+

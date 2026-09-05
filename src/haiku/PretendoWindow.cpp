@@ -724,6 +724,10 @@ PretendoWindow::MessageReceived (BMessage *message)
 			OnViewAPUStatusWindow();
 			break;
 			
+		case messages::VIEW_APULOG:
+			OnViewAPUWriteLogWindow();
+			break;
+			
 		default:
 			break;
 	}
@@ -983,10 +987,6 @@ PretendoWindow::AddMenu()
 	fPPUToolMenu->AddItem(new BMenuItem("View OAM", new BMessage(messages::VIEW_OAMDBG)));
 	fPPUToolMenu->AddSeparatorItem();
 	
-	fAPUToolMenu = new BMenu("APU");
-	fToolMenu->AddItem(fAPUToolMenu);
-	fAPUToolMenu->AddItem(new BMenuItem("View APU Status" B_UTF8_ELLIPSIS, new BMessage(messages::VIEW_APUSTATUS)));
-
 	fPatternTableMenu = new BMenu("View Pattern Tables");
 	fPatternTableMenu->AddItem(new BMenuItem("1 ($0000)", new BMessage(messages::VIEW_PTNTBL1)));
 	fPatternTableMenu->AddItem(new BMenuItem("2 ($1000)", new BMessage(messages::VIEW_PTNTBL2)));
@@ -998,6 +998,11 @@ PretendoWindow::AddMenu()
 	fNameTableMenu->AddItem(new BMenuItem("3 ($2800)", new BMessage(messages::VIEW_NTBL3)));
 	fNameTableMenu->AddItem(new BMenuItem("4 ($2C00)", new BMessage(messages::VIEW_NTBL4)));
 	fPPUToolMenu->AddItem(fNameTableMenu);
+	
+	fAPUToolMenu = new BMenu("APU");
+	fToolMenu->AddItem(fAPUToolMenu);
+	fAPUToolMenu->AddItem(new BMenuItem("View APU Status" B_UTF8_ELLIPSIS, new BMessage(messages::VIEW_APUSTATUS)));
+	fAPUToolMenu->AddItem(new BMenuItem("View APU Write Log", new BMessage(messages::VIEW_APULOG)));	
 	
 	// menu icon
 	fMenuBarIcon = new MenuBarIcon(fMenuBar);
@@ -2239,6 +2244,40 @@ PretendoWindow::OnViewAPUStatusWindow()
 
 
 // -----------------------------------------------------------------------------
+// PretendoWindow::OnViewAPUWriteLogWindow
+//
+// Opens the APU Write Log debugger window or brings the existing window to the
+// foreground if it is already open.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::OnViewAPUWriteLogWindow()
+{
+	if (fAPUWriteLogWindow) {
+		if (fAPUWriteLogWindow->Lock()) {
+			if (fAPUWriteLogWindow->IsHidden()) {
+				fAPUWriteLogWindow->Show();
+			}
+
+			fAPUWriteLogWindow->Activate(true);
+			fAPUWriteLogWindow->Unlock();
+		}
+
+		return;
+	}
+
+	fAPUWriteLogWindow = new APUWriteLogWindow(this);
+	BeginToolInput();
+	fAPUWriteLogWindow->Show();
+}
+
+
+// -----------------------------------------------------------------------------
 // PretendoWindow::ROMInfoWindowClosed
 //
 // Releases tool-input ownership for the ROM Info window and clears the stored
@@ -2676,6 +2715,26 @@ PretendoWindow::APUStatusWindowClosed()
 {
 	EndToolInput();
 	fAPUStatusWindow = nullptr;
+}
+
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::APUWriteLogWindowClosed
+//
+// Releases tool-input ownership for the APU Write Log window and clears the
+// stored window pointer after the window has closed.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::APUWriteLogWindowClosed()
+{
+	EndToolInput();
+	fAPUWriteLogWindow = nullptr;
 }
 
 
@@ -3826,6 +3885,7 @@ PretendoWindow::CountVisibleToolWindows() const
 	countWindow(fBreakPointWindow);
 
 	countWindow(fAPUStatusWindow);
+	countWindow(fAPUWriteLogWindow);
 
 	return count;
 }
@@ -3988,6 +4048,7 @@ PretendoWindow::SuspendToolWindowsForFullScreen()
 	// -------------------------------------------------------------------------
 
 	fWasAPUStatusWindowVisibleBeforeFullScreen = HideToolWindowForFullScreen(fAPUStatusWindow);
+	fWasAPUWriteLogWindowVisibleBeforeFullScreen = HideToolWindowForFullScreen(fAPUWriteLogWindow);
 
 	// No tool window owns fullscreen keyboard input while suspended.
 	fToolInputDepth = 0;
@@ -4077,6 +4138,7 @@ PretendoWindow::RestoreToolWindowsAfterFullScreen()
 	// -------------------------------------------------------------------------
 	
 	ShowToolWindowAfterFullScreen(fAPUStatusWindow, fWasAPUStatusWindowVisibleBeforeFullScreen);
+	ShowToolWindowAfterFullScreen(fAPUWriteLogWindow, fWasAPUWriteLogWindowVisibleBeforeFullScreen);
 
 	// Rebuild ownership from the windows that actually survived fullscreen.
 	fToolInputDepth = CountVisibleToolWindows();
@@ -4138,6 +4200,7 @@ PretendoWindow::RestoreToolWindowsAfterFullScreen()
 	// -------------------------------------------------------------------------
 
 	fWasAPUStatusWindowVisibleBeforeFullScreen = false;
+	fWasAPUWriteLogWindowVisibleBeforeFullScreen = false;
 
 	fToolWindowsSuspendedForFullScreen = false;
 
@@ -4743,6 +4806,7 @@ PretendoWindow::InvalidateDebugViews()
 	InvalidateWindowContents(fBreakPointWindow);
 
 	InvalidateWindowContents(fAPUStatusWindow);
+	InvalidateWindowContents(fAPUWriteLogWindow);
 }
 
 

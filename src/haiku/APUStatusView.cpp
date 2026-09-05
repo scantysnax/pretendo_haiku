@@ -885,7 +885,6 @@ APUStatusView::DrawAPUPanel (BRect panel)
 	y += kLineHeight;
 
 	DrawBoolLine("Audio Mute", state.audio_muted, x, y);
-	
 }
 
 

@@ -149,8 +149,28 @@ bool debug_audio_is_muted();
 apu_debug_state_t debug_state();
 
 
-void reset(Reset reset_type);
+constexpr uint32_t APU_WRITE_LOG_CAPACITY = 256;
 
+struct apu_write_log_entry_t {
+	uint64_t cycle;
+	uint16_t address;
+	uint8_t value;
+	uint32_t write_index;
+};
+
+uint32_t apu_write_log_count();
+uint32_t apu_write_log_snapshot(
+	apu_write_log_entry_t *entries,
+	uint32_t capacity);
+
+void clear_apu_write_log();
+
+
+
+
+
+
+void reset(Reset reset_type);
 
 void write4000(uint8_t value);
 void write4001(uint8_t value);

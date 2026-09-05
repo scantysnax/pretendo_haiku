@@ -65,6 +65,46 @@ size_t sample_buffer_end   = 0;
 static uint8_t sLastOutputSample = silence;
 
 
+static nes::apu::apu_write_log_entry_t write_log_[nes::apu::APU_WRITE_LOG_CAPACITY];
+static uint32_t write_log_next_ = 0;
+static uint32_t write_log_count_ = 0;
+static uint32_t write_log_write_index_ = 0;
+
+
+// -----------------------------------------------------------------------------
+// log_apu_write
+//
+// Appends one CPU write to an APU register to the rolling write log.
+//
+// The current APU cycle is captured together with the CPU-visible register
+// address and written value so debugger views can reconstruct the order and
+// timing of recent APU programming activity.
+//
+// Parameters:
+//   address - CPU-visible APU register address.
+//   value   - Value written by the CPU.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+log_apu_write(uint16_t address, uint8_t value)
+{
+	apu_write_log_entry_t& entry = write_log_[write_log_next_];
+
+	entry.cycle = apu_cycles_;
+	entry.address = address;
+	entry.value = value;
+	entry.write_index = write_log_write_index_++;
+
+	write_log_next_ = (write_log_next_ + 1) % APU_WRITE_LOG_CAPACITY;
+
+	if (write_log_count_ < APU_WRITE_LOG_CAPACITY) {
+		write_log_count_++;
+	}
+}
+
+
 // -----------------------------------------------------------------------------
 // clock_linear
 //
@@ -369,6 +409,7 @@ reset(Reset reset_type)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void write4000(uint8_t value) {
+	log_apu_write(0x4000, value);
 	square_0.write_reg0(value);
 }
 
@@ -385,6 +426,7 @@ void write4000(uint8_t value) {
 //   Nothing.
 // -----------------------------------------------------------------------------
 void write4001(uint8_t value) {
+	log_apu_write(0x4001, value);
 	square_0.write_reg1(value);
 }
 
@@ -401,6 +443,7 @@ void write4001(uint8_t value) {
 //   Nothing.
 // -----------------------------------------------------------------------------
 void write4002(uint8_t value) {
+	log_apu_write(0x4002, value);
 	square_0.write_reg2(value);
 }
 
@@ -418,6 +461,7 @@ void write4002(uint8_t value) {
 //   Nothing.
 // -----------------------------------------------------------------------------
 void write4003(uint8_t value) {
+	log_apu_write(0x4003, value);
 	square_0.write_reg3(value);
 }
 
@@ -434,6 +478,7 @@ void write4003(uint8_t value) {
 //   Nothing.
 // -----------------------------------------------------------------------------
 void write4004(uint8_t value) {
+	log_apu_write(0x4004, value);
 	square_1.write_reg0(value);
 }
 
@@ -450,6 +495,7 @@ void write4004(uint8_t value) {
 //   Nothing.
 // -----------------------------------------------------------------------------
 void write4005(uint8_t value) {
+	log_apu_write(0x4005, value);
 	square_1.write_reg1(value);
 }
 
@@ -466,6 +512,7 @@ void write4005(uint8_t value) {
 //   Nothing.
 // -----------------------------------------------------------------------------
 void write4006(uint8_t value) {
+	log_apu_write(0x4006, value);
 	square_1.write_reg2(value);
 }
 
@@ -483,6 +530,7 @@ void write4006(uint8_t value) {
 //   Nothing.
 // -----------------------------------------------------------------------------
 void write4007(uint8_t value) {
+	log_apu_write(0x4007, value);
 	square_1.write_reg3(value);
 }
 
@@ -499,6 +547,7 @@ void write4007(uint8_t value) {
 //   Nothing.
 // -----------------------------------------------------------------------------
 void write4008(uint8_t value) {
+	log_apu_write(0x4008, value);
 	triangle.write_reg0(value);
 }
 
@@ -515,6 +564,7 @@ void write4008(uint8_t value) {
 //   Nothing.
 // -----------------------------------------------------------------------------
 void write400A(uint8_t value) {
+	log_apu_write(0x400a, value);
 	triangle.write_reg2(value);
 }
 
@@ -532,6 +582,7 @@ void write400A(uint8_t value) {
 //   Nothing.
 // -----------------------------------------------------------------------------
 void write400B(uint8_t value) {
+	log_apu_write(0x400b, value);
 	triangle.write_reg3(value);
 }
 
@@ -548,6 +599,7 @@ void write400B(uint8_t value) {
 //   Nothing.
 // -----------------------------------------------------------------------------
 void write400C(uint8_t value) {
+	log_apu_write(0x400c, value);
 	noise.write_reg0(value);
 }
 
@@ -564,6 +616,7 @@ void write400C(uint8_t value) {
 //   Nothing.
 // -----------------------------------------------------------------------------
 void write400E(uint8_t value) {
+	log_apu_write(0x400e, value);
 	noise.write_reg2(value);
 }
 
@@ -580,6 +633,7 @@ void write400E(uint8_t value) {
 //   Nothing.
 // -----------------------------------------------------------------------------
 void write400F(uint8_t value) {
+	log_apu_write(0x400f, value);
 	noise.write_reg3(value);
 }
 
@@ -596,6 +650,7 @@ void write400F(uint8_t value) {
 //   Nothing.
 // -----------------------------------------------------------------------------
 void write4010(uint8_t value) {
+	log_apu_write(0x4010, value);
 	dmc.write_reg0(value);
 }
 
@@ -612,6 +667,7 @@ void write4010(uint8_t value) {
 //   Nothing.
 // -----------------------------------------------------------------------------
 void write4011(uint8_t value) {
+	log_apu_write(0x4011, value);
 	dmc.write_reg1(value);
 }
 
@@ -628,6 +684,7 @@ void write4011(uint8_t value) {
 //   Nothing.
 // -----------------------------------------------------------------------------
 void write4012(uint8_t value) {
+	log_apu_write(0x4012, value);
 	dmc.write_reg2(value);
 }
 
@@ -644,6 +701,7 @@ void write4012(uint8_t value) {
 //   Nothing.
 // -----------------------------------------------------------------------------
 void write4013(uint8_t value) {
+	log_apu_write(0x4013, value);
 	dmc.write_reg3(value);
 }
 
@@ -664,6 +722,7 @@ void write4013(uint8_t value) {
 //   Nothing.
 // -----------------------------------------------------------------------------
 void write4015(uint8_t value) {
+	log_apu_write(0x4015, value);
 
 	// writing to this register clears the DMC interrupt flag.
 	status.dmc_irq = false;
@@ -746,6 +805,8 @@ uint8_t read4015() {
 void
 write4017(uint8_t value)
 {
+	log_apu_write(0x4017, value);
+	
 	frame_counter_.raw  = value;
 	last_frame_counter_ = value;
 
@@ -1170,6 +1231,98 @@ debug_audio_is_muted()
 {
 	return debug_audio_muted;
 }
+
+
+// -----------------------------------------------------------------------------
+// nes::apu::apu_write_log_count
+//
+// Returns the number of valid entries currently stored in the rolling APU
+// register-write log.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Current APU write-log entry count.
+// -----------------------------------------------------------------------------
+uint32_t
+apu_write_log_count()
+{
+	return write_log_count_;
+}
+
+
+// -----------------------------------------------------------------------------
+// nes::apu::apu_write_log_snapshot
+//
+// Copies the current logical APU write log into caller-provided storage.
+//
+// The ring-buffer count and starting position are captured once before copying,
+// so every entry in the returned snapshot uses the same logical ordering.
+//
+// Entries are returned oldest to newest.
+//
+// Parameters:
+//   entries  - Destination array.
+//   capacity - Maximum number of entries that may be written.
+//
+// Returns:
+//   Number of entries copied.
+// -----------------------------------------------------------------------------
+uint32_t
+apu_write_log_snapshot(apu_write_log_entry_t *entries, uint32_t capacity)
+{
+	if (!entries || capacity == 0) {
+		return 0;
+	}
+
+	const uint32_t available = write_log_count_;
+	const uint32_t count = (available < capacity) ? available : capacity;
+
+	if (count == 0) {
+		return 0;
+	}
+
+	uint32_t start = 0;
+
+	if (available == APU_WRITE_LOG_CAPACITY) {
+		start = write_log_next_;
+	}
+
+	if (count < available) {
+		start = (start + (available - count)) % APU_WRITE_LOG_CAPACITY;
+	}
+
+	for (uint32_t index = 0; index < count; index++) {
+		const uint32_t physicalIndex =
+			(start + index) % APU_WRITE_LOG_CAPACITY;
+
+		entries[index] = write_log_[physicalIndex];
+	}
+
+	return count;
+}
+
+
+// -----------------------------------------------------------------------------
+// nes::apu::clear_apu_write_log
+//
+// Clears the rolling APU register-write log and resets its sequence state.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+clear_apu_write_log()
+{
+	write_log_next_ = 0;
+	write_log_count_ = 0;
+	write_log_write_index_ = 0;
+}
+
 
 }
 

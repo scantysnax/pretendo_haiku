@@ -1,50 +1,50 @@
 
-#include "PPUWriteLogView.h"
+#include "APUWriteLogView.h"
 
 
 // -----------------------------------------------------------------------------
-// PPUWriteLogScrollBar
+// APUWriteLogScrollBar
 //
-// Vertical scrollbar used by PPUWriteLogView.  Instead of scrolling the target
+// Vertical scrollbar used by APUWriteLogView.  Instead of scrolling the target
 // BView directly, changes are forwarded into the view's retained-history scroll
 // state so the fixed header remains stationary.
 // -----------------------------------------------------------------------------
-class PPUWriteLogScrollBar : public BScrollBar
+class APUWriteLogScrollBar : public BScrollBar
 {
 	public:
-	PPUWriteLogScrollBar (BRect frame, PPUWriteLogView *owner);
+	APUWriteLogScrollBar (BRect frame, APUWriteLogView *owner);
 
 	protected:
-	virtual void ValueChanged(float newValue);
+	virtual void ValueChanged (float newValue);
 
 	private:
-	PPUWriteLogView *fOwner = nullptr;
+	APUWriteLogView *fOwner = nullptr;
 };
 
 
 // -----------------------------------------------------------------------------
-// PPUWriteLogScrollBar::PPUWriteLogScrollBar
+// APUWriteLogScrollBar::APUWriteLogScrollBar
 //
-// Creates the vertical scrollbar used by the PPU Write Log.
+// Creates the vertical scrollbar used by the APU Write Log.
 //
 // Parameters:
 //   frame - Rectangle defining the scrollbar bounds.
-//   owner - PPUWriteLogView that owns the scrolling state.
+//   owner - APUWriteLogView that owns the scrolling state.
 //
 // Returns:
 //   Constructor; no return value.
 // -----------------------------------------------------------------------------
-PPUWriteLogScrollBar::PPUWriteLogScrollBar(BRect frame, PPUWriteLogView *owner)
-	: BScrollBar(frame, "ppu_write_log_scroll_bar", nullptr, 0.0f, 0.0f, B_VERTICAL)
+APUWriteLogScrollBar::APUWriteLogScrollBar (BRect frame, APUWriteLogView *owner)
+	: BScrollBar(frame, "apu_write_log_scroll_bar", nullptr, 0.0f, 0.0f, B_VERTICAL)
 {
 	fOwner = owner;
 }
 
 
 // -----------------------------------------------------------------------------
-// PPUWriteLogScrollBar::ValueChanged
+// APUWriteLogScrollBar::ValueChanged
 //
-// Forwards scrollbar movement to the owning PPU Write Log view.
+// Forwards scrollbar movement to the owning APU Write Log view.
 //
 // Parameters:
 //   newValue - New scrollbar position.
@@ -53,7 +53,7 @@ PPUWriteLogScrollBar::PPUWriteLogScrollBar(BRect frame, PPUWriteLogView *owner)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-PPUWriteLogScrollBar::ValueChanged(float newValue)
+APUWriteLogScrollBar::ValueChanged (float newValue)
 {
 	BScrollBar::ValueChanged(newValue);
 
@@ -64,13 +64,13 @@ PPUWriteLogScrollBar::ValueChanged(float newValue)
 
 
 // -----------------------------------------------------------------------------
-// PPUWriteLogView::PPUWriteLogView
+// APUWriteLogView::APUWriteLogView
 //
-// Constructs the PPU Write Log debugger view.
+// Constructs the APU Write Log debugger view.
 //
-// The view displays a live rolling history of CPU writes to PPU-facing
-// registers.  Keyboard focus, live/frozen snapshot handling, and log drawing are
-// managed by the view after it is attached to a window.
+// The view displays a live rolling history of CPU writes to APU registers.
+// Keyboard focus, live/frozen snapshot handling, and log drawing are managed by
+// the view after it is attached to a window.
 //
 // The parent argument is retained for consistency with the other debugger-view
 // constructors but is not currently required by this view.
@@ -80,10 +80,10 @@ PPUWriteLogScrollBar::ValueChanged(float newValue)
 //   parent - Owning PretendoWindow; currently unused.
 //
 // Returns:
-//   Constructed PPUWriteLogView instance.
+//   Constructed APUWriteLogView instance.
 // -----------------------------------------------------------------------------
-PPUWriteLogView::PPUWriteLogView (BRect frame, PretendoWindow *parent)
-	: BView(frame, "ppu_write_log_view", B_FOLLOW_ALL_SIDES, B_WILL_DRAW | B_PULSE_NEEDED)
+APUWriteLogView::APUWriteLogView(BRect frame, PretendoWindow *parent)
+	: BView(frame, "apu_write_log_view", B_FOLLOW_ALL_SIDES, B_WILL_DRAW | B_PULSE_NEEDED)
 {
 	(void)parent;
 
@@ -93,12 +93,12 @@ PPUWriteLogView::PPUWriteLogView (BRect frame, PretendoWindow *parent)
 
 
 // -----------------------------------------------------------------------------
-// PPUWriteLogView::~PPUWriteLogView
+// APUWriteLogView::~APUWriteLogView
 //
-// Destroys the PPU Write Log debugger view.
+// Destroys the APU Write Log debugger view.
 //
 // No additional cleanup is currently required because debugger snapshot storage
-// is managed automatically and the view does not own external PPU resources.
+// is managed automatically and the view does not own external APU resources.
 //
 // Parameters:
 //   None.
@@ -106,15 +106,15 @@ PPUWriteLogView::PPUWriteLogView (BRect frame, PretendoWindow *parent)
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-PPUWriteLogView::~PPUWriteLogView()
+APUWriteLogView::~APUWriteLogView()
 {
 }
 
 
 // -----------------------------------------------------------------------------
-// PPUWriteLogView::AttachedToWindow
+// APUWriteLogView::AttachedToWindow
 //
-// Completes PPU Write Log view setup after attachment to a window.
+// Completes APU Write Log view setup after attachment to a window.
 //
 // The view receives keyboard focus immediately and captures the current log so
 // the first redraw does not need to wait for a pulse.
@@ -126,17 +126,18 @@ PPUWriteLogView::~PPUWriteLogView()
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-PPUWriteLogView::AttachedToWindow()
+APUWriteLogView::AttachedToWindow()
 {
 	BView::AttachedToWindow();
 
 	MakeFocus(true);
 
 	const float scrollBarWidth = B_V_SCROLL_BAR_WIDTH;
-	BRect scrollFrame(Bounds().right - scrollBarWidth - 4.0f, 70.0f, 
-					  Bounds().right - 4.0f, Bounds().bottom - 8.0f);
 
-	fScrollBar = new PPUWriteLogScrollBar(scrollFrame, this);
+	BRect scrollFrame(Bounds().right - scrollBarWidth - 4.0f, 70.0f, 
+					  Bounds().right - 4.0f,Bounds().bottom - 8.0f);
+
+	fScrollBar = new APUWriteLogScrollBar(scrollFrame, this);
 	AddChild(fScrollBar);
 
 	if (HasROMLoaded()) {
@@ -148,9 +149,9 @@ PPUWriteLogView::AttachedToWindow()
 
 
 // -----------------------------------------------------------------------------
-// PPUWriteLogView::Pulse
+// APUWriteLogView::Pulse
 //
-// Periodically refreshes the PPU write-log snapshot while the view is live and
+// Periodically refreshes the APU write-log snapshot while the view is live and
 // following the newest entries.  When browsing retained history, the current
 // debugger-owned snapshot is preserved so the visible entries remain stable.
 //
@@ -161,7 +162,7 @@ PPUWriteLogView::AttachedToWindow()
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-PPUWriteLogView::Pulse()
+APUWriteLogView::Pulse()
 {
 	if (!HasROMLoaded()) {
 		if (!fLogSnapshot.empty()) {
@@ -191,10 +192,15 @@ PPUWriteLogView::Pulse()
 
 
 // -----------------------------------------------------------------------------
-// PPUWriteLogView::CaptureLogSnapshot
+// APUWriteLogView::CaptureLogSnapshot
 //
-// Captures the current rolling PPU write log into debugger-owned storage and
-// updates the scrollbar to reflect the new snapshot.
+// Captures the current APU write log into debugger-owned storage.
+//
+// The APU core performs the ring-buffer traversal using one captured logical
+// starting position, preventing the debugger from seeing a different ring
+// origin for every entry while the emulator is running.
+//
+// The resulting snapshot is stored oldest to newest.
 //
 // Parameters:
 //   None.
@@ -203,13 +209,13 @@ PPUWriteLogView::Pulse()
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-PPUWriteLogView::CaptureLogSnapshot()
+APUWriteLogView::CaptureLogSnapshot()
 {
-	const uint32 count = nes::ppu::ppu_write_log_count();
+	const uint32 count = nes::apu::apu_write_log_count();
 	fLogSnapshot.resize(count);
 
 	if (count != 0) {
-		const uint32 copied = nes::ppu::ppu_write_log_snapshot(fLogSnapshot.data(), count);
+		const uint32 copied = nes::apu::apu_write_log_snapshot(fLogSnapshot.data(), count);
 		fLogSnapshot.resize(copied);
 	}
 
@@ -217,8 +223,26 @@ PPUWriteLogView::CaptureLogSnapshot()
 }
 
 
+// -----------------------------------------------------------------------------
+// APUWriteLogView::KeyDown
+//
+// Handles keyboard controls for the APU write-log debugger.
+//
+// Space toggles live/frozen state.  Entering freeze captures the current log
+// immediately so the frozen display represents the state at the moment the key
+// was pressed.
+//
+// C clears both the emulator write log and the debugger-side snapshot.
+//
+// Parameters:
+//   bytes    - Key bytes received from the keyboard event.
+//   numBytes - Number of bytes in the key event.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
-PPUWriteLogView::KeyDown (const char *bytes, int32 numBytes)
+APUWriteLogView::KeyDown (const char *bytes, int32 numBytes)
 {
 	if (numBytes <= 0) {
 		return;
@@ -259,7 +283,7 @@ PPUWriteLogView::KeyDown (const char *bytes, int32 numBytes)
 		case 'c':
 		case 'C':
 		{
-			nes::ppu::clear_ppu_write_log();
+			nes::apu::clear_apu_write_log();
 
 			fLogSnapshot.clear();
 			fFirstVisibleRow = 0;
@@ -269,7 +293,7 @@ PPUWriteLogView::KeyDown (const char *bytes, int32 numBytes)
 			Invalidate();
 			break;
 		}
-
+		
 		case B_UP_ARROW:
 			ScrollRows(-1);
 			break;
@@ -298,9 +322,9 @@ PPUWriteLogView::KeyDown (const char *bytes, int32 numBytes)
 
 
 // -----------------------------------------------------------------------------
-// PPUWriteLogView::MessageReceived
+// APUWriteLogView::MessageReceived
 //
-// Handles messages sent to the PPU Write Log view.  Mouse-wheel messages are
+// Handles messages sent to the APU Write Log view.  Mouse-wheel messages are
 // translated into row scrolling while all other messages are passed to BView.
 //
 // Parameters:
@@ -310,7 +334,7 @@ PPUWriteLogView::KeyDown (const char *bytes, int32 numBytes)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-PPUWriteLogView::MessageReceived(BMessage *message)
+APUWriteLogView::MessageReceived(BMessage *message)
 {
 	if (!message) {
 		return;
@@ -339,9 +363,9 @@ PPUWriteLogView::MessageReceived(BMessage *message)
 
 
 // -----------------------------------------------------------------------------
-// PPUWriteLogView::Draw
+// APUWriteLogView::Draw
 //
-// Draws the complete PPU Write Log debugger.
+// Draws the complete APU Write Log debugger.
 //
 // The background and header are drawn first.  If no ROM is loaded, a friendly
 // empty-state panel is shown.  Otherwise the current debugger-side log snapshot
@@ -354,7 +378,7 @@ PPUWriteLogView::MessageReceived(BMessage *message)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-PPUWriteLogView::Draw (BRect updateRect)
+APUWriteLogView::Draw (BRect updateRect)
 {
 	(void)updateRect;
 
@@ -365,9 +389,10 @@ PPUWriteLogView::Draw (BRect updateRect)
 
 	if (!HasROMLoaded()) {
 		BRect panel(4.0f, 70.0f, Bounds().right - 4.0f, Bounds().bottom - 8.0f);
+		
 		::DrawDebugPanel(this, panel, "Recent Writes");
 		DrawNoROMMessage(panel);
-		
+
 		return;
 	}
 
@@ -376,9 +401,9 @@ PPUWriteLogView::Draw (BRect updateRect)
 
 
 // -----------------------------------------------------------------------------
-// PPUWriteLogView::DrawHeaderPanel
+// APUWriteLogView::DrawHeaderPanel
 //
-// Draws the title/help panel for the PPU write log viewer.  The panel shows the
+// Draws the title/help panel for the APU write log viewer.  The panel shows the
 // available keyboard controls together with the current freeze state and whether
 // the view is following the newest log entries or browsing older history.
 //
@@ -389,10 +414,11 @@ PPUWriteLogView::Draw (BRect updateRect)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-PPUWriteLogView::DrawHeaderPanel()
+APUWriteLogView::DrawHeaderPanel()
 {
 	BRect panel(4.0f, 4.0f, Bounds().right - 4.0f, 58.0f);
-	::DrawDebugPanel(this, panel, "PPU Write Log");
+
+	::DrawDebugPanel(this, panel, "APU Write Log");
 
 	SetFontSize(11.0f);
 
@@ -415,11 +441,13 @@ PPUWriteLogView::DrawHeaderPanel()
 
 
 // -----------------------------------------------------------------------------
-// PPUWriteLogView::DrawLogPanel
+// APUWriteLogView::DrawLogPanel
 //
-// Draws the current PPU write-log snapshot.  The panel displays the retained
-// writes in chronological order and respects the current history scroll
-// position while preserving automatic follow-newest behavior when enabled.
+// Draws the debugger-side APU write-log snapshot.
+//
+// The newest entries that fit in the panel are selected while preserving
+// chronological order from top to bottom.  Older writes therefore appear above
+// newer writes, with the most recent captured write at the bottom.
 //
 // Parameters:
 //   None.
@@ -428,7 +456,7 @@ PPUWriteLogView::DrawHeaderPanel()
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-PPUWriteLogView::DrawLogPanel()
+APUWriteLogView::DrawLogPanel()
 {
 	BRect panel(4.0f, 70.0f, Bounds().right - B_V_SCROLL_BAR_WIDTH - 8.0f, Bounds().bottom - 8.0f);
 	::DrawDebugPanel(this, panel, "Recent Writes");
@@ -445,27 +473,26 @@ PPUWriteLogView::DrawLogPanel()
 
 	const float lineH = ceilf(fh.ascent + fh.descent + fh.leading) + 1.0f;
 
-	const float frameX = panel.left + 8.0f;
-	const float dotX = frameX + 70.0f;
-	const float scanX = dotX + 50.0f;
-	const float regX = scanX + 58.0f;
-	const float valX = regX + 96.0f;
-	const float descX = valX + 52.0f;
+	const float cycleX = panel.left + 8.0f;
+	const float regX = cycleX + 92.0f;
+	const float valX = regX + 100.0f;
+	const float channelX = valX + 52.0f;
+	const float descX = channelX + 82.0f;
 
 	float y = panel.top + 48.0f;
 
 	SetHighColor(80, 80, 80);
 
-	DrawString("Frame", BPoint(frameX, y));
-	DrawString("Dot", BPoint(dotX, y));
-	DrawString("Scanline", BPoint(scanX, y));
+	DrawString("Cycle", BPoint(cycleX, y));
 	DrawString("Register", BPoint(regX, y));
 	DrawString("Value", BPoint(valX, y));
+	DrawString("Channel", BPoint(channelX, y));
 	DrawString("Meaning", BPoint(descX, y));
 
 	y += lineH + 8.0f;
 
 	SetHighColor(120, 120, 120);
+
 	StrokeLine(BPoint(panel.left + 8.0f, y - 8.0f), BPoint(panel.right - 8.0f, y - 8.0f));
 	y += 6.0f;
 
@@ -473,8 +500,10 @@ PPUWriteLogView::DrawLogPanel()
 
 	if (count == 0) {
 		SetHighColor(90, 90, 90);
-		DrawString("No PPU writes logged yet.", BPoint(frameX, y + lineH));
+		DrawString("No APU writes logged yet.", BPoint(cycleX, y + lineH));
+
 		SetFont(&prevFont);
+
 		return;
 	}
 
@@ -494,7 +523,7 @@ PPUWriteLogView::DrawLogPanel()
 	}
 
 	const int32 maxFirstIndex = (static_cast<int32>(count) > visibleRows)
-							  ? static_cast<int32>(count) - visibleRows : 0;
+							  ? (static_cast<int32>(count) - visibleRows) : 0;
 
 	if (firstIndex > maxFirstIndex) {
 		firstIndex = maxFirstIndex;
@@ -511,29 +540,47 @@ PPUWriteLogView::DrawLogPanel()
 
 	for (int32 row = 0; row < rows; row++) {
 		const int32 index = firstIndex + row;
-		const nes::ppu::ppu_write_log_entry_t &entry = fLogSnapshot[index];
+		const nes::apu::apu_write_log_entry_t &entry = fLogSnapshot[index];
 
 		DescribeWrite(entry, desc);
 
 		switch (entry.address) {
-			case 0x2000:
-			case 0x2001:
+			case 0x4000:
+			case 0x4001:
+			case 0x4002:
+			case 0x4003:
 				SetHighColor(0, 70, 150);
 				break;
 
-			case 0x2003:
-			case 0x2004:
-			case 0x4014:
-				SetHighColor(110, 0, 120);
+			case 0x4004:
+			case 0x4005:
+			case 0x4006:
+			case 0x4007:
+				SetHighColor(0, 100, 130);
 				break;
 
-			case 0x2005:
-			case 0x2006:
+			case 0x4008:
+			case 0x400a:
+			case 0x400b:
 				SetHighColor(0, 110, 70);
 				break;
 
-			case 0x2007:
+			case 0x400c:
+			case 0x400e:
+			case 0x400f:
 				SetHighColor(120, 70, 0);
+				break;
+
+			case 0x4010:
+			case 0x4011:
+			case 0x4012:
+			case 0x4013:
+				SetHighColor(110, 0, 120);
+				break;
+
+			case 0x4015:
+			case 0x4017:
+				SetHighColor(150, 30, 30);
 				break;
 
 			default:
@@ -541,18 +588,13 @@ PPUWriteLogView::DrawLogPanel()
 				break;
 		}
 
-		s.SetToFormat("%llu", static_cast<unsigned long long>(entry.frame));
-		DrawString(s.String(), BPoint(frameX, y));
-
-		s.SetToFormat("%u", static_cast<unsigned int>(entry.dot));
-		DrawString(s.String(), BPoint(dotX, y));
-
-		s.SetToFormat("%u", static_cast<unsigned int>(entry.scanline));
-		DrawString(s.String(), BPoint(scanX, y));
+		s.SetToFormat("%llu", static_cast<unsigned long long>(entry.cycle));
+		DrawString(s.String(), BPoint(cycleX, y));
 		DrawString(RegisterName(entry.address), BPoint(regX, y));
 
 		s.SetToFormat("$%02X", entry.value);
 		DrawString(s.String(), BPoint(valX, y));
+		DrawString(ChannelName(entry.address), BPoint(channelX, y));
 		DrawString(desc.String(), BPoint(descX, y));
 		y += lineH;
 	}
@@ -562,9 +604,9 @@ PPUWriteLogView::DrawLogPanel()
 
 
 // -----------------------------------------------------------------------------
-// PPUWriteLogView::VisibleRowCount
+// APUWriteLogView::VisibleRowCount
 //
-// Calculates how many PPU write-log rows fit inside the Recent Writes panel.
+// Calculates how many APU write-log rows fit inside the Recent Writes panel.
 //
 // Parameters:
 //   None.
@@ -573,9 +615,10 @@ PPUWriteLogView::DrawLogPanel()
 //   Number of visible log rows that fit in the panel.
 // -----------------------------------------------------------------------------
 int32
-PPUWriteLogView::VisibleRowCount() const
+APUWriteLogView::VisibleRowCount() const
 {
 	BRect panel(4.0f, 70.0f, Bounds().right - B_V_SCROLL_BAR_WIDTH - 8.0f, Bounds().bottom - 8.0f);
+	
 	BFont fixed(be_fixed_font);
 	fixed.SetSize(10.0f);
 
@@ -591,9 +634,9 @@ PPUWriteLogView::VisibleRowCount() const
 
 
 // -----------------------------------------------------------------------------
-// PPUWriteLogView::ScrollRows
+// APUWriteLogView::ScrollRows
 //
-// Scrolls the visible PPU write-log history by the requested number of rows.
+// Scrolls the visible APU write-log history by the requested number of rows.
 // Scrolling upward disables automatic following of the newest entries.  If the
 // scroll position reaches the newest possible page, follow mode is restored.
 //
@@ -605,7 +648,7 @@ PPUWriteLogView::VisibleRowCount() const
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-PPUWriteLogView::ScrollRows (int32 rows)
+APUWriteLogView::ScrollRows (int32 rows)
 {
 	const int32 count = static_cast<int32>(fLogSnapshot.size());
 	const int32 visibleRows = VisibleRowCount();
@@ -614,7 +657,6 @@ PPUWriteLogView::ScrollRows (int32 rows)
 		fFirstVisibleRow = 0;
 		fFollowNewest = true;
 
-		UpdateScrollBar();
 		Invalidate();
 		return;
 	}
@@ -637,16 +679,16 @@ PPUWriteLogView::ScrollRows (int32 rows)
 	} else {
 		fFollowNewest = false;
 	}
-
+	
 	UpdateScrollBar();
 	Invalidate();
 }
 
 
 // -----------------------------------------------------------------------------
-// PPUWriteLogView::ScrollPages
+// APUWriteLogView::ScrollPages
 //
-// Scrolls the visible PPU write-log history by whole visible pages.
+// Scrolls the visible APU write-log history by whole visible pages.
 //
 // Parameters:
 //   pages - Signed number of pages to move.  Negative values move toward older
@@ -656,7 +698,7 @@ PPUWriteLogView::ScrollRows (int32 rows)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-PPUWriteLogView::ScrollPages (int32 pages)
+APUWriteLogView::ScrollPages (int32 pages)
 {
 	const int32 visibleRows = VisibleRowCount();
 
@@ -669,9 +711,9 @@ PPUWriteLogView::ScrollPages (int32 pages)
 
 
 // -----------------------------------------------------------------------------
-// PPUWriteLogView::FollowNewest
+// APUWriteLogView::FollowNewest
 //
-// Returns the PPU write-log view to the newest available entries and enables
+// Returns the APU write-log view to the newest available entries and enables
 // automatic following.  When the view is live, the latest core log snapshot is
 // captured immediately before positioning the view at the bottom.
 //
@@ -682,7 +724,7 @@ PPUWriteLogView::ScrollPages (int32 pages)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-PPUWriteLogView::FollowNewest()
+APUWriteLogView::FollowNewest()
 {
 	fFollowNewest = true;
 
@@ -705,9 +747,9 @@ PPUWriteLogView::FollowNewest()
 
 
 // -----------------------------------------------------------------------------
-// PPUWriteLogView::UpdateScrollBar
+// APUWriteLogView::UpdateScrollBar
 //
-// Updates the PPU write-log scrollbar range, step sizes, thumb proportion, and
+// Updates the APU write-log scrollbar range, step sizes, thumb proportion, and
 // current value to match the retained log snapshot and visible row count.
 //
 // Parameters:
@@ -717,7 +759,7 @@ PPUWriteLogView::FollowNewest()
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-PPUWriteLogView::UpdateScrollBar()
+APUWriteLogView::UpdateScrollBar()
 {
 	if (!fScrollBar) {
 		return;
@@ -760,9 +802,9 @@ PPUWriteLogView::UpdateScrollBar()
 
 
 // -----------------------------------------------------------------------------
-// PPUWriteLogView::ScrollBarValueChanged
+// APUWriteLogView::ScrollBarValueChanged
 //
-// Updates the visible PPU write-log position when the scrollbar is moved.
+// Updates the visible APU write-log position when the scrollbar is moved.
 // Moving the scrollbar away from the newest page disables automatic following;
 // returning it to the bottom restores follow-newest mode.
 //
@@ -773,7 +815,7 @@ PPUWriteLogView::UpdateScrollBar()
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-PPUWriteLogView::ScrollBarValueChanged (float value)
+APUWriteLogView::ScrollBarValueChanged (float value)
 {
 	const int32 count = static_cast<int32>(fLogSnapshot.size());
 	const int32 visibleRows = VisibleRowCount();
@@ -811,46 +853,79 @@ PPUWriteLogView::ScrollBarValueChanged (float value)
 
 
 // -----------------------------------------------------------------------------
-// PPUWriteLogView::RegisterName
+// APUWriteLogView::RegisterName
 //
-// Converts a PPU-facing CPU register address into a readable register name.
+// Converts an APU register address into a readable register name.
 //
 // Parameters:
-//   address - CPU-visible PPU register address.
+//   address - CPU-visible APU register address.
 //
 // Returns:
 //   Human-readable register name.
 // -----------------------------------------------------------------------------
 const char*
-PPUWriteLogView::RegisterName (uint16 address) const
+APUWriteLogView::RegisterName (uint16 address) const
 {
 	switch (address) {
-		case 0x2000:
-			return "PPUCTRL";
+		case 0x4000:
+			return "SQ1 CTRL";
 
-		case 0x2001:
-			return "PPUMASK";
+		case 0x4001:
+			return "SQ1 SWEEP";
 
-		case 0x2002:
-			return "PPUSTATUS";
+		case 0x4002:
+			return "SQ1 TIMERL";
 
-		case 0x2003:
-			return "OAMADDR";
+		case 0x4003:
+			return "SQ1 TIMERH";
 
-		case 0x2004:
-			return "OAMDATA";
+		case 0x4004:
+			return "SQ2 CTRL";
 
-		case 0x2005:
-			return "PPUSCROLL";
+		case 0x4005:
+			return "SQ2 SWEEP";
 
-		case 0x2006:
-			return "PPUADDR";
+		case 0x4006:
+			return "SQ2 TIMERL";
 
-		case 0x2007:
-			return "PPUDATA";
+		case 0x4007:
+			return "SQ2 TIMERH";
 
-		case 0x4014:
-			return "OAMDMA";
+		case 0x4008:
+			return "TRI CTRL";
+
+		case 0x400a:
+			return "TRI TIMERL";
+
+		case 0x400b:
+			return "TRI TIMERH";
+
+		case 0x400c:
+			return "NOISE CTRL";
+
+		case 0x400e:
+			return "NOISE PERIOD";
+
+		case 0x400f:
+			return "NOISE LEN";
+
+		case 0x4010:
+			return "DMC CTRL";
+
+		case 0x4011:
+			return "DMC LOAD";
+
+		case 0x4012:
+			return "DMC ADDR";
+
+		case 0x4013:
+			return "DMC LEN";
+
+		case 0x4015:
+			return "STATUS";
+
+		case 0x4017:
+			return "FRAME";
 
 		default:
 			return "UNKNOWN";
@@ -859,117 +934,170 @@ PPUWriteLogView::RegisterName (uint16 address) const
 
 
 // -----------------------------------------------------------------------------
-// PPUWriteLogView::DescribeWrite
+// APUWriteLogView::ChannelName
 //
-// Produces a short human-readable description for one PPU-facing register
-// write.
-//
-// PPUCTRL and PPUMASK values are decoded into useful rendering state.
-// PPUSCROLL and PPUADDR use the captured shared write-latch state so first and
-// second writes can be identified accurately rather than inferred from nearby
-// log entries.
-//
-// For PPUSCROLL:
-//   first write  - horizontal scroll: coarse X and fine X
-//   second write - vertical scroll: coarse Y and fine Y
-//
-// For PPUADDR:
-//   first write  - high address byte
-//   second write - low address byte
+// Returns the APU channel associated with a CPU-visible APU register address.
 //
 // Parameters:
-//   entry - Captured PPU write-log entry.
+//   address - CPU-visible APU register address.
+//
+// Returns:
+//   Human-readable APU channel or subsystem name.
+// -----------------------------------------------------------------------------
+const char*
+APUWriteLogView::ChannelName (uint16 address) const
+{
+	if (address >= 0x4000 && address <= 0x4003) {
+		return "Square 1";
+	}
+
+	if (address >= 0x4004 && address <= 0x4007) {
+		return "Square 2";
+	}
+
+	if (address == 0x4008 ||
+		address == 0x400a ||
+		address == 0x400b) {
+		return "Triangle";
+	}
+
+	if (address == 0x400c ||
+		address == 0x400e ||
+		address == 0x400f) {
+		return "Noise";
+	}
+
+	if (address >= 0x4010 && address <= 0x4013) {
+		return "DMC";
+	}
+
+	if (address == 0x4015 ||
+		address == 0x4017) {
+		return "APU";
+	}
+
+	return "Unknown";
+}
+
+
+// -----------------------------------------------------------------------------
+// APUWriteLogView::DescribeWrite
+//
+// Produces a short human-readable description for one APU register write.
+//
+// Parameters:
+//   entry - Captured APU write-log entry.
 //   text  - Destination description string.
 //
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-PPUWriteLogView::DescribeWrite (const nes::ppu::ppu_write_log_entry_t &entry, BString &text) const
+APUWriteLogView::DescribeWrite (const nes::apu::apu_write_log_entry_t &entry, BString &text) const
 {
 	const uint16 address = entry.address;
 	const uint8 value = entry.value;
-
 	text.SetTo("");
 
 	switch (address) {
-		case 0x2000:
+		case 0x4000:
+		case 0x4004:
 		{
-			const uint16 ntBase = 0x2000 + ((value & 0x3) * 0x400);
-			const uint16 bgPT = (value & 0x10) ? 0x1000 : 0x0000;
-			const bool sprite8x16 = (value & 0x20) != 0;
-			const bool nmi = (value & 0x80) != 0;
-			const uint16 increment = (value & 0x4) ? 32 : 1;
+			const unsigned duty = static_cast<unsigned>((value >> 6) & 0x3);
+			const bool lengthHalt = (value & 0x20) != 0;
+			const bool constantVolume = (value & 0x10) != 0;
+			const unsigned volume = static_cast<unsigned>(value & 0xf);
 
-			text.SetToFormat("NT: $%04X, BG: $%04X, SPR: %s, Inc: +%u, NMI: %s", ntBase, bgPT,
-							 sprite8x16 ? "8x16" : "8x8", static_cast<unsigned>(increment),
-							 nmi ? "On": "Off");
+			text.SetToFormat("Duty: %u, Halt: %s, %s %u", duty, lengthHalt ? "On" : "Off",
+							 constantVolume ? "Volume:" : "Envelope:", volume);
 		}
 		break;
 
-		case 0x2001:
+		case 0x4001:
+		case 0x4005:
 		{
-			const bool bg = (value & 0x8) != 0;
-			const bool sprites = (value & 0x10) != 0;
+			const bool enabled = (value & 0x80) != 0;
+			const unsigned period = static_cast<unsigned>((value >> 4) & 0x7);
+			const bool negate = (value & 0x8) != 0;
+			const unsigned shift = static_cast<unsigned>(value & 0x7);
 
-			const bool grayscale = (value & 0x1) != 0;
-			text.SetToFormat("BG: %s, SPR: %s, Gray: %s", bg ? "On" : "Off", sprites ? "On" : "Off",
-							 grayscale ? "On" : "Off");
+			text.SetToFormat("Sweep: %s, Period: %u, Negate: %s, Shift: %u", enabled ? "On" : "Off", period,
+							 negate ? "Yes" : "No", shift);
 		}
 		break;
 
-		case 0x2002:
-			text.SetTo("Write to read-only status");
+		case 0x4002:
+		case 0x4006:
+			text.SetToFormat("Timer Low: $%02X", value);
 			break;
 
-		case 0x2003:
-			text.SetToFormat("OAM Address: $%02X", value);
+		case 0x4003:
+		case 0x4007:
+			text.SetToFormat("Timer High: %u, Length Index %u", static_cast<unsigned>(value & 0x7),
+							 static_cast<unsigned>((value >> 3) & 0x1f));
 			break;
 
-		case 0x2004:
-			text.SetToFormat("OAM Data: $%02X", value);
+		case 0x4008:
+			text.SetToFormat("Control: %s, Linear: %u", (value & 0x80) ? "On" : "Off",
+							 static_cast<unsigned>(value & 0x7f));
 			break;
 
-		case 0x2005:
+		case 0x400a:
+			text.SetToFormat("Timer Low: $%02X", value);
+			break;
+
+		case 0x400b:
+			text.SetToFormat("Timer High: %u, Length Index: %u", static_cast<unsigned>(value & 0x7),
+							 static_cast<unsigned>((value >> 3) & 0x1f));
+			break;
+
+		case 0x400c:
 		{
-			const bool secondWrite = entry.write_latch != 0;
-			const uint8 coarse = (value >> 3) & 0x1f;
-			const uint8 fine = value & 0x7;
+			const bool lengthHalt = (value & 0x20) != 0;
+			const bool constantVolume = (value & 0x10) != 0;
+			const unsigned volume = static_cast<unsigned>(value & 0xf);
 
-			if (!secondWrite) {
-				text.SetToFormat("1st/X: coarse %u, fine %u", 
-								 static_cast<unsigned>(coarse),
-								 static_cast<unsigned>(fine));
-			} else {
-				text.SetToFormat("2nd/Y: coarse %u, fine %u",
-								 static_cast<unsigned>(coarse),
-								 static_cast<unsigned>(fine));
-			}
+			text.SetToFormat("Halt: %s, %s %u", lengthHalt ? "On" : "Off",
+							 constantVolume ? "Volume:" : "Envelope:", volume);
 		}
 		break;
 
-		case 0x2006:
-		{
-			const bool secondWrite = entry.write_latch != 0;
-
-			if (!secondWrite) {
-				/*
-				 * Only six bits of the first PPUADDR write contribute
-				 * to the 14-bit PPU address.
-				 */
-				text.SetToFormat("1st/High Address: $%02X", value & 0x3f);
-			} else {
-				text.SetToFormat("2nd/Low Address: $%02X", value);
-			}
-		}
-		break;
-
-		case 0x2007:
-			text.SetToFormat("VRAM Data: $%02X", value);
+		case 0x400e:
+			text.SetToFormat("Mode: %s, Period Index: %u", (value & 0x80) ? "Short" : "Long",
+							 static_cast<unsigned>(value & 0xf));
 			break;
 
-		case 0x4014:
-			text.SetToFormat("DMA From CPU Page: $%02X00", value);
+		case 0x400f:
+			text.SetToFormat("Length Index: %u", static_cast<unsigned>((value >> 3) & 0x1f));
+			break;
+
+		case 0x4010:
+			text.SetToFormat("IRQ: %s, Loop: %s, Rate: %u", (value & 0x80) ? "On" : "Off",
+							 (value & 0x40) ? "On" : "Off", static_cast<unsigned>(value & 0xf));
+			break;
+
+		case 0x4011:
+			text.SetToFormat("Output: %u", static_cast<unsigned>(value & 0x7f));
+			break;
+
+		case 0x4012:
+			text.SetToFormat("Sample Address: $%04X", 
+							 static_cast<unsigned>(0xc000 | (static_cast<uint16>(value) << 6)));
+			break;
+
+		case 0x4013:
+			text.SetToFormat("Sample Length: %u bytes", 
+							 static_cast<unsigned>((static_cast<uint16>(value) << 4) | 1));
+			break;
+
+		case 0x4015:
+			text.SetToFormat("SQ1: %s, SQ2: %s, TRI: %s, NOI: %s, DMC: %s", (value & 0x1) ? "On" : "Off",
+							 (value & 0x2) ? "On" : "Off", (value & 0x4) ? "On" : "Off",
+							 (value & 0x8) ? "On" : "Off", (value & 0x10) ? "On" : "Off");
+			break;
+
+		case 0x4017:
+			text.SetToFormat("%s-Step, IRQ Inhibit %s", (value & 0x80) ? "5" : "4",(value & 0x40) ? "Yes" : "No");
 			break;
 
 		default:
@@ -980,7 +1108,7 @@ PPUWriteLogView::DescribeWrite (const nes::ppu::ppu_write_log_entry_t &entry, BS
 
 
 // -----------------------------------------------------------------------------
-// PPUWriteLogView::HasROMLoaded
+// APUWriteLogView::HasROMLoaded
 //
 // Returns whether a cartridge mapper is currently available.
 //
@@ -991,16 +1119,16 @@ PPUWriteLogView::DescribeWrite (const nes::ppu::ppu_write_log_entry_t &entry, BS
 //   true if a ROM/mapper is currently loaded.
 // -----------------------------------------------------------------------------
 bool
-PPUWriteLogView::HasROMLoaded() const
+APUWriteLogView::HasROMLoaded() const
 {
 	return nes::cart.mapper() != nullptr;
 }
 
 
 // -----------------------------------------------------------------------------
-// PPUWriteLogView::DrawNoROMMessage
+// APUWriteLogView::DrawNoROMMessage
 //
-// Draws a friendly empty-state message when the PPU Write Log window is opened
+// Draws a friendly empty-state message when the APU Write Log window is opened
 // without a loaded ROM.
 //
 // Parameters:
@@ -1010,7 +1138,7 @@ PPUWriteLogView::HasROMLoaded() const
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-PPUWriteLogView::DrawNoROMMessage (BRect panel)
+APUWriteLogView::DrawNoROMMessage (BRect panel)
 {
 	BFont prevFont;
 	GetFont(&prevFont);
@@ -1020,7 +1148,7 @@ PPUWriteLogView::DrawNoROMMessage (BRect panel)
 	SetFont(&font);
 
 	const char *title = "No ROM loaded";
-	const char *detail = "Load a cartridge to inspect PPU writes.";
+	const char *detail = "Load a cartridge to inspect APU writes.";
 
 	font_height fh;
 	GetFontHeight(&fh);
