@@ -12,8 +12,23 @@
 #include "DebugHelpers.h"
 #include "PretendoWindow.h"
 
-
 class APUWriteLogScrollBar;
+
+
+constexpr double kNTSCCPUClock = 1789773.0;
+
+const uint16 kNoisePeriodTable[16] = {
+	4, 8, 16, 32, 64, 96, 128, 160,
+	202, 254, 380, 508, 762, 1016, 2034, 4068
+};
+
+
+const uint8 kLengthCounterTable[32] = {
+	10, 254, 20, 2, 40, 4, 80, 6,
+	160, 8, 60, 10, 14, 12, 26, 14,
+	12, 16, 24, 18, 48, 20, 96, 22,
+	192, 24, 72, 26, 16, 28, 32, 30
+};
 
 
 // -----------------------------------------------------------------------------
@@ -59,6 +74,10 @@ class APUWriteLogView : public BView
 	private:
 	void UpdateScrollBar();
 	void ScrollBarValueChanged (float value);
+	
+	private:
+	uint16 NoiseTimerPeriodFromIndex (uint8 index) const;
+	double NoiseClockRateHzFromIndex (uint8 index) const;
 
 	private:
 	const char *RegisterName (uint16 address) const;

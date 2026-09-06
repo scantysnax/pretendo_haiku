@@ -1,3 +1,4 @@
+
 #include "APUWriteLogWindow.h"
 
 
@@ -14,7 +15,7 @@
 //   Constructor; no return value.
 // -----------------------------------------------------------------------------
 APUWriteLogWindow::APUWriteLogWindow (PretendoWindow *parent)
-	: BWindow (BRect(220.0f, 220.0f, 900.0f, 720.0f),
+	: BWindow (BRect(220.0f, 220.0f, 1200.0f, 720.0f),
 				"APU Write Log", B_FLOATING_WINDOW_LOOK, B_NORMAL_WINDOW_FEEL,
 				B_NOT_RESIZABLE | B_NOT_ZOOMABLE)
 {

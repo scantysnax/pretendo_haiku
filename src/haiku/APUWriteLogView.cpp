@@ -488,11 +488,9 @@ APUWriteLogView::DrawLogPanel()
 	DrawString("Value", BPoint(valX, y));
 	DrawString("Channel", BPoint(channelX, y));
 	DrawString("Meaning", BPoint(descX, y));
-
 	y += lineH + 8.0f;
 
 	SetHighColor(120, 120, 120);
-
 	StrokeLine(BPoint(panel.left + 8.0f, y - 8.0f), BPoint(panel.right - 8.0f, y - 8.0f));
 	y += 6.0f;
 
@@ -852,6 +850,26 @@ APUWriteLogView::ScrollBarValueChanged (float value)
 }
 
 
+uint16
+APUWriteLogView::NoiseTimerPeriodFromIndex (uint8 index) const
+{
+	return kNoisePeriodTable[index & 0xf];
+}
+
+
+double
+APUWriteLogView::NoiseClockRateHzFromIndex (uint8 index) const
+{
+	const uint16 period = NoiseTimerPeriodFromIndex(index);
+
+	if (period == 0) {
+		return 0.0;
+	}
+
+	return kNTSCCPUClock / static_cast<double>(period);
+}
+
+
 // -----------------------------------------------------------------------------
 // APUWriteLogView::RegisterName
 //
@@ -1008,7 +1026,27 @@ APUWriteLogView::DescribeWrite (const nes::apu::apu_write_log_entry_t &entry, BS
 			const bool constantVolume = (value & 0x10) != 0;
 			const unsigned volume = static_cast<unsigned>(value & 0xf);
 
-			text.SetToFormat("Duty: %u, Halt: %s, %s %u", duty, lengthHalt ? "On" : "Off",
+			const char *dutyName = "";
+
+			switch (duty) {
+				case 0:
+					dutyName = "12.5%";
+					break;
+
+				case 1:
+					dutyName = "25%";
+					break;
+
+				case 2:
+					dutyName = "50%";
+					break;
+
+				case 3:
+					dutyName = "25% neg";
+					break;
+			}
+
+			text.SetToFormat("Duty: %s, Halt/Loop: %s, %s %u", dutyName, lengthHalt ? "On" : "Off",
 							 constantVolume ? "Volume:" : "Envelope:", volume);
 		}
 		break;
@@ -1021,35 +1059,59 @@ APUWriteLogView::DescribeWrite (const nes::apu::apu_write_log_entry_t &entry, BS
 			const bool negate = (value & 0x8) != 0;
 			const unsigned shift = static_cast<unsigned>(value & 0x7);
 
-			text.SetToFormat("Sweep: %s, Period: %u, Negate: %s, Shift: %u", enabled ? "On" : "Off", period,
-							 negate ? "Yes" : "No", shift);
+			text.SetToFormat("Sweep: %s, Period: %u, Direction: %s, Shift: %u", enabled ? "On" : "Off", period,
+							 negate ? "Down" : "Up", shift);
 		}
 		break;
 
 		case 0x4002:
 		case 0x4006:
-			text.SetToFormat("Timer Low: $%02X", value);
-			break;
+		{
+			const double frequency = kNTSCCPUClock /  (16.0 * (static_cast<double>(entry.timer_period) + 1.0));
+
+			text.SetToFormat("Timer Low: $%02X, Period: %u, Frequency: %.1f Hz", value,
+							 static_cast<unsigned>(entry.timer_period), frequency);
+		}
+		break;
 
 		case 0x4003:
 		case 0x4007:
-			text.SetToFormat("Timer High: %u, Length Index %u", static_cast<unsigned>(value & 0x7),
-							 static_cast<unsigned>((value >> 3) & 0x1f));
-			break;
+		{
+			const unsigned lengthIndex = static_cast<unsigned>((value >> 3) & 0x1f);
+			const unsigned lengthValue = static_cast<unsigned>(kLengthCounterTable[lengthIndex]);
+			const double frequency = kNTSCCPUClock / (16.0 * (static_cast<double>(entry.timer_period) + 1.0));
+
+			text.SetToFormat("Timer High: %u, Length Index: %u, Length: %u, Period: %u, Frequency: %.1f Hz, Sequence Reset",
+							 static_cast<unsigned>(value & 0x7), lengthIndex, lengthValue,
+							 static_cast<unsigned>(entry.timer_period), frequency);
+		}
+		break;
 
 		case 0x4008:
-			text.SetToFormat("Control: %s, Linear: %u", (value & 0x80) ? "On" : "Off",
+			text.SetToFormat("Length Halt: %s, Linear Reload: %u", (value & 0x80) ? "On" : "Off",
 							 static_cast<unsigned>(value & 0x7f));
 			break;
 
 		case 0x400a:
-			text.SetToFormat("Timer Low: $%02X", value);
-			break;
+		{
+			const double frequency = kNTSCCPUClock / (32.0 * (static_cast<double>(entry.timer_period) + 1.0));
+
+			text.SetToFormat("Timer Low: $%02X, Period: %u, Frequency: %.1f Hz", value,
+							 static_cast<unsigned>(entry.timer_period), frequency);
+		}
+		break;
 
 		case 0x400b:
-			text.SetToFormat("Timer High: %u, Length Index: %u", static_cast<unsigned>(value & 0x7),
-							 static_cast<unsigned>((value >> 3) & 0x1f));
-			break;
+		{
+			const unsigned lengthIndex = static_cast<unsigned>((value >> 3) & 0x1f);
+			const unsigned lengthValue = static_cast<unsigned>(kLengthCounterTable[lengthIndex]);
+			const double frequency = kNTSCCPUClock / (32.0 * (static_cast<double>(entry.timer_period) + 1.0));
+
+			text.SetToFormat("Timer High: %u, Length Index: %u, Length: %u, Period: %u, "
+							 "Frequency: %.1f Hz, Linear Reload Set", static_cast<unsigned>(value & 0x7), 
+							 lengthIndex, lengthValue, static_cast<unsigned>(entry.timer_period), frequency);
+		}
+		break;
 
 		case 0x400c:
 		{
@@ -1057,51 +1119,163 @@ APUWriteLogView::DescribeWrite (const nes::apu::apu_write_log_entry_t &entry, BS
 			const bool constantVolume = (value & 0x10) != 0;
 			const unsigned volume = static_cast<unsigned>(value & 0xf);
 
-			text.SetToFormat("Halt: %s, %s %u", lengthHalt ? "On" : "Off",
-							 constantVolume ? "Volume:" : "Envelope:", volume);
+			text.SetToFormat("Halt/Loop: %s, Mode: %s, %s: %u", lengthHalt ? "On" : "Off",
+							 constantVolume ? "Constant Volume" : "Envelope",
+							 constantVolume ? "Volume" : "Envelope Period", volume);
 		}
 		break;
 
 		case 0x400e:
-			text.SetToFormat("Mode: %s, Period Index: %u", (value & 0x80) ? "Short" : "Long",
-							 static_cast<unsigned>(value & 0xf));
-			break;
+		{			
+			const uint8 periodIndex = static_cast<uint8>(value & 0xf);
+			const uint16 timerPeriod = NoiseTimerPeriodFromIndex(periodIndex);
+			const double clockHz = NoiseClockRateHzFromIndex(periodIndex);
+
+			text.SetToFormat("Mode: %s, Index: %u, Timer: %u, Clock: %.2f Hz", (value & 0x80) ? "Short" : "Long",
+							 static_cast<unsigned>(periodIndex), static_cast<unsigned>(timerPeriod), clockHz);
+		} 
+		break;
 
 		case 0x400f:
-			text.SetToFormat("Length Index: %u", static_cast<unsigned>((value >> 3) & 0x1f));
-			break;
+		{
+			const unsigned lengthIndex = static_cast<unsigned>((value >> 3) & 0x1f);
+			const unsigned lengthValue = static_cast<unsigned>(kLengthCounterTable[lengthIndex]);
+
+			text.SetToFormat("Length Index: %u, Length: %u, Length Reload, Envelope Restart", 
+							 lengthIndex, lengthValue);
+		}
+		break;
 
 		case 0x4010:
-			text.SetToFormat("IRQ: %s, Loop: %s, Rate: %u", (value & 0x80) ? "On" : "Off",
-							 (value & 0x40) ? "On" : "Off", static_cast<unsigned>(value & 0xf));
-			break;
+		{
+			static const uint16 dmcPeriods[16] = {
+				428, 380, 340, 320,
+				286, 254, 226, 214,
+				190, 160, 142, 128,
+				106, 84, 72, 54
+			};
+
+			const unsigned rateIndex = static_cast<unsigned>(value & 0xf);
+			const unsigned period = static_cast<unsigned>(dmcPeriods[rateIndex]);
+			const double bitRate = kNTSCCPUClock / static_cast<double>(period);
+
+			text.SetToFormat("IRQ: %s, Loop: %s, Rate: %u ($%X), %u cycles, %.1f Hz",
+							 (value & 0x80) ? "On" : "Off",
+							 (value & 0x40) ? "On" : "Off",
+							 rateIndex, rateIndex, period, bitRate);
+		}
+		break;
 
 		case 0x4011:
-			text.SetToFormat("Output: %u", static_cast<unsigned>(value & 0x7f));
+			text.SetToFormat("DMC Output Level: %u", static_cast<unsigned>(value & 0x7f));
 			break;
 
 		case 0x4012:
-			text.SetToFormat("Sample Address: $%04X", 
+			text.SetToFormat("Sample Address: $%04X",
 							 static_cast<unsigned>(0xc000 | (static_cast<uint16>(value) << 6)));
 			break;
 
 		case 0x4013:
-			text.SetToFormat("Sample Length: %u bytes", 
+			text.SetToFormat("Sample Length: %u bytes",
 							 static_cast<unsigned>((static_cast<uint16>(value) << 4) | 1));
 			break;
 
 		case 0x4015:
-			text.SetToFormat("SQ1: %s, SQ2: %s, TRI: %s, NOI: %s, DMC: %s", (value & 0x1) ? "On" : "Off",
-							 (value & 0x2) ? "On" : "Off", (value & 0x4) ? "On" : "Off",
-							 (value & 0x8) ? "On" : "Off", (value & 0x10) ? "On" : "Off");
-			break;
+		{
+			const uint8 enableMask = static_cast<uint8>(value & 0x1f);
+			const bool square1Enabled = (enableMask & 0x01) != 0;
+			const bool square2Enabled = (enableMask & 0x02) != 0;
+			const bool triangleEnabled = (enableMask & 0x04) != 0;
+			const bool noiseEnabled = (enableMask & 0x08) != 0;
+			const bool dmcEnabled = (enableMask & 0x10) != 0;
+
+			BString changes;
+
+			if (entry.has_previous_enable_mask) {
+				const uint8 changed = static_cast<uint8>(entry.previous_enable_mask ^ enableMask);
+
+				if (changed & 0x1) {
+					if (changes.Length() != 0) {
+						changes << ", ";
+					}
+
+					changes << "SQ1: " << (square1Enabled ? "On" : "Off");
+				}
+
+				if (changed & 0x2) {
+					if (changes.Length() != 0) {
+						changes << ", ";
+					}
+
+					changes << "SQ2: " << (square2Enabled ? "On" : "Off");
+				}
+
+				if (changed & 0x4) {
+					if (changes.Length() != 0) {
+						changes << ", ";
+					}
+
+					changes << "TRI: " << (triangleEnabled ? "On" : "Off");
+				}
+
+				if (changed & 0x8) {
+					if (changes.Length() != 0) {
+						changes << ", ";
+					}
+
+					changes << "NOI: " << (noiseEnabled ? "On" : "Off");
+				}
+
+				if (changed & 0x10) {
+					if (changes.Length() != 0) {
+						changes << ", ";
+					}
+
+					changes << "DMC: " << (dmcEnabled ? "On" : "Off");
+				}
+			}
+
+			if (changes.Length() == 0) {
+				changes.SetTo("None");
+			}
+
+			text.SetToFormat(
+				"Enable Mask: $%02X, SQ1: %s SQ2: %s TRI: %s NOI: %s DMC: %s, Changed: %s",
+				static_cast<unsigned>(enableMask),
+				square1Enabled ? "On" : "Off",
+				square2Enabled ? "On" : "Off",
+				triangleEnabled ? "On" : "Off",
+				noiseEnabled ? "On" : "Off",
+				dmcEnabled ? "On" : "Off",
+				changes.String());
+		}
+		break;
 
 		case 0x4017:
-			text.SetToFormat("%s-Step, IRQ Inhibit %s", (value & 0x80) ? "5" : "4",(value & 0x40) ? "Yes" : "No");
-			break;
+		{
+			const bool fiveStep = (value & 0x80) != 0;
+			const bool irqInhibit = (value & 0x40) != 0;
 
+			if (fiveStep) {
+				if (irqInhibit) {
+					text.SetTo(
+						"Frame: 5-Step, IRQ Inhibit: Yes, Frame IRQ Cleared, Immediate Quarter/Half Clock");
+				} else {
+					text.SetTo(
+						"Frame: 5-Step, IRQ Inhibit: No, Immediate Quarter/Half Clock");
+				}
+			} else {
+				if (irqInhibit) {
+					text.SetTo("Frame: 4-Step, IRQ Inhibit: Yes, Frame IRQ Cleared");
+				} else {
+					text.SetTo("Frame: 4-Step, IRQ Inhibit: No, Frame IRQ Allowed");
+				}
+			}
+		}
+		break;
+		
 		default:
-			text.SetTo("Unknown Write");
+			text.SetTo("Unknown APU Write");
 			break;
 	}
 }
@@ -1143,7 +1317,7 @@ APUWriteLogView::DrawNoROMMessage (BRect panel)
 	BFont prevFont;
 	GetFont(&prevFont);
 
-	BFont font = prevFont;
+	BFont font(prevFont);
 	font.SetSize(12.0f);
 	SetFont(&font);
 

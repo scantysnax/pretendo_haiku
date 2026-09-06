@@ -156,6 +156,12 @@ struct apu_write_log_entry_t {
 	uint16_t address;
 	uint8_t value;
 	uint32_t write_index;
+
+	uint16_t timer_period;
+	bool has_timer_period;
+	
+	uint8_t previous_enable_mask;
+	bool has_previous_enable_mask;
 };
 
 uint32_t apu_write_log_count();
@@ -164,10 +170,6 @@ uint32_t apu_write_log_snapshot(
 	uint32_t capacity);
 
 void clear_apu_write_log();
-
-
-
-
 
 
 void reset(Reset reset_type);

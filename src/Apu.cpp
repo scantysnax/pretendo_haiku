@@ -77,8 +77,10 @@ static uint32_t write_log_write_index_ = 0;
 // Appends one CPU write to an APU register to the rolling write log.
 //
 // The current APU cycle is captured together with the CPU-visible register
-// address and written value so debugger views can reconstruct the order and
-// timing of recent APU programming activity.
+// address and written value.  For pulse and triangle timer writes, the resulting
+// complete 11-bit timer period is reconstructed and stored.  For $4015 writes,
+// the previous channel-enable mask is also captured so debugger views can show
+// which channel enable states actually changed.
 //
 // Parameters:
 //   address - CPU-visible APU register address.
@@ -97,13 +99,97 @@ log_apu_write(uint16_t address, uint8_t value)
 	entry.value = value;
 	entry.write_index = write_log_write_index_++;
 
+	entry.timer_period = 0;
+	entry.has_timer_period = false;
+
+	entry.previous_enable_mask = 0;
+	entry.has_previous_enable_mask = false;
+
+	switch (address) {
+		case 0x4002:
+			entry.timer_period =
+				(square_0.debug_timer_period() & 0x0700) |
+				static_cast<uint16_t>(value);
+
+			entry.has_timer_period = true;
+			break;
+
+		case 0x4003:
+			entry.timer_period =
+				(square_0.debug_timer_period() & 0x00ff) |
+				(static_cast<uint16_t>(value & 0x07) << 8);
+
+			entry.has_timer_period = true;
+			break;
+
+		case 0x4006:
+			entry.timer_period =
+				(square_1.debug_timer_period() & 0x0700) |
+				static_cast<uint16_t>(value);
+
+			entry.has_timer_period = true;
+			break;
+
+		case 0x4007:
+			entry.timer_period =
+				(square_1.debug_timer_period() & 0x00ff) |
+				(static_cast<uint16_t>(value & 0x07) << 8);
+
+			entry.has_timer_period = true;
+			break;
+
+		case 0x400a:
+			entry.timer_period =
+				(triangle.debug_timer_period() & 0x0700) |
+				static_cast<uint16_t>(value);
+
+			entry.has_timer_period = true;
+			break;
+
+		case 0x400b:
+			entry.timer_period =
+				(triangle.debug_timer_period() & 0x00ff) |
+				(static_cast<uint16_t>(value & 0x07) << 8);
+
+			entry.has_timer_period = true;
+			break;
+
+		case 0x4015:
+		{
+			uint8_t previousMask = 0;
+
+			if (square_0.enabled()) {
+				previousMask |= 0x01;
+			}
+
+			if (square_1.enabled()) {
+				previousMask |= 0x02;
+			}
+
+			if (triangle.enabled()) {
+				previousMask |= 0x04;
+			}
+
+			if (noise.enabled()) {
+				previousMask |= 0x08;
+			}
+
+			if (dmc.debug_enabled()) {
+				previousMask |= 0x10;
+			}
+
+			entry.previous_enable_mask = previousMask;
+			entry.has_previous_enable_mask = true;
+		}
+		break;
+	}
+
 	write_log_next_ = (write_log_next_ + 1) % APU_WRITE_LOG_CAPACITY;
 
 	if (write_log_count_ < APU_WRITE_LOG_CAPACITY) {
 		write_log_count_++;
 	}
 }
-
 
 // -----------------------------------------------------------------------------
 // clock_linear
