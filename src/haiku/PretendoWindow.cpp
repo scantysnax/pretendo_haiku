@@ -215,7 +215,7 @@ PretendoWindow::PretendoWindow()
 	
 	// sound
 	// we don't need to upscale the buffer size if using the MediaKit, so divide it out
-	fAudioStream = new AudioStream(nes::apu::frequency, 8, 1, nes::apu::buffer_size / 4);
+	fAudioStream = new AudioStream(nes::apu::kOutputFrequency, 8, 1, nes::apu::kBufferSize / 4);
 
 	// this is the emulator processing loop
 	// thread gets a cheeky name, as per Be Book
@@ -392,6 +392,18 @@ PretendoWindow::~PretendoWindow()
 	if (fAPUStatusWindow != nullptr) {
 		if (fAPUStatusWindow->Lock()) {
 			fAPUStatusWindow->Quit();
+		}
+	}
+	
+	if (fAPUWriteLogWindow != nullptr) {
+		if (fAPUWriteLogWindow->Lock()) {
+			fAPUWriteLogWindow->Quit();
+		}
+	}
+	
+	if (fAPUExplorerWindow != nullptr) {
+		if (fAPUExplorerWindow->Lock()) {
+			fAPUExplorerWindow->Quit();
 		}
 	}
 
@@ -728,6 +740,10 @@ PretendoWindow::MessageReceived (BMessage *message)
 			OnViewAPUWriteLogWindow();
 			break;
 			
+		case messages::VIEW_APUEXPLORER:
+			OnViewAPUExplorerWindow();
+			break;
+			
 		default:
 			break;
 	}
@@ -1002,7 +1018,8 @@ PretendoWindow::AddMenu()
 	fAPUToolMenu = new BMenu("APU");
 	fToolMenu->AddItem(fAPUToolMenu);
 	fAPUToolMenu->AddItem(new BMenuItem("View APU Status" B_UTF8_ELLIPSIS, new BMessage(messages::VIEW_APUSTATUS)));
-	fAPUToolMenu->AddItem(new BMenuItem("View APU Write Log", new BMessage(messages::VIEW_APULOG)));	
+	fAPUToolMenu->AddItem(new BMenuItem("View APU Write Log", new BMessage(messages::VIEW_APULOG)));
+	fAPUToolMenu->AddItem(new BMenuItem("APU Explorer", new BMessage(messages::VIEW_APUEXPLORER)));
 	
 	// menu icon
 	fMenuBarIcon = new MenuBarIcon(fMenuBar);
@@ -2278,6 +2295,42 @@ PretendoWindow::OnViewAPUWriteLogWindow()
 
 
 // -----------------------------------------------------------------------------
+// PretendoWindow::OnViewAPUExplorerWindow
+//
+// Opens the APU Explorer debugger window or brings the existing window to the
+// foreground if it is already open.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::OnViewAPUExplorerWindow()
+{
+	if (fAPUExplorerWindow) {
+		if (fAPUExplorerWindow->Lock()) {
+			if (fAPUExplorerWindow->IsHidden()) {
+				fAPUExplorerWindow->Show();
+			}
+
+			fAPUExplorerWindow->Activate(true);
+			fAPUExplorerWindow->Unlock();
+		}
+
+		return;
+	}
+
+	fAPUExplorerWindow = new APUExplorerWindow(this);
+
+	BeginToolInput();
+
+	fAPUExplorerWindow->Show();
+}
+
+
+// -----------------------------------------------------------------------------
 // PretendoWindow::ROMInfoWindowClosed
 //
 // Releases tool-input ownership for the ROM Info window and clears the stored
@@ -2735,6 +2788,26 @@ PretendoWindow::APUWriteLogWindowClosed()
 {
 	EndToolInput();
 	fAPUWriteLogWindow = nullptr;
+}
+
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::APUExplorerWindowClosed
+//
+// Releases tool-input ownership for the APU Explorer window and clears the
+// stored window pointer after the window has closed.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::APUExplorerWindowClosed()
+{
+	EndToolInput();
+	fAPUExplorerWindow = nullptr;
 }
 
 
@@ -3525,7 +3598,7 @@ PretendoWindow::start_frame()
 void	
 PretendoWindow::end_frame()
 {
-	size_t const bufferSize = nes::apu::frequency / nes::apu::frame_rate;
+	size_t const bufferSize = nes::apu::kOutputFrequency / nes::apu::kFrameRate;
 	uint8 sampleBuffer[bufferSize];
 	size_t const bufferCount = nes::apu::read_samples(sampleBuffer, sizeof(sampleBuffer));
 	
@@ -3886,6 +3959,7 @@ PretendoWindow::CountVisibleToolWindows() const
 
 	countWindow(fAPUStatusWindow);
 	countWindow(fAPUWriteLogWindow);
+	countWindow(fAPUExplorerWindow);
 
 	return count;
 }
@@ -4049,6 +4123,7 @@ PretendoWindow::SuspendToolWindowsForFullScreen()
 
 	fWasAPUStatusWindowVisibleBeforeFullScreen = HideToolWindowForFullScreen(fAPUStatusWindow);
 	fWasAPUWriteLogWindowVisibleBeforeFullScreen = HideToolWindowForFullScreen(fAPUWriteLogWindow);
+	fWasAPUExplorerWindowVisibleBeforeFullScreen = HideToolWindowForFullScreen(fAPUExplorerWindow);
 
 	// No tool window owns fullscreen keyboard input while suspended.
 	fToolInputDepth = 0;
@@ -4139,6 +4214,7 @@ PretendoWindow::RestoreToolWindowsAfterFullScreen()
 	
 	ShowToolWindowAfterFullScreen(fAPUStatusWindow, fWasAPUStatusWindowVisibleBeforeFullScreen);
 	ShowToolWindowAfterFullScreen(fAPUWriteLogWindow, fWasAPUWriteLogWindowVisibleBeforeFullScreen);
+	ShowToolWindowAfterFullScreen(fAPUExplorerWindow, fWasAPUExplorerWindowVisibleBeforeFullScreen);
 
 	// Rebuild ownership from the windows that actually survived fullscreen.
 	fToolInputDepth = CountVisibleToolWindows();
@@ -4201,6 +4277,7 @@ PretendoWindow::RestoreToolWindowsAfterFullScreen()
 
 	fWasAPUStatusWindowVisibleBeforeFullScreen = false;
 	fWasAPUWriteLogWindowVisibleBeforeFullScreen = false;
+	fWasAPUExplorerWindowVisibleBeforeFullScreen = false;
 
 	fToolWindowsSuspendedForFullScreen = false;
 
@@ -4807,6 +4884,7 @@ PretendoWindow::InvalidateDebugViews()
 
 	InvalidateWindowContents(fAPUStatusWindow);
 	InvalidateWindowContents(fAPUWriteLogWindow);
+	InvalidateWindowContents(fAPUExplorerWindow);
 }
 
 

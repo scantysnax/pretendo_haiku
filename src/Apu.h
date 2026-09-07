@@ -9,7 +9,13 @@
 
 
 namespace nes::apu {
-
+	
+constexpr int32_t kOutputFrequency = 48000;
+constexpr int32_t kFrameRate = 60;
+constexpr int32_t kBufferSize = (kOutputFrequency / kFrameRate) * 4;
+constexpr uint8_t kSilence = 0x80;
+	
+	
 template <int Channel>
 class Square;
 class Triangle;
@@ -134,20 +140,12 @@ struct apu_debug_state_t {
 };
 
 
-constexpr int32_t frequency = 48000;
-constexpr int32_t frame_rate = 60;
-constexpr int32_t buffer_size = (frequency / frame_rate) * 4;
-
-constexpr uint8_t silence = 0x80;
-
-
 extern bool debug_audio_muted;
 
 void debug_set_audio_muted(bool muted);
 bool debug_audio_is_muted();
 
 apu_debug_state_t debug_state();
-
 
 constexpr uint32_t APU_WRITE_LOG_CAPACITY = 256;
 
@@ -165,11 +163,30 @@ struct apu_write_log_entry_t {
 };
 
 uint32_t apu_write_log_count();
-uint32_t apu_write_log_snapshot(
-	apu_write_log_entry_t *entries,
-	uint32_t capacity);
-
+uint32_t apu_write_log_snapshot(apu_write_log_entry_t *entries, uint32_t capacity);
 void clear_apu_write_log();
+
+
+struct apu_explorer_state_t {
+	uint8_t square1[4] = {};	// $4000-$4003
+	uint8_t square2[4] = {};	// $4004-$4007
+
+	uint8_t triangle0 = 0;		// $4008
+	uint8_t triangle2 = 0;		// $400A
+	uint8_t triangle3 = 0;		// $400B
+
+	uint8_t noise0 = 0;			// $400C
+	uint8_t noise2 = 0;			// $400E
+	uint8_t noise3 = 0;			// $400F
+
+	uint8_t dmc[4] = {};		// $4010-$4013
+
+	uint8_t status = 0;			// last value written to $4015
+	uint8_t frame_counter = 0;	// last value writeen to $4017
+};
+
+apu_explorer_state_t explorer_state();
+
 
 
 void reset(Reset reset_type);

@@ -115,6 +115,8 @@ CPP_FILES := \
 	src/mappers/Mapper245.cpp \
 	\
 	src/haiku/AboutWindow.cpp \
+	src/haiku/APUExplorerView.cpp \
+	src/haiku/APUExplorerWindow.cpp \
 	src/haiku/APUStatusView.cpp \
 	src/haiku/APUStatusWindow.cpp \
 	src/haiku/APUWriteLogView.cpp \

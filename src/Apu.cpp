@@ -38,13 +38,30 @@ constexpr double CPUFrequency = 1789772.7272; // 1.7897727272MHz
 // CPUFrequency / 44100Hz  = 40.5844155828 clocks per sample
 // CPUFrequency / 48000Hz  = 37.2869318167  clocks per sample
 // CPUFrequency / 192000Hz = 9.32173295417 clocks per sample
-constexpr auto ClocksPerSample = static_cast<int32_t>(CPUFrequency / frequency);
+constexpr auto ClocksPerSample = static_cast<int32_t>(CPUFrequency / kOutputFrequency);
 
 auto apu_cycles_               = static_cast<uint64_t>(-1);
 auto next_clock_               = static_cast<uint64_t>(-1);
 uint8_t clock_step_            = 0;
 APUFrameCounter frame_counter_ = {0};
 uint8_t last_frame_counter_    = 0;
+
+
+uint8_t explorer_square1_[4] = {};
+uint8_t explorer_square2_[4] = {};
+
+uint8_t explorer_triangle0_ = 0;
+uint8_t explorer_triangle2_ = 0;
+uint8_t explorer_triangle3_ = 0;
+
+uint8_t explorer_noise0_ = 0;
+uint8_t explorer_noise2_ = 0;
+uint8_t explorer_noise3_ = 0;
+
+uint8_t explorer_dmc_[4] = {};
+
+uint8_t explorer_status_ = 0;
+
 
 // dc filter
 double sDCBlockPreviousInput = 0.0;
@@ -59,10 +76,10 @@ Noise noise;
 DMC dmc;
 APUStatus status = {0};
 
-uint8_t sample_buffer_[buffer_size];
+uint8_t sample_buffer_[kBufferSize];
 size_t sample_buffer_start = 0;
 size_t sample_buffer_end   = 0;
-static uint8_t sLastOutputSample = silence;
+static uint8_t sLastOutputSample = kSilence;
 
 
 static nes::apu::apu_write_log_entry_t write_log_[nes::apu::APU_WRITE_LOG_CAPACITY];
@@ -424,7 +441,7 @@ reset(Reset reset_type)
 	next_clock_    = 0;
 	clock_step_    = 0;
 
-	sLastOutputSample = silence;
+	sLastOutputSample = kSilence;
 
 	sDCBlockPreviousInput = 0.0;
 	sDCBlockPreviousOutput = 0.0;
@@ -496,6 +513,7 @@ reset(Reset reset_type)
 // -----------------------------------------------------------------------------
 void write4000(uint8_t value) {
 	log_apu_write(0x4000, value);
+	explorer_square1_[0] = value;
 	square_0.write_reg0(value);
 }
 
@@ -513,6 +531,7 @@ void write4000(uint8_t value) {
 // -----------------------------------------------------------------------------
 void write4001(uint8_t value) {
 	log_apu_write(0x4001, value);
+	explorer_square1_[1] = value;
 	square_0.write_reg1(value);
 }
 
@@ -530,6 +549,7 @@ void write4001(uint8_t value) {
 // -----------------------------------------------------------------------------
 void write4002(uint8_t value) {
 	log_apu_write(0x4002, value);
+	explorer_square1_[2] = value;
 	square_0.write_reg2(value);
 }
 
@@ -548,6 +568,7 @@ void write4002(uint8_t value) {
 // -----------------------------------------------------------------------------
 void write4003(uint8_t value) {
 	log_apu_write(0x4003, value);
+	explorer_square1_[0] = value;
 	square_0.write_reg3(value);
 }
 
@@ -565,6 +586,7 @@ void write4003(uint8_t value) {
 // -----------------------------------------------------------------------------
 void write4004(uint8_t value) {
 	log_apu_write(0x4004, value);
+	explorer_square2_[0] = value;
 	square_1.write_reg0(value);
 }
 
@@ -582,6 +604,7 @@ void write4004(uint8_t value) {
 // -----------------------------------------------------------------------------
 void write4005(uint8_t value) {
 	log_apu_write(0x4005, value);
+	explorer_square2_[1] = value;
 	square_1.write_reg1(value);
 }
 
@@ -599,6 +622,7 @@ void write4005(uint8_t value) {
 // -----------------------------------------------------------------------------
 void write4006(uint8_t value) {
 	log_apu_write(0x4006, value);
+	explorer_square1_[2] = value;
 	square_1.write_reg2(value);
 }
 
@@ -617,6 +641,7 @@ void write4006(uint8_t value) {
 // -----------------------------------------------------------------------------
 void write4007(uint8_t value) {
 	log_apu_write(0x4007, value);
+	explorer_square2_[3] = value;
 	square_1.write_reg3(value);
 }
 
@@ -634,6 +659,7 @@ void write4007(uint8_t value) {
 // -----------------------------------------------------------------------------
 void write4008(uint8_t value) {
 	log_apu_write(0x4008, value);
+	explorer_triangle0_ = value;
 	triangle.write_reg0(value);
 }
 
@@ -651,6 +677,7 @@ void write4008(uint8_t value) {
 // -----------------------------------------------------------------------------
 void write400A(uint8_t value) {
 	log_apu_write(0x400a, value);
+	explorer_triangle2_ = value;
 	triangle.write_reg2(value);
 }
 
@@ -669,6 +696,7 @@ void write400A(uint8_t value) {
 // -----------------------------------------------------------------------------
 void write400B(uint8_t value) {
 	log_apu_write(0x400b, value);
+	explorer_triangle3_ = value;
 	triangle.write_reg3(value);
 }
 
@@ -686,6 +714,7 @@ void write400B(uint8_t value) {
 // -----------------------------------------------------------------------------
 void write400C(uint8_t value) {
 	log_apu_write(0x400c, value);
+	explorer_noise0_ = value;
 	noise.write_reg0(value);
 }
 
@@ -703,6 +732,7 @@ void write400C(uint8_t value) {
 // -----------------------------------------------------------------------------
 void write400E(uint8_t value) {
 	log_apu_write(0x400e, value);
+	explorer_noise2_ = value;
 	noise.write_reg2(value);
 }
 
@@ -720,6 +750,7 @@ void write400E(uint8_t value) {
 // -----------------------------------------------------------------------------
 void write400F(uint8_t value) {
 	log_apu_write(0x400f, value);
+	explorer_noise3_ = value;
 	noise.write_reg3(value);
 }
 
@@ -737,6 +768,7 @@ void write400F(uint8_t value) {
 // -----------------------------------------------------------------------------
 void write4010(uint8_t value) {
 	log_apu_write(0x4010, value);
+	explorer_dmc_[0] = value;
 	dmc.write_reg0(value);
 }
 
@@ -754,6 +786,7 @@ void write4010(uint8_t value) {
 // -----------------------------------------------------------------------------
 void write4011(uint8_t value) {
 	log_apu_write(0x4011, value);
+	explorer_dmc_[1] = value;
 	dmc.write_reg1(value);
 }
 
@@ -771,6 +804,7 @@ void write4011(uint8_t value) {
 // -----------------------------------------------------------------------------
 void write4012(uint8_t value) {
 	log_apu_write(0x4012, value);
+	explorer_dmc_[2] = value;
 	dmc.write_reg2(value);
 }
 
@@ -788,6 +822,7 @@ void write4012(uint8_t value) {
 // -----------------------------------------------------------------------------
 void write4013(uint8_t value) {
 	log_apu_write(0x4013, value);
+	explorer_dmc_[3] = value;
 	dmc.write_reg3(value);
 }
 
@@ -807,8 +842,12 @@ void write4013(uint8_t value) {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void write4015(uint8_t value) {
+void
+write4015(uint8_t value)
+{
 	log_apu_write(0x4015, value);
+
+	explorer_status_ = value;
 
 	// writing to this register clears the DMC interrupt flag.
 	status.dmc_irq = false;
@@ -945,7 +984,7 @@ tick()
 
 	if ((apu_cycles_ % ClocksPerSample) == 0) {
 		if (debug_audio_is_muted()) {
-			sample_buffer_[sample_buffer_end] = silence;
+			sample_buffer_[sample_buffer_end] = kSilence;
 		} else {
 			sample_buffer_[sample_buffer_end] = mix_channels();
 		}
@@ -1005,11 +1044,11 @@ read_samples(uint8_t *buffer, size_t size)
 
 	if (debug_audio_is_muted()) {
 		for (size_t i = 0; i < size; ++i) {
-			buffer[i] = silence;
+			buffer[i] = kSilence;
 		}
 
 		sample_buffer_start = sample_buffer_end;
-		sLastOutputSample = silence;
+		sLastOutputSample = kSilence;
 
 		return size;
 	}
@@ -1022,7 +1061,7 @@ read_samples(uint8_t *buffer, size_t size)
 		buffer[i] = sample;
 		sLastOutputSample = sample;
 
-		sample_buffer_start = (sample_buffer_start + 1) % buffer_size;
+		sample_buffer_start = (sample_buffer_start + 1) %  kBufferSize;
 
 		++i;
 	}
@@ -1275,6 +1314,44 @@ debug_state()
 
 
 // -----------------------------------------------------------------------------
+// nes::apu::explorer_state
+//
+// Returns a side-effect-free snapshot of the most recently programmed raw APU
+// register values for the APU Explorer debugger view.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Snapshot of the current raw APU register programming state.
+// -----------------------------------------------------------------------------
+apu_explorer_state_t
+explorer_state()
+{
+	apu_explorer_state_t state;
+
+	for (int i = 0; i < 4; i++) {
+		state.square1[i] = explorer_square1_[i];
+		state.square2[i] = explorer_square2_[i];
+		state.dmc[i] = explorer_dmc_[i];
+	}
+
+	state.triangle0 = explorer_triangle0_;
+	state.triangle2 = explorer_triangle2_;
+	state.triangle3 = explorer_triangle3_;
+
+	state.noise0 = explorer_noise0_;
+	state.noise2 = explorer_noise2_;
+	state.noise3 = explorer_noise3_;
+
+	state.status = explorer_status_;
+	state.frame_counter = last_frame_counter_;
+
+	return state;
+}
+
+
+// -----------------------------------------------------------------------------
 // nes::apu::debug_set_audio_muted
 //
 // Enables or disables debugger audio mute.  The queued sample buffer is flushed
@@ -1292,8 +1369,8 @@ debug_set_audio_muted(bool muted)
 {
 	debug_audio_muted = muted;
 
-	for (size_t i = 0; i < buffer_size; i++) {
-		sample_buffer_[i] = silence;
+	for (size_t i = 0; i < kBufferSize; i++) {
+		sample_buffer_[i] = kSilence;
 	}
 
 	sample_buffer_start = 0;
