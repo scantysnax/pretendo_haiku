@@ -17,6 +17,7 @@
 #include <cstdio>
 
 #include "APUExplorerWindow.h"
+#include "APUScopeWindow.h"
 #include "APUStatusWindow.h"
 #include "APUWriteLogWindow.h"
 #include "AudioStream.h"
@@ -65,6 +66,7 @@
 
 
 class APUExplorerWindow;
+class APUScopeWindow;
 class APUStatusWindow;
 class APUWriteLogWindow;
 class BreakPointWindow;
@@ -148,7 +150,8 @@ class PretendoWindow : public BWindow, public nes::FrameOutput
 		VIEW_BREAKPOINTS =	'BRPT',
 		VIEW_APUSTATUS = 	'APUS',
 		VIEW_APULOG = 		'APUW',
-		VIEW_APUEXPLORER = 	'APUE'
+		VIEW_APUEXPLORER = 	'APUE',
+		VIEW_APUSCOPE = 	'SCOP'
 	} messages;	
 	
 	private:
@@ -250,6 +253,7 @@ class PretendoWindow : public BWindow, public nes::FrameOutput
 	void OnViewAPUStatusWindow();
 	void OnViewAPUWriteLogWindow();
 	void OnViewAPUExplorerWindow();
+	void OnViewAPUScopeWindow();
 
 	// video stuff
 	private:
@@ -387,6 +391,7 @@ class PretendoWindow : public BWindow, public nes::FrameOutput
 	APUStatusWindow *fAPUStatusWindow = nullptr;
 	APUWriteLogWindow *fAPUWriteLogWindow = nullptr;
 	APUExplorerWindow *fAPUExplorerWindow = nullptr;
+	APUScopeWindow *fAPUScopeWindow = nullptr;
 
 	private:
 	BString fROMDirectory = nullptr;
@@ -492,6 +497,7 @@ class PretendoWindow : public BWindow, public nes::FrameOutput
 	void APUStatusWindowClosed();
     void APUWriteLogWindowClosed();
     void APUExplorerWindowClosed();
+    void APUScopeWindowClosed();
     
     public:
 	void HighlightPaletteDebugger (bool sprites, int32 palette, int32 entry = -1);
@@ -557,6 +563,7 @@ class PretendoWindow : public BWindow, public nes::FrameOutput
 	bool fWasAPUStatusWindowVisibleBeforeFullScreen = false;
 	bool fWasAPUWriteLogWindowVisibleBeforeFullScreen = false;
 	bool fWasAPUExplorerWindowVisibleBeforeFullScreen = false;
+	bool fWasAPUScopeWindowVisibleBeforeFullScreen = false;
 	
 	
     // keys

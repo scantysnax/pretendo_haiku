@@ -406,7 +406,13 @@ PretendoWindow::~PretendoWindow()
 			fAPUExplorerWindow->Quit();
 		}
 	}
-
+	
+	if (fAPUScopeWindow != nullptr) {
+		if (fAPUScopeWindow->Lock()) {
+			fAPUScopeWindow->Quit();
+		}
+	}
+	
 
 	// PPU tools
 
@@ -744,6 +750,10 @@ PretendoWindow::MessageReceived (BMessage *message)
 			OnViewAPUExplorerWindow();
 			break;
 			
+		case messages::VIEW_APUSCOPE:
+			OnViewAPUScopeWindow();
+			break;
+			
 		default:
 			break;
 	}
@@ -1019,7 +1029,8 @@ PretendoWindow::AddMenu()
 	fToolMenu->AddItem(fAPUToolMenu);
 	fAPUToolMenu->AddItem(new BMenuItem("View APU Status" B_UTF8_ELLIPSIS, new BMessage(messages::VIEW_APUSTATUS)));
 	fAPUToolMenu->AddItem(new BMenuItem("View APU Write Log", new BMessage(messages::VIEW_APULOG)));
-	fAPUToolMenu->AddItem(new BMenuItem("APU Explorer", new BMessage(messages::VIEW_APUEXPLORER)));
+	fAPUToolMenu->AddItem(new BMenuItem("APU Explorer" B_UTF8_ELLIPSIS , new BMessage(messages::VIEW_APUEXPLORER)));
+	fAPUToolMenu->AddItem(new BMenuItem("View Oscilloscope", new BMessage(messages::VIEW_APUSCOPE)));
 	
 	// menu icon
 	fMenuBarIcon = new MenuBarIcon(fMenuBar);
@@ -2331,6 +2342,36 @@ PretendoWindow::OnViewAPUExplorerWindow()
 
 
 // -----------------------------------------------------------------------------
+// PretendoWindow::OnViewAPUScopeWindow
+//
+// Opens the APU Scope debugger window or activates the existing instance.
+//
+// The window participates in debugger ToolInput handling so emulator input is
+// suppressed while the floating debugger tool has focus.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::OnViewAPUScopeWindow()
+{
+	if (fAPUScopeWindow) {
+		fAPUScopeWindow->Activate(true);
+		return;
+	}
+
+	fAPUScopeWindow = new APUScopeWindow(this);
+
+	BeginToolInput();
+
+	fAPUScopeWindow->Show();
+}
+
+
+// -----------------------------------------------------------------------------
 // PretendoWindow::ROMInfoWindowClosed
 //
 // Releases tool-input ownership for the ROM Info window and clears the stored
@@ -2808,6 +2849,28 @@ PretendoWindow::APUExplorerWindowClosed()
 {
 	EndToolInput();
 	fAPUExplorerWindow = nullptr;
+}
+
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::APUScopeWindowClosed
+//
+// Handles notification that the APU Scope debugger window has closed.
+//
+// The stored window pointer is cleared and the matching ToolInput reference is
+// released.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::APUScopeWindowClosed()
+{
+	EndToolInput();
+	fAPUScopeWindow = nullptr;
 }
 
 
@@ -3960,6 +4023,7 @@ PretendoWindow::CountVisibleToolWindows() const
 	countWindow(fAPUStatusWindow);
 	countWindow(fAPUWriteLogWindow);
 	countWindow(fAPUExplorerWindow);
+	countWindow(fAPUScopeWindow);
 
 	return count;
 }
@@ -4124,6 +4188,7 @@ PretendoWindow::SuspendToolWindowsForFullScreen()
 	fWasAPUStatusWindowVisibleBeforeFullScreen = HideToolWindowForFullScreen(fAPUStatusWindow);
 	fWasAPUWriteLogWindowVisibleBeforeFullScreen = HideToolWindowForFullScreen(fAPUWriteLogWindow);
 	fWasAPUExplorerWindowVisibleBeforeFullScreen = HideToolWindowForFullScreen(fAPUExplorerWindow);
+	fWasAPUScopeWindowVisibleBeforeFullScreen = HideToolWindowForFullScreen(fAPUScopeWindow);
 
 	// No tool window owns fullscreen keyboard input while suspended.
 	fToolInputDepth = 0;
@@ -4215,6 +4280,7 @@ PretendoWindow::RestoreToolWindowsAfterFullScreen()
 	ShowToolWindowAfterFullScreen(fAPUStatusWindow, fWasAPUStatusWindowVisibleBeforeFullScreen);
 	ShowToolWindowAfterFullScreen(fAPUWriteLogWindow, fWasAPUWriteLogWindowVisibleBeforeFullScreen);
 	ShowToolWindowAfterFullScreen(fAPUExplorerWindow, fWasAPUExplorerWindowVisibleBeforeFullScreen);
+	ShowToolWindowAfterFullScreen(fAPUScopeWindow, fWasAPUScopeWindowVisibleBeforeFullScreen);
 
 	// Rebuild ownership from the windows that actually survived fullscreen.
 	fToolInputDepth = CountVisibleToolWindows();
@@ -4278,6 +4344,7 @@ PretendoWindow::RestoreToolWindowsAfterFullScreen()
 	fWasAPUStatusWindowVisibleBeforeFullScreen = false;
 	fWasAPUWriteLogWindowVisibleBeforeFullScreen = false;
 	fWasAPUExplorerWindowVisibleBeforeFullScreen = false;
+	fWasAPUScopeWindowVisibleBeforeFullScreen = false;
 
 	fToolWindowsSuspendedForFullScreen = false;
 
@@ -4885,6 +4952,7 @@ PretendoWindow::InvalidateDebugViews()
 	InvalidateWindowContents(fAPUStatusWindow);
 	InvalidateWindowContents(fAPUWriteLogWindow);
 	InvalidateWindowContents(fAPUExplorerWindow);
+	InvalidateWindowContents(fAPUScopeWindow);
 }
 
 

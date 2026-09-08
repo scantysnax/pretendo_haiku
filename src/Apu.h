@@ -141,10 +141,8 @@ struct apu_debug_state_t {
 
 
 extern bool debug_audio_muted;
-
 void debug_set_audio_muted(bool muted);
 bool debug_audio_is_muted();
-
 apu_debug_state_t debug_state();
 
 constexpr uint32_t APU_WRITE_LOG_CAPACITY = 256;
@@ -185,8 +183,25 @@ struct apu_explorer_state_t {
 	uint8_t frame_counter = 0;	// last value writeen to $4017
 };
 
+
 apu_explorer_state_t explorer_state();
 
+constexpr uint32_t APU_SCOPE_SAMPLE_CAPACITY = 1024;
+
+
+struct apu_scope_sample_t {
+	uint8_t square1;
+	uint8_t square2;
+	uint8_t triangle;
+	uint8_t noise;
+	uint8_t dmc;
+
+	float mixed;
+};
+
+
+uint32_t debug_scope_snapshot(apu_scope_sample_t *samples, uint32_t capacity);
+void debug_clear_scope();
 
 
 void reset(Reset reset_type);
@@ -217,8 +232,8 @@ void write4013(uint8_t value);
 void write4015(uint8_t value);
 void write4017(uint8_t value);
 
-
 uint8_t read4015();
+
 
 uint64_t cycle_count();
 
@@ -261,7 +276,7 @@ typedef enum {
 } sound_channel;
 
 
-}
+}	// end namespace nes::apu
 
 
 #endif // _APU_H_
