@@ -17,6 +17,7 @@
 #include <cstdio>
 
 #include "APUExplorerWindow.h"
+#include "APUFrameSequencerWindow.h"
 #include "APUScopeWindow.h"
 #include "APUStatusWindow.h"
 #include "APUWriteLogWindow.h"
@@ -151,7 +152,8 @@ class PretendoWindow : public BWindow, public nes::FrameOutput
 		VIEW_APUSTATUS = 	'APUS',
 		VIEW_APULOG = 		'APUW',
 		VIEW_APUEXPLORER = 	'APUE',
-		VIEW_APUSCOPE = 	'SCOP'
+		VIEW_APUSCOPE = 	'SCOP',
+		VIEW_APU_FRAMESEQ =	'VAFS' 
 	} messages;	
 	
 	private:
@@ -254,6 +256,7 @@ class PretendoWindow : public BWindow, public nes::FrameOutput
 	void OnViewAPUWriteLogWindow();
 	void OnViewAPUExplorerWindow();
 	void OnViewAPUScopeWindow();
+	void OnViewAPUFrameSequencerWindow();
 
 	// video stuff
 	private:
@@ -392,6 +395,7 @@ class PretendoWindow : public BWindow, public nes::FrameOutput
 	APUWriteLogWindow *fAPUWriteLogWindow = nullptr;
 	APUExplorerWindow *fAPUExplorerWindow = nullptr;
 	APUScopeWindow *fAPUScopeWindow = nullptr;
+	APUFrameSequencerWindow *fAPUFrameSequencerWindow = nullptr;
 
 	private:
 	BString fROMDirectory = nullptr;
@@ -498,6 +502,7 @@ class PretendoWindow : public BWindow, public nes::FrameOutput
     void APUWriteLogWindowClosed();
     void APUExplorerWindowClosed();
     void APUScopeWindowClosed();
+    void APUFrameSequencerWindowClosed();
     
     public:
 	void HighlightPaletteDebugger (bool sprites, int32 palette, int32 entry = -1);
@@ -564,6 +569,7 @@ class PretendoWindow : public BWindow, public nes::FrameOutput
 	bool fWasAPUWriteLogWindowVisibleBeforeFullScreen = false;
 	bool fWasAPUExplorerWindowVisibleBeforeFullScreen = false;
 	bool fWasAPUScopeWindowVisibleBeforeFullScreen = false;
+	bool fWasAPUFrameSequencerWindowVisibleBeforeFullScreen = false;
 	
 	
     // keys

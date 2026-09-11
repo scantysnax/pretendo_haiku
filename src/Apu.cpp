@@ -17,6 +17,7 @@ bool debug_audio_muted = false;
 
 namespace {
 
+// Bit masks used by the APU status/control register.
 typedef enum {
 	ENABLE_SQUARE1 = 	0x1,
 	ENABLE_SQUARE2 = 	0x2,
@@ -26,11 +27,16 @@ typedef enum {
 	FRAME_IRQ = 		0x40,
 	DMC_IRQ = 			0x80
 } apu_status;
-	
 
-union APUFrameCounter {
+
+// Represents the APU frame-counter control register ($4017).
+union apu_frame_counter_t {
 	uint8_t raw;
+
+	// Bit 6: suppresses frame IRQ generation when set.
 	BitField<uint8_t, 6> inhibit_frame_irq;
+
+	// Bit 7: selects 5-step mode when set, 4-step mode when clear.
 	BitField<uint8_t, 7> mode;
 };
 
@@ -40,13 +46,24 @@ constexpr double CPUFrequency = 1789772.7272; // 1.7897727272MHz
 // CPUFrequency / 192000Hz = 9.32173295417 clocks per sample
 constexpr auto ClocksPerSample = static_cast<int32_t>(CPUFrequency / kOutputFrequency);
 
-auto apu_cycles_               = static_cast<uint64_t>(-1);
-auto next_clock_               = static_cast<uint64_t>(-1);
-uint8_t clock_step_            = 0;
-APUFrameCounter frame_counter_ = {0};
-uint8_t last_frame_counter_    = 0;
+
+// Global APU frame-sequencer timing state.
+auto apu_cycles_ = static_cast<uint64_t>(-1);
+
+// APU cycle on which the next frame-sequencer event will occur.
+auto next_clock_ = static_cast<uint64_t>(-1);
+
+// Next internal frame-sequencer step to execute.
+uint8_t clock_step_ = 0;
+
+// Current $4017 frame-counter control state.
+apu_frame_counter_t frame_counter_ = {0};
+
+// Most recently written $4017 value, preserved across soft reset.
+uint8_t last_frame_counter_ = 0;
 
 
+// Raw APU register values retained for the APU Explorer debugger view.
 uint8_t explorer_square1_[4] = {};
 uint8_t explorer_square2_[4] = {};
 
@@ -60,38 +77,57 @@ uint8_t explorer_noise3_ = 0;
 
 uint8_t explorer_dmc_[4] = {};
 
+// Most recently written $4015 control value.
 uint8_t explorer_status_ = 0;
 
 
-// dc filter
+// Previous input/output samples retained by the one-pole DC-blocking filter.
 double sDCBlockPreviousInput = 0.0;
 double sDCBlockPreviousOutput = 0.0;
 
 }
 
+
+// Active APU channel objects and global $4015-style status state.
 Square<0> square_0;
 Square<1> square_1;
 Triangle triangle;
 Noise noise;
 DMC dmc;
-APUStatus status = {0};
+apu_status_t status = {0};
 
 
+// Circular host-audio sample buffer and its read/write positions.
 uint8_t sample_buffer_[kBufferSize];
 size_t sample_buffer_start = 0;
 size_t sample_buffer_end   = 0;
+
+// Most recently emitted host PCM sample, used when the buffer runs short.
 static uint8_t sLastOutputSample = kSilence;
 
 
+// Rolling APU register-write log and ring-buffer bookkeeping.
 static nes::apu::apu_write_log_entry_t write_log_[nes::apu::APU_WRITE_LOG_CAPACITY];
 static uint32_t write_log_next_ = 0;
 static uint32_t write_log_count_ = 0;
+
+// Monotonically increasing sequence number assigned to each logged write.
 static uint32_t write_log_write_index_ = 0;
 
 
+// Rolling APU oscilloscope sample buffer and ring-buffer bookkeeping.
 static apu_scope_sample_t scope_samples_[APU_SCOPE_SAMPLE_CAPACITY];
 static uint32_t scope_sample_next_ = 0;
 static uint32_t scope_sample_count_ = 0;
+
+
+// Rolling APU frame-sequencer event history and ring-buffer bookkeeping.
+static apu_frame_event_t frame_events_[APU_FRAME_EVENT_CAPACITY];
+static uint32_t frame_event_next_ = 0;
+static uint32_t frame_event_count_ = 0;
+
+// Records one frame-sequencer event in the rolling debugger history.
+static void log_frame_event(apu_frame_event_type type);
 
 
 // -----------------------------------------------------------------------------
@@ -113,7 +149,7 @@ static uint32_t scope_sample_count_ = 0;
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-log_apu_write(uint16_t address, uint8_t value)
+log_apu_write (uint16_t address, uint8_t value)
 {
 	apu_write_log_entry_t& entry = write_log_[write_log_next_];
 
@@ -234,7 +270,7 @@ log_apu_write(uint16_t address, uint8_t value)
 //   Nothing.
 // -----------------------------------------------------------------------------
 static void
-capture_scope_sample(uint8_t mixedSample)
+capture_scope_sample (uint8_t mixedSample)
 {
 	apu_scope_sample_t& sample = scope_samples_[scope_sample_next_];
 	sample.square1 = square_0.debug_output();
@@ -271,21 +307,14 @@ capture_scope_sample(uint8_t mixedSample)
 //   Number of samples copied.
 // -----------------------------------------------------------------------------
 uint32_t
-debug_scope_snapshot(
-	apu_scope_sample_t *samples,
-	uint32_t capacity)
+debug_scope_snapshot (apu_scope_sample_t *samples, uint32_t capacity)
 {
 	if (!samples || capacity == 0) {
 		return 0;
 	}
 
-	const uint32_t available =
-		scope_sample_count_;
-
-	const uint32_t count =
-		(available < capacity)
-			? available
-			: capacity;
+	const uint32_t available = scope_sample_count_;
+	const uint32_t count = (available < capacity) ? available : capacity;
 
 	if (count == 0) {
 		return 0;
@@ -298,21 +327,13 @@ debug_scope_snapshot(
 	}
 
 	if (count < available) {
-		start =
-			(start + (available - count)) %
-			APU_SCOPE_SAMPLE_CAPACITY;
+		start = (start + (available - count)) % APU_SCOPE_SAMPLE_CAPACITY;
 	}
 
-	for (uint32_t index = 0;
-		index < count;
-		index++) {
+	for (uint32_t index = 0; index < count; index++) {
+		const uint32_t physicalIndex = (start + index) % APU_SCOPE_SAMPLE_CAPACITY;
 
-		const uint32_t physicalIndex =
-			(start + index) %
-			APU_SCOPE_SAMPLE_CAPACITY;
-
-		samples[index] =
-			scope_samples_[physicalIndex];
+		samples[index] = scope_samples_[physicalIndex];
 	}
 
 	return count;
@@ -339,6 +360,72 @@ debug_clear_scope()
 
 
 // -----------------------------------------------------------------------------
+// nes::apu::debug_frame_event_snapshot
+//
+// Copies the rolling APU frame-sequencer event history into caller-provided
+// storage in chronological order.
+//
+// Parameters:
+//   events   - Destination event array.
+//   capacity - Maximum number of events to copy.
+//
+// Returns:
+//   Number of events copied.
+// -----------------------------------------------------------------------------
+uint32_t
+debug_frame_event_snapshot (apu_frame_event_t *events, uint32_t capacity)
+{
+	if (!events || capacity == 0) {
+		return 0;
+	}
+
+	const uint32_t available = frame_event_count_;
+	const uint32_t count = (available < capacity) ? available : capacity;
+
+	if (count == 0) {
+		return 0;
+	}
+
+	uint32_t start = 0;
+
+	if (available == APU_FRAME_EVENT_CAPACITY) {
+		start = frame_event_next_;
+	}
+
+	if (count < available) {
+		start = (start + (available - count)) % APU_FRAME_EVENT_CAPACITY;
+	}
+
+	for (uint32_t index = 0; index < count; index++) {
+		const uint32_t physicalIndex = (start + index) % APU_FRAME_EVENT_CAPACITY;
+
+		events[index] = frame_events_[physicalIndex];
+	}
+
+	return count;
+}
+
+
+// -----------------------------------------------------------------------------
+// nes::apu::debug_clear_frame_events
+//
+// Clears the debugger frame-sequencer event history.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+debug_clear_frame_events()
+{
+	frame_event_next_ = 0;
+	frame_event_count_ = 0;
+}
+
+
+// -----------------------------------------------------------------------------
 // clock_linear
 //
 // Clocks the APU components that advance on each quarter-frame event.
@@ -352,7 +439,9 @@ debug_clear_scope()
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void clock_linear() {
+void 
+clock_linear()
+{
 	triangle.linear_counter.clock();
 
 	square_0.envelope.clock();
@@ -375,7 +464,9 @@ void clock_linear() {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void clock_length() {
+void
+clock_length()
+{
 	square_0.length_counter.clock();
 	square_1.length_counter.clock();
 	triangle.length_counter.clock();
@@ -402,27 +493,36 @@ void clock_length() {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void clock_frame_mode_0() {
-
+void
+clock_frame_mode_0()
+{
 	// 4 step sequence
 	switch (clock_step_) {
 	case 0:
+		log_frame_event(APU_FRAME_EVENT_QUARTER);
+		
 		clock_linear();
 		next_clock_ += 7456;
 		break;
 
 	case 1:
+		log_frame_event(APU_FRAME_EVENT_QUARTER_HALF);
+
 		clock_linear();
 		clock_length();
 		next_clock_ += 7458;
 		break;
 
 	case 2:
+		log_frame_event(APU_FRAME_EVENT_QUARTER);
+		
 		clock_linear();
 		next_clock_ += 7457;
 		break;
 
 	case 3:
+		log_frame_event(APU_FRAME_EVENT_IRQ);
+
 		if (!(frame_counter_.inhibit_frame_irq)) {
 			status.frame_irq = true;
 		}
@@ -431,6 +531,8 @@ void clock_frame_mode_0() {
 		break;
 
 	case 4:
+		log_frame_event(APU_FRAME_EVENT_QUARTER_HALF);
+
 		clock_linear();
 		clock_length();
 		if (!(frame_counter_.inhibit_frame_irq)) {
@@ -441,6 +543,8 @@ void clock_frame_mode_0() {
 		break;
 
 	case 5:
+		log_frame_event(APU_FRAME_EVENT_IRQ);
+
 		if (!(frame_counter_.inhibit_frame_irq)) {
 			status.frame_irq = true;
 		}
@@ -468,28 +572,38 @@ void clock_frame_mode_0() {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void clock_frame_mode_1() {
+void 
+clock_frame_mode_1()
+{
 
 	// 5 step sequence
 	switch (clock_step_) {
 	case 0:
+		log_frame_event(APU_FRAME_EVENT_QUARTER_HALF);
+		
 		clock_linear();
 		clock_length();
 		next_clock_ += 7458;
 		break;
 
 	case 1:
+		log_frame_event(APU_FRAME_EVENT_QUARTER);
+
 		clock_linear();
 		next_clock_ += 7456;
 		break;
 
 	case 2:
+		log_frame_event(APU_FRAME_EVENT_QUARTER_HALF);
+
 		clock_linear();
 		clock_length();
 		next_clock_ += 7458;
 		break;
 
 	case 3:
+		log_frame_event(APU_FRAME_EVENT_QUARTER);
+
 		clock_linear();
 		next_clock_ += 7456;
 		break;
@@ -564,7 +678,7 @@ mix_channels()
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-reset(Reset reset_type)
+reset (Reset reset_type)
 {
 	status.raw     = 0;
 	frame_counter_ = {0};
@@ -578,6 +692,7 @@ reset(Reset reset_type)
 	sDCBlockPreviousOutput = 0.0;
 	
 	debug_clear_scope();
+	debug_clear_frame_events();
 
 	if (reset_type == Reset::Hard) {
 		last_frame_counter_ = 0;
@@ -644,7 +759,9 @@ reset(Reset reset_type)
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void write4000(uint8_t value) {
+void
+write4000 (uint8_t value)
+{
 	log_apu_write(0x4000, value);
 	explorer_square1_[0] = value;
 	square_0.write_reg0(value);
@@ -662,7 +779,9 @@ void write4000(uint8_t value) {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void write4001(uint8_t value) {
+void 
+write4001 (uint8_t value)
+{
 	log_apu_write(0x4001, value);
 	explorer_square1_[1] = value;
 	square_0.write_reg1(value);
@@ -680,7 +799,9 @@ void write4001(uint8_t value) {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void write4002(uint8_t value) {
+void
+write4002 (uint8_t value)
+{
 	log_apu_write(0x4002, value);
 	explorer_square1_[2] = value;
 	square_0.write_reg2(value);
@@ -699,7 +820,9 @@ void write4002(uint8_t value) {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void write4003(uint8_t value) {
+void
+write4003 (uint8_t value)
+{
 	log_apu_write(0x4003, value);
 	explorer_square1_[3] = value;
 	square_0.write_reg3(value);
@@ -717,7 +840,9 @@ void write4003(uint8_t value) {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void write4004(uint8_t value) {
+void
+write4004 (uint8_t value)
+{
 	log_apu_write(0x4004, value);
 	explorer_square2_[0] = value;
 	square_1.write_reg0(value);
@@ -735,7 +860,9 @@ void write4004(uint8_t value) {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void write4005(uint8_t value) {
+void
+write4005(uint8_t value)
+{
 	log_apu_write(0x4005, value);
 	explorer_square2_[1] = value;
 	square_1.write_reg1(value);
@@ -753,7 +880,8 @@ void write4005(uint8_t value) {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void write4006(uint8_t value) {
+void write4006 (uint8_t value)
+{
 	log_apu_write(0x4006, value);
 	explorer_square2_[2] = value;
 	square_1.write_reg2(value);
@@ -772,7 +900,9 @@ void write4006(uint8_t value) {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void write4007(uint8_t value) {
+void
+write4007 (uint8_t value)
+{
 	log_apu_write(0x4007, value);
 	explorer_square2_[3] = value;
 	square_1.write_reg3(value);
@@ -790,7 +920,9 @@ void write4007(uint8_t value) {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void write4008(uint8_t value) {
+void
+write4008 (uint8_t value)
+{
 	log_apu_write(0x4008, value);
 	explorer_triangle0_ = value;
 	triangle.write_reg0(value);
@@ -808,7 +940,9 @@ void write4008(uint8_t value) {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void write400A(uint8_t value) {
+void
+write400A (uint8_t value)
+{
 	log_apu_write(0x400a, value);
 	explorer_triangle2_ = value;
 	triangle.write_reg2(value);
@@ -827,7 +961,9 @@ void write400A(uint8_t value) {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void write400B(uint8_t value) {
+void
+write400B (uint8_t value)
+{
 	log_apu_write(0x400b, value);
 	explorer_triangle3_ = value;
 	triangle.write_reg3(value);
@@ -845,7 +981,9 @@ void write400B(uint8_t value) {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void write400C(uint8_t value) {
+void
+write400C (uint8_t value)
+{
 	log_apu_write(0x400c, value);
 	explorer_noise0_ = value;
 	noise.write_reg0(value);
@@ -863,7 +1001,9 @@ void write400C(uint8_t value) {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void write400E(uint8_t value) {
+void
+write400E (uint8_t value)
+{
 	log_apu_write(0x400e, value);
 	explorer_noise2_ = value;
 	noise.write_reg2(value);
@@ -881,7 +1021,9 @@ void write400E(uint8_t value) {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void write400F(uint8_t value) {
+void
+write400F (uint8_t value)
+{
 	log_apu_write(0x400f, value);
 	explorer_noise3_ = value;
 	noise.write_reg3(value);
@@ -899,7 +1041,9 @@ void write400F(uint8_t value) {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void write4010(uint8_t value) {
+void
+write4010 (uint8_t value)
+{
 	log_apu_write(0x4010, value);
 	explorer_dmc_[0] = value;
 	dmc.write_reg0(value);
@@ -917,7 +1061,9 @@ void write4010(uint8_t value) {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void write4011(uint8_t value) {
+void 
+write4011 (uint8_t value)
+{
 	log_apu_write(0x4011, value);
 	explorer_dmc_[1] = value;
 	dmc.write_reg1(value);
@@ -935,7 +1081,9 @@ void write4011(uint8_t value) {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void write4012(uint8_t value) {
+void
+write4012 (uint8_t value)
+{
 	log_apu_write(0x4012, value);
 	explorer_dmc_[2] = value;
 	dmc.write_reg2(value);
@@ -953,7 +1101,9 @@ void write4012(uint8_t value) {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void write4013(uint8_t value) {
+void
+write4013 (uint8_t value)
+{
 	log_apu_write(0x4013, value);
 	explorer_dmc_[3] = value;
 	dmc.write_reg3(value);
@@ -976,7 +1126,7 @@ void write4013(uint8_t value) {
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-write4015(uint8_t value)
+write4015 (uint8_t value)
 {
 	log_apu_write(0x4015, value);
 
@@ -1012,7 +1162,9 @@ write4015(uint8_t value)
 // Returns:
 //   Current APU status-register value.
 // -----------------------------------------------------------------------------
-uint8_t read4015() {
+uint8_t 
+read4015()
+{
 	uint8_t ret = status.raw & (apu_status::DMC_IRQ | apu_status::FRAME_IRQ);
 
 	// reading this register clears the Frame interrupt flag.
@@ -1061,7 +1213,7 @@ uint8_t read4015() {
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-write4017(uint8_t value)
+write4017 (uint8_t value)
 {
 	log_apu_write(0x4017, value);
 	
@@ -1177,7 +1329,7 @@ uint64_t cycle_count() {
 //   Number of samples written.
 // -----------------------------------------------------------------------------
 size_t
-read_samples(uint8_t *buffer, size_t size)
+read_samples (uint8_t *buffer, size_t size)
 {
 	if (!buffer || size == 0) {
 		return 0;
@@ -1455,6 +1607,141 @@ debug_state()
 
 
 // -----------------------------------------------------------------------------
+// nes::apu::debug_frame_sequencer_state
+//
+// Returns a side-effect-free snapshot of the APU frame sequencer.
+//
+// clock_step_ represents the next internal frame-sequencer event that will be
+// executed when apu_cycles_ reaches next_clock_.  The returned event flags
+// describe the quarter-frame, half-frame, and IRQ behavior associated with
+// that upcoming event.
+//
+// The 4-step sequence uses six internal scheduling points because frame IRQ
+// assertion occurs across the closely spaced final sequence clocks.
+//
+// The 5-step sequence uses five internal scheduling points and never generates
+// a frame IRQ.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Current APU frame-sequencer debugger state.
+// -----------------------------------------------------------------------------
+apu_frame_sequencer_debug_state_t
+debug_frame_sequencer_state()
+{
+	apu_frame_sequencer_debug_state_t state;
+
+	state.apu_cycle = apu_cycles_;
+	state.next_event_cycle = next_clock_;
+
+	if (next_clock_ >= apu_cycles_) {
+		state.cycles_until_next_event = next_clock_ - apu_cycles_;
+	} else {
+		state.cycles_until_next_event = 0;
+	}
+
+	state.next_step = clock_step_;
+	state.five_step_mode = frame_counter_.mode;
+	state.step_count = state.five_step_mode ? 5 : 6;
+	state.irq_inhibit = frame_counter_.inhibit_frame_irq;
+	state.frame_irq = status.frame_irq;
+
+	state.next_event_quarter_frame = false;
+	state.next_event_half_frame = false;
+	state.next_event_irq_point = false;
+
+	state.frame_counter_register = last_frame_counter_;
+
+	if (state.five_step_mode) {
+		switch (clock_step_) {
+			case 0:
+				state.next_event_quarter_frame = true;
+				state.next_event_half_frame = true;
+				break;
+
+			case 1:
+				state.next_event_quarter_frame = true;
+				break;
+
+			case 2:
+				state.next_event_quarter_frame = true;
+				state.next_event_half_frame = true;
+				break;
+
+			case 3:
+				state.next_event_quarter_frame = true;
+				break;
+
+			case 4:
+				break;
+		}
+	} else {
+		switch (clock_step_) {
+			case 0:
+				state.next_event_quarter_frame = true;
+				break;
+
+			case 1:
+				state.next_event_quarter_frame = true;
+				state.next_event_half_frame = true;
+				break;
+
+			case 2:
+				state.next_event_quarter_frame = true;
+				break;
+
+			case 3:
+				state.next_event_irq_point = true;
+				break;
+
+			case 4:
+				state.next_event_quarter_frame = true;
+				state.next_event_half_frame = true;
+				state.next_event_irq_point = true;
+				break;
+
+			case 5:
+				state.next_event_irq_point = true;
+				break;
+		}
+	}
+
+	return state;
+}
+
+
+// -----------------------------------------------------------------------------
+// log_frame_event
+//
+// Appends one APU frame-sequencer event to the debugger history.
+//
+// Parameters:
+//   type - Event type being recorded.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+static void
+log_frame_event(apu_frame_event_type type)
+{
+	apu_frame_event_t &event = frame_events_[frame_event_next_];
+	event.cycle = apu_cycles_;
+	event.type = type;
+	event.step = clock_step_;
+	event.five_step_mode = frame_counter_.mode;
+	event.irq_inhibit = frame_counter_.inhibit_frame_irq;
+
+	frame_event_next_ = (frame_event_next_ + 1) % APU_FRAME_EVENT_CAPACITY;
+
+	if (frame_event_count_ < APU_FRAME_EVENT_CAPACITY) {
+		frame_event_count_++;
+	}
+}
+
+
+// -----------------------------------------------------------------------------
 // nes::apu::explorer_state
 //
 // Returns a side-effect-free snapshot of the most recently programmed raw APU
@@ -1506,7 +1793,7 @@ explorer_state()
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-debug_set_audio_muted(bool muted)
+debug_set_audio_muted (bool muted)
 {
 	debug_audio_muted = muted;
 

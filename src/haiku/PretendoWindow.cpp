@@ -413,7 +413,13 @@ PretendoWindow::~PretendoWindow()
 		}
 	}
 	
+	if (fAPUFrameSequencerWindow != nullptr) {
+		if (fAPUFrameSequencerWindow->Lock()) {
+			fAPUFrameSequencerWindow->Quit();
+		}
+	}
 
+	
 	// PPU tools
 
 	if (fPPUStatusWindow != nullptr) {
@@ -754,6 +760,10 @@ PretendoWindow::MessageReceived (BMessage *message)
 			OnViewAPUScopeWindow();
 			break;
 			
+		case messages::VIEW_APU_FRAMESEQ:
+			OnViewAPUFrameSequencerWindow();
+			break;
+			
 		default:
 			break;
 	}
@@ -1000,17 +1010,17 @@ PretendoWindow::AddMenu()
 	fCPUToolMenu->AddItem(new BMenuItem("View Disassembly" B_UTF8_ELLIPSIS, new BMessage(messages::VIEW_CPUDISASM)));
 	fCPUToolMenu->AddItem(new BMenuItem("View Memory" B_UTF8_ELLIPSIS, new BMessage(messages::VIEW_CPUMEM)));
 	fCPUToolMenu->AddItem(new BMenuItem("View CPU Trace" B_UTF8_ELLIPSIS, new BMessage(messages::VIEW_CPUTRACE)));
-	fCPUToolMenu->AddItem(new BMenuItem("View Zero Page", new BMessage(messages::VIEW_ZERO_PAGE)));
-	fCPUToolMenu->AddItem(new BMenuItem("View Stack", new BMessage(messages::VIEW_STACK)));
-	fCPUToolMenu->AddItem(new BMenuItem("View Breakpoints", new BMessage(messages::VIEW_BREAKPOINTS)));
+	fCPUToolMenu->AddItem(new BMenuItem("View Zero Page" B_UTF8_ELLIPSIS, new BMessage(messages::VIEW_ZERO_PAGE)));
+	fCPUToolMenu->AddItem(new BMenuItem("View Stack" B_UTF8_ELLIPSIS, new BMessage(messages::VIEW_STACK)));
+	fCPUToolMenu->AddItem(new BMenuItem("View Breakpoints" B_UTF8_ELLIPSIS, new BMessage(messages::VIEW_BREAKPOINTS)));
 	
 	fPPUToolMenu = new BMenu("PPU");
 	fToolMenu->AddItem(fPPUToolMenu);
-	fPPUToolMenu->AddItem(new BMenuItem("View PPU Status" B_UTF8_ELLIPSIS, new BMessage(messages::VIEW_PPUSTAT)));
-	fPPUToolMenu->AddItem(new BMenuItem("View PPU Write Log" B_UTF8_ELLIPSIS, new BMessage(messages::VIEW_PPULOG)));
-	fPPUToolMenu->AddItem(new BMenuItem("View PPU Memory" B_UTF8_ELLIPSIS, new BMessage(messages::VIEW_PPUMEM)));
-	fPPUToolMenu->AddItem(new BMenuItem("View Palettes", new BMessage(messages::VIEW_PALDBG)));
-	fPPUToolMenu->AddItem(new BMenuItem("View OAM", new BMessage(messages::VIEW_OAMDBG)));
+	fPPUToolMenu->AddItem(new BMenuItem("View Status" B_UTF8_ELLIPSIS, new BMessage(messages::VIEW_PPUSTAT)));
+	fPPUToolMenu->AddItem(new BMenuItem("View Write Log" B_UTF8_ELLIPSIS, new BMessage(messages::VIEW_PPULOG)));
+	fPPUToolMenu->AddItem(new BMenuItem("View Memory" B_UTF8_ELLIPSIS, new BMessage(messages::VIEW_PPUMEM)));
+	fPPUToolMenu->AddItem(new BMenuItem("View Palettes" B_UTF8_ELLIPSIS, new BMessage(messages::VIEW_PALDBG)));
+	fPPUToolMenu->AddItem(new BMenuItem("View OAM" B_UTF8_ELLIPSIS, new BMessage(messages::VIEW_OAMDBG)));
 	fPPUToolMenu->AddSeparatorItem();
 	
 	fPatternTableMenu = new BMenu("View Pattern Tables");
@@ -1027,10 +1037,11 @@ PretendoWindow::AddMenu()
 	
 	fAPUToolMenu = new BMenu("APU");
 	fToolMenu->AddItem(fAPUToolMenu);
-	fAPUToolMenu->AddItem(new BMenuItem("View APU Status" B_UTF8_ELLIPSIS, new BMessage(messages::VIEW_APUSTATUS)));
-	fAPUToolMenu->AddItem(new BMenuItem("View APU Write Log", new BMessage(messages::VIEW_APULOG)));
-	fAPUToolMenu->AddItem(new BMenuItem("APU Explorer" B_UTF8_ELLIPSIS , new BMessage(messages::VIEW_APUEXPLORER)));
-	fAPUToolMenu->AddItem(new BMenuItem("View Oscilloscope", new BMessage(messages::VIEW_APUSCOPE)));
+	fAPUToolMenu->AddItem(new BMenuItem("View Status" B_UTF8_ELLIPSIS, new BMessage(messages::VIEW_APUSTATUS)));
+	fAPUToolMenu->AddItem(new BMenuItem("View Write Log" B_UTF8_ELLIPSIS, new BMessage(messages::VIEW_APULOG)));
+	fAPUToolMenu->AddItem(new BMenuItem("View Explorer" B_UTF8_ELLIPSIS, new BMessage(messages::VIEW_APUEXPLORER)));
+	fAPUToolMenu->AddItem(new BMenuItem("View Oscilloscope" B_UTF8_ELLIPSIS, new BMessage(messages::VIEW_APUSCOPE)));
+	fAPUToolMenu->AddItem(new BMenuItem("View Frame Sequencer" B_UTF8_ELLIPSIS, new BMessage(messages::VIEW_APU_FRAMESEQ)));
 	
 	// menu icon
 	fMenuBarIcon = new MenuBarIcon(fMenuBar);
@@ -2372,6 +2383,36 @@ PretendoWindow::OnViewAPUScopeWindow()
 
 
 // -----------------------------------------------------------------------------
+// PretendoWindow::OnViewAPUFrameSequencerWindow
+//
+// Opens the APU Frame Sequencer debugger window.
+//
+// If the window already exists, it is brought to the front rather than creating
+// a second instance.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::OnViewAPUFrameSequencerWindow()
+{
+	if (fAPUFrameSequencerWindow) {
+		fAPUFrameSequencerWindow->Activate(true);
+		return;
+	}
+
+	fAPUFrameSequencerWindow = new APUFrameSequencerWindow(this);
+
+	BeginToolInput();
+
+	fAPUFrameSequencerWindow->Show();
+}
+
+
+// -----------------------------------------------------------------------------
 // PretendoWindow::ROMInfoWindowClosed
 //
 // Releases tool-input ownership for the ROM Info window and clears the stored
@@ -2871,6 +2912,29 @@ PretendoWindow::APUScopeWindowClosed()
 {
 	EndToolInput();
 	fAPUScopeWindow = nullptr;
+}
+
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::APUFrameSequencerWindowClosed
+//
+// Handles notification that the APU Frame Sequencer debugger window has
+// closed.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::APUFrameSequencerWindowClosed()
+{
+	if (fAPUFrameSequencerWindow) {
+		fAPUFrameSequencerWindow = nullptr;
+
+		EndToolInput();
+	}
 }
 
 
@@ -4024,6 +4088,7 @@ PretendoWindow::CountVisibleToolWindows() const
 	countWindow(fAPUWriteLogWindow);
 	countWindow(fAPUExplorerWindow);
 	countWindow(fAPUScopeWindow);
+	countWindow(fAPUFrameSequencerWindow);
 
 	return count;
 }
@@ -4189,7 +4254,8 @@ PretendoWindow::SuspendToolWindowsForFullScreen()
 	fWasAPUWriteLogWindowVisibleBeforeFullScreen = HideToolWindowForFullScreen(fAPUWriteLogWindow);
 	fWasAPUExplorerWindowVisibleBeforeFullScreen = HideToolWindowForFullScreen(fAPUExplorerWindow);
 	fWasAPUScopeWindowVisibleBeforeFullScreen = HideToolWindowForFullScreen(fAPUScopeWindow);
-
+	fWasAPUFrameSequencerWindowVisibleBeforeFullScreen = HideToolWindowForFullScreen(fAPUFrameSequencerWindow);
+	
 	// No tool window owns fullscreen keyboard input while suspended.
 	fToolInputDepth = 0;
 
@@ -4281,6 +4347,7 @@ PretendoWindow::RestoreToolWindowsAfterFullScreen()
 	ShowToolWindowAfterFullScreen(fAPUWriteLogWindow, fWasAPUWriteLogWindowVisibleBeforeFullScreen);
 	ShowToolWindowAfterFullScreen(fAPUExplorerWindow, fWasAPUExplorerWindowVisibleBeforeFullScreen);
 	ShowToolWindowAfterFullScreen(fAPUScopeWindow, fWasAPUScopeWindowVisibleBeforeFullScreen);
+	ShowToolWindowAfterFullScreen(fAPUFrameSequencerWindow, fWasAPUFrameSequencerWindowVisibleBeforeFullScreen);
 
 	// Rebuild ownership from the windows that actually survived fullscreen.
 	fToolInputDepth = CountVisibleToolWindows();
@@ -4345,7 +4412,8 @@ PretendoWindow::RestoreToolWindowsAfterFullScreen()
 	fWasAPUWriteLogWindowVisibleBeforeFullScreen = false;
 	fWasAPUExplorerWindowVisibleBeforeFullScreen = false;
 	fWasAPUScopeWindowVisibleBeforeFullScreen = false;
-
+	fWasAPUFrameSequencerWindowVisibleBeforeFullScreen = false;
+	
 	fToolWindowsSuspendedForFullScreen = false;
 
 	ClearControllerInput();
@@ -4953,6 +5021,7 @@ PretendoWindow::InvalidateDebugViews()
 	InvalidateWindowContents(fAPUWriteLogWindow);
 	InvalidateWindowContents(fAPUExplorerWindow);
 	InvalidateWindowContents(fAPUScopeWindow);
+	InvalidateWindowContents(fAPUFrameSequencerWindow);
 }
 
 
