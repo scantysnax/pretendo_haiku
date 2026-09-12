@@ -8,7 +8,6 @@
 #include "Nes.h"
 #include "Ppu.h"
 
-//#include <algorithm>
 #include <cstdlib>
 
 namespace nes::bus {

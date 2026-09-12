@@ -267,7 +267,6 @@ APUFrameSequencerView::DrawHeaderPanel()
 	DrawString("Space: Freeze  C: Clear Events", BPoint(x, controlY));
 
 	BString state;
-
 	state.SetToFormat("[%s]", fFreezeUpdates ? "FROZEN" : "LIVE");
 
 	const float stateWidth = StringWidth(state.String());
@@ -408,6 +407,7 @@ APUFrameSequencerView::DrawStatePanel()
 	SetFont(&prevFont);
 }
 
+
 // -----------------------------------------------------------------------------
 // APUFrameSequencerView::DrawTimelinePanel
 //
@@ -458,7 +458,7 @@ APUFrameSequencerView::DrawTimelinePanel()
 	font.SetSize(10.0f);
 	SetFont(&font);
 
-	const rgb_color currentColor = {0, 90, 170, 255};
+	const rgb_color currentColor = { 0, 90, 170, 255 };
 
 	const float left = panel.left + 24.0f;
 	const float right = panel.right - 24.0f;
@@ -697,6 +697,7 @@ APUFrameSequencerView::DrawTimelinePanel()
 	SetPenSize(1.0f);
 	SetFont(&prevFont);
 }
+
 
 // -----------------------------------------------------------------------------
 // APUFrameSequencerView::DrawRecentEventsPanel

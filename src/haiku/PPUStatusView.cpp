@@ -121,7 +121,7 @@ PPUStatusView::CaptureSnapshot()
 	fSnapshot.ctrl = nes::ppu::ppuctrl();
 	fSnapshot.mask = nes::ppu::ppumask();
 	fSnapshot.status = nes::ppu::ppustatus();
-	fSnapshot.oamAddr = nes::ppu::oamaddr();
+	fSnapshot.oamAddr = nes::ppu::oam_addr();
 	fSnapshot.scroll = nes::ppu::scroll_state();
 
 	/*
@@ -309,7 +309,7 @@ PPUStatusView::DrawRegisterPanel()
 	drawRightLV("Fine X:", s.String());
 
 	s.SetToFormat("$%02X", fSnapshot.scroll.ctrl);
-	drawRightLV("Ctrl sh:", s.String());
+	drawRightLV("Ctrl Shadow:", s.String());
 
 	SetFont(&prevFont);
 }
