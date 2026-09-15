@@ -23,7 +23,9 @@ const uint16_t frequency_table[16] = {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void Noise::set_enabled(bool value) {
+void
+Noise::set_enabled(bool value)
+{
 	if (value) {
 		enable();
 	} else {
@@ -43,7 +45,9 @@ void Noise::set_enabled(bool value) {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void Noise::enable() {
+void
+Noise::enable()
+{
 	enabled_ = true;
 }
 
@@ -59,7 +63,9 @@ void Noise::enable() {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void Noise::disable() {
+void
+Noise::disable()
+{
 	enabled_ = false;
 	length_counter.clear();
 }
@@ -79,8 +85,9 @@ void Noise::disable() {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void Noise::write_reg0(uint8_t value) {
-
+void
+Noise::write_reg0 (uint8_t value)
+{
 	if (value & 0x20) {
 		length_counter.halt();
 	} else {
@@ -105,8 +112,9 @@ void Noise::write_reg0(uint8_t value) {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void Noise::write_reg2(uint8_t value) {
-
+void
+Noise::write_reg2 (uint8_t value)
+{
 	lfsr_.set_mode(value & 0x80);
 	timer_.frequency = frequency_table[value & 0x0f];
 }
@@ -126,8 +134,9 @@ void Noise::write_reg2(uint8_t value) {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void Noise::write_reg3(uint8_t value) {
-
+void
+Noise::write_reg3 (uint8_t value)
+{
 	if (enabled_) {
 		length_counter.load((value >> 3) & 0x1f);
 	}
@@ -147,7 +156,9 @@ void Noise::write_reg3(uint8_t value) {
 // Returns:
 //   true if the noise channel is enabled.
 // -----------------------------------------------------------------------------
-bool Noise::enabled() const {
+bool 
+Noise::enabled() const
+{
 	return enabled_;
 }
 
@@ -166,8 +177,9 @@ bool Noise::enabled() const {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void Noise::tick() {
-
+void
+Noise::tick()
+{
 	timer_.tick([this]() {
 		lfsr_.clock();
 	});
@@ -188,8 +200,9 @@ void Noise::tick() {
 // Returns:
 //   Current noise-channel output level.
 // -----------------------------------------------------------------------------
-uint8_t Noise::output() const {
-	
+uint8_t
+Noise::output() const
+{
 	if (channel_muted_) {
 		return 0;
 	}

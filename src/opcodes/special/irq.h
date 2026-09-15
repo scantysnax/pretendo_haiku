@@ -30,20 +30,20 @@ public:
 			break;
 		case 2:
 			// push PCH on stack, decrement S
-			write_byte(S-- + StackAddress, PC.hi);
+			write_byte(S-- + kStackAddress, PC.hi);
 			break;
 		case 3:
 			// push PCL on stack, decrement S
-			write_byte(S-- + StackAddress, PC.lo);
+			write_byte(S-- + kStackAddress, PC.lo);
 			break;
 		case 4:
 			// push P on stack, decrement S
-			write_byte(S-- + StackAddress, P);
+			write_byte(S-- + kStackAddress, P);
 			if (nmi_asserted_) {
-				effective_address_.raw = NmiVectorAddress;
+				effective_address_.raw = kNMIVectorAddress;
 				nmi_asserted_          = false;
 			} else {
-				effective_address_.raw = IrqVectorAddress;
+				effective_address_.raw = kIRQVectorAddress;
 			}
 			break;
 		case 5:

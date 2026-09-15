@@ -5,8 +5,9 @@
 
 namespace nes::apu {
 
-class Timer {
-public:
+class Timer
+{
+	public:
 	// -------------------------------------------------------------------------
 	// Timer::reset
 	//
@@ -20,7 +21,7 @@ public:
 	// -------------------------------------------------------------------------
 	void reset();
 
-public:
+	public:
 	// -------------------------------------------------------------------------
 	// Timer::tick
 	//
@@ -43,10 +44,10 @@ public:
 		}
 	}
 
-public:
+	public:
 	uint16_t frequency = 0xffff;
 
-private:
+	private:
 	uint16_t timer_ = 0xffff;
 };
 

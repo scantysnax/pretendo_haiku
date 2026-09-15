@@ -19,11 +19,11 @@ public:
 			break;
 		case 3:
 			// push PCH on stack, decrement S
-			write_byte(S-- + StackAddress, PC.hi);
+			write_byte(S-- + kStackAddress, PC.hi);
 			break;
 		case 4:
 			// push PCL on stack, decrement S
-			write_byte(S-- + StackAddress, PC.lo);
+			write_byte(S-- + kStackAddress, PC.lo);
 			break;
 		case 5:
 			LAST_CYCLE;

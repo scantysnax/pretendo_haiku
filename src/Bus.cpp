@@ -13,7 +13,10 @@
 namespace nes::bus {
 namespace {
 
+
+// 2K internal RAM
 uint8_t ram_[0x800];
+
 
 // -----------------------------------------------------------------------------
 // write_0
@@ -30,7 +33,9 @@ uint8_t ram_[0x800];
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void write_0(uint_least16_t address, uint8_t value) {
+void
+write_0(uint_least16_t address, uint8_t value)
+{
 	ram_[address & 0x7ff] = value;
 }
 
@@ -49,7 +54,9 @@ void write_0(uint_least16_t address, uint8_t value) {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void write_1(uint_least16_t address, uint8_t value) {
+void
+write_1(uint_least16_t address, uint8_t value)
+{
 	ram_[address & 0x7ff] = value;
 }
 
@@ -69,8 +76,9 @@ void write_1(uint_least16_t address, uint8_t value) {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void write_2(uint_least16_t address, uint8_t value) {
-
+void
+write_2 (uint_least16_t address, uint8_t value)
+{
 	nes::cart.mapper()->write_2(address, value);
 	switch (address & 0x07) {
 	case 0x00:
@@ -119,8 +127,9 @@ void write_2(uint_least16_t address, uint8_t value) {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void write_3(uint_least16_t address, uint8_t value) {
-
+void
+write_3(uint_least16_t address, uint8_t value)
+{
 	nes::cart.mapper()->write_3(address, value);
 	switch (address & 0x07) {
 	case 0x00:
@@ -169,8 +178,9 @@ void write_3(uint_least16_t address, uint8_t value) {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void write_4(uint_least16_t address, uint8_t value) {
-
+void
+write_4 (uint_least16_t address, uint8_t value)
+{
 	nes::cart.mapper()->write_4(address, value);
 	switch (address) {
 	case 0x4000:
@@ -256,7 +266,9 @@ void write_4(uint_least16_t address, uint8_t value) {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void write_5(uint_least16_t address, uint8_t value) {
+void
+write_5 (uint_least16_t address, uint8_t value)
+{
 	nes::cart.mapper()->write_5(address, value);
 }
 
@@ -274,7 +286,9 @@ void write_5(uint_least16_t address, uint8_t value) {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void write_6(uint_least16_t address, uint8_t value) {
+void
+write_6 (uint_least16_t address, uint8_t value)
+{
 	nes::cart.mapper()->write_6(address, value);
 }
 
@@ -292,7 +306,9 @@ void write_6(uint_least16_t address, uint8_t value) {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void write_7(uint_least16_t address, uint8_t value) {
+void
+write_7(uint_least16_t address, uint8_t value)
+{
 	nes::cart.mapper()->write_7(address, value);
 }
 
@@ -310,7 +326,8 @@ void write_7(uint_least16_t address, uint8_t value) {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void write_8(uint_least16_t address, uint8_t value) {
+void write_8 (uint_least16_t address, uint8_t value)
+{
 	nes::cart.mapper()->write_8(address, value);
 }
 
@@ -328,7 +345,9 @@ void write_8(uint_least16_t address, uint8_t value) {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void write_9(uint_least16_t address, uint8_t value) {
+void
+write_9 (uint_least16_t address, uint8_t value)
+{
 	nes::cart.mapper()->write_9(address, value);
 }
 
@@ -346,7 +365,8 @@ void write_9(uint_least16_t address, uint8_t value) {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void write_a(uint_least16_t address, uint8_t value) {
+void write_a (uint_least16_t address, uint8_t value)
+{
 	nes::cart.mapper()->write_a(address, value);
 }
 
@@ -364,7 +384,9 @@ void write_a(uint_least16_t address, uint8_t value) {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void write_b(uint_least16_t address, uint8_t value) {
+void
+write_b(uint_least16_t address, uint8_t value)
+{
 	nes::cart.mapper()->write_b(address, value);
 }
 
@@ -382,7 +404,9 @@ void write_b(uint_least16_t address, uint8_t value) {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void write_c(uint_least16_t address, uint8_t value) {
+void
+write_c (uint_least16_t address, uint8_t value)
+{
 	nes::cart.mapper()->write_c(address, value);
 }
 
@@ -400,7 +424,9 @@ void write_c(uint_least16_t address, uint8_t value) {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void write_d(uint_least16_t address, uint8_t value) {
+void
+write_d (uint_least16_t address, uint8_t value)
+{
 	nes::cart.mapper()->write_d(address, value);
 }
 
@@ -418,7 +444,8 @@ void write_d(uint_least16_t address, uint8_t value) {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void write_e(uint_least16_t address, uint8_t value) {
+void write_e (uint_least16_t address, uint8_t value)
+{
 	nes::cart.mapper()->write_e(address, value);
 }
 
@@ -436,7 +463,9 @@ void write_e(uint_least16_t address, uint8_t value) {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void write_f(uint_least16_t address, uint8_t value) {
+void
+write_f (uint_least16_t address, uint8_t value)
+{
 	nes::cart.mapper()->write_f(address, value);
 }
 
@@ -454,7 +483,9 @@ void write_f(uint_least16_t address, uint8_t value) {
 // Returns:
 //   Byte stored at the corresponding internal RAM location.
 // -----------------------------------------------------------------------------
-uint8_t read_0(uint_least16_t address) {
+uint8_t
+read_0(uint_least16_t address)
+{
 	return ram_[address & 0x7ff];
 }
 
@@ -472,7 +503,9 @@ uint8_t read_0(uint_least16_t address) {
 // Returns:
 //   Byte stored at the corresponding internal RAM location.
 // -----------------------------------------------------------------------------
-uint8_t read_1(uint_least16_t address) {
+uint8_t
+read_1 (uint_least16_t address)
+{
 	return ram_[address & 0x7ff];
 }
 
@@ -492,8 +525,9 @@ uint8_t read_1(uint_least16_t address) {
 // Returns:
 //   Value returned by the selected PPU register.
 // -----------------------------------------------------------------------------
-uint8_t read_2(uint_least16_t address) {
-
+uint8_t
+read_2 (uint_least16_t address)
+{
 	switch (address & 0x07) {
 	case 0x02:
 		return nes::ppu::read2002();
@@ -522,7 +556,9 @@ uint8_t read_2(uint_least16_t address) {
 // Returns:
 //   Value returned by the selected PPU register.
 // -----------------------------------------------------------------------------
-uint8_t read_3(uint_least16_t address) {
+uint8_t 
+read_3 (uint_least16_t address)
+{
 	switch (address & 0x07) {
 	case 0x02:
 		return nes::ppu::read2002();
@@ -550,8 +586,9 @@ uint8_t read_3(uint_least16_t address) {
 // Returns:
 //   Value returned by the selected I/O device or cartridge mapper.
 // -----------------------------------------------------------------------------
-uint8_t read_4(uint_least16_t address) {
-
+uint8_t
+read_4 (uint_least16_t address)
+{
 	switch (address) {
 	case 0x4015:
 		return nes::apu::read4015();
@@ -577,7 +614,9 @@ uint8_t read_4(uint_least16_t address) {
 // Returns:
 //   Value supplied by the cartridge mapper.
 // -----------------------------------------------------------------------------
-uint8_t read_5(uint_least16_t address) {
+uint8_t
+read_5 (uint_least16_t address)
+{
 	return nes::cart.mapper()->read_5(address);
 }
 
@@ -594,7 +633,9 @@ uint8_t read_5(uint_least16_t address) {
 // Returns:
 //   Value supplied by the cartridge mapper.
 // -----------------------------------------------------------------------------
-uint8_t read_6(uint_least16_t address) {
+uint8_t
+read_6 (uint_least16_t address)
+{
 	return nes::cart.mapper()->read_6(address);
 }
 
@@ -611,7 +652,8 @@ uint8_t read_6(uint_least16_t address) {
 // Returns:
 //   Value supplied by the cartridge mapper.
 // -----------------------------------------------------------------------------
-uint8_t read_7(uint_least16_t address) {
+uint8_t read_7 (uint_least16_t address)
+{
 	return nes::cart.mapper()->read_7(address);
 }
 
@@ -628,7 +670,9 @@ uint8_t read_7(uint_least16_t address) {
 // Returns:
 //   Value supplied by the cartridge mapper.
 // -----------------------------------------------------------------------------
-uint8_t read_8(uint_least16_t address) {
+uint8_t
+read_8 (uint_least16_t address)
+{
 	return nes::cart.mapper()->read_8(address);
 }
 
@@ -645,7 +689,8 @@ uint8_t read_8(uint_least16_t address) {
 // Returns:
 //   Value supplied by the cartridge mapper.
 // -----------------------------------------------------------------------------
-uint8_t read_9(uint_least16_t address) {
+uint8_t read_9 (uint_least16_t address)
+{
 	return nes::cart.mapper()->read_9(address);
 }
 
@@ -662,7 +707,9 @@ uint8_t read_9(uint_least16_t address) {
 // Returns:
 //   Value supplied by the cartridge mapper.
 // -----------------------------------------------------------------------------
-uint8_t read_a(uint_least16_t address) {
+uint8_t
+read_a (uint_least16_t address)
+{
 	return nes::cart.mapper()->read_a(address);
 }
 
@@ -679,7 +726,9 @@ uint8_t read_a(uint_least16_t address) {
 // Returns:
 //   Value supplied by the cartridge mapper.
 // -----------------------------------------------------------------------------
-uint8_t read_b(uint_least16_t address) {
+uint8_t
+read_b(uint_least16_t address)
+{
 	return nes::cart.mapper()->read_b(address);
 }
 
@@ -696,7 +745,9 @@ uint8_t read_b(uint_least16_t address) {
 // Returns:
 //   Value supplied by the cartridge mapper.
 // -----------------------------------------------------------------------------
-uint8_t read_c(uint_least16_t address) {
+uint8_t
+read_c (uint_least16_t address)
+{
 	return nes::cart.mapper()->read_c(address);
 }
 
@@ -713,7 +764,9 @@ uint8_t read_c(uint_least16_t address) {
 // Returns:
 //   Value supplied by the cartridge mapper.
 // -----------------------------------------------------------------------------
-uint8_t read_d(uint_least16_t address) {
+uint8_t
+read_d (uint_least16_t address)
+{
 	return nes::cart.mapper()->read_d(address);
 }
 
@@ -730,7 +783,9 @@ uint8_t read_d(uint_least16_t address) {
 // Returns:
 //   Value supplied by the cartridge mapper.
 // -----------------------------------------------------------------------------
-uint8_t read_e(uint_least16_t address) {
+uint8_t
+read_e (uint_least16_t address)
+{
 	return nes::cart.mapper()->read_e(address);
 }
 
@@ -747,7 +802,9 @@ uint8_t read_e(uint_least16_t address) {
 // Returns:
 //   Value supplied by the cartridge mapper.
 // -----------------------------------------------------------------------------
-uint8_t read_f(uint_least16_t address) {
+uint8_t
+read_f (uint_least16_t address)
+{
 	return nes::cart.mapper()->read_f(address);
 }
 
@@ -770,54 +827,56 @@ uint8_t read_f(uint_least16_t address) {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void write_memory(uint_least16_t address, uint8_t value) {
+void 
+write_memory (uint_least16_t address, uint8_t value)
+{
 	switch ((address >> 12) & 0xf) {
-	case 0x0000:
+	case 0x0:
 		write_0(address, value);
 		break;
-	case 0x0001:
+	case 0x1:
 		write_1(address, value);
 		break;
-	case 0x0002:
+	case 0x2:
 		write_2(address, value);
 		break;
-	case 0x0003:
+	case 0x3:
 		write_3(address, value);
 		break;
-	case 0x0004:
+	case 0x4:
 		write_4(address, value);
 		break;
-	case 0x0005:
+	case 0x5:
 		write_5(address, value);
 		break;
-	case 0x0006:
+	case 0x6:
 		write_6(address, value);
 		break;
-	case 0x0007:
+	case 0x7:
 		write_7(address, value);
 		break;
-	case 0x0008:
+	case 0x8:
 		write_8(address, value);
 		break;
-	case 0x0009:
+	case 0x9:
 		write_9(address, value);
 		break;
-	case 0x000a:
+	case 0xa:
 		write_a(address, value);
 		break;
-	case 0x000b:
+	case 0xb:
 		write_b(address, value);
 		break;
-	case 0x000c:
+	case 0xc:
 		write_c(address, value);
 		break;
-	case 0x000d:
+	case 0xd:
 		write_d(address, value);
 		break;
-	case 0x000e:
+	case 0xe:
 		write_e(address, value);
 		break;
-	case 0x000f:
+	case 0xf:
 		write_f(address, value);
 		break;
 	default:
@@ -841,39 +900,40 @@ void write_memory(uint_least16_t address, uint8_t value) {
 // Returns:
 //   Byte value read from the selected CPU memory region.
 // -----------------------------------------------------------------------------
-uint8_t read_memory(uint_least16_t address) {
+uint8_t
+read_memory (uint_least16_t address) {
 	switch ((address >> 12) & 0xf) {
-	case 0x0000:
+	case 0x0:
 		return read_0(address);
-	case 0x0001:
+	case 0x1:
 		return read_1(address);
-	case 0x0002:
+	case 0x2:
 		return read_2(address);
-	case 0x0003:
+	case 0x3:
 		return read_3(address);
-	case 0x0004:
+	case 0x4:
 		return read_4(address);
-	case 0x0005:
+	case 0x5:
 		return read_5(address);
-	case 0x0006:
+	case 0x6:
 		return read_6(address);
-	case 0x0007:
+	case 0x7:
 		return read_7(address);
-	case 0x0008:
+	case 0x8:
 		return read_8(address);
-	case 0x0009:
+	case 0x9:
 		return read_9(address);
-	case 0x000a:
+	case 0xa:
 		return read_a(address);
-	case 0x000b:
+	case 0xb:
 		return read_b(address);
-	case 0x000c:
+	case 0xc:
 		return read_c(address);
-	case 0x000d:
+	case 0xd:
 		return read_d(address);
-	case 0x000e:
+	case 0xe:
 		return read_e(address);
-	case 0x000f:
+	case 0xf:
 		return read_f(address);
 	default:
 		abort();
@@ -898,7 +958,7 @@ uint8_t read_memory(uint_least16_t address) {
 //   Debug-safe byte value for the requested address.
 // -----------------------------------------------------------------------------
 uint8_t
-debug_read_memory(uint_least16_t address)
+debug_read_memory (uint_least16_t address)
 {
 	switch ((address >> 12) & 0xf) {
 		case 0x0:
@@ -1021,7 +1081,9 @@ debug_read_memory(uint_least16_t address)
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void trash_ram() {
+void
+trash_ram()
+{
 	// NOTE(eteran): this could be "random" bytes, but all zeros
 	// is just an good as any other patterns
 	std::fill_n(ram_, 0x800, 0);

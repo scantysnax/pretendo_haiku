@@ -13,8 +13,9 @@ class Square;
 
 
 template <int Channel>
-class Sweep {
-public:
+class Sweep
+{
+	public:
 	// -------------------------------------------------------------------------
 	// Sweep::Sweep
 	//
@@ -34,7 +35,7 @@ public:
 	Sweep(const Sweep &) = delete;
 	Sweep &operator=(const Sweep &) = delete;
 
-public:
+	public:
 	// -------------------------------------------------------------------------
 	// Sweep::clock
 	//
@@ -173,7 +174,7 @@ public:
 	}
 	
 
-private:
+	private:
 	// -------------------------------------------------------------------------
 	// Sweep::enabled
 	//
@@ -267,7 +268,7 @@ private:
 		return control_ & 0x07;
 	}
 
-private:
+	private:
 	Square<Channel> *square_;
 	uint16_t pulse_period_ = 0;
 	uint8_t counter_       = 0;

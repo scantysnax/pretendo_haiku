@@ -17,8 +17,9 @@ namespace nes {
 // Platform-specific front ends implement this interface without introducing UI
 // or operating-system dependencies into the emulator core.
 // -----------------------------------------------------------------------------
-class FrameOutput {
-public:
+class FrameOutput
+{
+	public:
 	virtual ~FrameOutput() = default;
 
 	// -------------------------------------------------------------------------
@@ -56,7 +57,8 @@ public:
 extern Cart cart;
 
 
-void reset(Reset reset_type);
+void
+reset(reset_type type);
 
 uint32_t *frame_scanline_buffer();
 

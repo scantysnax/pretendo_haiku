@@ -543,7 +543,7 @@ void debug_clear_scope();
 
 
 // Resets APU timing, channel state, and debugger-visible APU state.
-void reset(Reset reset_type);
+void reset(reset_type type);
 
 // Square 1 register writes ($4000-$4003).
 void write4000(uint8_t value);

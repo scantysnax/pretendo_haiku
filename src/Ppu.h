@@ -70,7 +70,7 @@ struct ppu_write_log_entry_t {
 
 
 // Resets PPU state according to the requested reset type.
-void reset(nes::Reset reset_type);
+void reset(nes::reset_type type);
 
 // CPU writes to PPU registers.
 void write2000 (uint8_t);

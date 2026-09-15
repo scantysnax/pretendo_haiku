@@ -40,8 +40,9 @@ const uint8_t length_table[32] = {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void LengthCounter::load(uint8_t index) {
-
+void 
+LengthCounter::load (uint8_t index)
+{
 	if (reload_) {
 		value_ = reload_value_;
 	}
@@ -63,7 +64,9 @@ void LengthCounter::load(uint8_t index) {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void LengthCounter::clear() {
+void
+LengthCounter::clear()
+{
 	reload_value_ = 0;
 	reload_       = true;
 }
@@ -83,7 +86,9 @@ void LengthCounter::clear() {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void LengthCounter::halt() {
+void
+LengthCounter::halt()
+{
 	prev_halt_  = halt_;
 	halt_       = true;
 	halt_cycle_ = nes::apu::cycle_count();
@@ -104,7 +109,9 @@ void LengthCounter::halt() {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void LengthCounter::resume() {
+void
+LengthCounter::resume()
+{
 	prev_halt_  = halt_;
 	halt_       = false;
 	halt_cycle_ = nes::apu::cycle_count();
@@ -125,7 +132,9 @@ void LengthCounter::resume() {
 // Returns:
 //   Current length-counter value.
 // -----------------------------------------------------------------------------
-uint8_t LengthCounter::value() const {
+uint8_t
+LengthCounter::value() const
+{
 	if (reload_) {
 		value_  = reload_value_;
 		reload_ = false;
@@ -177,8 +186,9 @@ LengthCounter::debug_value() const
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void LengthCounter::clock() {
-
+void
+LengthCounter::clock()
+{
 	bool prevent_decrement       = false;
 	const uint64_t current_cycle = nes::apu::cycle_count();
 

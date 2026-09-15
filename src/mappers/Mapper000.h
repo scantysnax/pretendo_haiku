@@ -5,13 +5,13 @@
 #include "Mapper.h"
 
 class Mapper0 final : public Mapper {
-public:
+	public:
 	Mapper0();
 
-public:
+	public:
 	std::string name() const override;
 
-private:
+	private:
 	uint8_t chr_ram_[0x2000] = {};
 };
 

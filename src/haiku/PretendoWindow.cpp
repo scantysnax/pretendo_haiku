@@ -1251,7 +1251,7 @@ PretendoWindow::OnRun()
 	if (! fRunning) {
 		// make sure we have a cart loaded
 		if (nes::cart.mapper()) {
-			reset(nes::Reset::Hard);
+			reset(nes::reset_type::hard);
 			fMutex->Unlock(); // unlock the mutual exclusion
 			fRunning = true;  // signal the thread that we're running
 			fAudioStream->Start();
@@ -1355,7 +1355,7 @@ PretendoWindow::OnPause()
 void
 PretendoWindow::OnSoftReset()
 {
-	reset(nes::Reset::Soft);
+	reset(nes::reset_type::soft);
 }
 
 
@@ -1373,7 +1373,7 @@ PretendoWindow::OnSoftReset()
 void
 PretendoWindow::OnHardReset()
 {
-	reset(nes::Reset::Hard);
+	reset(nes::reset_type::hard);
 }
 
 
@@ -4542,7 +4542,7 @@ PretendoWindow::StartEmulatorForRunning()
 		return;
 	}
 
-	reset(nes::Reset::Hard);
+	reset(nes::reset_type::hard);
 
 	nes::cpu::debug_clear_breakpoint_hit();
 	nes::apu::debug_set_audio_muted(false);
@@ -4598,7 +4598,7 @@ PretendoWindow::EnsureDebugSessionStarted()
 		return;
 	}
 
-	reset(nes::Reset::Hard);
+	reset(nes::reset_type::hard);
 
 	nes::cpu::debug_clear_breakpoint_hit();
 	nes::apu::debug_set_audio_muted(true);
@@ -4651,7 +4651,7 @@ PretendoWindow::StartEmulatorForDebugging()
 		return;
 	}
 
-	reset(nes::Reset::Hard);
+	reset(nes::reset_type::hard);
 
 	nes::cpu::debug_clear_breakpoint_hit();
 	nes::ppu::system_paused = true;
@@ -4736,7 +4736,7 @@ PretendoWindow::DebugStepInstruction()
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-PretendoWindow::LoadROMPath(const char* path)
+PretendoWindow::LoadROMPath (const char* path)
 {
 	if (!path) {
 		return;
@@ -4751,7 +4751,7 @@ PretendoWindow::LoadROMPath(const char* path)
 		return;
 	}
 
-	nes::reset(nes::Reset::Hard);
+	nes::reset(nes::reset_type::hard);
 
 	ClearControllerInput();
 

@@ -18,6 +18,8 @@
 #include <iostream>
 
 
+// Finalize the current instruction and select any pending interrupt/reset
+// to begin on the next instruction boundary.
 #define LAST_CYCLE                                         \
 	do {                                                   \
 		rst_executing_ = false;                            \
@@ -35,11 +37,14 @@
 		rst_asserted_ = false;                             \
 	} while (0)
 
+
+// Mark the current opcode as complete and return to the instruction dispatcher.
 #define OPCODE_COMPLETE \
 	do {                \
 		cycle_ = -1;    \
 		return;         \
 	} while (0)
+
 
 namespace nes::cpu {
 
@@ -53,11 +58,14 @@ uint8_t P     = I_MASK | R_MASK;
 
 namespace {
 
-constexpr uint16_t NmiVectorAddress = 0xfffa;
-constexpr uint16_t RstVectorAddress = 0xfffc;
-constexpr uint16_t IrqVectorAddress = 0xfffe;
-constexpr uint16_t StackAddress     = 0x0100;
+// vector address table
+constexpr uint16_t kNMIVectorAddress = 0xfffa;
+constexpr uint16_t kRSTVectorAddress = 0xfffc;
+constexpr uint16_t kIRQVectorAddress = 0xfffe;
+constexpr uint16_t kStackAddress     = 0x0100;
 
+
+// Precomputed 6502 negative/zero flag results for all possible 8-bit values.
 constexpr uint8_t flag_table_[256] = {
 	0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -90,7 +98,8 @@ constexpr uint8_t flag_table_[256] = {
 	0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80,
 	0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80,
 	0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80,
-	0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80};
+	0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80
+};
 
 uint8_t irq_sources_ = 0x00;
 
@@ -99,7 +108,7 @@ uint16_t instruction_ = 0;
 int cycle_            = 0;
 
 
-// Debug trace / breakpoint state.
+// CPU execution history and execute-breakpoint state.
 bool sExecutedInstructionAddress[0x10000] = {};
 bool sExecuteBreakpointAddress[0x10000] = {};
 
@@ -108,39 +117,43 @@ uint16_t sDebugBreakpointHitAddress = 0x0000;
 uint16_t sDebugCurrentInstructionAddress = 0x0000;
 break_reason sDebugBreakReason = DEBUG_BREAK_NONE;
 
+// One-shot breakpoint suppression and per-address hit counters.
 bool sDebugSkipBreakpointOnce = false;
 uint32_t sExecuteBreakpointHitCount[0x10000] = {};
 
 
-// Stack break conditions.
+// Stack-breakpoint configuration and boundary-tracking state.
 bool sDebugStackSPBreakEnabled = false;
 uint8_t sDebugStackSPBreakThreshold = 0x20;
 bool sDebugStackSPBreakArmed = true;
 bool sDebugStackSPBreakReady = false;
+
 bool sDebugStackWrapBreakEnabled = false;
 bool sDebugHavePreviousBoundaryS = false;
 uint8_t sDebugPreviousBoundaryS = 0xff;
 uint8_t sDebugPreviousBoundaryOpcode = 0x00;
 bool sDebugPreviousBoundaryWasInterrupt = false;
-/*
- * SP values associated with the most recent stack breakpoint.
- */
+
+// Stack pointer values captured when the most recent stack breakpoint fired.
 uint8_t sDebugStackBreakOldS = 0xff;
 uint8_t sDebugStackBreakNewS = 0xff;
 
-// debug CPU execution trace
+
+// Circular CPU execution trace used by the debugger.
 cpu_trace_entry_t sCPUTraceEntries[CPU_TRACE_CAPACITY] = {};
 uint32_t sCPUTraceNext = 0;
 uint32_t sCPUTraceCount = 0;
 static void record_cpu_trace_entry(uint16_t address);
 
-// watchpoints
+
+// Memory read/write watchpoint state and hit counters.
 static bool sDebugReadWatchpointAddress[0x10000] = {};
 static bool sDebugWriteWatchpointAddress[0x10000] = {};
 
 static uint32_t sDebugReadWatchpointHitCount[0x10000] = {};
 static uint32_t sDebugWriteWatchpointHitCount[0x10000] = {};
 
+// Address responsible for the most recent memory-watchpoint break.
 static uint16_t sDebugMemoryBreakAddress = 0x0000;
 
 
@@ -150,6 +163,7 @@ register16 data16_            = {};
 register16 old_pc_            = {};
 register16 new_pc_            = {};
 uint8_t data8_                = {};
+
 
 bool irq_asserted_  = false;
 bool nmi_asserted_  = false;
@@ -209,7 +223,7 @@ uint64_t executed_cycles_ = 1; // NOTE(eteran): 1 instead of 0 makes 4.irq_and_d
 //   Nothing.
 // -----------------------------------------------------------------------------
 static void
-record_cpu_trace_entry(uint16_t address)
+record_cpu_trace_entry (uint16_t address)
 {
 	cpu_trace_entry_t& entry = sCPUTraceEntries[sCPUTraceNext];
 	entry.cycle = executed_cycles_;
@@ -348,7 +362,9 @@ check_debug_stack_break()
 // Returns:
 //   Whatever value is returned by the mapper's cpu_sync() implementation.
 // -----------------------------------------------------------------------------
-void sync_handler() {
+void 
+sync_handler() 
+{
 	return nes::cart.mapper()->cpu_sync();
 }
 
@@ -365,7 +381,9 @@ void sync_handler() {
 //   Nothing.
 // -----------------------------------------------------------------------------
 template <uint8_t M>
-void set_flag() {
+void 
+set_flag()
+{
 	P |= M;
 }
 
@@ -382,7 +400,9 @@ void set_flag() {
 //   Nothing.
 // -----------------------------------------------------------------------------
 template <uint8_t M>
-void clear_flag() {
+void 
+clear_flag()
+{
 	P &= ~M;
 }
 
@@ -400,7 +420,8 @@ void clear_flag() {
 //   Nothing.
 // -----------------------------------------------------------------------------
 template <uint8_t M>
-void set_flag_condition(bool cond) {
+void set_flag_condition (bool cond)
+{
 	if (cond) {
 		set_flag<M>();
 	} else {
@@ -421,7 +442,9 @@ void set_flag_condition(bool cond) {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void update_nz_flags(uint8_t value) {
+void
+update_nz_flags (uint8_t value)
+{
 
 	// basically no bits set = 0x02
 	// high bit set = 0x80
@@ -452,7 +475,9 @@ void update_nz_flags(uint8_t value) {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void cycle_0(uint8_t next_op) {
+void 
+cycle_0 (uint8_t next_op)
+{
 	// first cycle is always instruction fetch
 	// or do we force an interrupt?
 
@@ -774,8 +799,9 @@ void execute_opcode() {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void clock() {
-
+void
+clock()
+{
 	if (UNLIKELY(dmc_dma_count_)) {
 
 		if (dmc_dma_delay_ != 0) {
@@ -943,7 +969,9 @@ tick()
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void nmi() {
+void
+nmi() 
+{
 	nmi_asserted_ = true;
 }
 
@@ -1013,7 +1041,9 @@ reset()
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void clear_nmi() {
+void
+clear_nmi()
+{
 	nmi_asserted_ = false;
 }
 
@@ -1083,9 +1113,10 @@ stop()
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void reset(Reset reset_type) {
-
-	if (reset_type == Reset::Hard) {
+void
+reset (reset_type type)
+{
+	if (type == reset_type::hard) {
 		stop();
 		nes::bus::trash_ram();
 	}
@@ -1109,8 +1140,9 @@ void reset(Reset reset_type) {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void irq(irq_source source) {
-
+void
+irq (irq_source source)
+{
 	irq_sources_ |= source;
 
 	if (irq_sources_) {
@@ -1132,8 +1164,9 @@ void irq(irq_source source) {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void clear_irq(irq_source source) {
-
+void
+clear_irq (irq_source source)
+{
 	irq_sources_ &= ~source;
 
 	if (!irq_sources_) {
@@ -1158,7 +1191,9 @@ void clear_irq(irq_source source) {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void schedule_spr_dma(dma_handler_t dma_handler, uint_least16_t source_address, uint_least16_t count) {
+void 
+schedule_spr_dma (dma_handler_t dma_handler, uint_least16_t source_address, uint_least16_t count)
+{
 	spr_dma_handler_        = dma_handler;
 	spr_dma_source_address_ = source_address;
 	spr_dma_count_          = count * 2;
@@ -1182,7 +1217,9 @@ void schedule_spr_dma(dma_handler_t dma_handler, uint_least16_t source_address, 
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void schedule_dmc_dma(dma_handler_t dma_handler, uint_least16_t source_address, uint_least16_t count) {
+void 
+schedule_dmc_dma (dma_handler_t dma_handler, uint_least16_t source_address, uint_least16_t count)
+{
 	dmc_dma_handler_        = dma_handler;
 	dmc_dma_source_address_ = source_address;
 	dmc_dma_count_          = count * 2;
@@ -1201,7 +1238,9 @@ void schedule_dmc_dma(dma_handler_t dma_handler, uint_least16_t source_address, 
 // Returns:
 //   Total executed CPU cycle count.
 // -----------------------------------------------------------------------------
-uint64_t cycle_count() {
+uint64_t
+cycle_count()
+{
 	return executed_cycles_;
 }
 
@@ -1266,7 +1305,7 @@ debug_instruction_boundary()
 //   true if the address has been executed as an instruction start.
 // -----------------------------------------------------------------------------
 bool
-debug_instruction_was_executed(uint16_t address)
+debug_instruction_was_executed (uint16_t address)
 {
 	return sExecutedInstructionAddress[address];
 }
@@ -1303,7 +1342,7 @@ debug_clear_instruction_trace()
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-debug_add_execute_breakpoint(uint16_t address)
+debug_add_execute_breakpoint (uint16_t address)
 {
 	sExecuteBreakpointAddress[address] = true;
 }
@@ -1325,7 +1364,7 @@ debug_add_execute_breakpoint(uint16_t address)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-debug_remove_execute_breakpoint(uint16_t address)
+debug_remove_execute_breakpoint (uint16_t address)
 {
 	sExecuteBreakpointAddress[address] = false;
 	sExecuteBreakpointHitCount[address] = 0;
@@ -1371,7 +1410,7 @@ debug_clear_execute_breakpoints()
 //   true if an execute breakpoint exists at address.
 // -----------------------------------------------------------------------------
 bool
-debug_has_execute_breakpoint(uint16_t address)
+debug_has_execute_breakpoint (uint16_t address)
 {
 	return sExecuteBreakpointAddress[address];
 }
@@ -1549,7 +1588,7 @@ debug_resume_past_breakpoint()
 //   Number of breakpoint hits recorded for address.
 // -----------------------------------------------------------------------------
 uint32_t
-debug_breakpoint_hit_count(uint16_t address)
+debug_breakpoint_hit_count (uint16_t address)
 {
 	return sExecuteBreakpointHitCount[address];
 }
@@ -1624,7 +1663,7 @@ debug_cpu_trace_capacity()
 //   true if the entry was read.
 // -----------------------------------------------------------------------------
 bool
-debug_cpu_trace_entry(uint32_t index, cpu_trace_entry_t& entry)
+debug_cpu_trace_entry (uint32_t index, cpu_trace_entry_t &entry)
 {
 	if (index >= sCPUTraceCount) {
 		return false;
@@ -1677,7 +1716,9 @@ debug_clear_cpu_trace()
 // Returns:
 //   Current 8-bit stack-pointer value.
 // -----------------------------------------------------------------------------
-uint8_t debug_s() {
+uint8_t
+debug_s()
+{
 	return S;
 }
 
@@ -1808,7 +1849,7 @@ debug_stack_sp_break_threshold()
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-debug_set_stack_wrap_break(bool enabled)
+debug_set_stack_wrap_break (bool enabled)
 {
 	sDebugStackWrapBreakEnabled = enabled;
 }
@@ -1862,7 +1903,7 @@ debug_stack_sp_break_armed()
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-debug_add_read_watchpoint(uint16_t address)
+debug_add_read_watchpoint (uint16_t address)
 {
 	sDebugReadWatchpointAddress[address] = true;
 	sDebugReadWatchpointHitCount[address] = 0;
@@ -1881,7 +1922,7 @@ debug_add_read_watchpoint(uint16_t address)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-debug_remove_read_watchpoint(uint16_t address)
+debug_remove_read_watchpoint (uint16_t address)
 {
 	sDebugReadWatchpointAddress[address] = false;
 }
@@ -1917,7 +1958,7 @@ debug_clear_read_watchpoints()
 //   true if reads from the address should break execution.
 // -----------------------------------------------------------------------------
 bool
-debug_has_read_watchpoint(uint16_t address)
+debug_has_read_watchpoint (uint16_t address)
 {
 	return sDebugReadWatchpointAddress[address];
 }
@@ -1935,7 +1976,7 @@ debug_has_read_watchpoint(uint16_t address)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-debug_add_write_watchpoint(uint16_t address)
+debug_add_write_watchpoint (uint16_t address)
 {
 	sDebugWriteWatchpointAddress[address] = true;
 	sDebugWriteWatchpointHitCount[address] = 0;
@@ -1954,7 +1995,7 @@ debug_add_write_watchpoint(uint16_t address)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-debug_remove_write_watchpoint(uint16_t address)
+debug_remove_write_watchpoint (uint16_t address)
 {
 	sDebugWriteWatchpointAddress[address] = false;
 }
@@ -1990,7 +2031,7 @@ debug_clear_write_watchpoints()
 //   true if writes to the address should break execution.
 // -----------------------------------------------------------------------------
 bool
-debug_has_write_watchpoint(uint16_t address)
+debug_has_write_watchpoint (uint16_t address)
 {
 	return sDebugWriteWatchpointAddress[address];
 }
@@ -2008,7 +2049,7 @@ debug_has_write_watchpoint(uint16_t address)
 //   Number of recorded READ-watchpoint hits for the address.
 // -----------------------------------------------------------------------------
 uint32_t
-debug_read_watchpoint_hit_count(uint16_t address)
+debug_read_watchpoint_hit_count (uint16_t address)
 {
 	return sDebugReadWatchpointHitCount[address];
 }
@@ -2026,7 +2067,7 @@ debug_read_watchpoint_hit_count(uint16_t address)
 //   Number of recorded WRITE-watchpoint hits for the address.
 // -----------------------------------------------------------------------------
 uint32_t
-debug_write_watchpoint_hit_count(uint16_t address)
+debug_write_watchpoint_hit_count (uint16_t address)
 {
 	return sDebugWriteWatchpointHitCount[address];
 }
@@ -2044,7 +2085,7 @@ debug_write_watchpoint_hit_count(uint16_t address)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-debug_clear_read_watchpoint_hit_count(uint16_t address)
+debug_clear_read_watchpoint_hit_count (uint16_t address)
 {
 	sDebugReadWatchpointHitCount[address] = 0;
 }
@@ -2062,7 +2103,7 @@ debug_clear_read_watchpoint_hit_count(uint16_t address)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-debug_clear_write_watchpoint_hit_count(uint16_t address)
+debug_clear_write_watchpoint_hit_count (uint16_t address)
 {
 	sDebugWriteWatchpointHitCount[address] = 0;
 }
@@ -2126,7 +2167,7 @@ debug_clear_all_write_watchpoint_hit_counts()
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-debug_check_memory_read(uint16_t address)
+debug_check_memory_read (uint16_t address)
 {
 	if (!sDebugReadWatchpointAddress[address]) {
 		return;
@@ -2159,7 +2200,7 @@ debug_check_memory_read(uint16_t address)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-debug_check_memory_write(uint16_t address)
+debug_check_memory_write (uint16_t address)
 {
 	if (!sDebugWriteWatchpointAddress[address]) {
 		return;

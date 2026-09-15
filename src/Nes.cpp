@@ -28,10 +28,12 @@ alignas(512) static uint32_t sFrameScanlineBuffer[256] = {};
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void reset(Reset reset_type) {
-    cpu::reset(reset_type);
-    apu::reset(reset_type);
-    ppu::reset(reset_type);
+void
+reset(reset_type type)
+{
+    cpu::reset(type);
+    apu::reset(type);
+    ppu::reset(type);
 }
 
 
@@ -74,7 +76,7 @@ frame_scanline_buffer()
 //   false - Execution stopped before the frame finished.
 // -----------------------------------------------------------------------------
 bool
-run_frame(FrameOutput *output)
+run_frame (FrameOutput *output)
 {
 	if (!output) {
 		return false;

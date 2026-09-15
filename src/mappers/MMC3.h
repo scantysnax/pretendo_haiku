@@ -4,18 +4,19 @@
 
 #include "Mapper.h"
 
-class MMC3 : public Mapper {
-public:
+class MMC3 : public Mapper
+{
+	public:
 	MMC3();
 
-public:
+	public:
 	std::string name() const override;
 
-public:
+	public:
 	uint8_t read_6(uint_least16_t address) override;
 	uint8_t read_7(uint_least16_t address) override;
 
-public:
+	public:
 	void write_6(uint_least16_t address, uint8_t value) override;
 	void write_7(uint_least16_t address, uint8_t value) override;
 	void write_8(uint_least16_t address, uint8_t value) override;
@@ -27,19 +28,19 @@ public:
 	void write_e(uint_least16_t address, uint8_t value) override;
 	void write_f(uint_least16_t address, uint8_t value) override;
 
-public:
+	public:
 	void vram_change_hook(uint_least16_t vram_address) override;
 
-private:
+	private:
 	int prg_bank(int bank) const;
 	int chr_bank(int bank) const;
 
-private:
+	private:
 	void clock_irqA();
 	void clock_irqB();
 	void clock_irq();
 
-protected:
+	protected:
 	uint8_t chr_ram_[0x40000] = {}; // we should get this from iNES 2.0,
 									// but this seems to do for now
 	uint8_t chr_bank_[8] = {};
@@ -54,16 +55,17 @@ protected:
 	bool irq_reload_            = false;
 	bool save_ram_enabled_      = false;
 	bool save_ram_writable_     = false;
-
-private:
+	
+	private:
 	MemoryMappedFile prg_ptr_;
 
-protected:
+	protected:
 	enum Mode {
 		ModeA,
 		ModeB,
 		ModeMMC6,
 	} mode_ = ModeA;
 };
+
 
 #endif

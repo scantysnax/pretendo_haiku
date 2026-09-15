@@ -4,9 +4,9 @@
 
 namespace nes {
 
-enum class Reset {
-	Hard,
-	Soft
+enum class reset_type {
+	hard,
+	soft
 };
 
 }

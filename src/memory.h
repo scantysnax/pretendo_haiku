@@ -16,7 +16,8 @@
 // Returns:
 //   Value read from CPU memory.
 // -----------------------------------------------------------------------------
-inline uint8_t read_byte(uint_least16_t address)
+inline uint8_t
+read_byte (uint_least16_t address)
 {
 	const uint16_t cpuAddress = static_cast<uint16_t>(address);
 	nes::cpu::debug_check_memory_read(cpuAddress);
@@ -41,7 +42,7 @@ inline uint8_t read_byte(uint_least16_t address)
 //   Value read from zero-page memory.
 // -----------------------------------------------------------------------------
 inline uint8_t
-read_byte_zp(uint8_t address)
+read_byte_zp (uint8_t address)
 {
 	nes::cpu::debug_check_memory_read(static_cast<uint16_t>(address));
 
@@ -65,7 +66,7 @@ read_byte_zp(uint8_t address)
 //   Nothing.
 // -----------------------------------------------------------------------------
 inline void
-write_byte(uint_least16_t address, uint8_t value)
+write_byte (uint_least16_t address, uint8_t value)
 {
 	const uint16_t cpuAddress = static_cast<uint16_t>(address);
 	nes::cpu::debug_check_memory_write(cpuAddress);

@@ -678,7 +678,7 @@ mix_channels()
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-reset (Reset reset_type)
+reset (reset_type type)
 {
 	status.raw     = 0;
 	frame_counter_ = {0};
@@ -694,7 +694,7 @@ reset (Reset reset_type)
 	debug_clear_scope();
 	debug_clear_frame_events();
 
-	if (reset_type == Reset::Hard) {
+	if (type == reset_type::hard) {
 		last_frame_counter_ = 0;
 	}
 
@@ -740,7 +740,7 @@ reset (Reset reset_type)
 	//       nop
 	//       nop
 	//     reset:
-	if (reset_type == Reset::Hard) {
+	if (type == reset_type::hard) {
 		exec<2>();
 	}
 

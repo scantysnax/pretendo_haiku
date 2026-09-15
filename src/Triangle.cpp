@@ -4,6 +4,7 @@ namespace nes::apu {
 namespace {
 
 
+// 32-step waveform sequence used by the NES APU triangle channel.
 const uint8_t sequence[32] = {
 	0x0f, 0x0e, 0x0d, 0x0c, 0x0b, 0x0a, 0x09, 0x08,
 	0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01, 0x00,
@@ -26,7 +27,9 @@ const uint8_t sequence[32] = {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void Triangle::set_enabled(bool value) {
+void
+Triangle::set_enabled(bool value)
+{
 	if (value) {
 		enable();
 	} else {
@@ -46,7 +49,9 @@ void Triangle::set_enabled(bool value) {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void Triangle::enable() {
+void
+Triangle::enable()
+{
 	enabled_ = true;
 }
 
@@ -62,7 +67,9 @@ void Triangle::enable() {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void Triangle::disable() {
+void
+Triangle::disable()
+{
 	enabled_ = false;
 	length_counter.clear();
 }
@@ -83,8 +90,9 @@ void Triangle::disable() {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void Triangle::write_reg0(uint8_t value) {
-
+void
+Triangle::write_reg0 (uint8_t value)
+{
 	if (value & 0x80) {
 		length_counter.halt();
 	} else {
@@ -106,7 +114,9 @@ void Triangle::write_reg0(uint8_t value) {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void Triangle::write_reg2(uint8_t value) {
+void
+Triangle::write_reg2 (uint8_t value)
+{
 	timer_load_      = (timer_load_ & 0xff00) | value;
 	timer_.frequency = (timer_load_ + 1);
 }
@@ -126,8 +136,9 @@ void Triangle::write_reg2(uint8_t value) {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void Triangle::write_reg3(uint8_t value) {
-
+void
+Triangle::write_reg3 (uint8_t value)
+{
 	if (enabled_) {
 		length_counter.load((value >> 3) & 0x1f);
 	}
@@ -150,7 +161,9 @@ void Triangle::write_reg3(uint8_t value) {
 // Returns:
 //   true if the triangle channel is enabled.
 // -----------------------------------------------------------------------------
-bool Triangle::enabled() const {
+bool
+Triangle::enabled() const
+{
 	return enabled_;
 }
 
@@ -169,8 +182,9 @@ bool Triangle::enabled() const {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void Triangle::tick() {
-
+void
+Triangle::tick()
+{
 	timer_.tick([this]() {
 		if (length_counter.value() && linear_counter.value()) {
 			sequence_index_ = (sequence_index_ + 1) % 32;
@@ -193,7 +207,9 @@ void Triangle::tick() {
 // Returns:
 //   Current triangle-channel output level.
 // -----------------------------------------------------------------------------
-uint8_t Triangle::output() const {
+uint8_t
+Triangle::output() const
+{
 	
 	if (channel_muted_) {
 		return 0x00;

@@ -20,16 +20,16 @@ public:
 			break;
 		case 3:
 			// pull P from stack, increment S
-			P = (read_byte(S++ + StackAddress) & ~B_MASK) | R_MASK;
+			P = (read_byte(S++ + kStackAddress) & ~B_MASK) | R_MASK;
 			break;
 		case 4:
 			// pull PCL from stack, increment S
-			PC.lo = read_byte(S++ + StackAddress);
+			PC.lo = read_byte(S++ + kStackAddress);
 			break;
 		case 5:
 			LAST_CYCLE;
 			// pull PCH from stack
-			PC.hi = read_byte(S + StackAddress);
+			PC.hi = read_byte(S + kStackAddress);
 			OPCODE_COMPLETE;
 		default:
 			abort();

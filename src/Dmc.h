@@ -1,4 +1,3 @@
-
 #ifndef _DMC_H_
 #define _DMC_H_
 
@@ -9,6 +8,7 @@
 
 namespace nes::apu {
 
+// $4010 DMC control register: rate index, looping, and IRQ enable.
 union DMCControl {
 	uint8_t value;
 	BitField<uint8_t, 0, 4> frequency;
@@ -16,23 +16,31 @@ union DMCControl {
 	BitField<uint8_t, 7> irq;
 };
 
+
+// NES APU delta modulation channel.
+
+
 class DMC {
 public:
+	// Channel enable/disable control.
 	void enable();
 	void disable();
 	void set_enabled(bool value);
 
-public:
+	public:
+	// DMC register writes ($4010-$4013).
 	void write_reg0(uint8_t value);
 	void write_reg1(uint8_t value);
 	void write_reg2(uint8_t value);
 	void write_reg3(uint8_t value);
 
-public:
+	public:
+	// Sample reader state used by the APU/CPU memory-fetch path.
 	uint16_t bytes_remaining() const;
 	void load_sample_buffer(uint8_t value);
 
-public:
+	public:
+	// Debugger-facing channel state accessors.
 	bool debug_enabled() const {
 		return enabled_;
 	}
@@ -78,10 +86,10 @@ public:
 	}
 
 
-public:
+	public:
+	// Advance the DMC and return its current 7-bit DAC output level.
 	void tick();
 	uint8_t output() const;
-	
 	void mute() { 
 		channel_muted_ = true;
 	}
@@ -90,27 +98,31 @@ public:
 		channel_muted_ = false;
 	}
 
-private:
+	private:
+	// Control-register helpers and sample/output-unit clocks.
 	bool irq_enabled() const;
 	bool loop() const;
 	bool output_clock();
 	void start_cycle();
 	void refill_sample_buffer();
 
-private:
-	bool enabled_			  = false;
-	bool muted_               = false;
-	bool sample_buffer_empty_ = true;
-	uint16_t sample_pointer_  = 0xc000;
-	uint16_t sample_address_  = 0xc000;
-	uint16_t bytes_remaining_ = 0;
-	uint16_t sample_length_   = 0;
-	uint8_t bits_remaining_   = 0;
-	uint8_t output_           = 0;
-	uint8_t sample_buffer_    = 0;
+	private:
+	// Channel, sample-reader, output-unit, and timer state.
+	bool enabled_              = false;
+	bool muted_                = false;
+	bool sample_buffer_empty_  = true;
+	uint16_t sample_pointer_   = 0xc000;
+	uint16_t sample_address_   = 0xc000;
+	uint16_t bytes_remaining_  = 0;
+	uint16_t sample_length_    = 0;
+	uint8_t bits_remaining_    = 0;
+	uint8_t output_            = 0;
+	uint8_t sample_buffer_     = 0;
 	ShiftRegister<uint8_t> shift_register_{0};
 	DMCControl control_{0};
 	Timer timer_;
+
+	// Debugger/user-controlled audio mute; does not stop DMC emulation.
 	bool channel_muted_ = false;
 };
 

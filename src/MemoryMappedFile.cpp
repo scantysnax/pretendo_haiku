@@ -28,7 +28,8 @@
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-MemoryMappedFile::MemoryMappedFile(const std::string &filename, size_t size) {
+MemoryMappedFile::MemoryMappedFile(const std::string &filename, size_t size) 
+{
 	(void)filename;
 
 #if defined(__linux__) || defined(__HAIKU__)
@@ -77,7 +78,8 @@ MemoryMappedFile::MemoryMappedFile(const std::string &filename, size_t size) {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-MemoryMappedFile::~MemoryMappedFile() {
+MemoryMappedFile::~MemoryMappedFile() 
+{
 	if (deleter_) {
 		deleter_(ptr_);
 	}
@@ -95,7 +97,9 @@ MemoryMappedFile::~MemoryMappedFile() {
 // Returns:
 //   Byte value at the requested position.
 // -----------------------------------------------------------------------------
-uint8_t MemoryMappedFile::operator[](size_t index) const {
+uint8_t
+MemoryMappedFile::operator[](size_t index) const
+{
 	return ptr_[index];
 }
 
@@ -112,7 +116,8 @@ uint8_t MemoryMappedFile::operator[](size_t index) const {
 // Returns:
 //   Reference to the byte at the requested position.
 // -----------------------------------------------------------------------------
-uint8_t &MemoryMappedFile::operator[](size_t index) {
+uint8_t &
+MemoryMappedFile::operator[] (size_t index) {
 	return ptr_[index];
 }
 

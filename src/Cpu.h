@@ -45,7 +45,7 @@ void clear_nmi();
 void irq(irq_source source);
 void schedule_spr_dma(dma_handler_t dma_handler, uint_least16_t source_address, uint_least16_t count);
 void schedule_dmc_dma(dma_handler_t dma_handler, uint_least16_t source_address, uint_least16_t count);
-void reset(Reset reset_type);
+void reset (reset_type type);
 void reset();
 void stop();
 void nmi();

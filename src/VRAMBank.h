@@ -5,43 +5,46 @@
 #include <cstddef>
 #include <cstdint>
 
-class VRAMBank {
-public:
-	enum Type {
-		Ram,
-		Rom
+class VRAMBank
+{
+	public:
+	enum vram_type {
+		ROM,
+		RAM
 	};
 
-public:
+	public:
 	VRAMBank()                      = default;
 	VRAMBank(const VRAMBank &other) = default;
 	VRAMBank &operator=(const VRAMBank &rhs) = default;
 
 	VRAMBank &operator=(std::nullptr_t) {
 		ptr_  = nullptr;
-		type_ = Rom;
+		type_ = ROM;
 		return *this;
 	}
 
 	explicit VRAMBank(std::nullptr_t)
-		: ptr_(nullptr), type_(Rom) {
+		: ptr_(nullptr), type_(ROM) {
 	}
 
-	VRAMBank(uint8_t *p, Type type)
+	VRAMBank(uint8_t *p, vram_type type)
 		: ptr_(p), type_(type) {
 	}
 
-public:
+	public:
 	uint8_t operator[](size_t n) const { return ptr_[n]; }
 	uint8_t &operator[](size_t n) { return ptr_[n]; }
 	explicit operator bool() const { return ptr_; }
 
-public:
-	bool writeable() const { return type_ == Ram; }
+	public:
+	bool writeable() const { return type_ == RAM; }
 
-private:
+	private:
 	uint8_t *ptr_ = nullptr;
-	Type type_    = Ram;
+	vram_type type_ = ROM;
 };
 
+
 #endif
+

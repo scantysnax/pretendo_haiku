@@ -4,8 +4,9 @@
 
 
 template <class T>
-class ShiftRegister {
-public:
+class ShiftRegister
+{
+	public:
 	// -------------------------------------------------------------------------
 	// ShiftRegister::ShiftRegister
 	//
@@ -87,7 +88,7 @@ public:
 		data_ >>= 1;
 	}
 
-private:
+	private:
 	T data_ = 0;
 };
 

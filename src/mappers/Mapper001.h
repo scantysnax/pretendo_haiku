@@ -1,14 +1,15 @@
-
+ 
 #ifndef MAPPER0001_20080314_H_
 #define MAPPER0001_20080314_H_
 
 #include "Mapper.h"
 
-class Mapper1 final : public Mapper {
-public:
+class Mapper1 final : public Mapper
+{
+	public:
 	Mapper1();
 
-public:
+	public:
 	std::string name() const override;
 
 	uint8_t read_6(uint_least16_t address) override;
@@ -25,10 +26,10 @@ public:
 	void write_e(uint_least16_t address, uint8_t value) override;
 	void write_f(uint_least16_t address, uint8_t value) override;
 
-private:
+	private:
 	void write_handler(uint_least16_t address, uint8_t value);
 
-private:
+	private:
 	uint8_t chr_ram_[0x2000] = {};
 	uint8_t regs_[4]         = {};
 	uint64_t cpu_cycles_     = 0;
@@ -37,7 +38,7 @@ private:
 	uint8_t prg_ram_enable0_ = 0x10;
 	uint8_t prg_ram_enable1_ = 0x10;
 
-private:
+	private:
 	MemoryMappedFile prg_ptr_;
 };
 

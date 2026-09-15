@@ -23,7 +23,9 @@ namespace {
 // Returns:
 //   Bit mask equal to the selected power-of-two size minus one.
 // -----------------------------------------------------------------------------
-uint32_t create_mask(uint32_t size) {
+uint32_t
+create_mask (uint32_t size)
+{
 
 	// returns 1 less than closest fitting power of 2
 	// is this number not a power of two or 0?
@@ -55,7 +57,9 @@ uint32_t create_mask(uint32_t size) {
 // Returns:
 //   true if the supplied value is a power of two.
 // -----------------------------------------------------------------------------
-constexpr bool is_power_of_2(size_t size) {
+constexpr bool 
+is_power_of_2(size_t size)
+{
 	return (size & (size - 1)) == 0;
 }
 
@@ -78,8 +82,9 @@ constexpr bool is_power_of_2(size_t size) {
 // Returns:
 //   true if the ROM was loaded and initialized successfully.
 // -----------------------------------------------------------------------------
-bool Cart::load(const std::string &s) {
-
+bool 
+Cart::load(const std::string &s)
+{
 	std::cout << "[Cart::load] loading '" << s << "'...";
 
 	try {
@@ -151,7 +156,9 @@ bool Cart::load(const std::string &s) {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void Cart::unload() {
+void
+Cart::unload()
+{
 	rom_    = nullptr;
 	mapper_ = nullptr;
 	filename_.clear();
@@ -169,7 +176,9 @@ void Cart::unload() {
 // Returns:
 //   true if the loaded cartridge provides CHR ROM.
 // -----------------------------------------------------------------------------
-bool Cart::has_chr_rom() const {
+bool
+Cart::has_chr_rom() const
+{
 	return rom_->chr_rom();
 }
 
@@ -185,7 +194,9 @@ bool Cart::has_chr_rom() const {
 // Returns:
 //   Current PRG address mask.
 // -----------------------------------------------------------------------------
-uint32_t Cart::prg_mask() const {
+uint32_t
+Cart::prg_mask() const
+{
 	return prg_mask_;
 }
 
@@ -201,7 +212,9 @@ uint32_t Cart::prg_mask() const {
 // Returns:
 //   Current CHR address mask.
 // -----------------------------------------------------------------------------
-uint32_t Cart::chr_mask() const {
+uint32_t
+Cart::chr_mask() const
+{
 	return chr_mask_;
 }
 
@@ -217,7 +230,9 @@ uint32_t Cart::chr_mask() const {
 // Returns:
 //   Pointer to the PRG ROM byte array.
 // -----------------------------------------------------------------------------
-uint8_t *Cart::prg() const {
+uint8_t*
+Cart::prg() const
+{
 	return rom_->prg_rom();
 }
 
@@ -233,7 +248,9 @@ uint8_t *Cart::prg() const {
 // Returns:
 //   Pointer to the CHR ROM byte array, or nullptr when no CHR ROM is present.
 // -----------------------------------------------------------------------------
-uint8_t *Cart::chr() const {
+uint8_t*
+Cart::chr() const
+{
 	return rom_->chr_rom();
 }
 
@@ -249,7 +266,9 @@ uint8_t *Cart::chr() const {
 // Returns:
 //   Current cartridge mirroring mode.
 // -----------------------------------------------------------------------------
-Cart::Mirroring Cart::mirroring() const {
+Cart::cart_mirroring
+Cart::mirroring() const
+{
 	return mirroring_;
 }
 
@@ -265,7 +284,9 @@ Cart::Mirroring Cart::mirroring() const {
 // Returns:
 //   PRG ROM hash value.
 // -----------------------------------------------------------------------------
-uint32_t Cart::prg_hash() const {
+uint32_t
+Cart::prg_hash() const
+{
 	return prg_hash_;
 }
 
@@ -281,7 +302,9 @@ uint32_t Cart::prg_hash() const {
 // Returns:
 //   CHR ROM hash value.
 // -----------------------------------------------------------------------------
-uint32_t Cart::chr_hash() const {
+uint32_t
+Cart::chr_hash() const
+{
 	return chr_hash_;
 }
 
@@ -297,7 +320,9 @@ uint32_t Cart::chr_hash() const {
 // Returns:
 //   ROM image hash value.
 // -----------------------------------------------------------------------------
-uint32_t Cart::rom_hash() const {
+uint32_t 
+Cart::rom_hash() const
+{
 	return rom_hash_;
 }
 
@@ -315,8 +340,9 @@ uint32_t Cart::rom_hash() const {
 // Returns:
 //   Vector containing the combined PRG and CHR ROM image.
 // -----------------------------------------------------------------------------
-std::vector<uint8_t> Cart::raw_image() const {
-
+std::vector<uint8_t> 
+Cart::raw_image() const
+{
 	const uint8_t *const prg_rom = prg();
 	const uint8_t *const chr_rom = chr();
 
@@ -343,7 +369,9 @@ std::vector<uint8_t> Cart::raw_image() const {
 // Returns:
 //   Reference to the stored ROM filename.
 // -----------------------------------------------------------------------------
-const std::string &Cart::filename() const {
+const std::string &
+Cart::filename() const 
+{
 	return filename_;
 }
 

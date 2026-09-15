@@ -10,11 +10,12 @@
 namespace nes::apu {
 
 template <int Channel>
-class Square {
+class Square
+{
 	friend class Sweep<Channel>;
 	static_assert(Channel >= 0 && Channel < 2, "only channels 0 and 1 are valid");
 
-public:
+	public:
 	// -------------------------------------------------------------------------
 	// Square::enable
 	//
@@ -57,7 +58,7 @@ public:
 	// Returns:
 	//   Nothing.
 	// -------------------------------------------------------------------------
-	void set_enabled(bool value) {
+	void set_enabled (bool value) {
 		if (value) {
 			enable();
 		} else {
@@ -65,7 +66,7 @@ public:
 		}
 	}
 
-public:
+	public:
 	// -------------------------------------------------------------------------
 	// Square::write_reg0
 	//
@@ -81,7 +82,7 @@ public:
 	// Returns:
 	//   Nothing.
 	// -------------------------------------------------------------------------
-	void write_reg0(uint8_t value) {
+	void write_reg0 (uint8_t value) {
 		duty_ = (value >> 6) & 0x03;
 
 		if (value & 0x20) {
@@ -104,7 +105,7 @@ public:
 	// Returns:
 	//   Nothing.
 	// -------------------------------------------------------------------------
-	void write_reg1(uint8_t value) {
+	void write_reg1 (uint8_t value) {
 		sweep.set_control(value);
 	}
 
@@ -122,7 +123,7 @@ public:
 	// Returns:
 	//   Nothing.
 	// -------------------------------------------------------------------------
-	void write_reg2(uint8_t value) {
+	void write_reg2 (uint8_t value) {
 		timer_reload_    = (timer_reload_ & 0xff00) | value;
 		timer_.frequency = (timer_reload_ + 1) * 2;
 		sweep.set_pulse_period(timer_reload_);
@@ -142,7 +143,7 @@ public:
 	// Returns:
 	//   Nothing.
 	// -------------------------------------------------------------------------
-	void write_reg3(uint8_t value) {
+	void write_reg3 (uint8_t value) {
 		timer_reload_    = (timer_reload_ & 0x00ff) | ((value & 0x07) << 8);
 		timer_.frequency = (timer_reload_ + 1) * 2;
 		sweep.set_pulse_period(timer_reload_);
@@ -155,7 +156,7 @@ public:
 		envelope.start();
 	}
 
-public:
+	public:
 	// -------------------------------------------------------------------------
 	// Square::enabled
 	//
@@ -264,7 +265,7 @@ public:
 	}
 
 // debug things...	
-public:
+	public:
 	uint16_t debug_timer_period() const {
 		return timer_reload_;
 	}
@@ -316,12 +317,12 @@ public:
 		return envelope.volume();
 	}
 
-public:
+	public:
 	LengthCounter length_counter;
 	Envelope envelope;
 	Sweep<Channel> sweep{this};
 
-private:
+	private:
 	Timer timer_;
 	uint16_t timer_reload_  = 0;
 	uint8_t duty_           = 0;

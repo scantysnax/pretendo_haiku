@@ -234,6 +234,7 @@ struct sprite_pattern_t {
 	uint8_t patterns[2];
 };
 
+
 //------------------------------------------------------------------------------
 // Internal state (single definitions only)
 //------------------------------------------------------------------------------
@@ -289,7 +290,7 @@ ppu_ctrl_t    	ppu_control_                = {0};
 ppu_mask_t     	ppu_mask_                   = {0};
 uint8_t        	register_2007_buffer_       = 0;
 ppu_status_t	status_                     = {0};
-uint8_t        tile_offset_                 = 0; // loopy x
+uint8_t        	tile_offset_                = 0; // loopy x
 uint8_t        	monochrome_mask_            = 0xff;
 
 // Frame tracking and resumable CPU-slot execution state.
@@ -348,7 +349,7 @@ background_pattern_table()
 //------------------------------------------------------------------------------
 // Sprite pattern address helpers
 //------------------------------------------------------------------------------
-template <class Pattern>
+
 // -----------------------------------------------------------------------------
 // sprite_pattern_address
 //
@@ -362,6 +363,7 @@ template <class Pattern>
 // Returns:
 //   PPU CHR address for the requested sprite pattern byte.
 // -----------------------------------------------------------------------------
+template <class Pattern>
 constexpr uint_least16_t 
 sprite_pattern_address (uint8_t index, uint8_t sprite_line, const size_8px_t &) 
 {
@@ -446,7 +448,7 @@ render_blank_pixel()
 //   Encoded background pixel value.
 // -----------------------------------------------------------------------------
 uint8_t
-select_bg_pixel(uint_least16_t index)
+select_bg_pixel (uint_least16_t index)
 {
 	if (LIKELY(index >= 8 || ppu_mask_.background_clipping) && ppu_mask_.background_visible) {
 		const uint_least16_t mask = (0x8000 >> tile_offset_);
@@ -1684,9 +1686,9 @@ namespace nes::ppu {
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-reset (nes::Reset reset_type)
+reset (nes::reset_type type)
 {
-	if (reset_type == Reset::Hard) {
+	if (type == reset_type::hard) {
 		std::fill_n(sprite_ram_, 0x0100, 0);
 		std::fill_n(sprite_data_, 32, 0xff);
 		std::copy(std::begin(powerup_palette), std::end(powerup_palette), palette_);
@@ -2621,7 +2623,7 @@ clear_ppu_write_log()
 //   Number of entries copied.
 // -----------------------------------------------------------------------------
 uint32_t
-ppu_write_log_snapshot(ppu_write_log_entry_t *entries, uint32_t capacity)
+ppu_write_log_snapshot (ppu_write_log_entry_t *entries, uint32_t capacity)
 {
 	if (!entries || capacity == 0) {
 		return 0;
@@ -2707,6 +2709,7 @@ debug_read_ppu_memory (uint16_t address)
 
 	return nes::cart.mapper()->read_vram(address);
 }
+
 
 // -----------------------------------------------------------------------------
 // nes::ppu::debug_step_dot

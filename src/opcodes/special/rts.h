@@ -20,11 +20,11 @@ public:
 			break;
 		case 3:
 			// pull PCL from stack, increment S
-			PC.lo = read_byte(S++ + StackAddress);
+			PC.lo = read_byte(S++ + kStackAddress);
 			break;
 		case 4:
 			// pull PCH from stack
-			PC.hi = read_byte(S + StackAddress);
+			PC.hi = read_byte(S + kStackAddress);
 			break;
 		case 5:
 			LAST_CYCLE;
