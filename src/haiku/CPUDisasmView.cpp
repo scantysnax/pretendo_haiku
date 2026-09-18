@@ -285,7 +285,7 @@ CPUDisasmView::KeyDown (const char *bytes, int32 numBytes)
 				Invalidate();
 			}
 			break;
-
+		
 		case 's':
 		case 'S':
 			fFreezeUpdates = false;

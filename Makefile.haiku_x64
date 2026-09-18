@@ -142,6 +142,8 @@ CPP_FILES := \
 	src/haiku/InputView.cpp \
 	src/haiku/InputWindow.cpp \
 	src/haiku/LinkView.cpp \
+	src/haiku/MapperExplorerView.cpp \
+	src/haiku/MapperExplorerWindow.cpp \
 	src/haiku/MenuBarIcon.cpp \
 	src/haiku/Mutex.cpp \
 	src/haiku/NameTableView.cpp \

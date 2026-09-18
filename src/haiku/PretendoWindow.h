@@ -31,6 +31,7 @@
 #include "CPUStatusWindow.h"
 #include "CPUTraceWindow.h"
 #include "InputWindow.h"
+#include "MapperExplorerWindow.h"
 #include "MenuBarIcon.h"
 #include "Mutex.h"
 #include "NameTableView.h"
@@ -76,6 +77,7 @@ class CPUDisasmWindow;
 class CPUMemoryWindow;
 class CPUStatusWindow;
 class InputWindow;
+class MapperExplorerWindow;
 class NameTableWindow;
 class OAMDebugWindow;
 class PaletteDebugWindow;
@@ -130,30 +132,31 @@ class PretendoWindow : public BWindow, public nes::FrameOutput
 		ENABLE_NOISE = 	'NOIS',
 		ENABLE_DMC = 	'DPCM',
 		// tools
-		ADJ_PALETTE =		'ADJP',
-		VIEW_PTNTBL1 = 		'PTB1',
-		VIEW_PTNTBL2 = 		'PTB2',
-		VIEW_NTBL1 = 		'NTB1',
-		VIEW_NTBL2 = 		'NTB2',
-		VIEW_NTBL3 = 		'NTB3',
-		VIEW_NTBL4 = 		'NTB4',
-		VIEW_PALDBG =		'PDBG',
-		VIEW_OAMDBG = 		'OAMD',
-		VIEW_PPUSTAT =		'STAT',
-		VIEW_PPULOG =		'WLOG',
-		VIEW_PPUMEM = 		'PPUM',
-		VIEW_CPUSTAT = 		'CPUS',
-		VIEW_CPUDISASM = 	'CPUD',
-		VIEW_CPUMEM = 		'CPUM',
-		VIEW_CPUTRACE = 	'CPUT',
-		VIEW_ZERO_PAGE = 	'ZPAG',
-		VIEW_STACK = 		'VSTK',
-		VIEW_BREAKPOINTS =	'BRPT',
-		VIEW_APUSTATUS = 	'APUS',
-		VIEW_APULOG = 		'APUW',
-		VIEW_APUEXPLORER = 	'APUE',
-		VIEW_APUSCOPE = 	'SCOP',
-		VIEW_APU_FRAMESEQ =	'VAFS' 
+		ADJ_PALETTE =			'ADJP',
+		VIEW_PTNTBL1 = 			'PTB1',
+		VIEW_PTNTBL2 = 			'PTB2',
+		VIEW_NTBL1 = 			'NTB1',
+		VIEW_NTBL2 = 			'NTB2',
+		VIEW_NTBL3 = 			'NTB3',
+		VIEW_NTBL4 = 			'NTB4',
+		VIEW_PALDBG =			'PDBG',
+		VIEW_OAMDBG = 			'OAMD',
+		VIEW_PPUSTAT =			'STAT',
+		VIEW_PPULOG =			'WLOG',
+		VIEW_PPUMEM = 			'PPUM',
+		VIEW_CPUSTAT = 			'CPUS',
+		VIEW_CPUDISASM = 		'CPUD',
+		VIEW_CPUMEM = 			'CPUM',
+		VIEW_CPUTRACE = 		'CPUT',
+		VIEW_ZERO_PAGE = 		'ZPAG',
+		VIEW_STACK = 			'VSTK',
+		VIEW_BREAKPOINTS =		'BRPT',
+		VIEW_APUSTATUS = 		'APUS',
+		VIEW_APULOG = 			'APUW',
+		VIEW_APUEXPLORER = 		'APUE',
+		VIEW_APUSCOPE = 		'SCOP',
+		VIEW_APU_FRAMESEQ =		'VAFS',
+		VIEW_MAPPER_EXPLORER = 	'MAPX'
 	} messages;	
 	
 	private:
@@ -257,6 +260,7 @@ class PretendoWindow : public BWindow, public nes::FrameOutput
 	void OnViewAPUExplorerWindow();
 	void OnViewAPUScopeWindow();
 	void OnViewAPUFrameSequencerWindow();
+	void OnViewMapperExplorerWindow();	
 
 	// video stuff
 	private:
@@ -396,6 +400,7 @@ class PretendoWindow : public BWindow, public nes::FrameOutput
 	APUExplorerWindow *fAPUExplorerWindow = nullptr;
 	APUScopeWindow *fAPUScopeWindow = nullptr;
 	APUFrameSequencerWindow *fAPUFrameSequencerWindow = nullptr;
+	MapperExplorerWindow *fMapperExplorerWindow = nullptr;
 
 	private:
 	BString fROMDirectory = nullptr;
@@ -503,6 +508,8 @@ class PretendoWindow : public BWindow, public nes::FrameOutput
     void APUExplorerWindowClosed();
     void APUScopeWindowClosed();
     void APUFrameSequencerWindowClosed();
+    void MapperExplorerWindowClosed();
+    
     
     public:
 	void HighlightPaletteDebugger (bool sprites, int32 palette, int32 entry = -1);
@@ -570,6 +577,8 @@ class PretendoWindow : public BWindow, public nes::FrameOutput
 	bool fWasAPUExplorerWindowVisibleBeforeFullScreen = false;
 	bool fWasAPUScopeWindowVisibleBeforeFullScreen = false;
 	bool fWasAPUFrameSequencerWindowVisibleBeforeFullScreen = false;
+	
+	bool fWasMapperExplorerWindowVisibleBeforeFullScreen = false;
 	
 	
     // keys

@@ -183,9 +183,9 @@ PretendoWindow::PretendoWindow()
 		fOverlayBits = reinterpret_cast<uint8 *>(fOverlayBitmap->Bits());
 		ClearBitmap(true);
 	} else {
-		fOverlayBits = nullptr;
 		if (fOverlayBitmap) {
 			delete fOverlayBitmap;
+			fOverlayBitmap = nullptr;
 		}
 		
 		fView->SetViewColor(0, 0, 0);
@@ -247,9 +247,11 @@ PretendoWindow::PretendoWindow()
 	}
 	
 	// we need a mutual exclusion to protect threaded code
-	fMutex = new Mutex("pretendo_mutex");
-	fMutex->Lock();
-	resume_thread(fThread);
+	if (fThread >= B_OK) {
+		fMutex = new Mutex("pretendo_mutex");
+		fMutex->Lock();
+		resume_thread(fThread);
+	}
 	
 	fSettingsMessage = new BMessage;
 	LoadSettings();
@@ -311,18 +313,12 @@ PretendoWindow::~PretendoWindow()
 	// -------------------------------------------------------------------------
 
 	if (fBitmap) {
-		if (fBitmap->IsValid()) {
-			delete fBitmap;
-		}
-
+		delete fBitmap;
 		fBitmap = nullptr;
 	}
 
 	if (fOverlayBitmap) {
-		if (fOverlayBitmap->IsValid()) {
-			delete fOverlayBitmap;
-		}
-
+		delete fOverlayBitmap;
 		fOverlayBitmap = nullptr;
 	}
 
@@ -496,8 +492,16 @@ PretendoWindow::~PretendoWindow()
 			fNameTable4Window->Quit();
 		}
 	}
-
-
+	
+	// Other tools
+	
+	if (fMapperExplorerWindow != nullptr) {
+		if (fMapperExplorerWindow->Lock()) {
+			fMapperExplorerWindow->Quit();
+		}
+	}
+	
+	
 	// General tools
 
 	if (fROMInfoWindow != nullptr) {
@@ -764,6 +768,10 @@ PretendoWindow::MessageReceived (BMessage *message)
 			OnViewAPUFrameSequencerWindow();
 			break;
 			
+		case messages::VIEW_MAPPER_EXPLORER:
+			OnViewMapperExplorerWindow();
+			break;
+			
 		default:
 			break;
 	}
@@ -862,6 +870,8 @@ PretendoWindow::QuitRequested()
 	status_t ret;
 
 	delete fMutex;
+	fMutex = nullptr;
+
 	wait_for_thread(fThread, &ret);
 	
 	fRunning = false;
@@ -1042,6 +1052,8 @@ PretendoWindow::AddMenu()
 	fAPUToolMenu->AddItem(new BMenuItem("View Explorer" B_UTF8_ELLIPSIS, new BMessage(messages::VIEW_APUEXPLORER)));
 	fAPUToolMenu->AddItem(new BMenuItem("View Oscilloscope" B_UTF8_ELLIPSIS, new BMessage(messages::VIEW_APUSCOPE)));
 	fAPUToolMenu->AddItem(new BMenuItem("View Frame Sequencer" B_UTF8_ELLIPSIS, new BMessage(messages::VIEW_APU_FRAMESEQ)));
+	fToolMenu->AddSeparatorItem();
+	fToolMenu->AddItem(new BMenuItem("Mapper Explorer" B_UTF8_ELLIPSIS, new BMessage(messages::VIEW_MAPPER_EXPLORER)));
 	
 	// menu icon
 	fMenuBarIcon = new MenuBarIcon(fMenuBar);
@@ -1414,7 +1426,13 @@ PretendoWindow::OnConfigureInput()
 // -----------------------------------------------------------------------------
 // PretendoWindow::OnSetRomDirectory
 //
-// Opens a directory-selection panel used to choose the default ROM directory.
+// Opens the directory-selection panel used to choose the default ROM directory.
+//
+// The panel is created lazily and reused on subsequent requests so repeated menu
+// selections do not allocate additional BFilePanel instances.
+//
+// Before the panel is shown, its starting directory is reset to the currently
+// configured ROM directory.
 //
 // Parameters:
 //   None.
@@ -1425,10 +1443,15 @@ PretendoWindow::OnConfigureInput()
 void
 PretendoWindow::OnSetRomDirectory()
 {
-	fROMDirectoryPanel = new BFilePanel(B_OPEN_PANEL, nullptr, nullptr, B_DIRECTORY_NODE, false, 
-										new BMessage(messages::RECV_ROM_DIR), nullptr, true, true);
-	fROMDirectoryPanel->SetTarget(BMessenger(nullptr, this));
-	fROMDirectoryPanel->Window()->SetTitle("Choose a Directory" B_UTF8_ELLIPSIS);
+	if (!fROMDirectoryPanel) {
+		fROMDirectoryPanel = new BFilePanel(B_OPEN_PANEL, nullptr, nullptr, B_DIRECTORY_NODE, false,
+							 new BMessage(messages::RECV_ROM_DIR), nullptr, true, true);
+
+		fROMDirectoryPanel->SetTarget(BMessenger(nullptr, this));
+		fROMDirectoryPanel->Window()->SetTitle("Choose a Directory" B_UTF8_ELLIPSIS);
+	}
+
+	fROMDirectoryPanel->SetPanelDirectory(fROMDirectory);
 	fROMDirectoryPanel->Show();
 }
 
@@ -2098,10 +2121,10 @@ PretendoWindow::OnViewCPUDisasmWindow()
 
 
 // -----------------------------------------------------------------------------
-// PretendoWindow::ROMInfoWindowClosed
+// PretendoWindow::OnViewCPUMemoryWindow
 //
-// Releases tool-input ownership for the ROM info window and clears the
-// stored window pointer.  This is called by the child window as it closes.
+// Opens the CPU Memory debugger window or brings the existing window to the
+// foreground if it is already open.
 //
 // Parameters:
 //   None.
@@ -2147,7 +2170,15 @@ void
 PretendoWindow::OnViewCPUTraceWindow()
 {
 	if (fCPUTraceWindow) {
-		fCPUTraceWindow->Activate(true);
+		if (fCPUTraceWindow->Lock()) {
+			if (fCPUTraceWindow->IsHidden()) {
+				fCPUTraceWindow->Show();
+			}
+
+			fCPUTraceWindow->Activate(true);
+			fCPUTraceWindow->Unlock();
+		}
+
 		return;
 	}
 
@@ -2175,7 +2206,15 @@ void
 PretendoWindow::OnViewStackWindow()
 {
 	if (fStackWindow) {
-		fStackWindow->Activate(true);
+		if (fStackWindow->Lock()) {
+			if (fStackWindow->IsHidden()) {
+				fStackWindow->Show();
+			}
+
+			fStackWindow->Activate(true);
+			fStackWindow->Unlock();
+		}
+
 		return;
 	}
 
@@ -2203,7 +2242,15 @@ void
 PretendoWindow::OnViewZeroPageWindow()
 {
 	if (fZeroPageWindow) {
-		fZeroPageWindow->Activate(true);
+		if (fZeroPageWindow->Lock()) {
+			if (fZeroPageWindow->IsHidden()) {
+				fZeroPageWindow->Show();
+			}
+
+			fZeroPageWindow->Activate(true);
+			fZeroPageWindow->Unlock();
+		}
+
 		return;
 	}
 
@@ -2232,7 +2279,10 @@ PretendoWindow::OnViewBreakPointWindow()
 {
 	if (fBreakPointWindow) {
 		if (fBreakPointWindow->Lock()) {
-			fBreakPointWindow->Show();
+			if (fBreakPointWindow->IsHidden()) {
+				fBreakPointWindow->Show();
+			}
+
 			fBreakPointWindow->Activate(true);
 			fBreakPointWindow->Unlock();
 		}
@@ -2355,7 +2405,8 @@ PretendoWindow::OnViewAPUExplorerWindow()
 // -----------------------------------------------------------------------------
 // PretendoWindow::OnViewAPUScopeWindow
 //
-// Opens the APU Scope debugger window or activates the existing instance.
+// Opens the APU Scope debugger window or brings the existing window to the
+// foreground if it is already open.
 //
 // The window participates in debugger ToolInput handling so emulator input is
 // suppressed while the floating debugger tool has focus.
@@ -2370,7 +2421,15 @@ void
 PretendoWindow::OnViewAPUScopeWindow()
 {
 	if (fAPUScopeWindow) {
-		fAPUScopeWindow->Activate(true);
+		if (fAPUScopeWindow->Lock()) {
+			if (fAPUScopeWindow->IsHidden()) {
+				fAPUScopeWindow->Show();
+			}
+
+			fAPUScopeWindow->Activate(true);
+			fAPUScopeWindow->Unlock();
+		}
+
 		return;
 	}
 
@@ -2385,10 +2444,8 @@ PretendoWindow::OnViewAPUScopeWindow()
 // -----------------------------------------------------------------------------
 // PretendoWindow::OnViewAPUFrameSequencerWindow
 //
-// Opens the APU Frame Sequencer debugger window.
-//
-// If the window already exists, it is brought to the front rather than creating
-// a second instance.
+// Opens the APU Frame Sequencer debugger window or brings the existing window to
+// the foreground if it is already open.
 //
 // Parameters:
 //   None.
@@ -2400,7 +2457,15 @@ void
 PretendoWindow::OnViewAPUFrameSequencerWindow()
 {
 	if (fAPUFrameSequencerWindow) {
-		fAPUFrameSequencerWindow->Activate(true);
+		if (fAPUFrameSequencerWindow->Lock()) {
+			if (fAPUFrameSequencerWindow->IsHidden()) {
+				fAPUFrameSequencerWindow->Show();
+			}
+
+			fAPUFrameSequencerWindow->Activate(true);
+			fAPUFrameSequencerWindow->Unlock();
+		}
+
 		return;
 	}
 
@@ -2409,6 +2474,42 @@ PretendoWindow::OnViewAPUFrameSequencerWindow()
 	BeginToolInput();
 
 	fAPUFrameSequencerWindow->Show();
+}
+
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::OnViewMapperExplorerWindow
+//
+// Opens the Mapper Explorer debugger window or brings the existing window to
+// the foreground if it is already open.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::OnViewMapperExplorerWindow()
+{
+	if (fMapperExplorerWindow) {
+		if (fMapperExplorerWindow->Lock()) {
+			if (fMapperExplorerWindow->IsHidden()) {
+				fMapperExplorerWindow->Show();
+			}
+
+			fMapperExplorerWindow->Activate(true);
+			fMapperExplorerWindow->Unlock();
+		}
+
+		return;
+	}
+
+	fMapperExplorerWindow = new MapperExplorerWindow(this);
+
+	BeginToolInput();
+
+	fMapperExplorerWindow->Show();
 }
 
 
@@ -2930,12 +3031,30 @@ PretendoWindow::APUScopeWindowClosed()
 void
 PretendoWindow::APUFrameSequencerWindowClosed()
 {
-	if (fAPUFrameSequencerWindow) {
-		fAPUFrameSequencerWindow = nullptr;
-
-		EndToolInput();
-	}
+	EndToolInput();
+	fAPUFrameSequencerWindow = nullptr;
 }
+
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::MapperExplorerWindowClosed
+//
+// Releases tool-input ownership for the Mapper Explorer window and clears the
+// stored window pointer after the window has closed.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::MapperExplorerWindowClosed()
+{
+	EndToolInput();
+	fMapperExplorerWindow = nullptr;
+}
+
 
 
 // -----------------------------------------------------------------------------
@@ -4089,6 +4208,8 @@ PretendoWindow::CountVisibleToolWindows() const
 	countWindow(fAPUExplorerWindow);
 	countWindow(fAPUScopeWindow);
 	countWindow(fAPUFrameSequencerWindow);
+	
+	countWindow(fMapperExplorerWindow);
 
 	return count;
 }
@@ -4256,6 +4377,13 @@ PretendoWindow::SuspendToolWindowsForFullScreen()
 	fWasAPUScopeWindowVisibleBeforeFullScreen = HideToolWindowForFullScreen(fAPUScopeWindow);
 	fWasAPUFrameSequencerWindowVisibleBeforeFullScreen = HideToolWindowForFullScreen(fAPUFrameSequencerWindow);
 	
+	// -------------------------------------------------------------------------
+	// Other tools
+	// -------------------------------------------------------------------------
+	
+	fWasMapperExplorerWindowVisibleBeforeFullScreen = HideToolWindowForFullScreen(fMapperExplorerWindow);
+	
+	
 	// No tool window owns fullscreen keyboard input while suspended.
 	fToolInputDepth = 0;
 
@@ -4349,6 +4477,12 @@ PretendoWindow::RestoreToolWindowsAfterFullScreen()
 	ShowToolWindowAfterFullScreen(fAPUScopeWindow, fWasAPUScopeWindowVisibleBeforeFullScreen);
 	ShowToolWindowAfterFullScreen(fAPUFrameSequencerWindow, fWasAPUFrameSequencerWindowVisibleBeforeFullScreen);
 
+	// -------------------------------------------------------------------------
+	// Other tools
+	// -------------------------------------------------------------------------
+	
+	ShowToolWindowAfterFullScreen(fMapperExplorerWindow, fWasMapperExplorerWindowVisibleBeforeFullScreen);
+	
 	// Rebuild ownership from the windows that actually survived fullscreen.
 	fToolInputDepth = CountVisibleToolWindows();
 
@@ -4413,6 +4547,13 @@ PretendoWindow::RestoreToolWindowsAfterFullScreen()
 	fWasAPUExplorerWindowVisibleBeforeFullScreen = false;
 	fWasAPUScopeWindowVisibleBeforeFullScreen = false;
 	fWasAPUFrameSequencerWindowVisibleBeforeFullScreen = false;
+	
+	// -------------------------------------------------------------------------
+	// Clear saved Other Tool visibility
+	// -------------------------------------------------------------------------
+	
+	fWasMapperExplorerWindowVisibleBeforeFullScreen = false;
+	
 	
 	fToolWindowsSuspendedForFullScreen = false;
 
@@ -4910,6 +5051,9 @@ PretendoWindow::JumpCPUDisasmToAddress (uint16 address)
 {
 	if (!fCPUDisasmWindow) {
 		fCPUDisasmWindow = new CPUDisasmWindow(this);
+
+		BeginToolInput();
+
 		fCPUDisasmWindow->Show();
 	} else {
 		fCPUDisasmWindow->Activate(true);
@@ -5022,6 +5166,8 @@ PretendoWindow::InvalidateDebugViews()
 	InvalidateWindowContents(fAPUExplorerWindow);
 	InvalidateWindowContents(fAPUScopeWindow);
 	InvalidateWindowContents(fAPUFrameSequencerWindow);
+	
+	InvalidateWindowContents(fMapperExplorerWindow);
 }
 
 
