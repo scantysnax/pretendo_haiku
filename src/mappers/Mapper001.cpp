@@ -480,9 +480,7 @@ Mapper1::write_handler (uint_least16_t address, uint8_t value)
 				} else {
 					// 8 KB mode: CHR bank 0 selects the complete pattern
 					// table; the low bank bit is ignored.
-					set_chr_0000_1fff(
-						regs_[mmc1_chr_bank_0] >> 1
-					);
+					set_chr_0000_1fff(regs_[mmc1_chr_bank_0] >> 1);
 				}
 			} else {
 				// NOTE(eteran): this is for SNROM, we may need iNES 2.0
