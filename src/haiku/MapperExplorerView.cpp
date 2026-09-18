@@ -20,8 +20,7 @@
 //   Constructor; no return value.
 // -----------------------------------------------------------------------------
 MapperExplorerView::MapperExplorerView (BRect frame, PretendoWindow *parent)
-	: BView(frame, "mapper_explorer_view", B_FOLLOW_ALL,
-			B_WILL_DRAW | B_PULSE_NEEDED)
+	: BView(frame, "mapper_explorer_view", B_FOLLOW_ALL, B_WILL_DRAW | B_PULSE_NEEDED)
 {
 	fParent = parent;
 
@@ -146,10 +145,8 @@ MapperExplorerView::CaptureState()
 	const std::string mapperName = mapper->name();
 
 	const bool mapperChanged = mapper != fMapper;
-	const bool revisionChanged =
-		!fHaveState || state.revision != fState.revision;
-	const bool nameChanged =
-		fMapperName != mapperName.c_str();
+	const bool revisionChanged =! fHaveState || state.revision != fState.revision;
+	const bool nameChanged = fMapperName != mapperName.c_str();
 
 	if (!mapperChanged && !revisionChanged && !nameChanged) {
 		return false;
@@ -258,28 +255,14 @@ MapperExplorerView::DrawMapperSummary()
 	SetFont(be_plain_font);
 
 	BString text;
-
-	text.SetToFormat(
-		"Mapper: %s",
-		fMapperName.String()
-	);
-
+	text.SetToFormat("Mapper: %s", fMapperName.String());
 	DrawString(text.String(), BPoint(20.0f, 56.0f));
 
-	text.SetToFormat(
-		"Mirroring: %s",
-		MirroringName(fState.mirroring)
-	);
-
+	text.SetToFormat("Mirroring: %s", MirroringName(fState.mirroring));
 	DrawString(text.String(), BPoint(20.0f, 78.0f));
 
 	SetHighColor(110, 110, 110);
-
-	text.SetToFormat(
-		"Revision: %llu",
-		static_cast<unsigned long long>(fState.revision)
-	);
-
+	text.SetToFormat("Revision: %llu", static_cast<unsigned long long>(fState.revision));
 	DrawString(text.String(), BPoint(390.0f, 78.0f));
 }
 
@@ -313,24 +296,14 @@ MapperExplorerView::DrawPRGTable()
 
 	SetFont(be_bold_font);
 	SetHighColor(0, 0, 0);
-
 	DrawString("CPU / PRG", BPoint(20.0f, y));
-
 	y += 28.0f;
 
 	DrawTableHeader(y, "Resolved 8K Bank");
-
 	y += 27.0f;
 
 	for (int i = 0; i < 5; ++i) {
-		DrawBankRow(
-			y,
-			ranges[i],
-			fState.prg[i],
-			0x2000,
-			fPRGChangeTicks[i] > 0
-		);
-
+		DrawBankRow(y, ranges[i], fState.prg[i], 0x2000, fPRGChangeTicks[i] > 0);
 		y += 22.0f;
 	}
 }
@@ -368,24 +341,14 @@ MapperExplorerView::DrawCHRTable()
 
 	SetFont(be_bold_font);
 	SetHighColor(0, 0, 0);
-
 	DrawString("PPU / CHR", BPoint(20.0f, y));
-
 	y += 28.0f;
 
 	DrawTableHeader(y, "Resolved 1K Bank");
-
 	y += 27.0f;
 
 	for (int i = 0; i < 8; ++i) {
-		DrawBankRow(
-			y,
-			ranges[i],
-			fState.chr[i],
-			0x0400,
-			fCHRChangeTicks[i] > 0
-		);
-
+		DrawBankRow(y, ranges[i], fState.chr[i], 0x0400, fCHRChangeTicks[i] > 0);
 		y += 22.0f;
 	}
 }
@@ -422,10 +385,7 @@ MapperExplorerView::DrawTableHeader (float y, const char *bankHeading)
 	DrawString("Access", BPoint(510.0f, y));
 
 	SetHighColor(180, 180, 180);
-	StrokeLine(
-		BPoint(left, y + 6.0f),
-		BPoint(right, y + 6.0f)
-	);
+	StrokeLine(BPoint(left, y + 6.0f), BPoint(right, y + 6.0f));
 }
 
 
@@ -451,12 +411,8 @@ MapperExplorerView::DrawTableHeader (float y, const char *bankHeading)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-MapperExplorerView::DrawBankRow (
-	float y,
-	const char *range,
-	const mapper_debug_bank_t &bank,
-	uint32_t bankSize,
-	bool changed)
+MapperExplorerView::DrawBankRow (float y, const char *range, const mapper_debug_bank_t &bank,
+								 uint32_t bankSize, bool changed)
 {
 	const float left = 20.0f;
 	const float right = Bounds().right - 20.0f;
@@ -502,17 +458,10 @@ MapperExplorerView::DrawBankRow (
 		bankText = "-";
 		offsetText = "-";
 	} else {
-		bankText.SetToFormat(
-			"%u",
-			static_cast<unsigned int>(bank.bank)
-		);
+		bankText.SetToFormat("%u", static_cast<unsigned int>(bank.bank));
 
 		const uint32_t offset = bank.bank * bankSize;
-
-		offsetText.SetToFormat(
-			"$%06X",
-			static_cast<unsigned int>(offset)
-		);
+		offsetText.SetToFormat("$%06X", static_cast<unsigned int>(offset));
 	}
 
 	DrawString(bankText.String(), BPoint(250.0f, y));
@@ -520,14 +469,10 @@ MapperExplorerView::DrawBankRow (
 
 	BString access;
 	FormatAccess(bank, access);
-
 	DrawString(access.String(), BPoint(510.0f, y));
 
 	SetHighColor(225, 225, 225);
-	StrokeLine(
-		BPoint(left, y + 7.0f),
-		BPoint(right, y + 7.0f)
-	);
+	StrokeLine(BPoint(left, y + 7.0f), BPoint(right, y + 7.0f));
 }
 
 
@@ -646,9 +591,7 @@ MapperExplorerView::MirroringName (MapperDebugMirroring mirroring) const
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-MapperExplorerView::FormatAccess (
-	const mapper_debug_bank_t &bank,
-	BString &text) const
+MapperExplorerView::FormatAccess (const mapper_debug_bank_t &bank, BString &text) const
 {
 	if (bank.readable && bank.writable) {
 		text = "R/W";
@@ -732,9 +675,8 @@ MapperExplorerView::CaptureMMC1State()
 //   true if any displayed MMC1 state changed; false otherwise.
 // -----------------------------------------------------------------------------
 bool
-MapperExplorerView::MMC1StateChanged (
-	const mapper1_debug_state_t &oldState,
-	const mapper1_debug_state_t &newState) const
+MapperExplorerView::MMC1StateChanged (const mapper1_debug_state_t &oldState,
+									  const mapper1_debug_state_t &newState) const
 {
 	if (
 		oldState.shift_register        != newState.shift_register ||
@@ -883,107 +825,65 @@ MapperExplorerView::DrawMMC1Panel()
 
 	y += 26.0f;
 
-	text.SetToFormat(
-		"Control: $%02X     CHR0: $%02X     CHR1: $%02X     PRG: $%02X",
-		static_cast<unsigned int>(fMMC1State.control),
-		static_cast<unsigned int>(fMMC1State.chr_bank_0),
-		static_cast<unsigned int>(fMMC1State.chr_bank_1),
-		static_cast<unsigned int>(fMMC1State.prg_bank)
-	);
-
+	text.SetToFormat("Control: $%02X     CHR0: $%02X     CHR1: $%02X     PRG: $%02X",
+					static_cast<unsigned int>(fMMC1State.control), 
+					static_cast<unsigned int>(fMMC1State.chr_bank_0),
+					static_cast<unsigned int>(fMMC1State.chr_bank_1),static_cast<unsigned int>(fMMC1State.prg_bank));
 	DrawString(text.String(), BPoint(28.0f, y));
-
 	y += 22.0f;
 
-	text.SetToFormat(
-		"PRG Mode: %u - %s",
-		static_cast<unsigned int>(fMMC1State.prg_mode),
-		MMC1PRGModeName(fMMC1State.prg_mode)
-	);
-
+	text.SetToFormat("PRG Mode: %u - %s", static_cast<unsigned int>(fMMC1State.prg_mode), MMC1PRGModeName(fMMC1State.prg_mode));
 	DrawString(text.String(), BPoint(28.0f, y));
-
 	y += 22.0f;
 
-	text.SetToFormat(
-		"CHR Mode: %u - %s",
-		static_cast<unsigned int>(fMMC1State.chr_mode),
-		MMC1CHRModeName(fMMC1State.chr_mode)
-	);
-
+	text.SetToFormat("CHR Mode: %u - %s", static_cast<unsigned int>(fMMC1State.chr_mode),MMC1CHRModeName(fMMC1State.chr_mode));
 	DrawString(text.String(), BPoint(28.0f, y));
-
 	y += 22.0f;
 
-	text.SetToFormat(
-		"PRG RAM: %s",
-		fMMC1State.prg_ram_enabled ? "Enabled" : "Disabled"
-	);
-
+	text.SetToFormat("PRG RAM: %s", fMMC1State.prg_ram_enabled ? "Enabled" : "Disabled");
 	DrawString(text.String(), BPoint(28.0f, y));
-
 	y += 30.0f;
 
 	SetFont(be_bold_font);
-
 	DrawString("Last Serial Transfer", BPoint(20.0f, y));
 
 	SetFont(be_fixed_font);
-
 	y += 24.0f;
 
 	if (fMMC1State.have_last_transfer) {
-		text.SetToFormat(
-			"1/5: $%02X   2/5: $%02X   3/5: $%02X   4/5: $%02X   5/5: $%02X",
-			static_cast<unsigned int>(fMMC1State.last_transfer[0]),
-			static_cast<unsigned int>(fMMC1State.last_transfer[1]),
-			static_cast<unsigned int>(fMMC1State.last_transfer[2]),
-			static_cast<unsigned int>(fMMC1State.last_transfer[3]),
-			static_cast<unsigned int>(fMMC1State.last_transfer[4])
-		);
+		text.SetToFormat("1/5: $%02X   2/5: $%02X   3/5: $%02X   4/5: $%02X   5/5: $%02X",
+						 static_cast<unsigned int>(fMMC1State.last_transfer[0]),
+						 static_cast<unsigned int>(fMMC1State.last_transfer[1]),
+						 static_cast<unsigned int>(fMMC1State.last_transfer[2]),
+			  			 static_cast<unsigned int>(fMMC1State.last_transfer[3]),
+						 static_cast<unsigned int>(fMMC1State.last_transfer[4]));
 	} else {
 		text = "No completed serial transfer captured.";
 	}
 
 	DrawString(text.String(), BPoint(28.0f, y));
-
 	y += 24.0f;
 
 	if (fMMC1State.have_last_commit) {
-		text.SetToFormat(
-			"Last Commit: %s = $%02X",
-			MMC1RegisterName(fMMC1State.last_register),
-			static_cast<unsigned int>(fMMC1State.last_value)
-		);
+		text.SetToFormat("Last Commit: %s = $%02X", MMC1RegisterName(fMMC1State.last_register),
+						 static_cast<unsigned int>(fMMC1State.last_value));
 	} else {
 		text = "Last Commit: None";
 	}
 
 	DrawString(text.String(), BPoint(28.0f, y));
-
 	y += 30.0f;
 
 	SetFont(be_bold_font);
-
 	DrawString("Serial Activity", BPoint(20.0f, y));
 
 	SetFont(be_fixed_font);
-
 	y += 24.0f;
 
-	text.SetToFormat(
-		"Writes: %llu     Commits: %llu     Resets: %llu",
-		static_cast<unsigned long long>(
-			fMMC1State.serial_write_count
-		),
-		static_cast<unsigned long long>(
-			fMMC1State.register_commit_count
-		),
-		static_cast<unsigned long long>(
-			fMMC1State.reset_count
-		)
-	);
-
+	text.SetToFormat("Writes: %llu     Commits: %llu     Resets: %llu",static_cast<unsigned long long>(fMMC1State.serial_write_count),
+					 static_cast<unsigned long long>(fMMC1State.register_commit_count),
+					 static_cast<unsigned long long>(fMMC1State.reset_count));
+	
 	DrawString(text.String(), BPoint(28.0f, y));
 }
 

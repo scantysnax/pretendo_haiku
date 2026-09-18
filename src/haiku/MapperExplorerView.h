@@ -65,9 +65,7 @@ class MapperExplorerView : public BView
 	private:
 	const char *MemoryTypeName (MapperDebugMemoryType type) const;
 	const char *MirroringName (MapperDebugMirroring mirroring) const;
-	void FormatAccess (
-		const mapper_debug_bank_t &bank,
-		BString &text) const;
+	void FormatAccess (const mapper_debug_bank_t &bank, BString &text) const;
 
 	private:
 	const char *MMC1PRGModeName (uint8_t mode) const;
