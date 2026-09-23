@@ -5,7 +5,7 @@
 #include "Mapper.h"
 
 
-struct mapper1_debug_state_t {
+struct mmc1_debug_state_t {
 	uint8_t shift_register = 0;
 	uint8_t shift_count    = 0;
 
@@ -45,7 +45,7 @@ class Mapper1 final : public Mapper
 	std::string name() const override;
 	
 	public:
-	mapper1_debug_state_t debug_state_mmc1() const;
+	mmc1_debug_state_t debug_state() const;
 
 	public:
 	uint8_t read_6(uint_least16_t address) override;

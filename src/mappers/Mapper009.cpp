@@ -81,6 +81,48 @@ Mapper9::name() const
 	return "PxROM (Nintendo MMC2)";
 }
 
+// -----------------------------------------------------------------------------
+// Mapper9::debug_state_mmc2
+//
+// Returns a snapshot of MMC2-specific internal state for debugger inspection.
+//
+// The snapshot includes the programmed PRG and CHR bank registers, current
+// latch states, currently selected CHR banks, and persistent latch-trigger
+// activity counters.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Current MMC2-specific debugger state.
+// -----------------------------------------------------------------------------
+mmc2_debug_state_t
+Mapper9::debug_state() const
+{
+	mmc2_debug_state_t state;
+
+	state.prg_bank = prg_bank_;
+
+	state.latch0_lo = latch0_lo_ & 0x1f;
+	state.latch0_hi = latch0_hi_ & 0x1f;
+	state.latch1_lo = latch1_lo_ & 0x1f;
+	state.latch1_hi = latch1_hi_ & 0x1f;
+
+	state.latch0 = latch0_;
+	state.latch1 = latch1_;
+
+	state.active_chr0_bank = latch0_ ? (latch0_hi_ & 0x1f) : (latch0_lo_ & 0x1f);
+	state.active_chr1_bank = latch1_ ? (latch1_hi_ & 0x1f) : (latch1_lo_ & 0x1f);
+	state.latch0_low_count = debug_latch0_low_count_;
+	state.latch0_high_count = debug_latch0_high_count_;
+	state.latch1_low_count = debug_latch1_low_count_;
+	state.latch1_high_count = debug_latch1_high_count_;
+	state.have_last_trigger = debug_have_last_trigger_;
+	state.last_trigger_address = debug_last_trigger_address_;
+
+	return state;
+}
+
 
 //------------------------------------------------------------------------------
 // Name: write_a
@@ -102,7 +144,9 @@ Mapper9::write_a (uint_least16_t address, uint8_t value)
 {
 	(void)address;
 
-	set_prg_89(value & 0x0f);
+	prg_bank_ = value & 0x0f;
+
+	set_prg_89(prg_bank_);
 }
 
 
@@ -127,10 +171,10 @@ Mapper9::write_b (uint_least16_t address, uint8_t value)
 {
 	(void)address;
 
-	latch0_lo_ = value;
+	latch0_lo_ = value & 0x1f;
 
 	if (!latch0_) {
-		set_chr_0000_0fff(value & 0x1f);
+		set_chr_0000_0fff(latch0_lo_);
 	}
 }
 
@@ -156,10 +200,10 @@ Mapper9::write_c (uint_least16_t address, uint8_t value)
 {
 	(void)address;
 
-	latch0_hi_ = value;
+	latch0_hi_ = value & 0x1f;
 
 	if (latch0_) {
-		set_chr_0000_0fff(value & 0x1f);
+		set_chr_0000_0fff(latch0_hi_);
 	}
 }
 
@@ -185,10 +229,10 @@ Mapper9::write_d (uint_least16_t address, uint8_t value)
 {
 	(void)address;
 
-	latch1_lo_ = value;
+	latch1_lo_ = value & 0x1f;
 
 	if (!latch1_) {
-		set_chr_1000_1fff(value & 0x1f);
+		set_chr_1000_1fff(latch1_lo_);
 	}
 }
 
@@ -214,10 +258,10 @@ Mapper9::write_e (uint_least16_t address, uint8_t value)
 {
 	(void)address;
 
-	latch1_hi_ = value;
+	latch1_hi_ = value & 0x1f;
 
 	if (latch1_) {
-		set_chr_1000_1fff(value & 0x1f);
+		set_chr_1000_1fff(latch1_hi_);
 	}
 }
 
@@ -274,6 +318,9 @@ Mapper9::write_f (uint_least16_t address, uint8_t value)
 //
 // The VRAM byte is read before the latch-induced bank switch is applied.
 //
+// Debugger-only counters record each latch trigger and preserve the most recent
+// trigger address.
+//
 // Parameters:
 //   address - PPU VRAM address being read.
 //
@@ -292,12 +339,20 @@ Mapper9::read_vram (uint_least16_t address)
 		// Select the low CHR bank for $0000-$0FFF.
 		set_chr_0000_0fff(latch0_lo_);
 		latch0_ = false;
+
+		++debug_latch0_low_count_;
+		debug_have_last_trigger_ = true;
+		debug_last_trigger_address_ = address;
 		break;
 
 	case 0x0fe8:
 		// Select the high CHR bank for $0000-$0FFF.
 		set_chr_0000_0fff(latch0_hi_);
 		latch0_ = true;
+
+		++debug_latch0_high_count_;
+		debug_have_last_trigger_ = true;
+		debug_last_trigger_address_ = address;
 		break;
 
 	case 0x1fd8:
@@ -311,6 +366,10 @@ Mapper9::read_vram (uint_least16_t address)
 		// Select the low CHR bank for $1000-$1FFF.
 		set_chr_1000_1fff(latch1_lo_);
 		latch1_ = false;
+
+		++debug_latch1_low_count_;
+		debug_have_last_trigger_ = true;
+		debug_last_trigger_address_ = address;
 		break;
 
 	case 0x1fe8:
@@ -324,9 +383,12 @@ Mapper9::read_vram (uint_least16_t address)
 		// Select the high CHR bank for $1000-$1FFF.
 		set_chr_1000_1fff(latch1_hi_);
 		latch1_ = true;
+
+		++debug_latch1_high_count_;
+		debug_have_last_trigger_ = true;
+		debug_last_trigger_address_ = address;
 		break;
 	}
 
 	return ret;
 }
-

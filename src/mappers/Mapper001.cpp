@@ -92,7 +92,7 @@ Mapper1::name() const
 
 
 // -----------------------------------------------------------------------------
-// Mapper1::debug_state_mmc1
+// Mapper1::debug_state
 //
 // Returns a snapshot of the MMC1-specific internal state for debugger
 // inspection.
@@ -107,10 +107,10 @@ Mapper1::name() const
 // Returns:
 //   Current MMC1-specific debugger state.
 // -----------------------------------------------------------------------------
-mapper1_debug_state_t
-Mapper1::debug_state_mmc1() const
+mmc1_debug_state_t
+Mapper1::debug_state() const
 {
-	mapper1_debug_state_t state;
+	mmc1_debug_state_t state;
 
 	state.shift_register = latch_ & 0x1f;
 	state.shift_count    = write_counter_;

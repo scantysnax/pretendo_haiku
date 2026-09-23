@@ -298,7 +298,7 @@ class Mapper
 	constexpr static uint8_t mirror_horizontal  = 0x50;
 	constexpr static uint8_t mirror_4screen     = 0xe4;
 
-	private:
+	public:
 	// Update one resolved PRG mapping slot for debugger inspection.
 	void debug_set_prg_bank (int slot, uint16_t address, uint32_t bank, MapperDebugMemoryType type,
 							 bool readable = true, bool writable = false);

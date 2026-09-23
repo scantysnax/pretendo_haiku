@@ -1,8 +1,40 @@
 
-#ifndef MMC3_20080314_H_
-#define MMC3_20080314_H_
+#ifndef _MMC3_H_
+#define _MMC3_H_
 
 #include "Mapper.h"
+
+
+struct mmc3_debug_state_t {
+	uint8_t command = 0;
+	uint8_t selected_register = 0;
+
+	bool prg_mode = false;
+	bool chr_mode = false;
+
+	uint8_t prg_bank[2] = {};
+	uint8_t chr_bank[8] = {};
+
+	bool prg_ram_enabled = false;
+	bool prg_ram_writable = false;
+
+	uint8_t irq_latch = 0;
+	uint8_t irq_counter = 0;
+	bool irq_reload = false;
+	bool irq_enabled = false;
+
+	uint8_t hardware_mode = 0;
+
+	uint64_t a12_rising_edge_count = 0;
+	uint64_t a12_qualified_edge_count = 0;
+	uint64_t a12_rejected_edge_count = 0;
+
+	uint64_t irq_clock_count = 0;
+	uint64_t irq_assert_count = 0;
+
+	uint64_t last_a12_spacing = 0;
+};
+
 
 class MMC3 : public Mapper
 {
@@ -56,6 +88,19 @@ class MMC3 : public Mapper
 	bool save_ram_enabled_      = false;
 	bool save_ram_writable_     = false;
 	
+	public:
+	mmc3_debug_state_t debug_state() const;
+	
+	private:
+	uint64_t debug_a12_rising_edge_count_ = 0;
+	uint64_t debug_a12_qualified_edge_count_ = 0;
+	uint64_t debug_a12_rejected_edge_count_ = 0;
+
+	uint64_t debug_irq_clock_count_ = 0;
+	uint64_t debug_irq_assert_count_ = 0;
+
+	uint64_t debug_last_a12_spacing_ = 0;
+
 	private:
 	MemoryMappedFile prg_ptr_;
 
@@ -68,4 +113,4 @@ class MMC3 : public Mapper
 };
 
 
-#endif
+#endif	//  _MMC3_H_

@@ -9,7 +9,7 @@ RES	   := xres
 STRIP  := strip
 
 DEFINES  := 
-INCLUDES := -Ilibines2/lib/include/ -Isrc/ -Isrc/haiku/ \
+INCLUDES := -Ilibines2/lib/include/ -Isrc/ -Isrc/haiku/ -Isrc/mappers \
 		 	-I/boot/system/develop/headers/ \
 		 	-I/boot/system/develop/headers/libxml2
 

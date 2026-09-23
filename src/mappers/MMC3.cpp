@@ -144,6 +144,73 @@ MMC3::name() const
 }
 
 
+// -----------------------------------------------------------------------------
+// MMC3::debug_state
+//
+// Returns a snapshot of MMC3-specific internal state for debugger inspection.
+//
+// The snapshot includes raw bank-control registers, decoded PRG/CHR mode bits,
+// PRG-RAM state, IRQ-counter state, selected hardware revision, and persistent
+// A12/IRQ activity counters.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Current MMC3-specific debugger state.
+// -----------------------------------------------------------------------------
+mmc3_debug_state_t
+MMC3::debug_state() const
+{
+	mmc3_debug_state_t state;
+
+	state.command = command_;
+	state.selected_register = command_ & 0x07;
+
+	state.prg_mode = (command_ & 0x40) != 0;
+	state.chr_mode = (command_ & 0x80) != 0;
+
+	for (int i = 0; i < 2; ++i) {
+		state.prg_bank[i] = prg_bank_[i];
+	}
+
+	for (int i = 0; i < 8; ++i) {
+		state.chr_bank[i] = chr_bank_[i];
+	}
+
+	state.prg_ram_enabled = save_ram_enabled_;
+	state.prg_ram_writable = save_ram_writable_;
+
+	state.irq_latch = irq_latch_;
+	state.irq_counter = irq_counter_;
+	state.irq_reload = irq_reload_;
+	state.irq_enabled = irq_enabled_;
+
+	switch (mode_) {
+		case ModeA:
+			state.hardware_mode = 0;
+			break;
+
+		case ModeB:
+			state.hardware_mode = 1;
+			break;
+
+		case ModeMMC6:
+			state.hardware_mode = 2;
+			break;
+	}
+
+	state.a12_rising_edge_count = debug_a12_rising_edge_count_;
+	state.a12_qualified_edge_count = debug_a12_qualified_edge_count_;
+	state.a12_rejected_edge_count = debug_a12_rejected_edge_count_;
+	state.irq_clock_count = debug_irq_clock_count_;
+	state.irq_assert_count = debug_irq_assert_count_;
+	state.last_a12_spacing = debug_last_a12_spacing_;
+
+	return state;
+}
+
+
 //------------------------------------------------------------------------------
 // Name: read_6
 //
@@ -211,9 +278,7 @@ MMC3::read_7 (uint_least16_t address)
 void
 MMC3::write_6 (uint_least16_t address, uint8_t value)
 {
-	if (save_ram_enabled_ &&
-		save_ram_writable_ &&
-		nes::cart.mirroring() != Cart::MIR_4SCREEN) {
+	if (save_ram_enabled_ && save_ram_writable_ && nes::cart.mirroring() != Cart::MIR_4SCREEN) {
 		prg_ptr_[address & 0x1fff] = value;
 	}
 }
@@ -424,10 +489,8 @@ MMC3::write_a (uint_least16_t address, uint8_t value)
 
 		// Keep the Mapper Explorer state synchronized with the effective
 		// PRG-RAM mapping and write-protection state.
-		debug_set_prg_ram(
-			save_ram_enabled_ &&
-			nes::cart.mirroring() != Cart::MIR_4SCREEN,
-			save_ram_writable_);
+		debug_set_prg_ram(save_ram_enabled_ && nes::cart.mirroring() != Cart::MIR_4SCREEN,
+						  save_ram_writable_);
 		break;
 	}
 }
@@ -572,6 +635,8 @@ MMC3::write_f (uint_least16_t address, uint8_t value)
 // transition is accepted only when enough PPU cycles have elapsed since the
 // previous qualified edge.
 //
+// Debugger-only counters record raw, qualified, and rejected A12 rising edges.
+//
 // Parameters:
 //   vram_address - New PPU VRAM address.
 //
@@ -583,9 +648,19 @@ MMC3::vram_change_hook (uint_least16_t vram_address)
 {
 	// Detect a rising edge of PPU address bit A12.
 	if ((vram_address & 0x1000) && !(prev_vram_address_ & 0x1000)) {
+		++debug_a12_rising_edge_count_;
+
+		const uint64_t spacing = nes::ppu::cycle_count() - prev_ppu_cycle_;
+
+		debug_last_a12_spacing_ = spacing;
+
 		// Require sufficient spacing between qualified A12 edges.
-		if ((nes::ppu::cycle_count() - prev_ppu_cycle_) >= 16) {
+		if (spacing >= 16) {
+			++debug_a12_qualified_edge_count_;
+
 			clock_irq();
+		} else {
+			++debug_a12_rejected_edge_count_;
 		}
 
 		prev_ppu_cycle_ = nes::ppu::cycle_count();
@@ -627,6 +702,9 @@ MMC3::clock_irqA()
 	// MMC3A requires both a zero counter and the reload condition before
 	// asserting an enabled mapper IRQ.
 	if (irq_enabled_ && irq_counter_ == 0 && irq_reload_) {
+		// Record the IRQ assertion for debugger inspection.
+		++debug_irq_assert_count_;
+
 		nes::cpu::irq(nes::cpu::MAPPER_IRQ);
 	}
 
@@ -658,16 +736,20 @@ MMC3::clock_irqB()
 	} else {
 		// Otherwise decrement the active counter.
 		--irq_counter_;
+
+		// Record that a counter transition/reload condition occurred.
 		irq_reload_ = true;
 	}
 
 	if (irq_enabled_ && irq_counter_ == 0) {
+		// Record the IRQ assertion for debugger inspection.
+		++debug_irq_assert_count_;
+
 		nes::cpu::irq(nes::cpu::MAPPER_IRQ);
 	}
 
 	irq_reload_ = false;
 }
-
 
 //------------------------------------------------------------------------------
 // Name: clock_irq
@@ -684,6 +766,8 @@ MMC3::clock_irqB()
 void
 MMC3::clock_irq()
 {
+	++debug_irq_clock_count_;
+
 	if (mode_ == ModeA) {
 		clock_irqA();
 	} else {

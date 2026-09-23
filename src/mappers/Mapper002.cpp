@@ -58,6 +58,36 @@ Mapper2::name() const
 }
 
 
+// -----------------------------------------------------------------------------
+// Mapper2::debug_state_uxrom
+//
+// Returns a snapshot of UxROM-specific internal state for debugger inspection.
+//
+// The snapshot includes the raw bank-selection value, selected 16 KB PRG-ROM
+// bank, and persistent mapper-write diagnostics.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Current UxROM-specific debugger state.
+// -----------------------------------------------------------------------------
+uxrom_debug_state_t
+Mapper2::debug_state() const
+{
+	uxrom_debug_state_t state;
+
+	state.bank_select = bank_select_;
+	state.prg_bank = bank_select_;
+	state.write_count = debug_write_count_;
+	state.have_last_write = debug_have_last_write_;
+	state.last_write_address = debug_last_write_address_;
+	state.last_write_value = debug_last_write_value_;
+
+	return state;
+}
+
+
 //------------------------------------------------------------------------------
 // Name: write_8
 //
@@ -66,7 +96,7 @@ Mapper2::name() const
 // The written value selects the 16 KB PRG-ROM bank mapped at $8000-$BFFF.
 //
 // Parameters:
-//   address - CPU address being written. The address itself is not used.
+//   address - CPU address being written.
 //   value   - PRG-ROM bank-selection value.
 //
 // Returns:
@@ -75,10 +105,17 @@ Mapper2::name() const
 void
 Mapper2::write_8 (uint_least16_t address, uint8_t value)
 {
-	(void)address;
+	bank_select_ = value;
+
+	++debug_write_count_;
+
+	debug_have_last_write_ = true;
+	debug_last_write_address_ = address;
+	debug_last_write_value_ = value;
 
 	set_prg_89ab(value);
 }
+
 
 //------------------------------------------------------------------------------
 // Name: write_9
@@ -88,7 +125,7 @@ Mapper2::write_8 (uint_least16_t address, uint8_t value)
 // UxROM treats writes throughout $8000-$FFFF as PRG-bank-selection writes.
 //
 // Parameters:
-//   address - CPU address being written. The address itself is not used.
+//   address - CPU address being written.
 //   value   - PRG-ROM bank-selection value.
 //
 // Returns:
@@ -97,10 +134,17 @@ Mapper2::write_8 (uint_least16_t address, uint8_t value)
 void
 Mapper2::write_9 (uint_least16_t address, uint8_t value)
 {
-	(void)address;
+	bank_select_ = value;
+
+	++debug_write_count_;
+
+	debug_have_last_write_ = true;
+	debug_last_write_address_ = address;
+	debug_last_write_value_ = value;
 
 	set_prg_89ab(value);
 }
+
 
 //------------------------------------------------------------------------------
 // Name: write_a
@@ -108,7 +152,7 @@ Mapper2::write_9 (uint_least16_t address, uint8_t value)
 // Handles mapper writes in the $A000-$AFFF range.
 //
 // Parameters:
-//   address - CPU address being written. The address itself is not used.
+//   address - CPU address being written.
 //   value   - PRG-ROM bank-selection value.
 //
 // Returns:
@@ -117,10 +161,17 @@ Mapper2::write_9 (uint_least16_t address, uint8_t value)
 void
 Mapper2::write_a (uint_least16_t address, uint8_t value)
 {
-	(void)address;
+	bank_select_ = value;
+
+	++debug_write_count_;
+
+	debug_have_last_write_ = true;
+	debug_last_write_address_ = address;
+	debug_last_write_value_ = value;
 
 	set_prg_89ab(value);
 }
+
 
 //------------------------------------------------------------------------------
 // Name: write_b
@@ -128,7 +179,7 @@ Mapper2::write_a (uint_least16_t address, uint8_t value)
 // Handles mapper writes in the $B000-$BFFF range.
 //
 // Parameters:
-//   address - CPU address being written. The address itself is not used.
+//   address - CPU address being written.
 //   value   - PRG-ROM bank-selection value.
 //
 // Returns:
@@ -137,10 +188,17 @@ Mapper2::write_a (uint_least16_t address, uint8_t value)
 void
 Mapper2::write_b (uint_least16_t address, uint8_t value)
 {
-	(void)address;
+	bank_select_ = value;
+
+	++debug_write_count_;
+
+	debug_have_last_write_ = true;
+	debug_last_write_address_ = address;
+	debug_last_write_value_ = value;
 
 	set_prg_89ab(value);
 }
+
 
 //------------------------------------------------------------------------------
 // Name: write_c
@@ -148,7 +206,7 @@ Mapper2::write_b (uint_least16_t address, uint8_t value)
 // Handles mapper writes in the $C000-$CFFF range.
 //
 // Parameters:
-//   address - CPU address being written. The address itself is not used.
+//   address - CPU address being written.
 //   value   - PRG-ROM bank-selection value.
 //
 // Returns:
@@ -157,10 +215,17 @@ Mapper2::write_b (uint_least16_t address, uint8_t value)
 void
 Mapper2::write_c (uint_least16_t address, uint8_t value)
 {
-	(void)address;
+	bank_select_ = value;
+
+	++debug_write_count_;
+
+	debug_have_last_write_ = true;
+	debug_last_write_address_ = address;
+	debug_last_write_value_ = value;
 
 	set_prg_89ab(value);
 }
+
 
 //------------------------------------------------------------------------------
 // Name: write_d
@@ -168,7 +233,7 @@ Mapper2::write_c (uint_least16_t address, uint8_t value)
 // Handles mapper writes in the $D000-$DFFF range.
 //
 // Parameters:
-//   address - CPU address being written. The address itself is not used.
+//   address - CPU address being written.
 //   value   - PRG-ROM bank-selection value.
 //
 // Returns:
@@ -177,10 +242,17 @@ Mapper2::write_c (uint_least16_t address, uint8_t value)
 void
 Mapper2::write_d (uint_least16_t address, uint8_t value)
 {
-	(void)address;
+	bank_select_ = value;
+
+	++debug_write_count_;
+
+	debug_have_last_write_ = true;
+	debug_last_write_address_ = address;
+	debug_last_write_value_ = value;
 
 	set_prg_89ab(value);
 }
+
 
 //------------------------------------------------------------------------------
 // Name: write_e
@@ -188,7 +260,7 @@ Mapper2::write_d (uint_least16_t address, uint8_t value)
 // Handles mapper writes in the $E000-$EFFF range.
 //
 // Parameters:
-//   address - CPU address being written. The address itself is not used.
+//   address - CPU address being written.
 //   value   - PRG-ROM bank-selection value.
 //
 // Returns:
@@ -197,10 +269,17 @@ Mapper2::write_d (uint_least16_t address, uint8_t value)
 void
 Mapper2::write_e (uint_least16_t address, uint8_t value)
 {
-	(void)address;
+	bank_select_ = value;
+
+	++debug_write_count_;
+
+	debug_have_last_write_ = true;
+	debug_last_write_address_ = address;
+	debug_last_write_value_ = value;
 
 	set_prg_89ab(value);
 }
+
 
 //------------------------------------------------------------------------------
 // Name: write_f
@@ -208,7 +287,7 @@ Mapper2::write_e (uint_least16_t address, uint8_t value)
 // Handles mapper writes in the $F000-$FFFF range.
 //
 // Parameters:
-//   address - CPU address being written. The address itself is not used.
+//   address - CPU address being written.
 //   value   - PRG-ROM bank-selection value.
 //
 // Returns:
@@ -217,7 +296,15 @@ Mapper2::write_e (uint_least16_t address, uint8_t value)
 void
 Mapper2::write_f (uint_least16_t address, uint8_t value)
 {
-	(void)address;
+	bank_select_ = value;
+
+	++debug_write_count_;
+
+	debug_have_last_write_ = true;
+	debug_last_write_address_ = address;
+	debug_last_write_value_ = value;
 
 	set_prg_89ab(value);
 }
+
+

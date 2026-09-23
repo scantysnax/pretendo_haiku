@@ -65,6 +65,38 @@ Mapper7::name() const
 }
 
 
+// -----------------------------------------------------------------------------
+// Mapper7::debug_state_axrom
+//
+// Returns a snapshot of AxROM-specific internal state for debugger inspection.
+//
+// The snapshot includes the raw mapper-control value, selected 32 KB PRG-ROM
+// bank, single-screen nametable selection, and persistent mapper-write
+// diagnostics.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Current AxROM-specific debugger state.
+// -----------------------------------------------------------------------------
+axrom_debug_state_t
+Mapper7::debug_state() const
+{
+	axrom_debug_state_t state;
+
+	state.control = control_;
+	state.prg_bank = control_ & 0x07;
+	state.single_screen_high = (control_ & 0x10) != 0;
+	state.write_count = debug_write_count_;
+	state.have_last_write = debug_have_last_write_;
+	state.last_write_address = debug_last_write_address_;
+	state.last_write_value = debug_last_write_value_;
+
+	return state;
+}
+
+
 //------------------------------------------------------------------------------
 // Name: write_8
 //
@@ -238,8 +270,11 @@ Mapper7::write_f (uint_least16_t address, uint8_t value)
 // The CPU address itself does not affect the selected function; writes
 // anywhere in $8000-$FFFF reach the same mapper register.
 //
+// Debugger-only state preserves the raw register value and most recent mapper
+// write for inspection.
+//
 // Parameters:
-//   address - CPU address being written. The address itself is not used.
+//   address - CPU address being written.
 //   value   - Mapper control value.
 //
 // Returns:
@@ -248,16 +283,26 @@ Mapper7::write_f (uint_least16_t address, uint8_t value)
 void
 Mapper7::write_handler (uint_least16_t address, uint8_t value)
 {
-	(void)address;
+	// Preserve the raw AxROM mapper-control register.
+	control_ = value;
+
+	// Record mapper-write activity for debugger inspection.
+	++debug_write_count_;
+
+	debug_have_last_write_ = true;
+	debug_last_write_address_ = address;
+	debug_last_write_value_ = value;
 
 	// Select the complete 32 KB PRG-ROM bank mapped at $8000-$FFFF.
-	set_prg_89abcdef(value & 0x07);
+	set_prg_89abcdef(control_ & 0x07);
 
 	// Bit 4 selects which 1 KB CIRAM page backs all four logical nametables.
-	if (value & 0x10) {
+	if (control_ & 0x10) {
 		set_mirroring(mirror_single_high);
 	} else {
 		set_mirroring(mirror_single_low);
 	}
 }
+
+
 
