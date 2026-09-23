@@ -1392,7 +1392,11 @@ PatternTableView::SetExternalHighlight (int32 whichPT, int32 tileIndex)
 // with a retained 16-byte CHR snapshot.
 //
 // The supplied CHR bytes represent the highlighted 8x8 tile at the time the
-// external debugger captured it. Any previous 8x16 sprite-pair state is cleared.
+// external debugger captured it. The same bytes are forwarded to the connected
+// CHR Explorer so its expanded tile remains synchronized with the externally
+// highlighted Pattern Table tile.
+//
+// Any previous 8x16 sprite-pair state is cleared.
 //
 // Parameters:
 //   whichPT   - Pattern-table index containing the tile.
@@ -1403,14 +1407,17 @@ PatternTableView::SetExternalHighlight (int32 whichPT, int32 tileIndex)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-PatternTableView::SetExternalHighlight(int32 whichPT, int32 tileIndex, const uint8 *chrBytes)
+PatternTableView::SetExternalHighlight(
+	int32 whichPT,
+	int32 tileIndex,
+	const uint8 *chrBytes)
 {
 	fHasExternalHighlight = true;
 	fExternalWhichPT = whichPT;
 	fExternalTileIndex = tileIndex;
 	fExternalHighlight8x16Pair = false;
 	fHaveExternalCHRBytes = false;
-	
+
 	memset(fExternalCHRBytes, 0, sizeof(fExternalCHRBytes));
 
 	if (chrBytes) {
@@ -1419,6 +1426,33 @@ PatternTableView::SetExternalHighlight(int32 whichPT, int32 tileIndex, const uin
 		}
 
 		fHaveExternalCHRBytes = true;
+	}
+
+	if (
+		fCHRExplorer &&
+		whichPT == fWhichPatternTable &&
+		tileIndex >= 0 &&
+		fHaveExternalCHRBytes
+	) {
+		const int32 index = tileIndex & 0xff;
+
+		const uint32 addr =
+			(whichPT ? 0x1000 : 0x0000) +
+			(static_cast<uint32>(index) * 16);
+
+		fCHRExplorer->SetTile8x8(
+			whichPT,
+			index,
+			false,
+			addr,
+			fExternalCHRBytes,
+			0,
+			-1,
+			0,
+			0,
+			0,
+			0
+		);
 	}
 
 	Invalidate();
