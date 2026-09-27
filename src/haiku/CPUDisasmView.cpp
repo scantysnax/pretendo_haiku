@@ -255,7 +255,7 @@ CPUDisasmView::KeyDown (const char *bytes, int32 numBytes)
 				fHaveFrozenSnapshot = false;
 
 				if (fFollowPC) {
-					nes::cpu::cpu_state_t state = nes::cpu::debug_cpu_state();
+					nes::cpu::cpu_state_t state = nes::cpu::debug_state();
 					fBaseAddress = FindContextBase(state.pc, 5);
 
 					UpdateScrollBar();
@@ -362,7 +362,7 @@ CPUDisasmView::KeyDown (const char *bytes, int32 numBytes)
 			if (fHasSelectedAddress) {
 				address = fSelectedAddress;
 			} else {
-				nes::cpu::cpu_state_t state = nes::cpu::debug_cpu_state();
+				nes::cpu::cpu_state_t state = nes::cpu::debug_state();
 				address = fFreezeUpdates ? fFrozenPC : state.pc;
 			}
 
@@ -602,7 +602,7 @@ CPUDisasmView::DrawHeaderPanel()
 		return;
 	}
 
-	nes::cpu::cpu_state_t state = nes::cpu::debug_cpu_state();
+	nes::cpu::cpu_state_t state = nes::cpu::debug_state();
 	uint16 displayPC = state.pc;
 	uint8 displayA = state.a;
 	uint8 displayX = state.x;
@@ -825,7 +825,7 @@ CPUDisasmView::DrawDisasmPanel()
 
 	const float lineH = ceilf(fh.ascent + fh.descent + fh.leading) + 1.0f;
 
-	nes::cpu::cpu_state_t state = nes::cpu::debug_cpu_state();
+	nes::cpu::cpu_state_t state = nes::cpu::debug_state();
 
 	/*
 	 * Normally the instruction marker follows the CPU's live PC.
@@ -930,7 +930,7 @@ bool
 CPUDisasmView::AddressForPoint (BPoint where, uint16 &address)
 {
 	const float rightEdge = (fScrollBar && !fScrollBar->IsHidden())
-			? fScrollBar->Frame().left - 4.0f : Bounds().right - 4.0f;
+						  ? fScrollBar->Frame().left - 4.0f : Bounds().right - 4.0f;
 	BRect panel(4.0f, 124.0f, rightEdge, Bounds().bottom - 8.0f);
 
 	if (!panel.Contains(where)) {
@@ -1492,7 +1492,7 @@ CPUDisasmView::SetFollowPC (bool follow)
         if (fFreezeUpdates && fHaveFrozenSnapshot) {
 			displayPC = fFrozenPC;
         } else {
-            nes::cpu::cpu_state_t state = nes::cpu::debug_cpu_state();
+            nes::cpu::cpu_state_t state = nes::cpu::debug_state();
 			displayPC = state.pc;
         }
 
@@ -1713,7 +1713,7 @@ CPUDisasmView::IsUndocumentedInstruction (const cpu_disasm_line_t &line) const
 //   true if this instruction writes to a PPU register or one of its mirrors.
 // -----------------------------------------------------------------------------
 bool
-CPUDisasmView::IsPPURegisterWrite(const cpu_disasm_line_t &line) const
+CPUDisasmView::IsPPURegisterWrite (const cpu_disasm_line_t &line) const
 {
     if (!IsStoreInstruction(line)) {
         return false;
@@ -2261,7 +2261,7 @@ CPUDisasmView::BranchTakenForLine (const cpu_disasm_line_t &line) const
 	if (fFreezeUpdates && fHaveFrozenSnapshot) {
 		p = fFrozenP;
 	} else {
-		nes::cpu::cpu_state_t state = nes::cpu::debug_cpu_state();
+		nes::cpu::cpu_state_t state = nes::cpu::debug_state();
 		p = state.p;
 	}
 
@@ -2458,7 +2458,7 @@ CPUDisasmView::JumpToCurrentPC()
     if (fFreezeUpdates && fHaveFrozenSnapshot) {
 		displayPC = fFrozenPC;
     } else {
-        nes::cpu::cpu_state_t state = nes::cpu::debug_cpu_state();
+        nes::cpu::cpu_state_t state = nes::cpu::debug_state();
 		displayPC = state.pc;
     }
 
@@ -2611,7 +2611,7 @@ CPUDisasmView::ScrollBarChanged (float value)
 void
 CPUDisasmView::CaptureFrozenSnapshot()
 {
-	nes::cpu::cpu_state_t state = nes::cpu::debug_cpu_state();
+	nes::cpu::cpu_state_t state = nes::cpu::debug_state();
 
 	fFrozenPC = state.pc;
 	fFrozenA = state.a;

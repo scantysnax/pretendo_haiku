@@ -5,10 +5,6 @@
 #include <ScrollBar.h>
 #include <Screen.h>
 
-#include "Cart.h"
-#include "Mapper.h"
-#include "Ppu.h"
-
 class CHRExplorerView;
 class PatternTableWindow;
 class PretendoWindow;

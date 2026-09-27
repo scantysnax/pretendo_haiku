@@ -316,7 +316,7 @@ CPUTraceView::ToggleFreeze()
 void
 CPUTraceView::ClearTrace()
 {
-	nes::cpu::debug_clear_cpu_trace();
+	nes::cpu::debug_clear_trace();
 
 	fFrozenEntries.clear();
 
@@ -572,9 +572,9 @@ CPUTraceView::DrawHeaderPanel()
 	SetFont(&normal);
 
 	BString s;
-	const uint32 liveCount = nes::cpu::debug_cpu_trace_count();
+	const uint32 liveCount = nes::cpu::debug_trace_count();
 	const uint32 displayCount = TraceDisplayCount();
-	const uint32 capacity = nes::cpu::debug_cpu_trace_capacity();
+	const uint32 capacity = nes::cpu::debug_trace_capacity();
 
 	SetHighColor(0, 0, 0);
 
@@ -1047,7 +1047,7 @@ CPUTraceView::TraceDisplayCount() const
 		return static_cast<uint32>(fFrozenEntries.size());
 	}
 
-	return nes::cpu::debug_cpu_trace_count();
+	return nes::cpu::debug_trace_count();
 }
 
 
@@ -1076,7 +1076,7 @@ CPUTraceView::TraceDisplayEntry (uint32 index, nes::cpu::cpu_trace_entry_t& entr
 		return true;
 	}
 
-	return nes::cpu::debug_cpu_trace_entry(index, entry);
+	return nes::cpu::debug_trace_entry(index, entry);
 }
 
 
@@ -1214,7 +1214,7 @@ CPUTraceView::TraceDisplayInstruction (uint32 index, BString &instruction) const
 
 	nes::cpu::cpu_trace_entry_t entry;
 
-	if (!nes::cpu::debug_cpu_trace_entry(index, entry)) {
+	if (!nes::cpu::debug_trace_entry(index, entry)) {
 		return false;
 	}
 
@@ -1334,13 +1334,13 @@ CPUTraceView::CaptureSnapshot()
 {
 	fFrozenEntries.clear();
 
-	const uint32 count = nes::cpu::debug_cpu_trace_count();
+	const uint32 count = nes::cpu::debug_trace_count();
 	fFrozenEntries.reserve(count);
 
 	for (uint32 i = 0; i < count; i++) {
 		nes::cpu::cpu_trace_entry_t entry;
 
-		if (!nes::cpu::debug_cpu_trace_entry(i, entry)) {
+		if (!nes::cpu::debug_trace_entry(i, entry)) {
 			continue;
 		}
 

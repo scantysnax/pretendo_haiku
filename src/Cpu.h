@@ -122,16 +122,16 @@ enum break_reason : uint8_t {
 
 uint8_t debug_s();
 
-cpu_state_t debug_cpu_state();
+cpu_state_t debug_state();
 
 bool debug_instruction_boundary();
 bool debug_instruction_was_executed(uint16_t address);
 void debug_clear_instruction_trace();
 
-uint32_t debug_cpu_trace_count();
-uint32_t debug_cpu_trace_capacity();
-bool debug_cpu_trace_entry(uint32_t index, cpu_trace_entry_t& entry);
-void debug_clear_cpu_trace();
+uint32_t debug_trace_count();
+uint32_t debug_trace_capacity();
+bool debug_trace_entry(uint32_t index, cpu_trace_entry_t& entry);
+void debug_clear_trace();
 
 void debug_add_execute_breakpoint(uint16_t address);
 void debug_remove_execute_breakpoint(uint16_t address);

@@ -6,12 +6,6 @@
 
 #include <cmath>
 
-#include "Bus.h"
-#include "Cart.h"
-#include "Cpu.h"
-#include "CPUDisasm.h"
-#include "DebugHelpers.h"
-#include "Ppu.h"
 #include "PretendoWindow.h"
 
 

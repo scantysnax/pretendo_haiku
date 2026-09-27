@@ -4576,9 +4576,11 @@ PretendoWindow::RestoreToolWindowsAfterFullScreen()
 void
 PretendoWindow::ConnectDebugViews()
 {
-	if (fNameTable1Window && fNameTable1Window->Lock()) {
-		fNameTable1Window->SetPatternTables(fPatternTable1Window, fPatternTable2Window);
-		fNameTable1Window->Unlock();
+	if (fNameTable1Window) {
+		if (fNameTable1Window->Lock()) {
+			fNameTable1Window->SetPatternTables(fPatternTable1Window, fPatternTable2Window);
+			fNameTable1Window->Unlock();
+		}
 	}
 
 	if (fNameTable2Window && fNameTable2Window->Lock()) {
@@ -4596,7 +4598,6 @@ PretendoWindow::ConnectDebugViews()
 		fNameTable4Window->Unlock();
 	}
 }
-
 
 // -----------------------------------------------------------------------------
 // PretendoWindow::MuteAudioForDebugging
@@ -5386,6 +5387,7 @@ PretendoWindow::SaveSettings()
 	}
 }
 
+#if 0
 static uint8 asciiToKeyCode[] = {
 	/* 0x00 */	0x0, 	// B_ASCII_NUL
 	/* 0x01 */	0x20,	// B_HOME	 
@@ -5524,4 +5526,4 @@ static uint8 asciiToKeyCode[] = {
 	/* 0x7f */	0xe	  // DEL (B_DELETE)
 
 };
-
+#endif

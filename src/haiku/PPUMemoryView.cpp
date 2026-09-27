@@ -50,15 +50,15 @@ PPUMemoryRegionLabel (uint16 address)
 	address &= 0x3fff;
 
 	if (address <= 0x1fff) {
-		return "CHR pattern";
+		return "CHR Pattern";
 	}
 
 	if (address <= 0x2fff) {
-		return "Name table";
+		return "Name Table";
 	}
 
 	if (address <= 0x3eff) {
-		return "Name table mirror";
+		return "Name Table Mirror";
 	}
 
 	if (address <= 0x3fff) {
@@ -92,8 +92,7 @@ PPUMemoryPrintableChar (uint8 value)
 
 
 PPUMemoryView::PPUMemoryView (BRect frame, PretendoWindow *parent)
-	: BView(frame, "ppu_memory_view", B_FOLLOW_ALL_SIDES,
-			B_WILL_DRAW | B_PULSE_NEEDED | B_FRAME_EVENTS)
+	: BView(frame, "ppu_memory_view", B_FOLLOW_ALL_SIDES, B_WILL_DRAW | B_PULSE_NEEDED | B_FRAME_EVENTS)
 {
 	fParent = parent;
 
@@ -368,7 +367,7 @@ PPUMemoryView::Pulse()
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-PPUMemoryView::KeyDown(const char *bytes, int32 numBytes)
+PPUMemoryView::KeyDown (const char *bytes, int32 numBytes)
 {
 	if (numBytes <= 0) {
 		return;
@@ -405,21 +404,23 @@ PPUMemoryView::KeyDown(const char *bytes, int32 numBytes)
 			SetBaseAddress(0x1000);
 			break;
 
+		case 'v':
+		case 'V':
+			SetBaseAddress(0x2000);
+			break;
+
+		case 'b':
+		case 'B':
+			SetBaseAddress(0x2400);
+			break;
+
 		case 'n':
 		case 'N':
-			SetBaseAddress(0x2000);
+			SetBaseAddress(0x2800);
 			break;
 
 		case 'm':
 		case 'M':
-			SetBaseAddress(0x2400);
-			break;
-
-		case ',':
-			SetBaseAddress(0x2800);
-			break;
-
-		case '.':
 			SetBaseAddress(0x2c00);
 			break;
 
@@ -493,7 +494,7 @@ PPUMemoryView::Draw (BRect updateRect)
 			UpdateScrollBar();
 		}
 		
-		BRect panel(4.0f, 88.0f, rightEdge, Bounds().bottom - 8.0f);
+		BRect panel(4.0f, 124.0f, rightEdge, Bounds().bottom - 8.0f);
 		::DrawDebugPanel(this, panel, "PPU Memory");
 		DrawNoROMMessage(panel);
 		return;
@@ -550,7 +551,8 @@ PPUMemoryView::LayoutScrollBar()
 	}
 
 	const float scrollBarWidth = B_V_SCROLL_BAR_WIDTH;
-	BRect frame(Bounds().right - scrollBarWidth, 88.0f, Bounds().right, Bounds().bottom - 8.0f);
+	BRect frame(Bounds().right - scrollBarWidth, 124.0f,
+				Bounds().right, Bounds().bottom - 8.0f);
 	
 	fScrollBar->MoveTo(frame.LeftTop());
 	fScrollBar->ResizeTo(frame.Width(), frame.Height());
@@ -664,7 +666,8 @@ PPUMemoryView::ScrollLines (int32 lines)
 // -----------------------------------------------------------------------------
 // PPUMemoryView::DrawHeaderPanel
 //
-// Draws the title/help panel for the PPU memory viewer.
+// Draws the title, current memory position, live/frozen state, navigation
+// shortcuts, and change-highlight legend for the PPU memory viewer.
 //
 // The visible memory-window start address is labeled explicitly as "First" so
 // it is not confused with the currently hovered or locked byte.  The address is
@@ -682,7 +685,7 @@ PPUMemoryView::DrawHeaderPanel()
 	const float rightEdge = (fScrollBar && !fScrollBar->IsHidden())
 						  ? fScrollBar->Frame().left - 4.0f : Bounds().right - 4.0f;
 
-	BRect panel(4.0f, 4.0f, rightEdge, 76.0f);
+	BRect panel(4.0f, 4.0f, rightEdge, 112.0f);
 	::DrawDebugPanel(this, panel, "PPU Memory");
 
 	BFont previousFont;
@@ -694,28 +697,42 @@ PPUMemoryView::DrawHeaderPanel()
 	BFont fixed(be_fixed_font);
 	fixed.SetSize(11.0f);
 
-	const float y = panel.top + 42.0f;
+	const float firstLineY = panel.top + 42.0f;
+	const float helpLine1Y = panel.top + 62.0f;
+	const float helpLine2Y = panel.top + 80.0f;
+	const float helpLine3Y = panel.top + 98.0f;
+
 	float x = panel.left + 8.0f;
 
 	SetFont(&normal);
 	SetHighColor(35, 35, 35);
 
-	DrawString("First: ", BPoint(x, y));
+	DrawString("First: ", BPoint(x, firstLineY));
 	x += normal.StringWidth("First: ");
 
 	BString address;
 	address.SetToFormat("$%04X", fBaseAddress);
 
 	SetFont(&fixed);
-	DrawString(address.String(), BPoint(x, y));
+	DrawString(address.String(), BPoint(x, firstLineY));
 	x += fixed.StringWidth("$0000") + 10.0f;
 
 	SetFont(&normal);
-	BString state;state.SetToFormat("%s   Space: %s", RegionName(fBaseAddress), fFreezeUpdates
-									? "resume live" : "freeze");
-	DrawString(state.String(), BPoint(x, y));
-	DrawString("1/2 Pattern   N/M/,/. NTs   P Palette   Up/Down row   PgUp/PgDn page",
-			   BPoint(panel.left + 8.0f, panel.top + 60.0f));
+
+	BString state;
+	state.SetToFormat("%s   Space: %s", RegionName(fBaseAddress), fFreezeUpdates ? "resume live" : "freeze");
+	DrawString(state.String(), BPoint(x, firstLineY));
+
+	SetHighColor(70, 70, 70);
+
+	DrawString("Space: freeze/resume   Up/Down: scroll row   PgUp/PgDn: scroll page",
+			   BPoint(panel.left + 8.0f, helpLine1Y));
+
+	DrawString("1: Pattern Table 0   2: Pattern Table 1   P: Palette RAM",
+			   BPoint(panel.left + 8.0f, helpLine2Y));
+
+	DrawString("V: Nametable 0   B: Nametable 1   N: Nametable 2   M: Nametable 3   Yellow: changed",
+			   BPoint(panel.left + 8.0f, helpLine3Y));
 
 	SetFont(&previousFont);
 }
@@ -724,13 +741,18 @@ PPUMemoryView::DrawHeaderPanel()
 // -----------------------------------------------------------------------------
 // PPUMemoryView::DrawMemoryPanel
 //
-// Draws the PPU memory hex grid.  Bytes are drawn as individual cells so hover
-// and locked-byte inspection can be highlighted like the CPU memory viewer.
+// Draws the PPU memory hex grid.  Bytes are drawn as individual cells so hover,
+// locked-byte inspection, and recently changed memory can be highlighted.
+//
+// Each memory row receives a subtle background tint based on its PPU memory
+// region. Pattern-table, nametable, nametable-mirror, and palette memory use
+// distinct colors while byte-level hover, lock, and change highlighting remain
+// visually dominant.
 //
 // The memory grid is capped at 16 rows, which shows exactly 256 bytes at a time.
 // The byte inspector uses a reserved bottom area so it never overlaps the grid
-// rows.  Both the hex byte cells and ASCII character cells participate in
-// hover/lock drawing.
+// rows.  A compact color legend is drawn beside the inspector to explain the
+// region and recently-changed highlighting.
 //
 // Parameters:
 //   None.
@@ -744,7 +766,7 @@ PPUMemoryView::DrawMemoryPanel()
 	const float rightEdge = (fScrollBar && !fScrollBar->IsHidden())
 						  ? fScrollBar->Frame().left - 4.0f : Bounds().right - 4.0f;
 
-	BRect panel(4.0f, 88.0f, rightEdge, Bounds().bottom - 8.0f);
+	BRect panel(4.0f, 124.0f, rightEdge, Bounds().bottom - 8.0f);
 	::DrawDebugPanel(this, panel, "PPU Memory");
 
 	if (!HasROMLoaded()) {
@@ -765,6 +787,7 @@ PPUMemoryView::DrawMemoryPanel()
 
 	font_height fh;
 	GetFontHeight(&fh);
+
 	const float lineH = ceilf(fh.ascent + fh.descent + fh.leading) + 1.0f;
 	const float charW = fixed.StringWidth("M");
 
@@ -772,6 +795,7 @@ PPUMemoryView::DrawMemoryPanel()
 	const float byteX = addrX + 72.0f;
 	const float byteStep = 24.0f;
 	const float asciiX = byteX + byteStep * 16.0f + 12.0f;
+
 	float y = panel.top + 42.0f;
 
 	SetHighColor(80, 80, 80);
@@ -789,7 +813,7 @@ PPUMemoryView::DrawMemoryPanel()
 	y += lineH + 8.0f;
 
 	SetHighColor(120, 120, 120);
-	StrokeLine(BPoint(panel.left + 8.0f, y - 8.0f), BPoint(panel.right - 8.0f, y - 8.0f));
+	StrokeLine(BPoint(panel.left + 8.0f, y - 8.0f),BPoint(panel.right - 8.0f, y - 8.0f));
 
 	y += 4.0f;
 
@@ -802,23 +826,26 @@ PPUMemoryView::DrawMemoryPanel()
 	uint16 address = (fBaseAddress & 0x3fff);
 
 	for (uint32 row = 0; row < rows; row++) {
+		SetRegionBackgroundColor(address);
+
+		BRect rowRect(panel.left + 6.0f, y - 11.0f, panel.right - 6.0f, y + 3.0f);
+		FillRect(rowRect);
+
 		s.SetToFormat("$%04X", address);
-		SetHighColor(75, 75, 75);
+
+		SetRegionAddressColor(address);
 		DrawString(s.String(), BPoint(addrX, y));
 
 		for (uint32 col = 0; col < 16; col++) {
 			const uint16 cellAddress = static_cast<uint16>((address + col) & 0x3fff);
 			const uint8 value = DisplayPPUMemory(cellAddress);
 			const char ascii = PPUMemoryPrintableChar(value);
-
 			const bool hovered = fHasHoveredAddress && (fHoveredAddress == cellAddress);
 			const bool locked = fHasLockedAddress && (fLockedAddress == cellAddress);
+			const bool changed = fChangeTicks[cellAddress] > 0;
 
-			DrawByteCell(byteX + byteStep * col, y, cellAddress, value,
-						 hovered, locked);
-
-			DrawASCIICharCell(asciiX + charW * col, y, cellAddress, ascii,
-							  hovered, locked);
+			DrawByteCell(byteX + byteStep * col, y, cellAddress, value, hovered, locked, changed);
+			DrawASCIICharCell(asciiX + charW * col, y, cellAddress, ascii,hovered, locked, changed);
 		}
 
 		address = static_cast<uint16>((address + 16) & 0x3fff);
@@ -828,9 +855,77 @@ PPUMemoryView::DrawMemoryPanel()
 	SetFont(&prevFont);
 
 	SetHighColor(170, 170, 170);
-	StrokeLine(BPoint(panel.left + 8.0f, inspectorTop - 4.0f), 
+	StrokeLine(BPoint(panel.left + 8.0f, inspectorTop - 4.0f),
 			   BPoint(panel.right - 8.0f, inspectorTop - 4.0f));
+
+	const float legendWidth = 150.0f;
+	const float legendLeft = panel.right - legendWidth - 8.0f;
+
+	SetHighColor(185, 185, 185);
+	StrokeLine(BPoint(legendLeft - 10.0f, inspectorTop + 6.0f),
+			   BPoint(legendLeft - 10.0f, panel.bottom - 8.0f));
+
 	DrawSelectedByteInfo(panel.left + 8.0f, inspectorTop + 14.0f);
+	DrawColorLegend(BRect(legendLeft, inspectorTop + 4.0f, panel.right - 8.0f, panel.bottom - 6.0f));
+}
+
+
+// -----------------------------------------------------------------------------
+// PPUMemoryView::DrawColorLegend
+//
+// Draws the color key used by the PPU memory grid.
+//
+// Region swatches use the darker address-label colors so the small legend
+// squares remain easy to distinguish.  The yellow swatch identifies bytes that
+// have changed recently.
+//
+// Parameters:
+//   bounds - Area reserved for the color legend.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PPUMemoryView::DrawColorLegend (BRect bounds)
+{
+	BFont prevFont;
+	GetFont(&prevFont);
+
+	BFont font = prevFont;
+	font.SetSize(10.0f);
+	SetFont(&font);
+
+	const float swatchSize = 9.0f;
+	const float textGap = 6.0f;
+	const float rowHeight = 14.0f;
+
+	float x = bounds.left;
+	float y = bounds.top + 12.0f;
+
+	SetHighColor(70, 70, 70);
+	DrawString("Color Key", BPoint(x, y));
+
+	y += 15.0f;
+
+	auto drawLegendItem = [&](rgb_color color, const char *label) {
+		BRect swatch(x, y - 8.0f, x + swatchSize, y - 8.0f + swatchSize);
+
+		SetHighColor(color);
+		FillRect(swatch);
+
+		SetHighColor(90, 90, 90);
+		StrokeRect(swatch);
+
+		SetHighColor(60, 60, 60);
+		DrawString(label, BPoint(swatch.right + textGap, y));
+		y += rowHeight;
+	};
+
+	drawLegendItem(rgb_color { 105, 155, 220, 255 }, "Pattern Tables");
+	drawLegendItem(rgb_color { 115, 190, 125, 255 }, "Name Tables");
+	drawLegendItem(rgb_color { 150, 155, 175, 255 }, "Mirrors");
+	drawLegendItem(rgb_color { 195, 125, 205, 255 }, "Palette RAM");
+	drawLegendItem(rgb_color { 255, 238, 170, 255 }, "Recently Changed");
 }
 
 
@@ -985,19 +1080,19 @@ PPUMemoryView::RegionName (uint16 address) const
 	}
 	
 	if (address < 0x2400) {
-		return "Nametable 0";
+		return "Name Table 0";
 	}
 
 	if (address < 0x2800) {
-		return "Nametable 1";
+		return "Name Table 1";
 	}
 
 	if (address < 0x2c00) {
-		return "Nametable 2";
+		return "Name Table 2";
 	}
 
 	if (address < 0x3000) {
-		return "Nametable 3";
+		return "Name Table 3";
 	}
 
 	if (address < 0x3f00) {
@@ -1005,6 +1100,80 @@ PPUMemoryView::RegionName (uint16 address) const
 	}
 
 	return "Palette RAM";
+}
+
+
+/// -----------------------------------------------------------------------------
+// PPUMemoryView::SetRegionBackgroundColor
+//
+// Selects a soft background color for a PPU memory row based on the memory
+// region containing the supplied address.
+//
+// Pattern-table memory uses a light blue tint, nametable memory uses light
+// green, nametable mirrors use a muted blue-gray, and palette RAM uses light
+// purple.  The colors are intentionally restrained so hover, lock, and
+// recently-changed highlights remain visually dominant.
+//
+// Parameters:
+//   address - PPU memory address whose region determines the background color.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PPUMemoryView::SetRegionBackgroundColor (uint16 address)
+{
+	address &= 0x3fff;
+
+	if (address < 0x2000) {
+		// Pattern tables
+		SetHighColor(205, 225, 250);
+	} else if (address < 0x3000) {
+		// Nametables
+		SetHighColor(210, 240, 218);
+	} else if (address < 0x3f00) {
+		// Nametable mirrors
+		SetHighColor(218, 228, 240);
+	} else {
+		// Palette RAM
+		SetHighColor(238, 215, 245);
+	}
+}
+
+
+// -----------------------------------------------------------------------------
+// PPUMemoryView::SetRegionAddressColor
+//
+// Selects the foreground color used for a PPU memory row address.
+//
+// The address color is a darker companion to the row's background tint so each
+// PPU memory region is easier to identify without coloring the byte values
+// themselves.
+//
+// Parameters:
+//   address - PPU memory address whose region determines the address color.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PPUMemoryView::SetRegionAddressColor (uint16 address)
+{
+	address &= 0x3fff;
+
+	if (address < 0x2000) {
+		// Pattern tables
+		SetHighColor(55, 95, 145);
+	} else if (address < 0x3000) {
+		// Nametables
+		SetHighColor(55, 115, 70);
+	} else if (address < 0x3f00) {
+		// Nametable mirrors
+		SetHighColor(75, 95, 120);
+	} else {
+		// Palette RAM
+		SetHighColor(125, 70, 135);
+	}
 }
 
 
@@ -1061,7 +1230,7 @@ PPUMemoryView::AddressForPoint(BPoint where, uint16& address) const
 						  ? fScrollBar->Frame().left - 4.0f
 						  : Bounds().right - 4.0f;
 
-	BRect panel(4.0f, 88.0f, rightEdge, Bounds().bottom - 8.0f);
+	BRect panel(4.0f, 124.0f, rightEdge, Bounds().bottom - 8.0f);
 	
 	if (!panel.Contains(where)) {
 		return false;
@@ -1116,6 +1285,7 @@ PPUMemoryView::AddressForPoint(BPoint where, uint16& address) const
 
 				if (where.x >= cellLeft && where.x <= cellRight) {
 					address = static_cast<uint16>((fBaseAddress + row * 16 + col) & 0x3fff);
+
 					return true;
 				}
 			}
@@ -1127,6 +1297,7 @@ PPUMemoryView::AddressForPoint(BPoint where, uint16& address) const
 
 				if ((where.x >= cellLeft) && (where.x <= cellRight)) {
 					address = static_cast<uint16>((fBaseAddress + row * 16 + col) & 0x3fff);
+
 					return true;
 				}
 			}
@@ -1137,7 +1308,6 @@ PPUMemoryView::AddressForPoint(BPoint where, uint16& address) const
 
 	return false;
 }
-
 
 // -----------------------------------------------------------------------------
 // PPUMemoryView::HoverAddressForPoint
@@ -1183,6 +1353,9 @@ PPUMemoryView::HoverAddressForPoint (BPoint where)
 // Captures the complete 16 KB PPU address space represented by the PPU Memory
 // debugger.
 //
+// When a previous snapshot exists, changed bytes receive a short-lived activity
+// marker so the memory grid can highlight recently modified locations.
+//
 // A full-memory snapshot allows the viewer to remain coherent while frozen even
 // when the user scrolls to a different region after freezing.
 //
@@ -1200,8 +1373,18 @@ PPUMemoryView::CapturePPUMemorySnapshot()
 		return;
 	}
 
+	const bool hadSnapshot = fHavePPUMemorySnapshot;
+
 	for (uint32 address = 0; address < 0x4000; address++) {
-		fSnapshotPPUMemory[address] = nes::ppu::debug_read_ppu_memory(static_cast<uint16>(address));
+		const uint8 value = nes::ppu::debug_read_ppu_memory(static_cast<uint16>(address));
+
+		if (hadSnapshot && value != fSnapshotPPUMemory[address]) {
+			fChangeTicks[address] = 12;
+		} else if (fChangeTicks[address] > 0) {
+			fChangeTicks[address]--;
+		}
+
+		fSnapshotPPUMemory[address] = value;
 	}
 
 	fHavePPUMemorySnapshot = true;
@@ -1261,6 +1444,7 @@ PPUMemoryView::Clear()
 {
 	fHavePPUMemorySnapshot = false;
 	memset(fSnapshotPPUMemory, 0, sizeof(fSnapshotPPUMemory));
+	memset(fChangeTicks, 0, sizeof(fChangeTicks));
 
 	fHasHoveredAddress = false;
 	fHoveredAddress = 0x0000;
@@ -1280,27 +1464,35 @@ PPUMemoryView::Clear()
 //
 // Draws one hexadecimal byte cell in the PPU memory grid.
 //
-// Hovered bytes receive a clearly visible light-gray fill and medium-gray
-// outline. Locked bytes use a brighter fill and black outline and take visual
-// priority over hover.
+// Recently changed bytes receive a temporary pale-yellow background. Hovered
+// bytes use the normal gray hover treatment, while locked bytes use the stronger
+// locked appearance. Hover and lock state take visual priority over change
+// highlighting.
 //
 // Parameters:
 //   x       - Text x position.
 //   y       - Text baseline.
-//   address - PPU memory address for the cell.
+//   address - PPU memory address represented by the cell.
 //   value   - Byte value to draw.
-//   hovered - Whether this byte is currently hovered.
-//   locked  - Whether this byte is currently locked.
+//   hovered - true if this byte is currently hovered.
+//   locked  - true if this byte is currently locked.
+//   changed - true if this byte changed recently.
 //
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-PPUMemoryView::DrawByteCell (float x, float y, uint16 address, uint8 value, bool hovered, bool locked)
+PPUMemoryView::DrawByteCell (float x, float y, uint16 address, uint8 value, bool hovered,
+							 bool locked, bool changed)
 {
 	(void)address;
 	
 	BRect cell(x - 2.0f, y - 11.0f, x + 18.0f, y + 3.0f);
+
+	if (changed && !hovered && !locked) {
+		SetHighColor(255, 238, 170);
+		FillRect(cell);
+	}
 
 	if (hovered && !locked) {
 		SetHighColor(240, 240, 240);
@@ -1334,23 +1526,26 @@ PPUMemoryView::DrawByteCell (float x, float y, uint16 address, uint8 value, bool
 //
 // Draws one ASCII character cell in the PPU memory grid.
 //
-// Hovered characters receive the same visible hover treatment as their
-// corresponding hexadecimal byte. Locked characters use the stronger locked
-// appearance.
+// Recently changed bytes receive a temporary pale-yellow background. Hovered
+// characters use the normal gray hover treatment, while locked characters use
+// the stronger locked appearance. Hover and lock state take visual priority over
+// change highlighting.
 //
 // Parameters:
 //   x       - Text x position.
 //   y       - Text baseline.
 //   address - PPU memory address represented by the character.
-//   value   - Printable ASCII character.
-//   hovered - Whether this byte is currently hovered.
-//   locked  - Whether this byte is currently locked.
+//   value   - Printable ASCII character to draw.
+//   hovered - true if this byte is currently hovered.
+//   locked  - true if this byte is currently locked.
+//   changed - true if this byte changed recently.
 //
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-PPUMemoryView::DrawASCIICharCell (float x, float y, uint16 address, char value, bool hovered, bool locked)
+PPUMemoryView::DrawASCIICharCell (float x, float y, uint16 address, char value,
+								  bool hovered, bool locked, bool changed)
 {
 	(void)address;
 
@@ -1359,6 +1554,11 @@ PPUMemoryView::DrawASCIICharCell (float x, float y, uint16 address, char value, 
 
 	const float charW = font.StringWidth("M");
 	BRect cell(x - 1.0f, y - 11.0f, x + charW, y + 3.0f);
+
+	if (changed && !hovered && !locked) {
+		SetHighColor(255, 238, 170);
+		FillRect(cell);
+	}
 
 	if (hovered && !locked) {
 		SetHighColor(240, 240, 240);
@@ -1392,8 +1592,8 @@ PPUMemoryView::DrawASCIICharCell (float x, float y, uint16 address, char value, 
 // Draws details for the active PPU memory byte.  A locked byte takes priority
 // over a hovered byte.  If no byte is active, a short hint is shown instead.
 //
-// Hexadecimal values are drawn with a fixed-width font so addresses, byte
-// values, offsets, palette indexes, and CHR details align cleanly.
+// Numeric hexadecimal values are drawn with a fixed-width font, while descriptive
+// text remains in the normal UI font for easier reading.
 //
 // Parameters:
 //   x - Left text position.
@@ -1436,7 +1636,7 @@ PPUMemoryView::DrawSelectedByteInfo (float x, float y)
 	uint16 address = 0x0000;
 
 	if (!ActiveInspectAddress(address)) {
-		drawNormal("Hover a byte, or click to lock.", x, y, rgb_color {100, 100, 100, 255 });
+		drawNormal("Hover a byte, or click to lock.", x, y, rgb_color { 100, 100, 100, 255 });
 
 		SetFont(&prevFont);
 		return;
@@ -1448,7 +1648,7 @@ PPUMemoryView::DrawSelectedByteInfo (float x, float y)
 	if (fHasLockedAddress && (fLockedAddress == address)) {
 		drawNormal("State: locked", x, y, rgb_color { 0, 0, 0, 255 });
 	} else {
-		drawNormal("State: hover", x, y, rgb_color {90, 90, 90, 255 });
+		drawNormal("State: hover", x, y, rgb_color { 90, 90, 90, 255 });
 	}
 
 	y += 14.0f;
@@ -1457,44 +1657,43 @@ PPUMemoryView::DrawSelectedByteInfo (float x, float y)
 	const float valueX = x + 72.0f;
 
 	drawNormal("Address:", labelX, y, rgb_color { 0, 0, 0, 255 });
-	s.SetToFormat("$%04X", address);
-	drawFixed(s.String(), valueX, y, rgb_color {0, 0, 0, 255 });
 
+	s.SetToFormat("$%04X", address);
+	drawFixed(s.String(), valueX, y, rgb_color { 0, 0, 0, 255 });
 	y += 14.0f;
 
-	drawNormal("Value:", labelX, y, rgb_color {0, 0, 0, 255 });
+	drawNormal("Value:", labelX, y, rgb_color { 0, 0, 0, 255 });
+
 	s.SetToFormat("$%02X", value);
-	drawFixed(s.String(), valueX, y, rgb_color {0, 0, 0, 255 });
+	drawFixed(s.String(), valueX, y, rgb_color { 0, 0, 0, 255 });
 
 	s.SetToFormat("  %u", value);
 	drawFixed(s.String(), valueX + fixed.StringWidth("$00"), y, rgb_color { 80, 80, 80, 255 });
-
 	y += 14.0f;
 
 	drawNormal("Region:", labelX, y, rgb_color { 0, 0, 0, 255 });
-	drawNormal(PPUMemoryRegionLabel(address), valueX, y, rgb_color {0, 0, 0, 255 });
-
+	drawNormal(PPUMemoryRegionLabel(address), valueX, y, rgb_color { 0, 0, 0, 255 });
 	y += 14.0f;
 
 	if (address >= 0x2000 && address <= 0x2fff) {
 		const uint16 nameTable = static_cast<uint16>((address - 0x2000) / 0x400);
 		const uint16 offset = static_cast<uint16>((address - 0x2000) & 0x3ff);
 
-		drawNormal("NT:", labelX, y, rgb_color{0, 0, 0, 255});
+		drawNormal("Name Table:", labelX, y, rgb_color { 0, 0, 0, 255 });
 
 		s.SetToFormat("%u", nameTable);
 		drawFixed(s.String(), valueX, y, rgb_color { 0, 0, 0, 255 });
 		drawNormal(" offset ", valueX + fixed.StringWidth("0") + 10.0f, y, rgb_color { 0, 0, 0, 255 });
 
 		s.SetToFormat("$%03X", offset);
-		drawFixed(s.String(), valueX + fixed.StringWidth("0") + 58.0f, y, rgb_color {0, 0, 0, 255 });
+		drawFixed(s.String(), valueX + fixed.StringWidth("0") + 58.0f, y, rgb_color { 0, 0, 0, 255 });
 	} else if (address >= 0x3f00 && address <= 0x3fff) {
 		const uint16 paletteIndex = static_cast<uint16>((address - 0x3f00) & 0x1f);
 
-		drawNormal("Palette:", labelX, y, rgb_color {0, 0, 0, 255 });
+		drawNormal("Palette:", labelX, y, rgb_color { 0, 0, 0, 255 });
 
 		s.SetToFormat("index $%02X", paletteIndex);
-		drawFixed(s.String(), valueX, y, rgb_color {0, 0, 0, 255 });
+		drawFixed(s.String(), valueX, y, rgb_color { 0, 0, 0, 255 });
 	} else if (address <= 0x1fff) {
 		const uint16 table = static_cast<uint16>(address / 0x1000);
 		const uint16 tile = static_cast<uint16>((address & 0xfff) / 16);
@@ -1502,13 +1701,31 @@ PPUMemoryView::DrawSelectedByteInfo (float x, float y)
 
 		drawNormal("CHR:", labelX, y, rgb_color { 0, 0, 0, 255 });
 
-		s.SetToFormat("PT %u  tile $%02X  byte %u", table, tile, planeByte);
-		drawFixed(s.String(), valueX, y, rgb_color {0, 0, 0, 255 });
+		float drawX = valueX;
+		drawNormal("Pattern Table ", drawX, y, rgb_color { 0, 0, 0, 255 });
+
+		drawX += normal.StringWidth("Pattern Table ");
+		s.SetToFormat("%u", table);
+		drawFixed(s.String(), drawX, y, rgb_color { 0, 0, 0, 255 });
+
+		drawX += fixed.StringWidth(s.String());
+		drawNormal("  tile ", drawX, y, rgb_color { 0, 0, 0, 255 });
+
+		drawX += normal.StringWidth("  tile ");
+		s.SetToFormat("$%02X", tile);
+		drawFixed(s.String(), drawX, y, rgb_color { 0, 0, 0, 255 });
+
+		drawX += fixed.StringWidth(s.String());
+		drawNormal("  byte ", drawX, y, rgb_color { 0, 0, 0, 255 });
+
+		drawX += normal.StringWidth("  byte ");
+		s.SetToFormat("%u", planeByte);
+		drawFixed(s.String(), drawX, y, rgb_color { 0, 0, 0, 255 });
 	} else {
-		drawNormal("Mirror:", labelX, y, rgb_color {0, 0, 0, 255 });
+		drawNormal("Mirror:", labelX, y, rgb_color { 0, 0, 0, 255 });
 
 		s.SetToFormat("$%04X", static_cast<uint16>(address & 0x2fff));
-		drawFixed(s.String(), valueX, y, rgb_color {0, 0, 0, 255 });
+		drawFixed(s.String(), valueX, y, rgb_color { 0, 0, 0, 255 });
 	}
 
 	SetFont(&prevFont);

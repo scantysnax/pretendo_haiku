@@ -1246,7 +1246,7 @@ cycle_count()
 
 
 // -----------------------------------------------------------------------------
-// debug_cpu_state
+// debug_state
 //
 // Captures the current CPU register, instruction, cycle, and execution-count
 // state for debugger inspection.
@@ -1258,7 +1258,7 @@ cycle_count()
 //   Snapshot of the current CPU state.
 // -----------------------------------------------------------------------------
 cpu_state_t
-debug_cpu_state() {
+debug_state() {
 	cpu_state_t state{};
 
 	state.pc = PC.raw;
@@ -1612,7 +1612,7 @@ debug_clear_breakpoint_hit_counts()
 }
 
 // -----------------------------------------------------------------------------
-// nes::cpu::debug_cpu_trace_count
+// nes::cpu::debug_trace_count
 //
 // Returns the number of valid entries currently stored in the CPU execution
 // trace buffer.
@@ -1624,14 +1624,14 @@ debug_clear_breakpoint_hit_counts()
 //   Number of valid trace entries.
 // -----------------------------------------------------------------------------
 uint32_t
-debug_cpu_trace_count()
+debug_trace_count()
 {
 	return sCPUTraceCount;
 }
 
 
 // -----------------------------------------------------------------------------
-// nes::cpu::debug_cpu_trace_capacity
+// nes::cpu::debug_trace_capacity
 //
 // Returns the maximum number of entries the CPU execution trace buffer can hold.
 //
@@ -1642,7 +1642,7 @@ debug_cpu_trace_count()
 //   Trace buffer capacity.
 // -----------------------------------------------------------------------------
 uint32_t
-debug_cpu_trace_capacity()
+debug_trace_capacity()
 {
 	return CPU_TRACE_CAPACITY;
 }
@@ -1663,7 +1663,7 @@ debug_cpu_trace_capacity()
 //   true if the entry was read.
 // -----------------------------------------------------------------------------
 bool
-debug_cpu_trace_entry (uint32_t index, cpu_trace_entry_t &entry)
+debug_trace_entry (uint32_t index, cpu_trace_entry_t &entry)
 {
 	if (index >= sCPUTraceCount) {
 		return false;
@@ -1694,7 +1694,7 @@ debug_cpu_trace_entry (uint32_t index, cpu_trace_entry_t &entry)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-debug_clear_cpu_trace()
+debug_clear_trace()
 {
 	sCPUTraceNext = 0;
 	sCPUTraceCount = 0;

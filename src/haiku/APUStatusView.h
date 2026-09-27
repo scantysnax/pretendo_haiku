@@ -9,8 +9,6 @@
 #include <View.h>
 #include <Window.h>
 
-#include "Apu.h"
-#include "Cart.h"
 #include "PretendoWindow.h"
 
 

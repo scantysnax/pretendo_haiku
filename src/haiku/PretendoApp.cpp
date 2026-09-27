@@ -12,7 +12,6 @@ PretendoApp::PretendoApp()
 
 PretendoApp::~PretendoApp()
 {
-
 }
 
 

@@ -1165,7 +1165,8 @@ NameTableView::UpdateCHRExplorer()
 		fCHRBytes[i] = DisplayVRAM((fCHRTileAddress + i) & 0x3fff);
 	}
 
-	int32 whichPT = (patternBase != 0) ? 1 : 0;
+	int32 whichPT = (patternBase != 0) ? 1 : 0;	
+	
 
 	if (whichPT == 0) {
 		SetPatternWindowHighlight(fPatternTable0, 0, fHoverTileIndex, fCHRBytes);
@@ -1568,6 +1569,34 @@ NameTableView::DrawMatchingTileOverlay()
 	PopState();
 }
 
+
+// -----------------------------------------------------------------------------
+// NameTableView::SetPatternTables
+//
+// Connects this NameTable view to the two Pattern Table debugger windows.
+//
+// When Pattern Table windows are opened or recreated, the current active
+// NameTable selection is immediately replayed so the new Pattern Table view
+// receives the same external highlight and CHR data without requiring mouse
+// movement or another debugger update.
+//
+// Parameters:
+//   pt0 - Pattern Table window for CHR $0000-$0FFF.
+//   pt1 - Pattern Table window for CHR $1000-$1FFF.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+NameTableView::SetPatternTables (PatternTableWindow *pt0, PatternTableWindow *pt1)
+{
+	fPatternTable0 = pt0;
+	fPatternTable1 = pt1;
+
+	if (nes::cart.mapper()) {
+		UpdateCHRExplorer();
+	}
+}
 
 // -------------------------------------------------------------
 // NameTableView::NotifyCHRExplorer

@@ -179,7 +179,6 @@ NameTableWindow::SetPatternTables(PatternTableWindow *pt1, PatternTableWindow *p
 	}
 }
 
-
 // -----------------------------------------------------------------------------
 // NameTableWindow::LoadSettings
 //

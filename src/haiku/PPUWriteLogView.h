@@ -7,10 +7,7 @@
 #include <cmath>
 #include <vector>
 
-#include "Cart.h"
-#include "DebugHelpers.h"
 #include "PretendoWindow.h"
-#include "Ppu.h"
 
 
 class PPUWriteLogScrollBar;

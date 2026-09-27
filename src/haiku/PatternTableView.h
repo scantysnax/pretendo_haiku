@@ -6,9 +6,6 @@
 
 #include <algorithm>
 
-#include "Cart.h"
-#include "CHRExplorerView.h"
-#include "Nes.h"
 #include "Ppu.h"
 #include "PretendoWindow.h"
 

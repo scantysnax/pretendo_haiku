@@ -1,12 +1,6 @@
 #ifndef _CPU_TRACE_VIEW_H_
 #define _CPU_TRACE_VIEW_H_
 
-#include "CPUTraceView.h"
-
-#include "Cart.h"
-#include "Cpu.h"
-#include "CPUDisasm.h"
-#include "DebugHelpers.h"
 #include "PretendoWindow.h"
 
 #include <cmath>

@@ -6,7 +6,6 @@
 #include <String.h>
 #include <View.h>
 
-#include "Apu.h"
 #include "PretendoWindow.h"
 
 

@@ -209,7 +209,7 @@ CPUStatusView::DrawRegisterPanel()
 	float rightY = panel.top + 36.0f;
 
 	BString s;
-	nes::cpu::cpu_state_t state = nes::cpu::debug_cpu_state();
+	nes::cpu::cpu_state_t state = nes::cpu::debug_state();
 
 	auto drawLeftLV = [&](const char *label, const char *value) {
 		SetHighColor(80, 80, 80);
@@ -299,7 +299,7 @@ CPUStatusView::DrawFlagsPanel()
 	BRect panel(4.0f, 180.0f, Bounds().right - 4.0f, 324.0f);
 	::DrawDebugPanel(this, panel, "Processor Flags");
 
-	nes::cpu::cpu_state_t state = nes::cpu::debug_cpu_state();
+	nes::cpu::cpu_state_t state = nes::cpu::debug_state();
 	const uint8 p = state.p;
 
 	const bool n = (p & 0x80) != 0;
@@ -459,7 +459,7 @@ CPUStatusView::DrawTimingPanel()
 
 	BString s;
 
-	nes::cpu::cpu_state_t state = nes::cpu::debug_cpu_state();
+	nes::cpu::cpu_state_t state = nes::cpu::debug_state();
 
 	/*
 	 * Draw a label with its value in the fixed-width font.

@@ -47,23 +47,7 @@ class NameTableView : public BView
 	void DrawMatchingTileOverlay();
 	
 	public:
-	// -------------------------------------------------------------
-	// SetPatternTables
-	//
-	// Connects this NameTable view to the two PatternTable windows so
-	// active tiles can be highlighted there.
-	//
-	// Parameters:
-	//   pt0 - Pattern table window for $0000.
-	//   pt1 - Pattern table window for $1000.
-	//
-	// Returns:
-	//   None.
-	// -------------------------------------------------------------
-	void SetPatternTables (PatternTableWindow *pt0, PatternTableWindow *pt1) {
-		fPatternTable0 = pt0;
-		fPatternTable1 = pt1;
-	}
+	void SetPatternTables (PatternTableWindow *pt0, PatternTableWindow *pt1);
 	
 	private: 
 	// screen size, probably move to an enum at some point.

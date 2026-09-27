@@ -6,9 +6,6 @@
 
 #include <cmath>
 
-#include "Bus.h"
-#include "Cart.h"
-#include "DebugHelpers.h"
 #include "PretendoWindow.h"
 
 

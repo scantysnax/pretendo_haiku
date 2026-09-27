@@ -552,7 +552,7 @@ BreakPointView::KeyDown (const char *bytes, int32 numBytes)
 
 				targetAddress = static_cast<uint16>(lo | (static_cast<uint16>(hi) << 8));
 			} else {
-				const nes::cpu::cpu_state_t state = nes::cpu::debug_cpu_state();
+				const nes::cpu::cpu_state_t state = nes::cpu::debug_state();
 
 				targetAddress = state.pc;
 			}

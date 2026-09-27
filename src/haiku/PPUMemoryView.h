@@ -6,11 +6,7 @@
 
 #include <cmath>
 
-#include "Cart.h"
-#include "DebugHelpers.h"
 #include "PretendoWindow.h"
-
-#include "Ppu.h"
 
 
 // -----------------------------------------------------------------------------
@@ -42,6 +38,7 @@ class PPUMemoryView : public BView
 	private:
 	void DrawHeaderPanel();
 	void DrawMemoryPanel();
+	void DrawColorLegend (BRect bounds);
 	
 	private:
 	bool HasROMLoaded() const;
@@ -59,8 +56,8 @@ class PPUMemoryView : public BView
 	friend class PPUMemoryScrollBar;
 	
 	private:
-	void DrawByteCell (float x, float y, uint16 address, uint8 value, bool hovered, bool locked);
-	void DrawASCIICharCell (float x, float y, uint16 address, char value, bool hovered, bool locked);
+	void DrawByteCell (float x, float y, uint16 address, uint8 value, bool hovered, bool locked, bool changed);
+	void DrawASCIICharCell (float x, float y, uint16 address, char value, bool hovered, bool locked, bool changed);
 	void DrawSelectedByteInfo (float x, float y);
 
 	private:
@@ -68,6 +65,8 @@ class PPUMemoryView : public BView
 	bool HoverAddressForPoint (BPoint where);
 	bool ActiveInspectAddress (uint16 &address) const;
 	const char *RegionName (uint16 address) const;
+	void SetRegionBackgroundColor (uint16 address);
+	void SetRegionAddressColor (uint16 address);
 	
 	private:
 	void CapturePPUMemorySnapshot();
@@ -94,6 +93,7 @@ class PPUMemoryView : public BView
 	private:
 	bool fHavePPUMemorySnapshot = false;
 	uint8 fSnapshotPPUMemory[0x4000] = {};
+	uint8 fChangeTicks[0x4000] = {};
 
 };
 

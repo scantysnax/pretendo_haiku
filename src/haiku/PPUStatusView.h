@@ -5,9 +5,6 @@
 
 #include <cmath>
 
-#include "Cart.h"
-#include "DebugHelpers.h"
-#include "Ppu.h"
 #include "PretendoWindow.h"
 
 

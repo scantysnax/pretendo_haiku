@@ -9,11 +9,6 @@
 #include <cmath>
 #include <cstring>
 
-#include "Bus.h"
-#include "Cart.h"
-#include "Cpu.h"
-#include "CPUDisasm.h"
-#include "DebugHelpers.h"
 #include "PretendoWindow.h"
 
 
@@ -50,9 +45,11 @@ class CPUMemoryView : public BView
 	void ScrollLines (int32 lines);
 	bool HasROMLoaded() const;
 	uint16 ReadVector (uint16 address) const;
-	const char* RegionLabel (uint16 address) const;
-	const char* VectorLabel (uint16 address) const;
+	const char *RegionLabel (uint16 address) const;
+	void SetRegionAddressColor (uint16 address);
+	const char *VectorLabel (uint16 address) const;
 	void SetRegionBackgroundColor (uint16 address);
+	void DrawColorLegend (BRect bounds);
 	
 	private:
 	bool CurrentInstructionTarget (uint16 &address) const;

@@ -8,8 +8,6 @@
 
 #include <algorithm>
 
-#include "Cart.h"
-#include "Mapper.h"
 #include "Mapper000.h"
 #include "Mapper001.h"
 #include "Mapper002.h"

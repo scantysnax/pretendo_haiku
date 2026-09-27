@@ -597,7 +597,7 @@ PatternTableView::NotifyCHRExplorer()
 
 	if (!Show8x16()) {
 		fCHRExplorer->SetTile8x8(fWhichPatternTable, index, fTileLocked, fCHRTileAddress, fCHRBytes,
-									0, -1, 0, 0, 0, 0);
+								 0, -1, 0, 0, 0, 0);
 
 		if (fMainWindow) {
 			fMainWindow->HighlightPaletteDebugger(false, fCHRExplorer->SelectedPalette(), -1);
@@ -620,7 +620,7 @@ PatternTableView::NotifyCHRExplorer()
 	}
 
 	fCHRExplorer->SetTile8x16(fWhichPatternTable, topIndex, fTileLocked, topAddr, topBytes,
-								bottomAddr, bottomBytes, 0);
+							  bottomAddr, bottomBytes, 0);
 
 	if (fMainWindow) {
 		fMainWindow->HighlightPaletteDebugger(false, fCHRExplorer->SelectedPalette(), -1);
@@ -732,9 +732,16 @@ PatternTableView::CellRectForTileIndex (int32 index) const
 // Draws hover/locked selection overlays and the optional external
 // highlight supplied by another debugger view.
 //
-// External highlights may represent either a single 8x8 CHR tile
-// or a complete 8x16 sprite pair. The highlight geometry follows
-// the Pattern Table's current display mode.
+// Local Pattern Table hover/lock selections follow the current Pattern Table
+// display mode. In 8x16 mode, local selections represent complete even/odd
+// sprite pairs.
+//
+// External selections may represent either a complete 8x16 sprite pair or one
+// specific 8x8 tile supplied by another debugger such as NameTableView.
+//
+// When a single external 8x8 tile is displayed while the Pattern Table is in
+// 8x16 mode, the complete containing even/odd pair is lightly highlighted while
+// the exact externally selected 8x8 tile receives a stronger inner outline.
 //
 // Parameters:
 //   None.
@@ -751,9 +758,14 @@ PatternTableView::DrawOverlays()
 	static const rgb_color kLockStroke  = { 255, 0, 255, 255 };
 	static const rgb_color kLockFill    = { 255, 0, 255, 32 };
 
-	// Draw active selection first: locked selection wins over hover.
+	/*
+	 * Draw the active local Pattern Table selection first.
+	 *
+	 * Locked selection takes priority over hover selection.
+	 */
 	if (fTileLocked && fLockedTileIndex >= 0) {
-		BRect r = CellRectForTileIndex(fLockedTileIndex & 0xff);
+		BRect r =
+			CellRectForTileIndex(fLockedTileIndex & 0xff);
 
 		PushState();
 		SetDrawingMode(B_OP_ALPHA);
@@ -767,7 +779,8 @@ PatternTableView::DrawOverlays()
 
 		PopState();
 	} else if (fHoverTileIndex >= 0) {
-		BRect r = CellRectForTileIndex(fHoverTileIndex & 0xff);
+		BRect r =
+			CellRectForTileIndex(fHoverTileIndex & 0xff);
 
 		PushState();
 		SetDrawingMode(B_OP_ALPHA);
@@ -782,7 +795,9 @@ PatternTableView::DrawOverlays()
 		PopState();
 	}
 
-	// Draw externally supplied Pattern Table highlight.
+	/*
+	 * Draw an externally supplied Pattern Table selection.
+	 */
 	if (fHasExternalHighlight && fExternalWhichPT == fWhichPatternTable && fExternalTileIndex >= 0) {
 		const float tileSize = static_cast<float>(fTileSize);
 		const int32 index = fExternalTileIndex & 0xff;
@@ -791,37 +806,38 @@ PatternTableView::DrawOverlays()
 		SetDrawingMode(B_OP_ALPHA);
 		SetBlendingMode(B_PIXEL_ALPHA, B_ALPHA_OVERLAY);
 
-		const rgb_color fill   = { 255, 255, 0, 40 };
+		const rgb_color fill = { 255, 255, 0, 40 };
+
 		const rgb_color stroke = { 255, 255, 0, 255 };
 
 		/*
-		 * A requested 8x16 sprite highlight represents the even-numbered
-		 * top tile and the following odd-numbered bottom tile.
+		 * A sprite-oriented external selection already represents a
+		 * complete 8x16 even/odd tile pair.
 		 */
 		if (fExternalHighlight8x16Pair) {
 			const int32 topIndex = index & ~0x1;
 
 			if (Show8x16()) {
 				/*
-				 * In 8x16 Pattern Table display mode, each even/odd tile
-				 * pair is shown vertically as one 8x16 sprite cell.
+				 * In 8x16 Pattern Table display mode, the two tiles are
+				 * already arranged vertically as one sprite cell.
 				 */
 				const int32 pair = topIndex / 2;
 				const int32 tx = pair % 16;
 				const int32 ty = (pair / 16) * 2;
 
-				BRect r(tx * tileSize, ty * tileSize, ((tx + 1) * tileSize) - 1.0f, ((ty + 2) * tileSize) - 1.0f);
+				BRect r(tx * tileSize, ty * tileSize, ((tx + 1) * tileSize) - 1.0f,((ty + 2) * tileSize) - 1.0f);
 				SetHighColor(fill);
 				FillRect(r);
 
 				SetHighColor(stroke);
 				StrokeRect(r);
-				StrokeRect(r.InsetByCopy(1, 1));
+				StrokeRect(r.InsetByCopy(1, 1)
+				);
 			} else {
 				/*
-				 * In ordinary 8x8 Pattern Table display mode, the two
-				 * CHR tiles retain their normal independent locations,
-				 * so highlight both cells separately.
+				 * In normal 8x8 Pattern Table display mode, the two CHR
+				 * tiles occupy their ordinary independent locations.
 				 */
 				BRect topRect = CellRectForTileIndex(topIndex);
 				BRect bottomRect = CellRectForTileIndex((topIndex + 1) & 0xff);
@@ -831,45 +847,63 @@ PatternTableView::DrawOverlays()
 				FillRect(bottomRect);
 
 				SetHighColor(stroke);
-
 				StrokeRect(topRect);
 				StrokeRect(topRect.InsetByCopy(1, 1));
-
 				StrokeRect(bottomRect);
 				StrokeRect(bottomRect.InsetByCopy(1, 1));
 			}
 		} else {
 			/*
-			 * Ordinary single-tile external highlight.
+			 * Ordinary external selection, such as one supplied by
+			 * NameTableView.
+			 *
+			 * In 8x8 mode, highlight only the selected tile.
+			 *
+			 * In 8x16 mode, the CHR Explorer presents the complete
+			 * even/odd pair containing that tile. Highlight that pair
+			 * lightly while retaining a stronger marker around the
+			 * exact externally selected 8x8 tile.
 			 */
-			BRect r;
-
 			if (Show8x16()) {
-				/*
-				 * Match DrawPatternTable8x16() placement for one
-				 * individual tile within an even/odd pair.
-				 */
 				const int32 topIndex = index & ~0x1;
 				const int32 pair = topIndex / 2;
 				const int32 tx = pair % 16;
-				int32 ty = (pair / 16) * 2;
+				const int32 pairY = (pair / 16) * 2;
+
+				/*
+				 * Complete 8x16 pair.
+				 */
+				BRect pairRect(tx * tileSize, pairY * tileSize, 
+							   ((tx + 1) * tileSize) - 1.0f, ((pairY + 2) * tileSize) - 1.0f);
+				SetHighColor(fill);
+				FillRect(pairRect);
+
+				SetHighColor(stroke);
+				StrokeRect(pairRect);
+
+				/*
+				 * Exact 8x8 tile selected by the external source.
+				 */
+				int32 selectedY = pairY;
 
 				if (index & 0x1) {
-					ty += 1;
+					selectedY++;
 				}
 
-				r = BRect(tx * tileSize, ty * tileSize, ((tx + 1) * tileSize) - 1.0f, 
-						 ((ty + 1) * tileSize) - 1.0f);
+				BRect selectedRect(tx * tileSize, selectedY * tileSize,
+								   ((tx + 1) * tileSize) - 1.0f, ((selectedY + 1) * tileSize) - 1.0f);
+				SetHighColor(stroke);
+				StrokeRect(selectedRect);
+				StrokeRect(selectedRect.InsetByCopy(1, 1));
 			} else {
-				r = CellRectForTileIndex(index);
+				BRect r = CellRectForTileIndex(index);
+				SetHighColor(fill);
+				FillRect(r);
+
+				SetHighColor(stroke);
+				StrokeRect(r);
+				StrokeRect(r.InsetByCopy(1, 1));
 			}
-
-			SetHighColor(fill);
-			FillRect(r);
-
-			SetHighColor(stroke);
-			StrokeRect(r);
-			StrokeRect(r.InsetByCopy(1, 1));
 		}
 
 		PopState();
@@ -1040,9 +1074,17 @@ PatternTableView::DrawPatternStatePanel()
 // Changes the Pattern Table display between normal 8x8 tile mode and 8x16
 // sprite-pair mode.
 //
-// When switching to 8x16 mode, active selections are normalized to the even
-// top tile of each pair.  The CHR Explorer is cleared and then repopulated from
-// the current active tile using the new interpretation.
+// Local Pattern Table selections are normalized to the even top tile when
+// entering 8x16 mode.
+//
+// External selections are preserved exactly as supplied.  A NameTable-driven
+// selection still identifies one specific 8x8 background tile, so its external
+// highlight remains on that tile.  However, when the Pattern Table itself is
+// displayed in 8x16 mode, the connected CHR Explorer shows the complete
+// even/odd tile pair containing that externally selected tile.
+//
+// Sprite-oriented external selections that already represent an 8x16 pair are
+// also restored directly.
 //
 // Parameters:
 //   vm - New Pattern Table display mode.
@@ -1060,8 +1102,13 @@ PatternTableView::SetViewMode (view_mode vm)
 	fViewMode = vm;
 
 	/*
-	 * In 8x16 mode the active sprite pair is represented by its even
-	 * top-tile index.
+	 * In 8x16 mode, local Pattern Table selections represent complete
+	 * even/odd sprite pairs, so normalize local indices to the even
+	 * top tile.
+	 *
+	 * Do not modify fExternalTileIndex here.  A NameTable selection
+	 * still identifies one specific 8x8 background tile and may
+	 * legitimately be odd.
 	 */
 	if (Show8x16()) {
 		if (fHoverTileIndex >= 0) {
@@ -1074,15 +1121,117 @@ PatternTableView::SetViewMode (view_mode vm)
 	}
 
 	/*
-	 * Prevent stale explorer data while changing tile interpretation.
+	 * No cartridge means there is nothing meaningful to refresh.
 	 */
-	if (fCHRExplorer) {
-		fCHRExplorer->Clear();
+	if (!HasROMLoaded()) {
+		if (fCHRExplorer) {
+			fCHRExplorer->Clear();
+		}
+
+		Invalidate();
+		return;
 	}
 
-	if (HasROMLoaded()) {
-		UpdateExplorer();
+	/*
+	 * External debugger selections own the CHR Explorer while active.
+	 *
+	 * NotifyCHRExplorer() intentionally suppresses local Pattern Table
+	 * updates while an external selection owns this Pattern Table, so
+	 * refresh the external selection explicitly after the mode changes.
+	 */
+	if (fHasExternalHighlight && fExternalWhichPT == fWhichPatternTable && fExternalTileIndex >= 0) {
+		if (fCHRExplorer) {
+			Mapper *mapper = nes::cart.mapper();
+
+			if (mapper) {
+				const int32 index = fExternalTileIndex & 0xff;
+				const uint32 base = fExternalWhichPT ? 0x1000 : 0x0000;
+
+				/*
+				 * A sprite-oriented external selection already represents
+				 * a complete 8x16 pair, independent of the Pattern Table
+				 * window's current display mode.
+				 */
+				if (fExternalHighlight8x16Pair) {
+					const int32 topIndex = index & ~0x1;
+					const uint32 topAddr = base + (static_cast<uint32>(topIndex) * 16);
+					const uint32 bottomAddr = topAddr + 16;
+
+					uint8 topBytes[16];
+					uint8 bottomBytes[16];
+
+					for (int32 i = 0; i < 16; i++) {
+						topBytes[i] = mapper->read_vram(topAddr + i);
+						bottomBytes[i] = mapper->read_vram(bottomAddr + i);
+					}
+
+					fCHRExplorer->SetTile8x16(fExternalWhichPT, topIndex, fExternalHighlightLocked,
+											  topAddr, topBytes, bottomAddr, bottomBytes, 0);
+				}
+
+				/*
+				 * A normal external selection, such as one supplied by
+				 * NameTableView, identifies one 8x8 background tile.
+				 *
+				 * In 8x16 Pattern Table mode, keep the yellow external
+				 * highlight on that exact tile, but show its containing
+				 * even/odd pair in the local CHR Explorer.
+				 */
+				else if (Show8x16()) {
+					const int32 topIndex = index & ~0x1;
+					const uint32 topAddr = base + (static_cast<uint32>(topIndex) * 16);
+					const uint32 bottomAddr = topAddr + 16;
+
+					uint8 topBytes[16];
+					uint8 bottomBytes[16];
+
+					for (int32 i = 0; i < 16; i++) {
+						topBytes[i] = mapper->read_vram(topAddr + i);
+						bottomBytes[i] = mapper->read_vram(bottomAddr + i);
+					}
+
+					fCHRExplorer->SetTile8x16(fExternalWhichPT, topIndex, fExternalHighlightLocked,
+											  topAddr, topBytes, bottomAddr, bottomBytes, 0);
+				}
+
+				/*
+				 * In normal 8x8 Pattern Table mode, preserve the exact
+				 * externally selected tile.
+				 *
+				 * Prefer a retained CHR snapshot when one was supplied by
+				 * the source debugger, because that keeps the explorer
+				 * synchronized with the same CHR-bank state used by the
+				 * originating view.
+				 */
+				else {
+					const uint32 addr = base + (static_cast<uint32>(index) * 16);
+
+					if (fHaveExternalCHRBytes) {
+						fCHRExplorer->SetTile8x8(fExternalWhichPT, index, fExternalHighlightLocked, addr,
+												 fExternalCHRBytes, 0, -1, 0, 0, 0, 0);
+					} else {
+						uint8 chrBytes[16];
+
+						for (int32 i = 0; i < 16; i++) {
+							chrBytes[i] = mapper->read_vram(addr + i);
+						}
+
+						fCHRExplorer->SetTile8x8(fExternalWhichPT, index, fExternalHighlightLocked, addr,
+												 chrBytes, 0, -1, 0, 0, 0, 0);
+					}
+				}
+			}
+		}
+
+		Invalidate();
+		return;
 	}
+
+	/*
+	 * No external selection owns the explorer, so refresh the current
+	 * local Pattern Table selection using the newly selected display mode.
+	 */
+	UpdateExplorer();
 
 	Invalidate();
 }
@@ -1377,6 +1526,7 @@ PatternTableView::SetExternalHighlight (int32 whichPT, int32 tileIndex)
 	fExternalWhichPT = whichPT;
 	fExternalTileIndex = tileIndex;
 	fExternalHighlight8x16Pair = false;
+	fExternalHighlightLocked = false;
 	fHaveExternalCHRBytes = false;
 	
 	memset(fExternalCHRBytes, 0, sizeof(fExternalCHRBytes));
@@ -1391,31 +1541,26 @@ PatternTableView::SetExternalHighlight (int32 whichPT, int32 tileIndex)
 // Sets an externally requested single-tile Pattern Table highlight together
 // with a retained 16-byte CHR snapshot.
 //
-// The supplied CHR bytes represent the highlighted 8x8 tile at the time the
-// external debugger captured it. The same bytes are forwarded to the connected
-// CHR Explorer so its expanded tile remains synchronized with the externally
-// highlighted Pattern Table tile.
-//
-// Any previous 8x16 sprite-pair state is cleared.
+// The supplied tile remains the exact externally selected 8x8 tile. When the
+// Pattern Table is currently displayed in 8x16 mode, the connected CHR Explorer
+// instead presents the complete even/odd pair containing that tile. `
 //
 // Parameters:
 //   whichPT   - Pattern-table index containing the tile.
-//   tileIndex - CHR tile index.
-//   chrBytes  - Pointer to the 16 CHR bytes describing the tile.
+//   tileIndex - Tile index to highlight.
+//   chrBytes  - Pointer to the 16 CHR bytes describing the selected tile.
 //
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-PatternTableView::SetExternalHighlight(
-	int32 whichPT,
-	int32 tileIndex,
-	const uint8 *chrBytes)
+PatternTableView::SetExternalHighlight (int32 whichPT, int32 tileIndex, const uint8 *chrBytes)
 {
 	fHasExternalHighlight = true;
 	fExternalWhichPT = whichPT;
-	fExternalTileIndex = tileIndex;
+	fExternalTileIndex = tileIndex & 0xff;
 	fExternalHighlight8x16Pair = false;
+	fExternalHighlightLocked = false;
 	fHaveExternalCHRBytes = false;
 
 	memset(fExternalCHRBytes, 0, sizeof(fExternalCHRBytes));
@@ -1428,31 +1573,54 @@ PatternTableView::SetExternalHighlight(
 		fHaveExternalCHRBytes = true;
 	}
 
-	if (
-		fCHRExplorer &&
-		whichPT == fWhichPatternTable &&
-		tileIndex >= 0 &&
-		fHaveExternalCHRBytes
-	) {
-		const int32 index = tileIndex & 0xff;
+	/*
+	 * If this external selection belongs to this Pattern Table, update the
+	 * CHR Explorer immediately.
+	 *
+	 * This is important when the window is opened while already in 8x16 mode:
+	 * SetViewMode() may never be called, so the external selection itself must
+	 * establish the correct explorer interpretation.
+	 */
+	if (fCHRExplorer && whichPT == fWhichPatternTable && tileIndex >= 0) {
+		Mapper *mapper = nes::cart.mapper();
 
-		const uint32 addr =
-			(whichPT ? 0x1000 : 0x0000) +
-			(static_cast<uint32>(index) * 16);
+		if (mapper) {
+			const int32 index = tileIndex & 0xff;
+			const uint32 base = whichPT ? 0x1000 : 0x0000;
 
-		fCHRExplorer->SetTile8x8(
-			whichPT,
-			index,
-			false,
-			addr,
-			fExternalCHRBytes,
-			0,
-			-1,
-			0,
-			0,
-			0,
-			0
-		);
+			if (Show8x16()) {
+				const int32 topIndex = index & ~0x1;
+				const uint32 topAddr = base + (static_cast<uint32>(topIndex) * 16);
+				const uint32 bottomAddr = topAddr + 16;
+
+				uint8 topBytes[16];
+				uint8 bottomBytes[16];
+
+				for (int32 i = 0; i < 16; i++) {
+					topBytes[i] = mapper->read_vram(topAddr + i);
+					bottomBytes[i] = mapper->read_vram(bottomAddr + i);
+				}
+
+				fCHRExplorer->SetTile8x16(whichPT, topIndex, false, topAddr, topBytes,
+										  bottomAddr, bottomBytes, 0);
+			} else {
+				const uint32 addr = base + (static_cast<uint32>(index) * 16);
+
+				if (fHaveExternalCHRBytes) {
+					fCHRExplorer->SetTile8x8(whichPT, index, false, addr, fExternalCHRBytes,
+											 0, -1, 0, 0, 0, 0);
+				} else {
+					uint8 bytes[16];
+
+					for (int32 i = 0; i < 16; i++) {
+						bytes[i] = mapper->read_vram(addr + i);
+					}
+
+					fCHRExplorer->SetTile8x8(whichPT, index, false, addr, bytes,
+											 0, -1 ,0, 0, 0, 0);
+				}
+			}
+		}
 	}
 
 	Invalidate();

@@ -1,12 +1,6 @@
 
-#include "DebugHelpers.h"
 #include "PaletteDebugView.h"
 #include "PretendoWindow.h"
-
-#include "Cart.h"
-#include "Mapper.h"
-#include "Nes.h"
-#include "Ppu.h"
 
 #include <cmath>
 

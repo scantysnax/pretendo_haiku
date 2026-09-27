@@ -4,9 +4,6 @@
 
 #include <View.h>
 
-#include "Apu.h"
-#include "Cart.h"
-#include "DebugHelpers.h"
 #include "PretendoWindow.h"
 
 

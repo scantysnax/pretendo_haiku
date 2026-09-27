@@ -577,8 +577,8 @@ CPUMemoryView::AddressForPoint (BPoint where, uint16 &address) const
 // Draws the CPU memory viewer title, current base address, region label, CPU
 // register summary, current decoded instruction, current instruction target,
 // stack pointer summary, interrupt vector targets, inspected-byte information,
-// keyboard shortcuts, and a compact color legend.  Debug values are drawn with
-// a fixed-width font so hexadecimal values align clearly.
+// keyboard shortcuts, and a compact graphical color key.  Debug values are
+// drawn with a fixed-width font so hexadecimal values align clearly.
 //
 // The 6502 stack pointer points to the next free stack slot.  The byte most
 // recently pushed is normally at SP + 1 within page $0100, so the stack summary
@@ -612,8 +612,7 @@ CPUMemoryView::DrawHeaderPanel()
 	const float vectorY = panel.top + 90.0f;
 	const float stackY = panel.top + 108.0f;
 	const float selectedY = panel.top + 126.0f;
-	const float helpY = panel.top + 154.0f;
-	const float legendY = panel.top + 174.0f;
+	const float helpY = panel.top + 148.0f;
 
 	BString s;
 
@@ -621,9 +620,9 @@ CPUMemoryView::DrawHeaderPanel()
 	SetHighColor(0, 0, 0);
 
 	if (HasROMLoaded()) {
-		nes::cpu::cpu_state_t state = nes::cpu::debug_cpu_state();
-		const uint16 stackSlotAddress = static_cast<uint16>(0x100 | state.s);
+		nes::cpu::cpu_state_t state = nes::cpu::debug_state();
 
+		const uint16 stackSlotAddress = static_cast<uint16>(0x100 | state.s);
 		cpu_disasm_line_t pcLine = DisassembleCPU(state.pc);
 		uint16 instructionLength = pcLine.length;
 
@@ -633,10 +632,14 @@ CPUMemoryView::DrawHeaderPanel()
 			instructionLength = 3;
 		}
 
-		s.SetToFormat("Base:$%04X  %-15s  PC:$%04X  Len:%u  SP:$%02X($%04X)  A:$%02X  X:$%02X  Y:$%02X  P:$%02X",
-					  	fBaseAddress, RegionLabel(fBaseAddress), state.pc, instructionLength, state.s, stackSlotAddress,
-						state.a, state.x, state.y, state.p);
-		DrawString(s.String(), BPoint(textX, statusY));
+		s.SetToFormat("Base:$%04X  %-15s  PC:$%04X  Length:%u   Stack:$%02X($%04X)  A:$%02X  X:$%02X  Y:$%02X  P:$%02X",
+					  fBaseAddress, RegionLabel(fBaseAddress), state.pc, instructionLength, state.s, stackSlotAddress,
+					  state.a, state.x, state.y, state.p);
+
+		DrawString(
+			s.String(),
+			BPoint(textX, statusY)
+		);
 
 		BString byteText;
 
@@ -648,11 +651,9 @@ CPUMemoryView::DrawHeaderPanel()
 			byteText.SetToFormat("%02X %02X %02X", pcLine.bytes[0], pcLine.bytes[1], pcLine.bytes[2]);
 		}
 
-		s.SetToFormat("Instr:  $%04X  %-8s  %s", pcLine.address, byteText.String(), pcLine.text.String());
-
+		s.SetToFormat("Instruction:  $%04X  %-8s  %s", pcLine.address, byteText.String(), pcLine.text.String());
 		SetHighColor(40, 40, 40);
 		DrawString(s.String(), BPoint(textX, instrY));
-
 		DrawInstructionTargetInfo(textX, targetY);
 
 		const uint16 nmiVector = ReadVector(0xfffa);
@@ -660,7 +661,6 @@ CPUMemoryView::DrawHeaderPanel()
 		const uint16 irqVector = ReadVector(0xfffe);
 
 		s.SetToFormat("Vectors: NMI:$%04X  RESET:$%04X  IRQ/BRK:$%04X", nmiVector, resetVector, irqVector);
-
 		SetHighColor(60, 60, 60);
 		DrawString(s.String(), BPoint(textX, vectorY));
 
@@ -680,15 +680,12 @@ CPUMemoryView::DrawHeaderPanel()
 		const uint8 stackValue4 = nes::bus::debug_read_memory(stackAddress4);
 
 		s.SetToFormat("Stack:  Slot:$%04X  Top:$%04X  +1:$%02X  +2:$%02X  +3:$%02X  +4:$%02X",
-						stackSlotAddress, stackAddress1, stackValue1, stackValue2, stackValue3, stackValue4);
-
+					  stackSlotAddress, stackAddress1, stackValue1, stackValue2, stackValue3, stackValue4);
 		SetHighColor(70, 60, 40);
 		DrawString(s.String(), BPoint(textX, stackY));
-
 		DrawSelectedByteInfo(textX, selectedY);
 	} else {
 		s.SetToFormat("Base:$%04X  %-15s", fBaseAddress, RegionLabel(fBaseAddress));
-
 		DrawString(s.String(), BPoint(textX, statusY));
 		DrawInstructionTargetInfo(textX, targetY);
 		DrawSelectedByteInfo(textX, selectedY);
@@ -697,11 +694,12 @@ CPUMemoryView::DrawHeaderPanel()
 	SetFont(&uiFont);
 	SetHighColor(90, 90, 90);
 
-	DrawString("Arrows: scroll   PageUp/PageDown: page   C: PC   E: target   K:"
-				" stack ptr   Z: zero   S: stack page   R: RAM   P: PPU   A: APU   V: vectors", BPoint(textX, helpY));
-
-	DrawString("Legend: orange=PC/opcode   pale orange=operand   blue=SP   green=target   gray=hover   black=locked",
-				BPoint(textX, legendY));
+	DrawString("Arrows: scroll   PageUp/PageDown: page   "
+			   "C: PC   E: target   K: stack ptr   "
+			   "Z: zero page   S: stack page   R: RAM   "
+			   "P: PPU   A: APU   G: PRG   V: vectors",
+			   BPoint(textX, helpY));
+	DrawColorLegend(BRect(textX, panel.top + 154.0f, panel.right - 10.0f, panel.bottom - 4.0f));
 
 	SetFont(&prevFont);
 }
@@ -801,16 +799,12 @@ CPUMemoryView::DrawByteCell (float x, float y, uint16 address, uint8 value, bool
 // Bytes are read through nes::bus::debug_read_memory() so inspection does not
 // trigger normal memory/register side effects.
 //
-// The current PC opcode byte, current instruction operand bytes, stack-pointer
-// address, current instruction target, hovered byte, and locked byte are
-// highlighted when visible.
+// Each memory row receives a soft region-based background color.  Row addresses
+// use darker companion region colors, while individual PC, operand, SP, target,
+// hover, and locked-byte indicators remain visually independent.
 //
 // Instruction-byte addresses are calculated with 16-bit wrapping so an
 // instruction beginning near $FFFF correctly continues at $0000.
-//
-// Each memory row receives a soft region-based background color first.  PC/SP
-// row highlights are drawn afterward, followed by individual opcode, operand,
-// SP, target, hover, and lock indicators.
 //
 // This function uses 16-byte memory row numbers instead of incrementing a
 // uint16 row address.  Row 0 is $0000 and row 4095 is $FFF0, preventing the
@@ -832,14 +826,15 @@ CPUMemoryView::DrawMemoryPanel()
 	::DrawDebugPanel(this, panel, "Memory");
 
 	SetHighColor(216, 216, 216);
-	FillRect(BRect(panel.left + 6.0f, panel.top + 24.0f, panel.right - 6.0f, panel.bottom - 6.0f));
+	FillRect(BRect(panel.left + 6.0f, panel.top + 24.0f,
+				   panel.right - 6.0f, panel.bottom - 6.0f));
 
 	if (!HasROMLoaded()) {
 		DrawNoROMMessage(panel);
 		return;
 	}
 
-	nes::cpu::cpu_state_t state = nes::cpu::debug_cpu_state();
+	nes::cpu::cpu_state_t state = nes::cpu::debug_state();
 
 	const uint16 pcAddress = state.pc;
 	const uint16 spAddress = static_cast<uint16>(0x100 | state.s);
@@ -893,6 +888,7 @@ CPUMemoryView::DrawMemoryPanel()
 	GetFontHeight(&fh);
 
 	const float lineH = ceilf(fh.ascent + fh.descent + fh.leading) + 2.0f;
+
 	const float addrX = panel.left + 10.0f;
 	const float hexX = addrX + 74.0f;
 	const float byteStep = 27.0f;
@@ -900,6 +896,7 @@ CPUMemoryView::DrawMemoryPanel()
 	const float asciiX = hexX + byteStep * 16.0f + groupGap + 10.0f;
 	const float asciiStep = fixed.StringWidth("M");
 	const float regionX = asciiX + asciiStep * 16.0f + 20.0f;
+
 	float y = panel.top + 34.0f;
 
 	SetHighColor(80, 80, 80);
@@ -907,12 +904,10 @@ CPUMemoryView::DrawMemoryPanel()
 	DrawString("Hex bytes", BPoint(hexX, y));
 	DrawString("ASCII", BPoint(asciiX, y));
 	DrawString("Region", BPoint(regionX, y));
-
 	y += lineH + 6.0f;
 
 	SetHighColor(120, 120, 120);
 	StrokeLine(BPoint(panel.left + 8.0f, y - 8.0f), BPoint(panel.right - 8.0f, y - 8.0f));
-
 	y += 4.0f;
 
 	const int32 rows = static_cast<int32>((panel.bottom - y - 8.0f) / lineH);
@@ -946,45 +941,25 @@ CPUMemoryView::DrawMemoryPanel()
 			pcInRow = true;
 		}
 
-		if ((!pcInRow) && (pcInstructionLength >= 2) && (pcOperandAddress1 >= rowStart)
-			&& (pcOperandAddress1 <= rowEnd)) {
+		if ((!pcInRow) && (pcInstructionLength >= 2) && (pcOperandAddress1 >= rowStart) && (pcOperandAddress1 <= rowEnd)) {
 			pcInRow = true;
 		}
 
-		if ((!pcInRow) && (pcInstructionLength >= 3) && (pcOperandAddress2 >= rowStart)
-			&& (pcOperandAddress2 <= rowEnd)) {
+		if ((!pcInRow) && (pcInstructionLength >= 3) && (pcOperandAddress2 >= rowStart) && (pcOperandAddress2 <= rowEnd)) {
 			pcInRow = true;
 		}
 
-		const bool spInRow = (spAddress >= rowStart) && (spAddress <= rowEnd);
 		const bool stackRow = (address >= 0x100) && (address <= 0x1ff);
 		const bool ppuRegisterRow = (address >= 0x2000) && (address <= 0x3fff);
 		const bool apuRegisterRow = (address >= 0x4000) && (address <= 0x401f);
 		const bool prgRow = (address >= 0x8000);
-
 		SetRegionBackgroundColor(address);
 
 		FillRect(BRect(panel.left + 6.0f, y - lineH + 4.0f, panel.right - 6.0f, y + 3.0f));
 
-		if (pcInRow) {
-			SetHighColor(255, 245, 220);
-			FillRect(BRect(panel.left + 6.0f, y - lineH + 4.0f, panel.right - 6.0f, y + 3.0f));
-		} else if (spInRow) {
-			SetHighColor(230, 240, 255);
-			FillRect(BRect(panel.left + 6.0f, y - lineH + 4.0f, panel.right - 6.0f, y + 3.0f));
-		}
-
 		BString s;
 		s.SetToFormat("$%04X", address);
-
-		if (pcInRow) {
-			SetHighColor(120, 60, 0);
-		} else if (spInRow) {
-			SetHighColor(0, 60, 130);
-		} else {
-			SetHighColor(0, 0, 0);
-		}
-
+		SetRegionAddressColor(address);
 		DrawString(s.String(), BPoint(addrX, y));
 
 		for (int32 i = 0; i < 16; i++) {
@@ -993,11 +968,9 @@ CPUMemoryView::DrawMemoryPanel()
 			const bool isPC = (byteAddress == pcAddress);
 			const bool isPCOperand = isInstructionOperand(byteAddress);
 			const bool isSP = (byteAddress == spAddress);
-
 			const bool isHovered = fHasHoveredAddress && byteAddress == fHoveredAddress;
 			const bool isLocked = fHasLockedAddress && byteAddress == fLockedAddress;
 			const bool isInstructionTarget = hasInstructionTarget && byteAddress == instructionTargetAddress;
-
 			float hexByteX = hexX + i * byteStep;
 
 			if (i >= 8) {
@@ -1008,14 +981,12 @@ CPUMemoryView::DrawMemoryPanel()
 
 			if (isInstructionTarget) {
 				SetHighColor(0, 130, 0);
-
 				BRect targetRect(hexByteX - 3.0f, y - 12.0f, hexByteX + 18.0f, y + 3.0f);
 				StrokeRect(targetRect);
 			}
 
 			if (isHovered) {
 				SetHighColor(90, 90, 90);
-
 				BRect hoverRect(hexByteX - 4.0f, y - 13.0f, hexByteX + 19.0f, y + 3.0f);
 				StrokeRect(hoverRect);
 			}
@@ -1035,7 +1006,6 @@ CPUMemoryView::DrawMemoryPanel()
 			}
 
 			const char asciiChar = value >= 32 && value <= 126 ? static_cast<char>(value) : '.';
-
 			BString asciiText;
 			asciiText << asciiChar;
 
@@ -1043,6 +1013,7 @@ CPUMemoryView::DrawMemoryPanel()
 
 			if (isInstructionTarget) {
 				SetHighColor(0, 130, 0);
+
 				StrokeRect(BRect(asciiCharX - 2.0f, y - 12.0f, asciiCharX + asciiStep, y + 3.0f));
 			}
 
@@ -1070,17 +1041,7 @@ CPUMemoryView::DrawMemoryPanel()
 				StrokeLine(BPoint(left, bottom), BPoint(left, top));
 			}
 
-			/*
-			 * ASCII text follows the same row-color convention as before.
-			 */
-			if (pcInRow) {
-				SetHighColor(120, 60, 0);
-			} else if (spInRow) {
-				SetHighColor(0, 60, 130);
-			} else {
-				SetHighColor(70, 70, 70);
-			}
-
+			SetHighColor(70, 70, 70);
 			DrawString(asciiText.String(), BPoint(asciiCharX, y));
 		}
 
@@ -1113,7 +1074,6 @@ CPUMemoryView::DrawMemoryPanel()
 		}
 
 		DrawString(region.String(), BPoint(regionX, y));
-
 		y += lineH;
 	}
 
@@ -1173,11 +1133,61 @@ CPUMemoryView::RegionLabel (uint16 address) const
 
 
 // -----------------------------------------------------------------------------
+// CPUMemoryView::SetRegionAddressColor
+//
+// Selects the foreground color used for a CPU memory row address.
+//
+// Each address color is a darker companion to its row background so CPU memory
+// regions remain easy to distinguish while byte values themselves stay neutral.
+//
+// Parameters:
+//   address - CPU address whose memory region determines the address color.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+CPUMemoryView::SetRegionAddressColor (uint16 address)
+{
+	if (address <= 0xff) {
+		// Zero page
+		SetHighColor(105, 80, 145);
+	} else if (address <= 0x1ff) {
+		// Stack
+		SetHighColor(145, 95, 45);
+	} else if (address <= 0x7ff) {
+		// Internal RAM
+		SetHighColor(55, 115, 130);
+	} else if (address <= 0x1fff) {
+		// RAM mirrors
+		SetHighColor(95, 95, 95);
+	} else if (address <= 0x3fff) {
+		// PPU registers and mirrors
+		SetHighColor(55, 115, 70);
+	} else if (address <= 0x401f) {
+		// APU and controller registers
+		SetHighColor(125, 65, 145);
+	} else if (address <= 0x5fff) {
+		// Expansion
+		SetHighColor(145, 85, 70);
+	} else if (address <= 0x7fff) {
+		// SRAM / mapper RAM
+		SetHighColor(120, 110, 45);
+	} else {
+		// PRG ROM / mapper
+		SetHighColor(60, 110, 65);
+	}
+}
+
+
+// -----------------------------------------------------------------------------
 // CPUMemoryView::SetRegionBackgroundColor
 //
-// Selects a soft background color for a CPU address region.  These colors are
-// intentionally pale so PC, operand, SP, stack, hardware, and PRG highlights can
-// still be drawn over them clearly.
+// Selects a soft background color for a CPU address region.
+//
+// The palette is designed so neighboring CPU memory regions remain visually
+// distinct while still using restrained pastel colors that do not compete with
+// byte-level debugger highlights.
 //
 // Parameters:
 //   address - CPU address whose memory region should determine the color.
@@ -1189,33 +1199,131 @@ void
 CPUMemoryView::SetRegionBackgroundColor (uint16 address)
 {
 	if (address <= 0xff) {
-		// Zero page - slightly stronger purple/blue so it stands out.
-		SetHighColor(218, 225, 250);
+		// Zero page - lavender
+		SetHighColor(228, 218, 248);
 	} else if (address <= 0x1ff) {
-		// Stack
-		SetHighColor(245, 235, 210);
+		// Stack - warm tan
+		SetHighColor(248, 232, 205);
 	} else if (address <= 0x7ff) {
-		// Internal RAM
-		SetHighColor(232, 240, 246);
+		// Internal RAM - cyan
+		SetHighColor(205, 235, 242);
 	} else if (address <= 0x1fff) {
-		// RAM mirrors
-		SetHighColor(238, 238, 238);
+		// RAM mirrors - neutral gray
+		SetHighColor(232, 232, 232);
 	} else if (address <= 0x3fff) {
-		// PPU registers and mirrors
-		SetHighColor(225, 235, 245);
+		// PPU registers and mirrors - green
+		SetHighColor(210, 240, 218);
 	} else if (address <= 0x401f) {
-		// APU and controller registers
-		SetHighColor(235, 228, 245);
+		// APU and controller registers - purple
+		SetHighColor(232, 205, 242);
 	} else if (address <= 0x5fff) {
-		// Expansion area
-		SetHighColor(232, 240, 232);
+		// Expansion area - salmon
+		SetHighColor(245, 220, 210);
 	} else if (address <= 0x7fff) {
-		// SRAM / mapper RAM
-		SetHighColor(240, 240, 220);
+		// SRAM / mapper RAM - olive yellow
+		SetHighColor(236, 234, 195);
 	} else {
-		// PRG ROM / mapper
-		SetHighColor(230, 240, 230);
+		// PRG ROM / mapper - mint green
+		SetHighColor(218, 238, 218);
 	}
+}
+
+
+// -----------------------------------------------------------------------------
+// CPUMemoryView::DrawColorLegend
+//
+// Draws the CPU memory color key.
+//
+// The first row identifies CPU address-space regions using medium-strength
+// versions of the memory-grid colors.  The second row identifies debugger
+// highlight states.  Filled swatches represent filled byte highlights, while
+// outlined swatches represent outline-only indicators.
+//
+// Parameters:
+//   bounds - Area reserved for the CPU memory color legend.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+CPUMemoryView::DrawColorLegend (BRect bounds)
+{
+	BFont prevFont;
+	GetFont(&prevFont);
+
+	BFont font = prevFont;
+	font.SetSize(10.0f);
+	SetFont(&font);
+
+	const float swatchSize = 9.0f;
+	const float textGap = 5.0f;
+	const float itemGap = 12.0f;
+	const float rowHeight = 16.0f;
+	const float labelWidth = std::max(font.StringWidth("Memory:"), font.StringWidth("State:"));
+	float x = bounds.left;
+	float y = bounds.top + 11.0f;
+
+	auto drawFilledItem = [&](rgb_color color, const char *label) {
+		BRect swatch(x, y - 8.0f, x + swatchSize, y - 8.0f + swatchSize);
+
+		SetHighColor(color);
+		FillRect(swatch);
+
+		SetHighColor(100, 100, 100);
+		StrokeRect(swatch);
+
+		SetHighColor(60, 60, 60);
+		DrawString(label, BPoint(swatch.right + textGap, y));
+
+		x = swatch.right + textGap + font.StringWidth(label) + itemGap;
+	};
+
+	auto drawOutlineItem = [&](rgb_color color, const char *label) {
+		BRect swatch(x, y - 8.0f, x + swatchSize, y - 8.0f + swatchSize);
+
+		SetHighColor(255, 255, 255);
+		FillRect(swatch);
+
+		SetHighColor(color);
+		StrokeRect(swatch);
+
+		SetHighColor(60, 60, 60);
+		DrawString(label, BPoint(swatch.right + textGap, y));
+
+		x = swatch.right + textGap + font.StringWidth(label) + itemGap;
+	};
+
+	SetHighColor(70, 70, 70);
+	DrawString("Memory:", BPoint(bounds.left, y));
+
+	x = bounds.left + labelWidth + 12.0f;
+
+	drawFilledItem(rgb_color { 160, 135, 205, 255 }, "Zero Page");
+	drawFilledItem(rgb_color { 205, 160, 100, 255 }, "Stack");
+	drawFilledItem(rgb_color { 105, 175, 190, 255 }, "RAM");
+	drawFilledItem(rgb_color { 155, 155, 155, 255 }, "Mirrors");
+	drawFilledItem(rgb_color { 115, 190, 125, 255 }, "PPU");
+	drawFilledItem(rgb_color { 190, 120, 205, 255 }, "APU");
+	drawFilledItem(rgb_color { 210, 135, 115, 255 }, "Expansion");
+	drawFilledItem(rgb_color { 190, 180, 95, 255 }, "SRAM");
+	drawFilledItem(rgb_color { 110, 175, 115, 255 }, "PRG");
+
+	y += rowHeight;
+
+	SetHighColor(70, 70, 70);
+	DrawString("State:", BPoint(bounds.left, y));
+
+	x = bounds.left + labelWidth + 12.0f;
+
+	drawFilledItem(rgb_color { 255, 190, 95, 255 }, "PC");
+	drawFilledItem(rgb_color { 255, 220, 150, 255 }, "Operand");
+	drawFilledItem(rgb_color { 195, 220, 255, 255 }, "SP");
+
+	drawOutlineItem(rgb_color { 0, 130, 0, 255 }, "Target");
+	drawOutlineItem(rgb_color { 90, 90, 90, 255 }, "Hover");
+	drawOutlineItem(rgb_color { 0, 0, 0, 255 }, "Locked");
+
+	SetFont(&prevFont);
 }
 
 
@@ -1425,7 +1533,7 @@ CPUMemoryView::CurrentInstructionTarget (uint16 &address) const
 		return false;
 	}
 
-	nes::cpu::cpu_state_t state = nes::cpu::debug_cpu_state();
+	nes::cpu::cpu_state_t state = nes::cpu::debug_state();
 	cpu_disasm_line_t line = DisassembleCPU(state.pc);
 
 	uint16 baseAddress = 0x0000;
@@ -1631,7 +1739,7 @@ CPUMemoryView::KeyDown (const char *bytes, int32 numBytes)
 		case 'c':
 		case 'C':
 			if (HasROMLoaded()) {
-				nes::cpu::cpu_state_t state = nes::cpu::debug_cpu_state();
+				nes::cpu::cpu_state_t state = nes::cpu::debug_state();
 				JumpToAddress(state.pc);
 			}
 			break;
@@ -1639,7 +1747,7 @@ CPUMemoryView::KeyDown (const char *bytes, int32 numBytes)
 		case 'k':
 		case 'K':
 			if (HasROMLoaded()) {
-				nes::cpu::cpu_state_t state = nes::cpu::debug_cpu_state();
+				nes::cpu::cpu_state_t state = nes::cpu::debug_state();
 				JumpToAddress(static_cast<uint16>(0x100 | state.s));
 			}
 			break;
@@ -1667,6 +1775,11 @@ CPUMemoryView::KeyDown (const char *bytes, int32 numBytes)
 		case 'a':
 		case 'A':
 			JumpToAddress(0x4000);
+			break;
+			
+		case 'g':
+		case 'G':
+			JumpToAddress(0x8000);
 			break;
 
 		case 'v':
@@ -1899,7 +2012,7 @@ CPUMemoryView::DrawInstructionTargetInfo (float x, float y)
 	}
 
 	s.SetToFormat("Target: $%04X  Hex:$%02X  Dec:%3u  ASCII:%-3s  %s",
-					address, value, value, asciiText.String(), RegionLabel(address));
+				  address, value, value, asciiText.String(), RegionLabel(address));
 
 	SetHighColor(0, 100, 0);
 	DrawString(s.String(), BPoint(x, y));
@@ -1981,7 +2094,7 @@ CPUMemoryView::DrawSelectedByteInfo (float x, float y)
 	const char *mode = fHasLockedAddress ? "Locked" : "Hover";
 
 	s.SetToFormat("%s:   $%04X  Hex:$%02X  Dec:%3u  ASCII:%-3s  %s",
-		mode, address, value, value, asciiText.String(), RegionLabel(address));
+				  mode, address, value, value, asciiText.String(), RegionLabel(address));
 
 	if (fHasLockedAddress) {
 		SetHighColor(0, 0, 0);

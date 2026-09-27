@@ -1478,12 +1478,12 @@ StackView::CaptureStackSnapshot()
 	 * new CPU run.
 	 */
 	if (fHaveProcessedTraceCycle) {
-		const uint32 traceCount = nes::cpu::debug_cpu_trace_count();
+		const uint32 traceCount = nes::cpu::debug_trace_count();
 
 		if (traceCount > 0) {
 			nes::cpu::cpu_trace_entry_t newestEntry;
 
-			if (nes::cpu::debug_cpu_trace_entry(traceCount - 1,newestEntry)) {
+			if (nes::cpu::debug_trace_entry(traceCount - 1,newestEntry)) {
 				if (newestEntry.cycle < fLastProcessedTraceCycle) {
 					ResetDebuggerState();
 				}
@@ -2369,7 +2369,7 @@ StackView::UpdateStackHighWater(uint8 sp)
 void
 StackView::CaptureInstructionStackHistory()
 {
-	const uint32 traceCount = nes::cpu::debug_cpu_trace_count();
+	const uint32 traceCount = nes::cpu::debug_trace_count();
 
 	if (traceCount < 2) {
 		return;
@@ -2379,11 +2379,11 @@ StackView::CaptureInstructionStackHistory()
 		nes::cpu::cpu_trace_entry_t entry;
 		nes::cpu::cpu_trace_entry_t nextEntry;
 
-		if (!nes::cpu::debug_cpu_trace_entry(i, entry)) {
+		if (!nes::cpu::debug_trace_entry(i, entry)) {
 			continue;
 		}
 
-		if (!nes::cpu::debug_cpu_trace_entry(i + 1, nextEntry)) {
+		if (!nes::cpu::debug_trace_entry(i + 1, nextEntry)) {
 			continue;
 		}
 
