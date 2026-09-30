@@ -4,8 +4,7 @@
 #include <Bitmap.h>
 #include <View.h>
 
-#include <algorithm>
-
+#include "CHRExplorerView.h"
 #include "Ppu.h"
 #include "PretendoWindow.h"
 

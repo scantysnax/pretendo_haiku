@@ -1175,7 +1175,7 @@ CHRExplorerView::DrawPaletteSwatch (BPoint point)
 // -----------------------------------------------------------------------------
 void
 CHRExplorerView::SetTile8x16 (int32 whichPT, int32 topTileIndex, bool locked, uint32 chrAddrTop, const uint8 *chrTop,
-								uint32 chrAddrBottom, const uint8 *chrBottom, uint8 bgPalette)
+							  uint32 chrAddrBottom, const uint8 *chrBottom, uint8 bgPalette)
 {
 	// Both halves are required for an 8x16 tile.
 	if (!chrTop || !chrBottom) {

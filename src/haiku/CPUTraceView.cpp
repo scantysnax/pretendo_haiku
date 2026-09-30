@@ -649,7 +649,7 @@ void
 CPUTraceView::DrawTracePanel()
 {
 	const float rightEdge = (fScrollBar && !fScrollBar->IsHidden())
-		? fScrollBar->Frame().left - 4.0f : Bounds().right - 4.0f;
+						  ? fScrollBar->Frame().left - 4.0f : Bounds().right - 4.0f;
 
 	BRect panel(4.0f, 80.0f, rightEdge, Bounds().bottom - 8.0f);
 	::DrawDebugPanel(this, panel, "Executed Instructions");
@@ -734,7 +734,7 @@ CPUTraceView::DrawTracePanel()
 			break;
 		}
 
-		nes::cpu::cpu_trace_entry_t entry;
+		nes::cpu::trace_entry_t entry;
 
 		if (!TraceDisplayEntry(traceIndex, entry)) {
 			break;
@@ -866,7 +866,7 @@ CPUTraceView::DrawSelectedTraceInfo (BRect panel)
 
 	drawNormal("Selected Trace", x, y, rgb_color { 0, 0, 0, 255 } );
 
-	nes::cpu::cpu_trace_entry_t entry;
+	nes::cpu::trace_entry_t entry;
 	BString instruction;
 
 	if (!SelectedTraceEntry(entry, instruction)) {
@@ -1065,7 +1065,7 @@ CPUTraceView::TraceDisplayCount() const
 //   true if an entry was available.
 // -----------------------------------------------------------------------------
 bool
-CPUTraceView::TraceDisplayEntry (uint32 index, nes::cpu::cpu_trace_entry_t& entry) const
+CPUTraceView::TraceDisplayEntry (uint32 index, nes::cpu::trace_entry_t &entry) const
 {
 	if (fFreezeUpdates) {
 		if (index >= fFrozenEntries.size()) {
@@ -1093,7 +1093,7 @@ CPUTraceView::TraceDisplayEntry (uint32 index, nes::cpu::cpu_trace_entry_t& entr
 //   true if a selected trace entry is available.
 // -----------------------------------------------------------------------------
 bool
-CPUTraceView::SelectedTraceEntry (nes::cpu::cpu_trace_entry_t &entry, BString &instruction) const
+CPUTraceView::SelectedTraceEntry (nes::cpu::trace_entry_t &entry, BString &instruction) const
 {
 	instruction.SetTo("");
 
@@ -1127,7 +1127,7 @@ CPUTraceView::SelectedTraceEntry (nes::cpu::cpu_trace_entry_t &entry, BString &i
 bool
 CPUTraceView::SelectedTraceAddress (uint16 &address) const
 {
-	nes::cpu::cpu_trace_entry_t entry;
+	nes::cpu::trace_entry_t entry;
 	BString instruction;
 
 	if (!SelectedTraceEntry(entry, instruction)) {
@@ -1212,7 +1212,7 @@ CPUTraceView::TraceDisplayInstruction (uint32 index, BString &instruction) const
 		return true;
 	}
 
-	nes::cpu::cpu_trace_entry_t entry;
+	nes::cpu::trace_entry_t entry;
 
 	if (!nes::cpu::debug_trace_entry(index, entry)) {
 		return false;
@@ -1250,7 +1250,7 @@ bool
 CPUTraceView::TraceIndexForPoint(BPoint where, uint32 &index) const
 {
 	const float rightEdge = (fScrollBar && !fScrollBar->IsHidden())
-		? fScrollBar->Frame().left - 4.0f : Bounds().right - 4.0f;
+						  ? fScrollBar->Frame().left - 4.0f : Bounds().right - 4.0f;
 
 	BRect panel(4.0f, 80.0f, rightEdge, Bounds().bottom - 8.0f);
 	
@@ -1338,7 +1338,7 @@ CPUTraceView::CaptureSnapshot()
 	fFrozenEntries.reserve(count);
 
 	for (uint32 i = 0; i < count; i++) {
-		nes::cpu::cpu_trace_entry_t entry;
+		nes::cpu::trace_entry_t entry;
 
 		if (!nes::cpu::debug_trace_entry(i, entry)) {
 			continue;
@@ -1541,7 +1541,7 @@ int32
 CPUTraceView::VisibleTraceRows() const
 {
 	const float rightEdge = (fScrollBar && !fScrollBar->IsHidden())
-		? fScrollBar->Frame().left - 4.0f : Bounds().right - 4.0f;
+						  ? fScrollBar->Frame().left - 4.0f : Bounds().right - 4.0f;
 
 	BRect panel(4.0f, 80.0f, rightEdge, Bounds().bottom - 8.0f);
 	const float inspectorHeight = 82.0f;

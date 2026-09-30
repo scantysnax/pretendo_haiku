@@ -2,12 +2,13 @@
 #define OAM_DEBUG_VIEW_H_
 
 #include <View.h>
-#include <ScrollBar.h>
 #include <Screen.h>
+#include <ScrollBar.h>
 
-class CHRExplorerView;
-class PatternTableWindow;
-class PretendoWindow;
+#include <cmath>
+
+#include "CHRExplorerView.h"
+#include "PretendoWindow.h"
 
 
 // -----------------------------------------------------------------------------

@@ -131,11 +131,11 @@ class StackView : public BView
 	void ClearStackHistory();
 	void UpdateStackHighWater (uint8 sp);
 	void CaptureInstructionStackHistory();
-	void RecordInstructionStackActivity (const nes::cpu::cpu_trace_entry_t &entry, 
-										const nes::cpu::cpu_trace_entry_t &nextEntry);
-	void RecordInterruptStackActivity (const nes::cpu::cpu_trace_entry_t &entry, const nes::cpu::cpu_trace_entry_t &nextEntry);
+	void RecordInstructionStackActivity (const nes::cpu::trace_entry_t &entry, 
+										const nes::cpu::trace_entry_t &nextEntry);
+	void RecordInterruptStackActivity (const nes::cpu::trace_entry_t &entry, const nes::cpu::trace_entry_t &nextEntry);
 	int32 BuildPossibleCallStack (call_stack_candidate_t *candidates, int32 capacity) const;
-	void RecordTrackedCallTransition (const nes::cpu::cpu_trace_entry_t &entry, const nes::cpu::cpu_trace_entry_t &nextEntry);
+	void RecordTrackedCallTransition (const nes::cpu::trace_entry_t &entry, const nes::cpu::trace_entry_t &nextEntry);
 	void ClearTrackedCallStack();
 	
 	private:

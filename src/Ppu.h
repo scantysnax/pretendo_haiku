@@ -42,7 +42,7 @@ struct scroll_state_t {
 
 
 // Records one debugger-visible write to a PPU register or address.
-struct ppu_write_log_entry_t {
+struct write_log_entry_t {
 	// Video frame in which the write occurred.
 	uint64_t frame;
 
@@ -120,9 +120,9 @@ uint8_t  ppustatus();
 
 
 // Current PPU timing position.
-uint16_t ppu_dot();
-uint16_t ppu_scanline();
-uint64_t ppu_frame_counter();
+uint16_t dot();
+uint16_t scanline();
+uint64_t frame_counter();
 
 
 // Low-level PPU timing counters.
@@ -146,24 +146,21 @@ constexpr uint32_t PPU_WRITE_LOG_CAPACITY = 256;
 
 
 // Records one PPU register write in the rolling debugger history.
-void log_ppu_write (uint16_t address, uint8_t value);
+void log_write (uint16_t address, uint8_t value);
 
 
 // Returns the number of currently retained PPU write-log entries.
-uint32_t ppu_write_log_count();
+uint32_t write_log_count();
 
-
-// Returns one retained write-log entry by chronological index.
-ppu_write_log_entry_t ppu_write_log_entry (uint32_t index);
 
 // Clears all retained PPU write-log history.
-void clear_ppu_write_log();
+void clear_write_log();
 
 // Copies retained PPU writes into the supplied buffer, oldest to newest.
-uint32_t ppu_write_log_snapshot (ppu_write_log_entry_t* entries, uint32_t capacity);
+uint32_t write_log_snapshot (write_log_entry_t *entries, uint32_t capacity);
 
 // Side-effect-free debugger read from PPU address space.
-uint8_t debug_read_ppu_memory (uint16_t address);
+uint8_t debug_read_memory (uint16_t address);
 
 // Advances the PPU by one dot for debugger stepping.
 void debug_step_dot();

@@ -35,10 +35,9 @@ APUFrameSequencerView::APUFrameSequencerView (BRect frame, PretendoWindow *paren
 	fFreezeUpdates(false)
 {
 	(void)parent;
-
 	SetViewColor(B_TRANSPARENT_COLOR);
-
 	CaptureState();
+
 }
 
 
@@ -61,7 +60,8 @@ APUFrameSequencerView::~APUFrameSequencerView()
 // -----------------------------------------------------------------------------
 // APUFrameSequencerView::AttachedToWindow
 //
-// Initializes keyboard focus and captures the initial frame-sequencer state.
+// Initializes keyboard focus and captures the current frame-sequencer state
+// after the view has been attached to its window.
 //
 // Parameters:
 //   None.
@@ -124,9 +124,17 @@ APUFrameSequencerView::HasROMLoaded() const
 // -----------------------------------------------------------------------------
 // APUFrameSequencerView::Pulse
 //
-// Refreshes the frame-sequencer snapshot while the debugger view is live.
+// Refreshes the frame-sequencer debugger while the view is active.
 //
-// Frozen mode preserves the current captured snapshot.
+// When no ROM is loaded, the view is simply redrawn so the empty-state display
+// remains current.
+//
+// In live mode, the latest frame-sequencer state and recent event history are
+// captured on each pulse.  Frozen mode preserves the existing snapshot until
+// the user returns the debugger to live mode.
+//
+// The display-only timeline animation determines whether the APU is actually
+// advancing by comparing captured APU cycle counts during drawing.
 //
 // Parameters:
 //   None.
@@ -157,6 +165,7 @@ APUFrameSequencerView::Pulse()
 //
 // Controls:
 //   Space - Toggle live/frozen display.
+//   C     - Clear recent frame-event history.
 //
 // Parameters:
 //   bytes    - Keyboard input bytes.
@@ -169,7 +178,6 @@ void
 APUFrameSequencerView::KeyDown (const char *bytes, int32 numBytes)
 {
 	if (numBytes == 1 && bytes[0] == ' ') {
-
 		if (!HasROMLoaded()) {
 			return;
 		}
@@ -196,7 +204,6 @@ APUFrameSequencerView::KeyDown (const char *bytes, int32 numBytes)
 		return;
 	}
 	
-
 	BView::KeyDown(bytes, numBytes);
 }
 
@@ -412,15 +419,15 @@ APUFrameSequencerView::DrawStatePanel()
 // APUFrameSequencerView::DrawTimelinePanel
 //
 // Draws the timing structure of the active APU frame-sequencer mode together
-// with a live indicator showing the current sequencer position.
+// with a readable visual representation of sequence progression.
 //
 // Event-marker positions are based directly on the timing used by the
-// emulator's existing frame-counter implementation.
+// emulator's frame-counter implementation.
 //
-// The current position is reconstructed from the next scheduled frame event and
-// the number of APU cycles remaining until that event:
+// The exact sampled position is reconstructed from the next scheduled frame
+// event and the number of APU cycles remaining until that event:
 //
-//     current position = next event position - cycles remaining
+//     sampled position = next event position - cycles remaining
 //
 // The calculation wraps around the end of the logical sequence when necessary.
 //
@@ -435,8 +442,13 @@ APUFrameSequencerView::DrawStatePanel()
 // In 5-step mode, five internal scheduling points are shown and no frame IRQ
 // points are present.
 //
-// Because the current position is derived entirely from the captured debugger
-// snapshot, pressing Space to freeze the view also freezes the timeline marker.
+// Because the real NES frame sequencer advances too quickly to animate clearly
+// at debugger refresh rates, the blue marker is a display-only sweep running at
+// a readable rate.  The exact captured sequencer position is shown separately.
+//
+// The display sweep advances only while captured APU cycles are advancing.
+// Loading a ROM without running it, pausing emulation, or freezing this debugger
+// therefore leaves the marker stationary.
 //
 // Parameters:
 //   None.
@@ -448,7 +460,7 @@ void
 APUFrameSequencerView::DrawTimelinePanel()
 {
 	BRect panel(4.0f, 72.0f, Bounds().right - 4.0f, 230.0f);
-	::DrawDebugPanel(this, panel, fState.five_step_mode ? "Frame Timeline - 5-Step" 
+	::DrawDebugPanel(this, panel, fState.five_step_mode ? "Frame Timeline - 5-Step"
 														: "Frame Timeline - 4-Step");
 
 	BFont prevFont;
@@ -489,6 +501,7 @@ APUFrameSequencerView::DrawTimelinePanel()
 		for (int32 index = 0; index < 6; index++) {
 			const float normalized = static_cast<float>(eventCycles[index]) /
 									 static_cast<float>(sequenceCycles);
+
 			const float x = left + (width * normalized);
 
 			SetHighColor(kLineColor);
@@ -554,13 +567,16 @@ APUFrameSequencerView::DrawTimelinePanel()
 		 * scheduling points.
 		 */
 		const float clusterStartX = left + (width * (static_cast<float>(eventCycles[3]) /
-									static_cast<float>(sequenceCycles)));
+													 static_cast<float>(sequenceCycles)));
+
 		const float clusterEndX = left + (width * (static_cast<float>(eventCycles[5]) /
-								  static_cast<float>(sequenceCycles)));
+												   static_cast<float>(sequenceCycles)));
+
 		const float clusterY = timelineY + 13.0f;
 
 		SetHighColor(kIRQColor);
 		SetPenSize(1.0f);
+
 		StrokeLine(BPoint(clusterStartX, clusterY), BPoint(clusterEndX, clusterY));
 		StrokeLine(BPoint(clusterStartX, clusterY - 3.0f), BPoint(clusterStartX, clusterY + 3.0f));
 		StrokeLine(BPoint(clusterEndX, clusterY - 3.0f), BPoint(clusterEndX, clusterY + 3.0f));
@@ -579,7 +595,7 @@ APUFrameSequencerView::DrawTimelinePanel()
 		SetHighColor(kTextColor);
 		DrawString("Quarter = Envelope + Triangle Linear Counter", BPoint(left, detailY));
 		DrawString("Half = Length Counters + Square Sweep", BPoint(left, detailY + 15.0f));
-		
+
 		SetHighColor(kIRQColor);
 		DrawString("IRQ = Frame IRQ point when not inhibited", BPoint(left, detailY + 30.0f));
 	} else {
@@ -596,6 +612,7 @@ APUFrameSequencerView::DrawTimelinePanel()
 		for (int32 index = 0; index < 5; index++) {
 			const float normalized = static_cast<float>(eventCycles[index]) /
 									 static_cast<float>(sequenceCycles);
+
 			const float x = left + (width * normalized);
 
 			SetHighColor(kLineColor);
@@ -634,16 +651,21 @@ APUFrameSequencerView::DrawTimelinePanel()
 			SetHighColor(eventColor);
 
 			float textX = x - (StringWidth(eventName) * 0.5f);
+			float textY = labelY;
 
 			/*
-			 * The first event sits directly at the left end of the timeline.
-			 * Anchor its longer label just to the right of the marker.
+			 * The first two 5-step labels are close enough that centering
+			 * both can make them overlap.  Stagger them vertically while
+			 * preserving their relationship to the correct event markers.
 			 */
 			if (index == 0) {
 				textX = x + 4.0f;
+				textY = labelY - 10.0f;
+			} else if (index == 1) {
+				textY = labelY + 10.0f;
 			}
 
-			DrawString(eventName, BPoint(textX, labelY));
+			DrawString(eventName, BPoint(textX, textY));
 		}
 
 		if (fState.next_step < 5) {
@@ -666,33 +688,84 @@ APUFrameSequencerView::DrawTimelinePanel()
 	}
 
 	/*
-	 * Draw the live/frozen current-position indicator.
+	 * Advance the display-only timeline marker using elapsed wall-clock time.
+	 *
+	 * The marker advances only when the captured APU cycle count itself is
+	 * changing.  This keeps the visual sweep stopped when a ROM is merely
+	 * loaded, when emulation is paused, or when the debugger view is frozen.
 	 */
-	const float currentNormalized = static_cast<float>(currentSequenceCycle) /
-									static_cast<float>(sequenceCycles);
+	const float sequenceLength = static_cast<float>(sequenceCycles);
+	const float targetSequenceCycle = static_cast<float>(currentSequenceCycle);
+	const bigtime_t now = system_time();
+
+	if (!fHaveDisplayedSequenceCycle) {
+		fDisplayedSequenceCycle = targetSequenceCycle;
+
+		fHaveDisplayedSequenceCycle = true;
+		fLastDisplayTime = now;
+		fLastDisplayedAPUCycle = fState.apu_cycle;
+	}
+
+	const bool apuRunning = fState.apu_cycle != fLastDisplayedAPUCycle;
+
+	fLastDisplayedAPUCycle = fState.apu_cycle;
+
+	if (fFreezeUpdates || !apuRunning) {
+		/*
+		 * Preserve the marker while the debugger is frozen or while the APU
+		 * itself is not advancing.
+		 *
+		 * Resetting the timestamp prevents stopped or paused time from being
+		 * counted as elapsed animation time when execution resumes.
+		 */
+		fLastDisplayTime = now;
+	} else {
+		if (fLastDisplayTime != 0) {
+			const bigtime_t elapsed = now - fLastDisplayTime;
+			const float elapsedSeconds = static_cast<float>(elapsed) / 1000000.0f;
+
+			/*
+			 * Advance by one complete displayed sequence per second.
+			 */
+			fDisplayedSequenceCycle += sequenceLength * elapsedSeconds;
+
+			while (fDisplayedSequenceCycle >= sequenceLength) {
+				fDisplayedSequenceCycle -= sequenceLength;
+			}
+
+			while (fDisplayedSequenceCycle < 0.0f) {
+				fDisplayedSequenceCycle += sequenceLength;
+			}
+		}
+
+		fLastDisplayTime = now;
+	}
+
+	/*
+	 * Draw the smooth display-only position indicator.
+	 */
+	const float currentNormalized = fDisplayedSequenceCycle / sequenceLength;
 	const float currentX = left + (width * currentNormalized);
 
 	SetHighColor(currentColor);
 	SetPenSize(2.0f);
 	StrokeLine(BPoint(currentX, timelineY - 11.0f), BPoint(currentX, timelineY + 11.0f));
-	FillTriangle(BPoint(currentX - 5.0f, timelineY - 15.0f), BPoint(currentX + 5.0f, timelineY - 15.0f),
-						BPoint(currentX, timelineY - 9.0f));
+	FillTriangle(BPoint(currentX - 5.0f, timelineY - 15.0f),
+				 BPoint(currentX + 5.0f, timelineY - 15.0f),
+				 BPoint(currentX, timelineY - 9.0f));
 
-	BString currentText;
-	currentText.SetToFormat("CURRENT %u", static_cast<unsigned>(currentSequenceCycle));
+	/*
+	 * Show the exact captured sequencer position separately from the
+	 * display-only sweep marker so the two are not mistaken for the same
+	 * position.
+	 */
+	BString sampledText;
 
-	const float currentTextWidth = StringWidth(currentText.String());
-	float currentTextX = currentX - (currentTextWidth * 0.5f);
+	sampledText.SetToFormat("Sampled position: %u", static_cast<unsigned>(currentSequenceCycle));
+	const float sampledTextWidth = StringWidth(sampledText.String());
 
-	if (currentTextX < left) {
-		currentTextX = left;
-	}
-
-	if (currentTextX + currentTextWidth > right) {
-		currentTextX = right - currentTextWidth;
-	}
-
-	DrawString(currentText.String(), BPoint(currentTextX, timelineY + 24.0f));
+	SetHighColor(kValueColor);
+	DrawString(sampledText.String(), BPoint(right - sampledTextWidth, timelineY + 24.0f));
 
 	SetPenSize(1.0f);
 	SetFont(&prevFont);
@@ -773,7 +846,7 @@ APUFrameSequencerView::DrawRecentEventsPanel()
 	
 	for (int32 row = 0; row < rowsToDraw; row++) {
 		const int32 eventIndex = static_cast<int32>(fEventCount) - 1 - row;
-		const nes::apu::apu_frame_event_t &event = fEvents[eventIndex];
+		const nes::apu::frame_event_t &event = fEvents[eventIndex];
 
 		BString text;
 		text.SetToFormat("%llu", static_cast<unsigned long long>(event.cycle));
@@ -798,6 +871,11 @@ APUFrameSequencerView::DrawRecentEventsPanel()
 			case nes::apu::APU_FRAME_EVENT_QUARTER_HALF:
 				eventName = "Quarter + Half";
 				eventColor = kHalfColor;
+				break;
+
+			case nes::apu::APU_FRAME_EVENT_QUARTER_HALF_IRQ:
+				eventName = "Quarter + Half + IRQ";
+				eventColor = kIRQColor;
 				break;
 
 			case nes::apu::APU_FRAME_EVENT_IRQ:
@@ -828,7 +906,6 @@ APUFrameSequencerView::DrawRecentEventsPanel()
 	SetFont(&prevFont);
 }
 
-
 // -----------------------------------------------------------------------------
 // APUFrameSequencerView::DrawNoROMMessage
 //
@@ -858,5 +935,35 @@ APUFrameSequencerView::DrawNoROMMessage()
 	DrawString(message, BPoint((Bounds().Width() - width) * 0.5f, Bounds().Height() * 0.5f));
 
 	SetFont(&prevFont);
+}
+
+
+// -----------------------------------------------------------------------------
+// APUFrameSequencerView::ResetView
+//
+// Resets debugger-local state after a new ROM is loaded.
+//
+// A new cartridge starts the Frame Sequencer debugger in live mode and clears
+// display-only timeline state so the marker is initialized from the new APU
+// sequencer state.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+APUFrameSequencerView::ResetView()
+{
+	fFreezeUpdates = false;
+
+	fHaveDisplayedSequenceCycle = false;
+	fLastDisplayTime = 0;
+	fLastDisplayedAPUCycle = 0;
+
+	CaptureState();
+
+	Invalidate();
 }
 

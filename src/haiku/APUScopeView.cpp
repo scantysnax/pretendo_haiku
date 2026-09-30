@@ -570,7 +570,7 @@ APUScopeView::DrawHeaderPanel()
 		SetHighColor(kSoloColor);
 		DrawString(SoloChannelName(), BPoint(drawX, line3Y));
 	} else if (fCursorSample >= 0 && fCursorSample < static_cast<int32>(fSampleCount)) {
-		const nes::apu::apu_scope_sample_t &sample = fSamples[fCursorSample];
+		const nes::apu::scope_sample_t &sample = fSamples[fCursorSample];
 		const int32 samplesFromNewest = static_cast<int32>(fSampleCount) - 1 - fCursorSample;
 		const double millisecondsFromNewest = (static_cast<double>(samplesFromNewest) / sampleRate) * 1000.0;
 		float drawX = x;
@@ -988,7 +988,7 @@ APUScopeView::DrawWaveformPanel (BRect panel, const char *title, scope_channel c
 //   Channel sample value as a floating-point number.
 // -----------------------------------------------------------------------------
 float
-APUScopeView::SampleValue (const nes::apu::apu_scope_sample_t &sample, scope_channel channel) const
+APUScopeView::SampleValue (const nes::apu::scope_sample_t &sample, scope_channel channel) const
 {
 	switch (channel) {
 		case SCOPE_SQUARE1:

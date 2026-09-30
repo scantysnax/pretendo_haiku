@@ -156,7 +156,7 @@ CPUStatusView::DrawHeaderPanel()
 	SetFontSize(11.0f);
 	SetHighColor(35, 35, 35);
 	DrawString("Live 6502 register, flag, instruction, and cycle state.",
-		BPoint(panel.left + 8.0f, panel.top + 40.0f));
+			   BPoint(panel.left + 8.0f, panel.top + 40.0f));
 }
 
 

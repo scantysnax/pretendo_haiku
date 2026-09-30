@@ -136,9 +136,9 @@ PPUStatusView::CaptureSnapshot()
 	uint16 dot = 0;
 
 	do {
-		scanlineBefore = nes::ppu::ppu_scanline();
-		dot = nes::ppu::ppu_dot();
-		scanlineAfter = nes::ppu::ppu_scanline();
+		scanlineBefore = nes::ppu::scanline();
+		dot = nes::ppu::dot();
+		scanlineAfter = nes::ppu::scanline();
 	} while (scanlineBefore != scanlineAfter);
 
 	fSnapshot.scanline = scanlineAfter;

@@ -54,7 +54,7 @@ uint8_t A     = 0;
 uint8_t X     = 0;
 uint8_t Y     = 0;
 uint8_t S     = 0;
-uint8_t P     = I_MASK | R_MASK;
+uint8_t P     = Z_MASK | I_MASK | R_MASK;
 
 namespace {
 
@@ -140,7 +140,7 @@ uint8_t sDebugStackBreakNewS = 0xff;
 
 
 // Circular CPU execution trace used by the debugger.
-cpu_trace_entry_t sCPUTraceEntries[CPU_TRACE_CAPACITY] = {};
+trace_entry_t sCPUTraceEntries[CPU_TRACE_CAPACITY] = {};
 uint32_t sCPUTraceNext = 0;
 uint32_t sCPUTraceCount = 0;
 static void record_cpu_trace_entry(uint16_t address);
@@ -225,7 +225,7 @@ uint64_t executed_cycles_ = 1; // NOTE(eteran): 1 instead of 0 makes 4.irq_and_d
 static void
 record_cpu_trace_entry (uint16_t address)
 {
-	cpu_trace_entry_t& entry = sCPUTraceEntries[sCPUTraceNext];
+	trace_entry_t &entry = sCPUTraceEntries[sCPUTraceNext];
 	entry.cycle = executed_cycles_;
 	entry.pc = address;
 	entry.bytes[0] = nes::bus::debug_read_memory(address);
@@ -1072,7 +1072,7 @@ stop()
 	X = 0;
 	Y = 0;
 	S = 0;
-	P = I_MASK | R_MASK;
+	P = Z_MASK | I_MASK | R_MASK;
 
 	executed_cycles_ = 1;
 	irq_asserted_    = false;
@@ -1258,7 +1258,8 @@ cycle_count()
 //   Snapshot of the current CPU state.
 // -----------------------------------------------------------------------------
 cpu_state_t
-debug_state() {
+debug_state() 
+{
 	cpu_state_t state{};
 
 	state.pc = PC.raw;
@@ -1649,7 +1650,7 @@ debug_trace_capacity()
 
 
 // -----------------------------------------------------------------------------
-// nes::cpu::debug_cpu_trace_entry
+// nes::cpu::debug_trace_entry
 //
 // Reads one CPU execution trace entry by chronological index.  Index 0 is the
 // oldest valid entry currently retained.  The newest entry is at
@@ -1663,7 +1664,7 @@ debug_trace_capacity()
 //   true if the entry was read.
 // -----------------------------------------------------------------------------
 bool
-debug_trace_entry (uint32_t index, cpu_trace_entry_t &entry)
+debug_trace_entry (uint32_t index, trace_entry_t &entry)
 {
 	if (index >= sCPUTraceCount) {
 		return false;
@@ -1683,7 +1684,7 @@ debug_trace_entry (uint32_t index, cpu_trace_entry_t &entry)
 
 
 // -----------------------------------------------------------------------------
-// nes::cpu::debug_clear_cpu_trace
+// nes::cpu::debug_clear_trace
 //
 // Clears the CPU execution trace buffer.
 //
@@ -1700,7 +1701,7 @@ debug_clear_trace()
 	sCPUTraceCount = 0;
 
 	for (uint32_t i = 0; i < CPU_TRACE_CAPACITY; i++) {
-		sCPUTraceEntries[i] = cpu_trace_entry_t();
+		sCPUTraceEntries[i] = trace_entry_t();
 	}
 }
 

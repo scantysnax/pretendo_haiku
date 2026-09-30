@@ -3,6 +3,8 @@
 
 #include <View.h>
 
+#include <cmath>
+
 class PretendoWindow;
 
 

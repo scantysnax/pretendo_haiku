@@ -82,7 +82,7 @@ class APUWriteLogView : public BView
 	private:
 	const char *RegisterName (uint16 address) const;
 	const char *ChannelName (uint16 address) const;
-	void DescribeWrite (const nes::apu::apu_write_log_entry_t &entry, BString &text) const;
+	void DescribeWrite (const nes::apu::write_log_entry_t &entry, BString &text) const;
 
 	private:
 	bool HasROMLoaded() const;
@@ -97,7 +97,7 @@ class APUWriteLogView : public BView
 	BScrollBar *fScrollBar = nullptr;
 
 	private:
-	std::vector<nes::apu::apu_write_log_entry_t> fLogSnapshot;
+	std::vector<nes::apu::write_log_entry_t> fLogSnapshot;
 };
 
 

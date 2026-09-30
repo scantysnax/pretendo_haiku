@@ -211,11 +211,11 @@ APUWriteLogView::Pulse()
 void
 APUWriteLogView::CaptureLogSnapshot()
 {
-	const uint32 count = nes::apu::apu_write_log_count();
+	const uint32 count = nes::apu::write_log_count();
 	fLogSnapshot.resize(count);
 
 	if (count != 0) {
-		const uint32 copied = nes::apu::apu_write_log_snapshot(fLogSnapshot.data(), count);
+		const uint32 copied = nes::apu::write_log_snapshot(fLogSnapshot.data(), count);
 		fLogSnapshot.resize(copied);
 	}
 
@@ -283,7 +283,7 @@ APUWriteLogView::KeyDown (const char *bytes, int32 numBytes)
 		case 'c':
 		case 'C':
 		{
-			nes::apu::clear_apu_write_log();
+			nes::apu::clear_write_log();
 
 			fLogSnapshot.clear();
 			fFirstVisibleRow = 0;
@@ -538,7 +538,7 @@ APUWriteLogView::DrawLogPanel()
 
 	for (int32 row = 0; row < rows; row++) {
 		const int32 index = firstIndex + row;
-		const nes::apu::apu_write_log_entry_t &entry = fLogSnapshot[index];
+		const nes::apu::write_log_entry_t &entry = fLogSnapshot[index];
 
 		DescribeWrite(entry, desc);
 
@@ -1011,7 +1011,7 @@ APUWriteLogView::ChannelName (uint16 address) const
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-APUWriteLogView::DescribeWrite (const nes::apu::apu_write_log_entry_t &entry, BString &text) const
+APUWriteLogView::DescribeWrite (const nes::apu::write_log_entry_t &entry, BString &text) const
 {
 	const uint16 address = entry.address;
 	const uint8 value = entry.value;

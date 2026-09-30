@@ -1394,7 +1394,6 @@ StackView::DrawTrackedCallStackPanel()
 
 	BString footer;
 	footer.SetToFormat("Active:%ld   T selected   K possible   H history", static_cast<long>(fTrackedCallStackCount));
-	
 	DrawString(footer.String(), BPoint(panel.left + 10.0f, panel.bottom - 8.0f));
 }
 
@@ -1481,7 +1480,7 @@ StackView::CaptureStackSnapshot()
 		const uint32 traceCount = nes::cpu::debug_trace_count();
 
 		if (traceCount > 0) {
-			nes::cpu::cpu_trace_entry_t newestEntry;
+			nes::cpu::trace_entry_t newestEntry;
 
 			if (nes::cpu::debug_trace_entry(traceCount - 1,newestEntry)) {
 				if (newestEntry.cycle < fLastProcessedTraceCycle) {
@@ -1837,7 +1836,7 @@ StackView::BuildPossibleCallStack (call_stack_candidate_t *candidates, int32 cap
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-StackView::RecordTrackedCallTransition (const nes::cpu::cpu_trace_entry_t &entry, const nes::cpu::cpu_trace_entry_t &nextEntry)
+StackView::RecordTrackedCallTransition (const nes::cpu::trace_entry_t &entry, const nes::cpu::trace_entry_t &nextEntry)
 {
 	auto makeRoomForFrame = [&]() {
 		if (fTrackedCallStackCount < kTrackedCallStackCapacity) {
@@ -2376,8 +2375,8 @@ StackView::CaptureInstructionStackHistory()
 	}
 
 	for (uint32 i = 0; i + 1 < traceCount; i++) {
-		nes::cpu::cpu_trace_entry_t entry;
-		nes::cpu::cpu_trace_entry_t nextEntry;
+		nes::cpu::trace_entry_t entry;
+		nes::cpu::trace_entry_t nextEntry;
 
 		if (!nes::cpu::debug_trace_entry(i, entry)) {
 			continue;
@@ -2426,8 +2425,8 @@ StackView::CaptureInstructionStackHistory()
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-StackView::RecordInterruptStackActivity (const nes::cpu::cpu_trace_entry_t &entry, 
-										 const nes::cpu::cpu_trace_entry_t &nextEntry)
+StackView::RecordInterruptStackActivity (const nes::cpu::trace_entry_t &entry, 
+										 const nes::cpu::trace_entry_t &nextEntry)
 {
 	/*
 	 * All normal 6502 interrupt-entry frames consume three stack bytes.
@@ -2522,8 +2521,8 @@ StackView::RecordInterruptStackActivity (const nes::cpu::cpu_trace_entry_t &entr
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-StackView::RecordInstructionStackActivity(const nes::cpu::cpu_trace_entry_t &entry,
-										 const nes::cpu::cpu_trace_entry_t &nextEntry)
+StackView::RecordInstructionStackActivity(const nes::cpu::trace_entry_t &entry,
+										  const nes::cpu::trace_entry_t &nextEntry)
 {
 	stack_activity_t activity;
 

@@ -748,7 +748,7 @@ MapperExplorerView::CaptureMMC5State()
 // -----------------------------------------------------------------------------
 bool
 MapperExplorerView::MMC5StateChanged (const mmc5_debug_state_t &oldState,
-									 const mmc5_debug_state_t &newState) const
+									  const mmc5_debug_state_t &newState) const
 {
 	if (
 		oldState.prg_mode != newState.prg_mode ||
@@ -785,10 +785,8 @@ MapperExplorerView::MMC5StateChanged (const mmc5_debug_state_t &oldState,
 	}
 
 	for (int i = 0; i < 8; ++i) {
-		if (
-			oldState.bg_chr_bank[i] != newState.bg_chr_bank[i] ||
-			oldState.sp_chr_bank[i] != newState.sp_chr_bank[i]
-		) {
+		if (oldState.bg_chr_bank[i] != newState.bg_chr_bank[i] ||
+			oldState.sp_chr_bank[i] != newState.sp_chr_bank[i]) {
 			return true;
 		}
 	}
@@ -974,7 +972,6 @@ MapperExplorerView::DrawMapperSummary()
 	x = 20.0f;
 	x = DrawText(x, 78.0f, "Mirroring: ", be_plain_font);
 	DrawText(x, 78.0f, MirroringName(fState.mirroring), be_plain_font);
-
 
 	// Revision is useful for debugging but is intentionally de-emphasized.
 	SetHighColor(100, 100, 100);
@@ -1290,8 +1287,6 @@ MapperExplorerView::DrawUnsupportedMapperPanel()
 
 	SetHighColor(25, 25, 25);
 }
-
-
 
 
 // -----------------------------------------------------------------------------
@@ -2515,7 +2510,6 @@ MapperExplorerView::DrawMMC5Panel()
 	text.SetToFormat("$%02X", static_cast<unsigned int>(fMMC5State.prg_bank[4]));
 	DrawText(x, leftY, text.String(), be_fixed_font);
 
-
 	// Sprite CHR registers.
 
 	leftY += 26.0f;
@@ -2539,7 +2533,6 @@ MapperExplorerView::DrawMMC5Panel()
 		}
 	}
 
-
 	leftY += 18.0f;
 	x = leftText;
 
@@ -2554,7 +2547,6 @@ MapperExplorerView::DrawMMC5Panel()
 			x += 10.0f;
 		}
 	}
-
 
 	// Background CHR registers.
 

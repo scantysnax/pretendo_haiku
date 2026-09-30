@@ -470,7 +470,7 @@ bool
 CPUMemoryView::AddressForPoint (BPoint where, uint16 &address) const
 {
 	const float rightEdge = (fScrollBar && !fScrollBar->IsHidden())
-							? fScrollBar->Frame().left - 4.0f : Bounds().right - 4.0f;
+						  ? fScrollBar->Frame().left - 4.0f : Bounds().right - 4.0f;
 	BRect panel(4.0f, 202.0f, rightEdge, Bounds().bottom - 8.0f);
 
 	if (!panel.Contains(where)) {
@@ -820,7 +820,7 @@ void
 CPUMemoryView::DrawMemoryPanel()
 {
 	const float rightEdge = (fScrollBar && !fScrollBar->IsHidden())
-			? fScrollBar->Frame().left - 4.0f : Bounds().right - 4.0f;
+						  ? fScrollBar->Frame().left - 4.0f : Bounds().right - 4.0f;
 
 	BRect panel(4.0f, 202.0f, rightEdge, Bounds().bottom - 8.0f);
 	::DrawDebugPanel(this, panel, "Memory");
@@ -1013,7 +1013,6 @@ CPUMemoryView::DrawMemoryPanel()
 
 			if (isInstructionTarget) {
 				SetHighColor(0, 130, 0);
-
 				StrokeRect(BRect(asciiCharX - 2.0f, y - 12.0f, asciiCharX + asciiStep, y + 3.0f));
 			}
 
@@ -1377,6 +1376,7 @@ CPUMemoryView::ReadVector (uint16 address) const
 
 	return static_cast<uint16>(low | (high << 8));
 }
+
 
 // -----------------------------------------------------------------------------
 // CPUMemoryView::ReadZeroPageVector

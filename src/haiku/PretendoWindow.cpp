@@ -105,6 +105,30 @@ InvalidateViewTree(BView *view)
 }
 
 
+static void
+ResetAPUFrameSequencerWindow (BWindow *window)
+{
+	if (!window) {
+		return;
+	}
+
+	if (!window->Lock()) {
+		return;
+	}
+
+	BView *child = window->ChildAt(0);
+
+	APUFrameSequencerView *view =
+		dynamic_cast<APUFrameSequencerView *>(child);
+
+	if (view) {
+		view->ResetView();
+	}
+
+	window->Unlock();
+}
+
+
 // -----------------------------------------------------------------------------
 // PretendoWindow::PretendoWindow
 //
@@ -4921,6 +4945,7 @@ PretendoWindow::LoadROMPath (const char* path)
 
 	InvalidateDebugViews();
 	ResetCPUDisasmWindow(fCPUDisasmWindow);
+	ResetAPUFrameSequencerWindow(fAPUFrameSequencerWindow);
 }
 
 

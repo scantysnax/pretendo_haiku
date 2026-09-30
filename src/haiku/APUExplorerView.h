@@ -61,8 +61,8 @@ class APUExplorerView : public BView
 	PretendoWindow *fParent = nullptr;
 
 	private:
-	nes::apu::apu_explorer_state_t fExplorerState;
-	nes::apu::apu_debug_state_t fDebugState;
+	nes::apu::explorer_state_t fExplorerState;
+	nes::apu::debug_state_t fDebugState;
 };
 
 

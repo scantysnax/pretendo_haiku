@@ -3,11 +3,7 @@
 #include <File.h>
 #include <String.h>
 
-#include "CHRExplorerView.h"
-#include "NameTableView.h"
 #include "NameTableWindow.h"
-#include "PretendoWindow.h"
-#include "PatternTableWindow.h"
 
 
 // -----------------------------------------------------------------------------

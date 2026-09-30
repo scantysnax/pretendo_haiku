@@ -1,17 +1,5 @@
 
-#include "DebugHelpers.h"
 #include "OAMDebugView.h"
-#include "PatternTableView.h"
-#include "PatternTableWindow.h"
-#include "PretendoWindow.h"
-
-#include "Cart.h"
-#include "CHRExplorerView.h"
-
-#include "Mapper.h"
-#include "Ppu.h"
-
-#include <cmath>
 
 
 static const int32 kOAMSpriteCount = 64;
@@ -2105,7 +2093,7 @@ OAMDebugView::DisplayCHRByte (uint32 address) const
 //   Snapshot or live NES palette-RAM byte.
 // -----------------------------------------------------------------------------
 uint8
-OAMDebugView::DisplayPaletteByte(uint32 address) const
+OAMDebugView::DisplayPaletteByte (uint32 address) const
 {
 	uint32 offset = (address - 0x3f00) & 0x1f;
 

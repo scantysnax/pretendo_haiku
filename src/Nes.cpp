@@ -251,12 +251,12 @@ debug_step_frame()
 		return;
 	}
 
-	const uint64_t startFrame = nes::ppu::ppu_frame_counter();
+	const uint64_t startFrame = nes::ppu::frame_counter();
 
 	for (int32_t safety = 0; safety < 2000000; safety++) {
 		nes::ppu::debug_step_dot();
 
-		if (nes::ppu::ppu_frame_counter() != startFrame) {
+		if (nes::ppu::frame_counter() != startFrame) {
 			return;
 		}
 	}

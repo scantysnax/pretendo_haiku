@@ -37,7 +37,7 @@ class APUScopeView : public BView
 	private:
 	void CaptureSamples();
 	void DrawWaveformPanel (BRect panel, const char *title, scope_channel channel, float maximumValue);
-	float SampleValue (const nes::apu::apu_scope_sample_t &sample, scope_channel channel) const;
+	float SampleValue (const nes::apu::scope_sample_t &sample, scope_channel channel) const;
 	void ComputeVisibleSampleRange (uint32 &startIndex, uint32 &endIndex) const;
 	void ComputeVisibleMinMax (scope_channel channel, float &minimumValue, float &maximumValue) const;
 	
@@ -54,12 +54,12 @@ class APUScopeView : public BView
 	const char *SoloChannelName() const;
 	
 	private:
-	nes::apu::apu_scope_sample_t fSamples[nes::apu::APU_SCOPE_SAMPLE_CAPACITY];
+	nes::apu::scope_sample_t fSamples[nes::apu::APU_SCOPE_SAMPLE_CAPACITY];
 	uint32 fSampleCount = 0;
 	bool fFreezeUpdates = false;
 	int32 fCursorSample = -1;
 	uint32 fVisibleSampleCount = nes::apu::APU_SCOPE_SAMPLE_CAPACITY;
-	nes::apu::apu_debug_state_t fDebugState;
+	nes::apu::debug_state_t fDebugState;
 	bool fTriggerEnabled = false;
 	scope_channel fTriggerChannel = SCOPE_SQUARE1;
 	

@@ -217,7 +217,7 @@ struct dmc_debug_state_t {
 
 
 // -----------------------------------------------------------------------------
-// apu_debug_state_t
+// debug_state_t
 //
 // Side-effect-free debugger snapshot of the complete NES APU state.
 //
@@ -228,7 +228,7 @@ struct dmc_debug_state_t {
 // This is intended for debugger/UI inspection and does not itself modify APU
 // behavior.
 // -----------------------------------------------------------------------------
-struct apu_debug_state_t {
+struct debug_state_t {
 	// Current global APU cycle count.
 	uint64_t cycle = 0;
 
@@ -261,12 +261,12 @@ struct apu_debug_state_t {
 };
 
 // Returns a side-effect-free snapshot of the current APU and channel state.
-apu_debug_state_t debug_state();
+debug_state_t debug_state();
 
 
 
 // -----------------------------------------------------------------------------
-// apu_frame_sequencer_debug_state_t
+// frame_sequencer_debug_state_t
 //
 // Side-effect-free debugger snapshot of the NES APU frame sequencer.
 //
@@ -281,7 +281,7 @@ apu_debug_state_t debug_state();
 // This is intended for debugger/UI inspection and does not itself modify APU
 // behavior.
 // -----------------------------------------------------------------------------
-struct apu_frame_sequencer_debug_state_t {
+struct frame_sequencer_debug_state_t {
 	// Current global APU cycle count.
 	uint64_t apu_cycle;
 
@@ -313,7 +313,7 @@ struct apu_frame_sequencer_debug_state_t {
 
 
 // Returns a side-effect-free snapshot of the current APU frame sequencer.
-apu_frame_sequencer_debug_state_t debug_frame_sequencer_state();
+frame_sequencer_debug_state_t debug_frame_sequencer_state();
 
 
 // -----------------------------------------------------------------------------
@@ -340,15 +340,16 @@ constexpr uint32_t APU_FRAME_EVENT_CAPACITY = 64;
 
 // Type of frame-sequencer event recorded in the history.
 enum apu_frame_event_type {
-	APU_FRAME_EVENT_QUARTER = 0,
+	APU_FRAME_EVENT_QUARTER,
 	APU_FRAME_EVENT_HALF,
 	APU_FRAME_EVENT_QUARTER_HALF,
+	APU_FRAME_EVENT_QUARTER_HALF_IRQ,
 	APU_FRAME_EVENT_IRQ
 };
 
 
 // -----------------------------------------------------------------------------
-// apu_frame_event_t
+// frame_event_t
 //
 // Describes one recorded APU frame-sequencer event.
 //
@@ -356,7 +357,7 @@ enum apu_frame_event_type {
 // internal sequencer step responsible for the event, while five_step_mode and
 // irq_inhibit capture the relevant frame-counter state at that moment.
 // -----------------------------------------------------------------------------
-struct apu_frame_event_t {
+struct frame_event_t {
 	// APU cycle on which the event occurred.
 	uint64_t cycle;
 
@@ -375,7 +376,7 @@ struct apu_frame_event_t {
 
 
 // Copies the rolling frame-sequencer event history in chronological order.
-uint32_t debug_frame_event_snapshot (apu_frame_event_t *events, uint32_t capacity);
+uint32_t debug_frame_event_snapshot (frame_event_t *events, uint32_t capacity);
 
 // Clears the debugger frame-sequencer event history.
 void debug_clear_frame_events();
@@ -412,7 +413,7 @@ constexpr uint32_t APU_WRITE_LOG_CAPACITY = 256;
 
 
 // -----------------------------------------------------------------------------
-// apu_write_log_entry_t
+// write_log_entry_t
 //
 // Describes one recorded CPU write to an APU register.
 //
@@ -422,7 +423,7 @@ constexpr uint32_t APU_WRITE_LOG_CAPACITY = 256;
 // previous_enable_mask is valid only when has_previous_enable_mask is true and
 // records the channel-enable state that existed before a $4015 write.
 // -----------------------------------------------------------------------------
-struct apu_write_log_entry_t {
+struct write_log_entry_t {
 	// APU cycle on which the write occurred.
 	uint64_t cycle;
 
@@ -446,17 +447,17 @@ struct apu_write_log_entry_t {
 
 
 // Returns the number of valid entries currently stored in the write log.
-uint32_t apu_write_log_count();
+uint32_t write_log_count();
 
 // Copies the rolling APU write log into caller-provided storage.
-uint32_t apu_write_log_snapshot(apu_write_log_entry_t *entries, uint32_t capacity);
+uint32_t write_log_snapshot(write_log_entry_t *entries, uint32_t capacity);
 
 // Clears the debugger APU register-write history.
-void clear_apu_write_log();
+void clear_write_log();
 
 
 // -----------------------------------------------------------------------------
-// apu_explorer_state_t
+// explorer_state_t
 //
 // Side-effect-free debugger snapshot of the most recently programmed raw APU
 // register values.
@@ -468,7 +469,7 @@ void clear_apu_write_log();
 // This is intended for debugger/UI inspection and does not itself modify APU
 // behavior.
 // -----------------------------------------------------------------------------
-struct apu_explorer_state_t {
+struct explorer_state_t {
 	// Square 1 registers: $4000-$4003.
 	uint8_t square1[4] = {};
 
@@ -494,7 +495,7 @@ struct apu_explorer_state_t {
 };
 
 // Returns a side-effect-free snapshot of the raw APU programming state.
-apu_explorer_state_t explorer_state();
+explorer_state_t explorer_state();
 
 
 // -----------------------------------------------------------------------------
@@ -522,7 +523,7 @@ constexpr uint32_t APU_SCOPE_SAMPLE_CAPACITY = 1024;
 // mixed contains the final mixed unsigned PCM sample produced by the normal
 // audio path.
 // -----------------------------------------------------------------------------
-struct apu_scope_sample_t {
+struct scope_sample_t {
 	// Instantaneous channel output levels.
 	uint8_t square1;
 	uint8_t square2;
@@ -536,7 +537,7 @@ struct apu_scope_sample_t {
 
 
 // Copies the rolling APU scope history into caller-provided storage.
-uint32_t debug_scope_snapshot(apu_scope_sample_t *samples, uint32_t capacity);
+uint32_t debug_scope_snapshot(scope_sample_t *samples, uint32_t capacity);
 
 // Clears the debugger oscilloscope sample history.
 void debug_clear_scope();

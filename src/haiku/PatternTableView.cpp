@@ -7,11 +7,9 @@
 // the active tile into CHRExplorerView.
 // -------------------------------------------------------------
 
-#include "Cart.h"
-#include "CHRExplorerView.h"
-#include "DebugHelpers.h"
 #include "PatternTableView.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstring>
 
@@ -73,7 +71,6 @@ PatternTableView::~PatternTableView()
 {
 	delete fBitmap;
 }
-
 
 
 // -------------------------------------------------------------
@@ -909,6 +906,7 @@ PatternTableView::DrawOverlays()
 		PopState();
 	}
 }
+
 
 // -------------------------------------------------------------
 // PatternTableView::DrawPatternStatePanel

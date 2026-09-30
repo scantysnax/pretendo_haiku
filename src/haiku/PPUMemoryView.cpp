@@ -1376,7 +1376,7 @@ PPUMemoryView::CapturePPUMemorySnapshot()
 	const bool hadSnapshot = fHavePPUMemorySnapshot;
 
 	for (uint32 address = 0; address < 0x4000; address++) {
-		const uint8 value = nes::ppu::debug_read_ppu_memory(static_cast<uint16>(address));
+		const uint8 value = nes::ppu::debug_read_memory(static_cast<uint16>(address));
 
 		if (hadSnapshot && value != fSnapshotPPUMemory[address]) {
 			fChangeTicks[address] = 12;
@@ -1415,7 +1415,7 @@ PPUMemoryView::DisplayPPUMemory (uint16 address) const
 		return fSnapshotPPUMemory[address];
 	}
 
-	return nes::ppu::debug_read_ppu_memory(address);
+	return nes::ppu::debug_read_memory(address);
 }
 
 

@@ -8,23 +8,6 @@
 // -------------------------------------------------------------
 
 #include "NameTableView.h"
-#include "PretendoWindow.h"
-#include "CHRExplorerView.h"
-#include "PatternTableWindow.h"
-#include "PatternTableView.h"
-
-#include "Cart.h"
-#include "Mapper.h"
-#include "Ppu.h"
-
-#include "DebugHelpers.h"
-
-#include <String.h>
-
-#include <algorithm>
-#include <cmath>
-#include <cstring>
-
 
 
 // -------------------------------------------------------------

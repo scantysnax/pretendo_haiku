@@ -17,6 +17,7 @@
 #include <cstdio>
 
 #include "APUExplorerWindow.h"
+#include "APUFrameSequencerView.h"
 #include "APUFrameSequencerWindow.h"
 #include "APUScopeWindow.h"
 #include "APUStatusWindow.h"

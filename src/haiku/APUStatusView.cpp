@@ -174,7 +174,7 @@ APUStatusView::AttachedToWindow()
 	// Initialize checkbox values immediately.
 	// -------------------------------------------------------------------------
 
-	const nes::apu::apu_debug_state_t state = nes::apu::debug_state();
+	const nes::apu::debug_state_t state = nes::apu::debug_state();
 
 	if (fSquare1CheckBox) {
 		fSquare1CheckBox->SetValue(state.square1.muted ? B_CONTROL_OFF : B_CONTROL_ON);
@@ -223,7 +223,7 @@ APUStatusView::Pulse()
 		return;
 	}
 
-	const nes::apu::apu_debug_state_t state = nes::apu::debug_state();
+	const nes::apu::debug_state_t state = nes::apu::debug_state();
 
 	if (fSquare1CheckBox) {
 		fSquare1CheckBox->SetValue(state.square1.muted ? B_CONTROL_OFF : B_CONTROL_ON);
@@ -842,7 +842,7 @@ APUStatusView::SetChannelControlsVisible (bool visible)
 void
 APUStatusView::DrawAPUPanel (BRect panel)
 {
-	const nes::apu::apu_debug_state_t state = nes::apu::debug_state();
+	const nes::apu::debug_state_t state = nes::apu::debug_state();
 	BString value;
 	
 	const float x = panel.left + kPanelPadding;
@@ -905,7 +905,7 @@ APUStatusView::DrawAPUPanel (BRect panel)
 void
 APUStatusView::DrawSquare1Panel (BRect panel)
 {
-	const nes::apu::apu_debug_state_t state = nes::apu::debug_state();
+	const nes::apu::debug_state_t state = nes::apu::debug_state();
 	BString value;
 	
 	const float x = panel.left + kPanelPadding;
@@ -988,7 +988,7 @@ APUStatusView::DrawSquare1Panel (BRect panel)
 void
 APUStatusView::DrawSquare2Panel (BRect panel)
 {
-	const nes::apu::apu_debug_state_t state = nes::apu::debug_state();
+	const nes::apu::debug_state_t state = nes::apu::debug_state();
 	BString value;
 	
 	const float x = panel.left + kPanelPadding;
@@ -1070,7 +1070,7 @@ APUStatusView::DrawSquare2Panel (BRect panel)
 void
 APUStatusView::DrawTrianglePanel (BRect panel)
 {
-	const nes::apu::apu_debug_state_t state = nes::apu::debug_state();
+	const nes::apu::debug_state_t state = nes::apu::debug_state();
 	BString value;
 	
 	const float x = panel.left + kPanelPadding;
@@ -1132,7 +1132,7 @@ APUStatusView::DrawTrianglePanel (BRect panel)
 void
 APUStatusView::DrawNoisePanel (BRect panel)
 {
-	const nes::apu::apu_debug_state_t state = nes::apu::debug_state();
+	const nes::apu::debug_state_t state = nes::apu::debug_state();
 	BString value;
 	
 	const float x = panel.left + kPanelPadding;
@@ -1190,7 +1190,7 @@ APUStatusView::DrawNoisePanel (BRect panel)
 void
 APUStatusView::DrawDMCPanel (BRect panel)
 {
-	const nes::apu::apu_debug_state_t state = nes::apu::debug_state();
+	const nes::apu::debug_state_t state = nes::apu::debug_state();
 	BString value;
 	
 	const float x = panel.left + kPanelPadding;

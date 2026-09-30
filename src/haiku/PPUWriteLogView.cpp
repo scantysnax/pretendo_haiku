@@ -205,11 +205,11 @@ PPUWriteLogView::Pulse()
 void
 PPUWriteLogView::CaptureLogSnapshot()
 {
-	const uint32 count = nes::ppu::ppu_write_log_count();
+	const uint32 count = nes::ppu::write_log_count();
 	fLogSnapshot.resize(count);
 
 	if (count != 0) {
-		const uint32 copied = nes::ppu::ppu_write_log_snapshot(fLogSnapshot.data(), count);
+		const uint32 copied = nes::ppu::write_log_snapshot(fLogSnapshot.data(), count);
 		fLogSnapshot.resize(copied);
 	}
 
@@ -217,6 +217,25 @@ PPUWriteLogView::CaptureLogSnapshot()
 }
 
 
+// -----------------------------------------------------------------------------
+// PPUWriteLogView::KeyDown
+//
+// Handles keyboard controls for the PPU write-log debugger.
+//
+// Space toggles between live and frozen display modes.  Entering frozen mode
+// captures the current write-log snapshot immediately so the displayed contents
+// represent the state at the moment freezing occurs.  Returning to live mode
+// refreshes the snapshot immediately.
+//
+// C clears both the emulator-side PPU write log and the debugger-side snapshot.
+//
+// Parameters:
+//   bytes    - Keyboard input bytes.
+//   numBytes - Number of bytes supplied.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 PPUWriteLogView::KeyDown (const char *bytes, int32 numBytes)
 {
@@ -259,7 +278,7 @@ PPUWriteLogView::KeyDown (const char *bytes, int32 numBytes)
 		case 'c':
 		case 'C':
 		{
-			nes::ppu::clear_ppu_write_log();
+			nes::ppu::clear_write_log();
 
 			fLogSnapshot.clear();
 			fFirstVisibleRow = 0;
@@ -511,7 +530,7 @@ PPUWriteLogView::DrawLogPanel()
 
 	for (int32 row = 0; row < rows; row++) {
 		const int32 index = firstIndex + row;
-		const nes::ppu::ppu_write_log_entry_t &entry = fLogSnapshot[index];
+		const nes::ppu::write_log_entry_t &entry = fLogSnapshot[index];
 
 		DescribeWrite(entry, desc);
 
@@ -885,7 +904,7 @@ PPUWriteLogView::RegisterName (uint16 address) const
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-PPUWriteLogView::DescribeWrite (const nes::ppu::ppu_write_log_entry_t &entry, BString &text) const
+PPUWriteLogView::DescribeWrite (const nes::ppu::write_log_entry_t &entry, BString &text) const
 {
 	const uint16 address = entry.address;
 	const uint8 value = entry.value;

@@ -1,15 +1,18 @@
 #ifndef _NAME_TABLE_VIEW_H_
 #define _NAME_TABLE_VIEW_H_
 
-#include <View.h>
 #include <Bitmap.h>
 #include <Message.h>
+#include <String.h>
+#include <View.h>
 
 #include <algorithm>
+#include <cmath>
+#include <cstring>
 
-class PretendoWindow;
-class CHRExplorerView;
-class PatternTableWindow;
+#include "CHRExplorerView.h"
+#include "PatternTableWindow.h"
+#include "PretendoWindow.h"
 
 
 // -------------------------------------------------------------

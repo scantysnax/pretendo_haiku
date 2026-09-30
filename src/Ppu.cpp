@@ -304,7 +304,7 @@ bool write_block_ = false;
 
 
 // Circular log of recent CPU writes to PPU registers for debugger inspection.
-static nes::ppu::ppu_write_log_entry_t write_log_[nes::ppu::PPU_WRITE_LOG_CAPACITY];
+static nes::ppu::write_log_entry_t write_log_[nes::ppu::PPU_WRITE_LOG_CAPACITY];
 static uint32_t write_log_next_ = 0;
 static uint32_t write_log_count_ = 0;
 static uint8_t  write_log_write_index_ = 0;
@@ -1750,7 +1750,7 @@ reset (nes::reset_type type)
 void
 write2000 (uint8_t value)
 {
-	log_ppu_write(0x2000, value);
+	log_write(0x2000, value);
 	
 	latch_ = value;
 
@@ -1787,7 +1787,7 @@ write2000 (uint8_t value)
 void
 write2001 (uint8_t value)
 {
-	log_ppu_write(0x2001, value);
+	log_write(0x2001, value);
 	
 	latch_ = value;
 
@@ -1815,7 +1815,7 @@ write2001 (uint8_t value)
 void
 write2002 (uint8_t value)
 { 
-	log_ppu_write(0x2002, value);
+	log_write(0x2002, value);
 	
 	latch_ = value; 
 }
@@ -1835,7 +1835,7 @@ write2002 (uint8_t value)
 void
 write2003 (uint8_t value)
 {
-	log_ppu_write(0x2003, value);
+	log_write(0x2003, value);
 	
 	latch_          = value;
 	sprite_address_ = value;
@@ -1874,7 +1874,7 @@ write2004 (uint8_t value)
 void
 write2005 (uint8_t value)
 {
-	log_ppu_write(0x2005, value);
+	log_write(0x2005, value);
 	
 	latch_ = value;
 
@@ -1910,7 +1910,7 @@ write2005 (uint8_t value)
 void
 write2006 (uint8_t value)
 {
-	log_ppu_write(0x2006, value);
+	log_write(0x2006, value);
 	
 	latch_ = value;
 
@@ -1947,7 +1947,7 @@ write2006 (uint8_t value)
 void
 write2007 (uint8_t value)
 {
-	log_ppu_write(0x2007, value);
+	log_write(0x2007, value);
 	
 	latch_ = value;
 
@@ -2104,7 +2104,7 @@ read2007()
 void 
 write4014 (uint8_t value)
 {
-	log_ppu_write(0x4014, value);
+	log_write(0x4014, value);
 	
 	const auto sprite_addr = static_cast<uint_least16_t>(value << 8);
 	cpu::schedule_spr_dma(write2004, sprite_addr, 256);
@@ -2374,7 +2374,7 @@ ppustatus()
 
 
 // -----------------------------------------------------------------------------
-// nes::ppu::ppu_dot
+// nes::ppu::dot
 //
 // Returns the current PPU dot position for debugger inspection.
 //
@@ -2385,14 +2385,14 @@ ppustatus()
 //   Current PPU dot.
 // -----------------------------------------------------------------------------
 uint16_t
-ppu_dot()
+dot()
 { 
 	return static_cast<uint16_t>(hpos_);
 }
 
 
 // -----------------------------------------------------------------------------
-// nes::ppu::ppu_scanline
+// nes::ppu::scanline
 //
 // Returns the current PPU scanline number for debugger inspection.
 //
@@ -2403,7 +2403,7 @@ ppu_dot()
 //   Current PPU scanline.
 // -----------------------------------------------------------------------------
 uint16_t 
-ppu_scanline()
+scanline()
 { 
 	return static_cast<uint16_t>(vpos_);
 
@@ -2505,9 +2505,9 @@ oam_addr()
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-log_ppu_write (uint16_t address, uint8_t value)
+log_write (uint16_t address, uint8_t value)
 {
-	ppu_write_log_entry_t& entry = write_log_[write_log_next_];
+	write_log_entry_t& entry = write_log_[write_log_next_];
 
 	entry.frame = frame_counter_;
 	entry.dot = static_cast<uint16_t>(hpos_);
@@ -2532,7 +2532,7 @@ log_ppu_write (uint16_t address, uint8_t value)
 
 
 // -----------------------------------------------------------------------------
-// nes::ppu::ppu_write_log_count
+// nes::ppu::write_log_count
 //
 // Returns the number of valid entries currently stored in the rolling PPU
 // register-write log.
@@ -2544,7 +2544,7 @@ log_ppu_write (uint16_t address, uint8_t value)
 //   Current PPU write-log entry count.
 // -----------------------------------------------------------------------------
 uint32_t
-ppu_write_log_count()
+write_log_count()
 {
 	return write_log_count_;
 }
@@ -2561,10 +2561,10 @@ ppu_write_log_count()
 // Returns:
 //   Requested entry, or an empty entry if the index is invalid.
 // -----------------------------------------------------------------------------
-ppu_write_log_entry_t
+write_log_entry_t
 ppu_write_log_entry (uint32_t index)
 {
-	ppu_write_log_entry_t empty{};
+	write_log_entry_t empty{};
 
 	if (index >= write_log_count_) {
 		return empty;
@@ -2594,7 +2594,7 @@ ppu_write_log_entry (uint32_t index)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-clear_ppu_write_log()
+clear_write_log()
 {
 	write_log_next_ = 0;
 	write_log_count_ = 0;
@@ -2603,7 +2603,7 @@ clear_ppu_write_log()
 
 
 // -----------------------------------------------------------------------------
-// ppu_write_log_snapshot
+// write_log_snapshot
 //
 // Copies the current logical PPU write log into caller-provided storage.
 //
@@ -2623,7 +2623,7 @@ clear_ppu_write_log()
 //   Number of entries copied.
 // -----------------------------------------------------------------------------
 uint32_t
-ppu_write_log_snapshot (ppu_write_log_entry_t *entries, uint32_t capacity)
+write_log_snapshot (write_log_entry_t *entries, uint32_t capacity)
 {
 	if (!entries || capacity == 0) {
 		return 0;
@@ -2660,7 +2660,7 @@ ppu_write_log_snapshot (ppu_write_log_entry_t *entries, uint32_t capacity)
 
 
 // -----------------------------------------------------------------------------
-// ppu_frame_counter
+// frame_counter
 //
 // Returns the current PPU frame counter value.
 //
@@ -2671,14 +2671,14 @@ ppu_write_log_snapshot (ppu_write_log_entry_t *entries, uint32_t capacity)
 //   Number of PPU frames completed so far.
 // -----------------------------------------------------------------------------
 uint64_t
-ppu_frame_counter()
+frame_counter()
 {
 	return frame_counter_;
 }
 
 
 // -----------------------------------------------------------------------------
-// nes::ppu::debug_read_ppu_memory
+// nes::ppu::debug_read_memory
 //
 // Reads PPU memory for debugger inspection without CPU-facing PPU register side
 // effects.
@@ -2690,7 +2690,7 @@ ppu_frame_counter()
 //   Debug-safe byte value from PPU memory.
 // -----------------------------------------------------------------------------
 uint8_t
-debug_read_ppu_memory (uint16_t address)
+debug_read_memory (uint16_t address)
 {
 	address &= 0x3fff;
 

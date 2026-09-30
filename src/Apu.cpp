@@ -107,7 +107,7 @@ static uint8_t sLastOutputSample = kSilence;
 
 
 // Rolling APU register-write log and ring-buffer bookkeeping.
-static nes::apu::apu_write_log_entry_t write_log_[nes::apu::APU_WRITE_LOG_CAPACITY];
+static nes::apu::write_log_entry_t write_log_[nes::apu::APU_WRITE_LOG_CAPACITY];
 static uint32_t write_log_next_ = 0;
 static uint32_t write_log_count_ = 0;
 
@@ -116,13 +116,13 @@ static uint32_t write_log_write_index_ = 0;
 
 
 // Rolling APU oscilloscope sample buffer and ring-buffer bookkeeping.
-static apu_scope_sample_t scope_samples_[APU_SCOPE_SAMPLE_CAPACITY];
+static scope_sample_t scope_samples_[APU_SCOPE_SAMPLE_CAPACITY];
 static uint32_t scope_sample_next_ = 0;
 static uint32_t scope_sample_count_ = 0;
 
 
 // Rolling APU frame-sequencer event history and ring-buffer bookkeeping.
-static apu_frame_event_t frame_events_[APU_FRAME_EVENT_CAPACITY];
+static frame_event_t frame_events_[APU_FRAME_EVENT_CAPACITY];
 static uint32_t frame_event_next_ = 0;
 static uint32_t frame_event_count_ = 0;
 
@@ -151,7 +151,7 @@ static void log_frame_event(apu_frame_event_type type);
 void
 log_apu_write (uint16_t address, uint8_t value)
 {
-	apu_write_log_entry_t& entry = write_log_[write_log_next_];
+	write_log_entry_t& entry = write_log_[write_log_next_];
 
 	entry.cycle = apu_cycles_;
 	entry.address = address;
@@ -272,7 +272,7 @@ log_apu_write (uint16_t address, uint8_t value)
 static void
 capture_scope_sample (uint8_t mixedSample)
 {
-	apu_scope_sample_t& sample = scope_samples_[scope_sample_next_];
+	scope_sample_t& sample = scope_samples_[scope_sample_next_];
 	sample.square1 = square_0.debug_output();
 	sample.square2 = square_1.debug_output();
 	sample.triangle = triangle.output();
@@ -307,7 +307,7 @@ capture_scope_sample (uint8_t mixedSample)
 //   Number of samples copied.
 // -----------------------------------------------------------------------------
 uint32_t
-debug_scope_snapshot (apu_scope_sample_t *samples, uint32_t capacity)
+debug_scope_snapshot (scope_sample_t *samples, uint32_t capacity)
 {
 	if (!samples || capacity == 0) {
 		return 0;
@@ -373,7 +373,7 @@ debug_clear_scope()
 //   Number of events copied.
 // -----------------------------------------------------------------------------
 uint32_t
-debug_frame_event_snapshot (apu_frame_event_t *events, uint32_t capacity)
+debug_frame_event_snapshot (frame_event_t *events, uint32_t capacity)
 {
 	if (!events || capacity == 0) {
 		return 0;
@@ -484,7 +484,7 @@ clock_length()
 //
 // Quarter-frame events clock envelopes and the triangle linear counter.
 // Half-frame events additionally clock length counters and square-channel
-// sweeps.  Frame IRQ state is asserted at the appropriate sequence points when
+// sweeps. Frame IRQ state is asserted at the appropriate sequence points when
 // frame IRQ generation is enabled.
 //
 // Parameters:
@@ -498,59 +498,60 @@ clock_frame_mode_0()
 {
 	// 4 step sequence
 	switch (clock_step_) {
-	case 0:
-		log_frame_event(APU_FRAME_EVENT_QUARTER);
-		
-		clock_linear();
-		next_clock_ += 7456;
-		break;
+		case 0:
+			log_frame_event(APU_FRAME_EVENT_QUARTER);
 
-	case 1:
-		log_frame_event(APU_FRAME_EVENT_QUARTER_HALF);
+			clock_linear();
+			next_clock_ += 7456;
+			break;
 
-		clock_linear();
-		clock_length();
-		next_clock_ += 7458;
-		break;
+		case 1:
+			log_frame_event(APU_FRAME_EVENT_QUARTER_HALF);
 
-	case 2:
-		log_frame_event(APU_FRAME_EVENT_QUARTER);
-		
-		clock_linear();
-		next_clock_ += 7457;
-		break;
+			clock_linear();
+			clock_length();
+			next_clock_ += 7458;
+			break;
 
-	case 3:
-		log_frame_event(APU_FRAME_EVENT_IRQ);
+		case 2:
+			log_frame_event(APU_FRAME_EVENT_QUARTER);
 
-		if (!(frame_counter_.inhibit_frame_irq)) {
-			status.frame_irq = true;
-		}
+			clock_linear();
+			next_clock_ += 7457;
+			break;
 
-		++next_clock_;
-		break;
+		case 3:
+			log_frame_event(APU_FRAME_EVENT_IRQ);
 
-	case 4:
-		log_frame_event(APU_FRAME_EVENT_QUARTER_HALF);
+			if (!(frame_counter_.inhibit_frame_irq)) {
+				status.frame_irq = true;
+			}
 
-		clock_linear();
-		clock_length();
-		if (!(frame_counter_.inhibit_frame_irq)) {
-			status.frame_irq = true;
-		}
+			++next_clock_;
+			break;
 
-		++next_clock_;
-		break;
+		case 4:
+			log_frame_event(APU_FRAME_EVENT_QUARTER_HALF_IRQ);
 
-	case 5:
-		log_frame_event(APU_FRAME_EVENT_IRQ);
+			clock_linear();
+			clock_length();
 
-		if (!(frame_counter_.inhibit_frame_irq)) {
-			status.frame_irq = true;
-		}
+			if (!(frame_counter_.inhibit_frame_irq)) {
+				status.frame_irq = true;
+			}
 
-		next_clock_ += 7457;
-		break;
+			++next_clock_;
+			break;
+
+		case 5:
+			log_frame_event(APU_FRAME_EVENT_IRQ);
+
+			if (!(frame_counter_.inhibit_frame_irq)) {
+				status.frame_irq = true;
+			}
+
+			next_clock_ += 7457;
+			break;
 	}
 
 	clock_step_ = (clock_step_ + 1) % 6;
@@ -1489,10 +1490,10 @@ unmute_channel (int const channel)
 // Returns:
 //   Snapshot of the current APU and channel state.
 // -----------------------------------------------------------------------------
-apu_debug_state_t
+debug_state_t
 debug_state()
 {
-	apu_debug_state_t state;
+	debug_state_t state;
 
 	state.cycle = apu_cycles_;
 	state.five_step_mode = frame_counter_.mode;
@@ -1628,10 +1629,10 @@ debug_state()
 // Returns:
 //   Current APU frame-sequencer debugger state.
 // -----------------------------------------------------------------------------
-apu_frame_sequencer_debug_state_t
+frame_sequencer_debug_state_t
 debug_frame_sequencer_state()
 {
-	apu_frame_sequencer_debug_state_t state;
+	frame_sequencer_debug_state_t state;
 
 	state.apu_cycle = apu_cycles_;
 	state.next_event_cycle = next_clock_;
@@ -1726,7 +1727,7 @@ debug_frame_sequencer_state()
 static void
 log_frame_event(apu_frame_event_type type)
 {
-	apu_frame_event_t &event = frame_events_[frame_event_next_];
+	frame_event_t &event = frame_events_[frame_event_next_];
 	event.cycle = apu_cycles_;
 	event.type = type;
 	event.step = clock_step_;
@@ -1753,10 +1754,10 @@ log_frame_event(apu_frame_event_type type)
 // Returns:
 //   Snapshot of the current raw APU register programming state.
 // -----------------------------------------------------------------------------
-apu_explorer_state_t
+explorer_state_t
 explorer_state()
 {
-	apu_explorer_state_t state;
+	explorer_state_t state;
 
 	for (int i = 0; i < 4; i++) {
 		state.square1[i] = explorer_square1_[i];
@@ -1825,7 +1826,7 @@ debug_audio_is_muted()
 
 
 // -----------------------------------------------------------------------------
-// nes::apu::apu_write_log_count
+// nes::apu::apu_log_count
 //
 // Returns the number of valid entries currently stored in the rolling APU
 // register-write log.
@@ -1837,14 +1838,14 @@ debug_audio_is_muted()
 //   Current APU write-log entry count.
 // -----------------------------------------------------------------------------
 uint32_t
-apu_write_log_count()
+write_log_count()
 {
 	return write_log_count_;
 }
 
 
 // -----------------------------------------------------------------------------
-// nes::apu::apu_write_log_snapshot
+// nes::apu::write_log_snapshot
 //
 // Copies the current logical APU write log into caller-provided storage.
 //
@@ -1861,7 +1862,7 @@ apu_write_log_count()
 //   Number of entries copied.
 // -----------------------------------------------------------------------------
 uint32_t
-apu_write_log_snapshot(apu_write_log_entry_t *entries, uint32_t capacity)
+write_log_snapshot(write_log_entry_t *entries, uint32_t capacity)
 {
 	if (!entries || capacity == 0) {
 		return 0;
@@ -1895,7 +1896,7 @@ apu_write_log_snapshot(apu_write_log_entry_t *entries, uint32_t capacity)
 
 
 // -----------------------------------------------------------------------------
-// nes::apu::clear_apu_write_log
+// nes::apu::clear_write_log
 //
 // Clears the rolling APU register-write log and resets its sequence state.
 //
@@ -1906,7 +1907,7 @@ apu_write_log_snapshot(apu_write_log_entry_t *entries, uint32_t capacity)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-clear_apu_write_log()
+clear_write_log()
 {
 	write_log_next_ = 0;
 	write_log_count_ = 0;

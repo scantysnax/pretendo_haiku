@@ -1011,7 +1011,7 @@ int32
 CPUDisasmView::VisibleDisasmRows() const
 {
 	const float rightEdge = (fScrollBar && !fScrollBar->IsHidden())
-		? fScrollBar->Frame().left - 4.0f : Bounds().right - 4.0f;
+						  ? fScrollBar->Frame().left - 4.0f : Bounds().right - 4.0f;
 	BRect panel(4.0f, 124.0f, rightEdge, Bounds().bottom - 8.0f);
 
 	BFont prevFont;
@@ -1257,7 +1257,7 @@ CPUDisasmView::DrawDisasmLine (float y, uint16 address, bool active)
 	const float byteStep = 24.0f;
 	const float rowLeft = 8.0f;
 	const float rowRight = (fScrollBar && !fScrollBar->IsHidden())
-			? fScrollBar->Frame().left - 12.0f : Bounds().right - 12.0f;
+						 ? fScrollBar->Frame().left - 12.0f : Bounds().right - 12.0f;
 
 	const bool executed = nes::cpu::debug_instruction_was_executed(line.address);
 	const bool breakpoint = nes::cpu::debug_has_execute_breakpoint(line.address);
@@ -2435,6 +2435,7 @@ CPUDisasmView::JumpToAddress (uint16 address)
 	Invalidate();
 }
 
+
 // -----------------------------------------------------------------------------
 // CPUDisasmView::JumpToCurrentPC
 //
@@ -2518,6 +2519,7 @@ CPUDisasmView::LayoutScrollBar()
 
 	UpdateScrollBar();
 }
+
 
 // -----------------------------------------------------------------------------
 // CPUDisasmView::UpdateScrollBar

@@ -20,7 +20,7 @@ class PretendoWindow;
 // instruction text as it appeared at freeze time.
 // -----------------------------------------------------------------------------
 struct cpu_trace_frozen_entry_t {
-	nes::cpu::cpu_trace_entry_t trace;
+	nes::cpu::trace_entry_t trace;
 	BString instruction;
 };
 
@@ -66,7 +66,7 @@ class CPUTraceView : public BView
 	void DrawTracePanel();
 	void DrawNoROMMessage (BRect panel);
 	void DrawSelectedTraceInfo (BRect panel);
-	bool SelectedTraceEntry (nes::cpu::cpu_trace_entry_t &entry, BString &instruction) const;
+	bool SelectedTraceEntry (nes::cpu::trace_entry_t &entry, BString &instruction) const;
 
 	private:
 	bool HasROMLoaded() const;
@@ -77,7 +77,7 @@ class CPUTraceView : public BView
 
 	private:
 	uint32 TraceDisplayCount() const;
-	bool TraceDisplayEntry (uint32 index, nes::cpu::cpu_trace_entry_t &entry) const;
+	bool TraceDisplayEntry (uint32 index, nes::cpu::trace_entry_t &entry) const;
 	bool TraceDisplayInstruction (uint32 index, BString &instruction) const;
 	bool TraceIndexForPoint (BPoint where, uint32 &index) const;
 	void CaptureSnapshot();

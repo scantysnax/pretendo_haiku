@@ -89,7 +89,7 @@ enum cpu_trace_interrupt {
 };
 
 
-struct cpu_trace_entry_t {
+struct trace_entry_t {
 	uint64_t cycle = 0;
 	uint16_t pc = 0;
 	uint8_t bytes[3] = {0, 0, 0};
@@ -130,7 +130,7 @@ void debug_clear_instruction_trace();
 
 uint32_t debug_trace_count();
 uint32_t debug_trace_capacity();
-bool debug_trace_entry(uint32_t index, cpu_trace_entry_t& entry);
+bool debug_trace_entry(uint32_t index, trace_entry_t & entry);
 void debug_clear_trace();
 
 void debug_add_execute_breakpoint(uint16_t address);

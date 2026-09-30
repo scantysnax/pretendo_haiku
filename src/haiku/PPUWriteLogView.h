@@ -59,7 +59,7 @@ class PPUWriteLogView : public BView
 
 	private:
 	const char *RegisterName (uint16 address) const;
-	void DescribeWrite (const nes::ppu::ppu_write_log_entry_t &entry, BString &text) const;
+	void DescribeWrite (const nes::ppu::write_log_entry_t &entry, BString &text) const;
 
 	private:
 	bool HasROMLoaded() const;
@@ -73,7 +73,7 @@ class PPUWriteLogView : public BView
 
 	BScrollBar *fScrollBar = nullptr;
 
-	std::vector<nes::ppu::ppu_write_log_entry_t> fLogSnapshot;
+	std::vector<nes::ppu::write_log_entry_t> fLogSnapshot;
 };
 
 

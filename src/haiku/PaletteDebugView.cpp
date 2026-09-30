@@ -2,8 +2,6 @@
 #include "PaletteDebugView.h"
 #include "PretendoWindow.h"
 
-#include <cmath>
-
 
 // -----------------------------------------------------------------------------
 // PaletteDebugView::PaletteDebugView
@@ -75,7 +73,6 @@ PaletteDebugView::AttachedToWindow()
 }
 
 
-
 // -----------------------------------------------------------------------------
 // PaletteDebugView::MessageReceived
 //
@@ -93,7 +90,6 @@ PaletteDebugView::MessageReceived(BMessage *message)
 {
 	BView::MessageReceived(message);
 }
-
 
 
 // -----------------------------------------------------------------------------
@@ -222,7 +218,6 @@ PaletteDebugView::DrawHeaderUI()
 }
 
 
-
 // -----------------------------------------------------------------------------
 // PaletteDebugView::DrawBackgroundPalettes
 //
@@ -259,7 +254,6 @@ PaletteDebugView::DrawSpritePalettes()
 	BRect panel(4.0f, 258.0f, Bounds().right - 4.0f, 398.0f);
 	DrawPalettePanel(panel, "Sprite Palettes", true);
 }
-
 
 
 // -----------------------------------------------------------------------------
