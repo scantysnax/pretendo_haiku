@@ -2,7 +2,6 @@
 #ifndef _PRETENDO_WINDOW_H_
 #define _PRETENDO_WINDOW_H_
 
-
 #include <Alert.h>
 #include <Application.h>
 #include <Bitmap.h>
@@ -25,25 +24,21 @@
 #include "AudioStream.h"
 #include "BreakPointWindow.h"
 #include "Controller.h"
-#include "CPUDisasmView.h"
 #include "CPUDisasmWindow.h"
-#include "CPUMemoryView.h"
 #include "CPUMemoryWindow.h"
 #include "CPUStatusWindow.h"
 #include "CPUTraceWindow.h"
+#include "Input.h"
 #include "InputWindow.h"
 #include "MapperExplorerWindow.h"
 #include "MenuBarIcon.h"
 #include "Mutex.h"
-#include "NameTableView.h"
 #include "NameTableWindow.h"
-#include "PatternTableView.h"
-#include "OAMDebugView.h"
 #include "OAMDebugWindow.h"
 #include "Palette.h"
 #include "PaletteWindow.h"
 #include "PaletteDebugWindow.h"
-#include "PatternTableWindow.h"
+#include "PatternTableView.h"
 #include "PPUMemoryWindow.h"
 #include "PPUStatusWindow.h"
 #include "PPUWriteLogWindow.h" 
@@ -54,35 +49,18 @@
 #include "StackWindow.h"
 #include "ZeroPageWindow.h"
 
-#include "Apu.h"
-#include "Cart.h"
-#include "Cpu.h"
-#include "Input.h"
-#include "Mapper.h"
-#include "Nes.h"
-#include "Palette.h"
-#include "Ppu.h"
-#include "Reset.h"
-
 #include "asm/blitters.h"
 #include "asm/copies.h"
 
 
 class APUExplorerWindow;
-class APUScopeWindow;
-class APUStatusWindow;
 class APUWriteLogWindow;
-class BreakPointWindow;
 class CPUTraceWindow;
 class CPUDisasmWindow;
-class CPUMemoryWindow;
 class CPUStatusWindow;
 class InputWindow;
-class MapperExplorerWindow;
 class NameTableWindow;
-class OAMDebugWindow;
 class PaletteDebugWindow;
-class PatternTableWindow;
 class PPUStatusWindow;
 class PPUMemoryWindow;
 class PPUWriteLogWindow;
@@ -510,7 +488,6 @@ class PretendoWindow : public BWindow, public nes::FrameOutput
     void APUScopeWindowClosed();
     void APUFrameSequencerWindowClosed();
     void MapperExplorerWindowClosed();
-    
     
     public:
 	void HighlightPaletteDebugger (bool sprites, int32 palette, int32 entry = -1);
