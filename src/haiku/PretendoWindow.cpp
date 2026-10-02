@@ -234,8 +234,8 @@ PretendoWindow::PretendoWindow()
 	// we can't change to full screen yet
 	fVideoMenu->ItemAt(video_framework::FULLSCREEN)->SetEnabled(false);
 	
-	fOpenPanel = new ROMFilePanel();
-	fOpenPanel->SetPanelDirectory(fROMDirectory);
+	//fOpenPanel = new ROMFilePanel();
+	//fOpenPanel->SetPanelDirectory(fROMDirectory);
 	
 	// sound
 	// we don't need to upscale the buffer size if using the MediaKit, so divide it out
@@ -610,6 +610,10 @@ PretendoWindow::MessageReceived (BMessage *message)
 			break;
 			
 		case messages::SHOW_OPEN:
+			delete fOpenPanel;
+			fOpenPanel = nullptr;
+
+			fOpenPanel = new ROMFilePanel();
 			fOpenPanel->SetPanelDirectory(fROMDirectory);
 			fOpenPanel->Show();
 			break;
@@ -1467,13 +1471,15 @@ PretendoWindow::OnConfigureInput()
 void
 PretendoWindow::OnSetRomDirectory()
 {
-	if (!fROMDirectoryPanel) {
-		fROMDirectoryPanel = new BFilePanel(B_OPEN_PANEL, nullptr, nullptr, B_DIRECTORY_NODE, false,
-							 new BMessage(messages::RECV_ROM_DIR), nullptr, true, true);
+	delete fROMDirectoryPanel;
+	fROMDirectoryPanel = nullptr;
 
-		fROMDirectoryPanel->SetTarget(BMessenger(nullptr, this));
-		fROMDirectoryPanel->Window()->SetTitle("Choose a Directory" B_UTF8_ELLIPSIS);
-	}
+	fROMDirectoryPanel = new BFilePanel(B_OPEN_PANEL, nullptr, nullptr, B_DIRECTORY_NODE,
+										false, new BMessage(messages::RECV_ROM_DIR), nullptr,
+										true, true);
+
+	fROMDirectoryPanel->SetTarget(BMessenger(nullptr, this));
+	fROMDirectoryPanel->Window()->SetTitle("Choose a Directory" B_UTF8_ELLIPSIS);
 
 	fROMDirectoryPanel->SetPanelDirectory(fROMDirectory);
 	fROMDirectoryPanel->Show();

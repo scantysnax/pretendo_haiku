@@ -1,5 +1,6 @@
-#ifndef MAPPER0003_20080314_H_
-#define MAPPER0003_20080314_H_
+
+#ifndef _MAPPER003_H_
+#define _MAPPER003_H_
 
 #include "Mapper.h"
 
@@ -27,14 +28,14 @@ class Mapper3 final : public Mapper
 	cnrom_debug_state_t debug_state() const;
 
 	public:
-	void write_8(uint_least16_t address, uint8_t value) override;
-	void write_9(uint_least16_t address, uint8_t value) override;
-	void write_a(uint_least16_t address, uint8_t value) override;
-	void write_b(uint_least16_t address, uint8_t value) override;
-	void write_c(uint_least16_t address, uint8_t value) override;
-	void write_d(uint_least16_t address, uint8_t value) override;
-	void write_e(uint_least16_t address, uint8_t value) override;
-	void write_f(uint_least16_t address, uint8_t value) override;
+	void write_8 (uint_least16_t address, uint8_t value) override;
+	void write_9 (uint_least16_t address, uint8_t value) override;
+	void write_a (uint_least16_t address, uint8_t value) override;
+	void write_b (uint_least16_t address, uint8_t value) override;
+	void write_c (uint_least16_t address, uint8_t value) override;
+	void write_d (uint_least16_t address, uint8_t value) override;
+	void write_e (uint_least16_t address, uint8_t value) override;
+	void write_f (uint_least16_t address, uint8_t value) override;
 
 	private:
 	uint8_t bank_select_ = 0;

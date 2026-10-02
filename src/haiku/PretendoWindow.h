@@ -271,7 +271,6 @@ class PretendoWindow : public BWindow, public nes::FrameOutput
 	public:
 	virtual void SubmitScanline(int32_t y, const uint32_t *pixels);
 	
-	
 	// settings
 	private:
 	void LoadSettings();

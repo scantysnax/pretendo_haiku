@@ -1,10 +1,11 @@
 
-#ifndef MAPPER0000_20080314_H_
-#define MAPPER0000_20080314_H_
+#ifndef _MAPPER_000_H_
+#define _MAPPER_000_H_
 
 #include "Mapper.h"
 
-class Mapper0 final : public Mapper {
+class Mapper0 final : public Mapper
+{
 	public:
 	Mapper0();
 

@@ -70,7 +70,7 @@ MapperExplorerView::AttachedToWindow()
 	CaptureMMC5State();
 	CaptureAxROMState();
 	CaptureMMC2State();
-	
+	CaptureCamericaState();
 	
 	Invalidate();
 }
@@ -120,6 +120,7 @@ MapperExplorerView::Draw (BRect updateRect)
 		DrawMMC5Panel();
 		DrawAxROMPanel();
 		DrawMMC2Panel();
+		DrawCamericaPanel();
 	} else if (MapperSpecificPanelExpected()) {
 		DrawMapperSpecificSeparator();
 		DrawUnsupportedMapperPanel();
@@ -175,6 +176,10 @@ MapperExplorerView::Pulse()
 	}
 
 	if (CaptureMMC2State()) {
+		redraw = true;
+	}
+	
+	if (CaptureCamericaState()) {
 		redraw = true;
 	}
 
@@ -751,30 +756,29 @@ MapperExplorerView::MMC5StateChanged (const mmc5_debug_state_t &oldState,
 									  const mmc5_debug_state_t &newState) const
 {
 	if (
-		oldState.prg_mode != newState.prg_mode ||
-		oldState.chr_mode != newState.chr_mode ||
-		oldState.bg_char_upper != newState.bg_char_upper ||
-		oldState.last_chr_write_bg != newState.last_chr_write_bg ||
-		oldState.prg_ram_protect1 != newState.prg_ram_protect1 ||
-		oldState.prg_ram_protect2 != newState.prg_ram_protect2 ||
-		oldState.mirroring_mode != newState.mirroring_mode ||
-		oldState.exram_mode != newState.exram_mode ||
-		oldState.fill_mode_tile != newState.fill_mode_tile ||
-		oldState.fill_mode_attr != newState.fill_mode_attr ||
-		oldState.vertical_split_mode != newState.vertical_split_mode ||
-		oldState.vertical_split_scroll != newState.vertical_split_scroll ||
-		oldState.vertical_split_bank != newState.vertical_split_bank ||
-		oldState.large_sprites != newState.large_sprites ||
-		oldState.fetch_count != newState.fetch_count ||
-		oldState.irq_enabled != newState.irq_enabled ||
-		oldState.irq_counter != newState.irq_counter ||
-		oldState.irq_target != newState.irq_target ||
-		oldState.irq_in_frame != newState.irq_in_frame ||
-		oldState.irq_pending != newState.irq_pending ||
-		oldState.multiplier_1 != newState.multiplier_1 ||
-		oldState.multiplier_2 != newState.multiplier_2 ||
-		oldState.multiplier_result != newState.multiplier_result
-	) {
+		oldState.prg_mode 				!= newState.prg_mode ||
+		oldState.chr_mode 				!= newState.chr_mode ||
+		oldState.bg_char_upper 			!= newState.bg_char_upper ||
+		oldState.last_chr_write_bg 		!= newState.last_chr_write_bg ||
+		oldState.prg_ram_protect1 		!= newState.prg_ram_protect1 ||
+		oldState.prg_ram_protect2 		!= newState.prg_ram_protect2 ||
+		oldState.mirroring_mode 		!= newState.mirroring_mode ||
+		oldState.exram_mode 			!= newState.exram_mode ||
+		oldState.fill_mode_tile 		!= newState.fill_mode_tile ||
+		oldState.fill_mode_attr 		!= newState.fill_mode_attr ||
+		oldState.vertical_split_mode 	!= newState.vertical_split_mode ||
+		oldState.vertical_split_scroll 	!= newState.vertical_split_scroll ||
+		oldState.vertical_split_bank 	!= newState.vertical_split_bank ||
+		oldState.large_sprites 			!= newState.large_sprites ||
+		oldState.fetch_count 			!= newState.fetch_count ||
+		oldState.irq_enabled 			!= newState.irq_enabled ||
+		oldState.irq_counter 			!= newState.irq_counter ||
+		oldState.irq_target 			!= newState.irq_target ||
+		oldState.irq_in_frame 			!= newState.irq_in_frame ||
+		oldState.irq_pending 			!= newState.irq_pending ||
+		oldState.multiplier_1 			!= newState.multiplier_1 ||
+		oldState.multiplier_2 			!= newState.multiplier_2 ||
+		oldState.multiplier_result 		!= newState.multiplier_result) {
 		return true;
 	}
 
@@ -939,6 +943,68 @@ MapperExplorerView::MMC2StateChanged (const mmc2_debug_state_t &oldState, const 
 
 
 // -----------------------------------------------------------------------------
+// MapperExplorerView::CaptureCamericaState
+//
+// Captures Mapper-71-specific debugger state from the active mapper.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   true if the Mapper 71 state changed or Mapper 71 availability changed.
+// -----------------------------------------------------------------------------
+bool
+MapperExplorerView::CaptureCamericaState()
+{
+	Mapper *mapper = nes::cart.mapper();
+	Mapper71 *mapper71 = dynamic_cast<Mapper71 *>(mapper);
+
+	if (!mapper71) {
+		if (!fHaveCamericaState) {
+			return false;
+		}
+
+		fCamericaState = {};
+		fHaveCamericaState = false;
+
+		return true;
+	}
+
+	const camerica_debug_state_t state = mapper71->debug_state();
+
+	if (fHaveCamericaState && !CamericaStateChanged(fCamericaState, state)) {
+		return false;
+	}
+
+	fCamericaState = state;
+	fHaveCamericaState = true;
+
+	return true;
+}
+
+
+// -----------------------------------------------------------------------------
+// MapperExplorerView::CamericaStateChanged
+//
+// Determines whether any Mapper-71-specific debugger state changed.
+//
+// Parameters:
+//   oldState - Previously captured Mapper 71 state.
+//   newState - Newly captured Mapper 71 state.
+//
+// Returns:
+//   true if any displayed Mapper 71 state changed; false otherwise.
+// -----------------------------------------------------------------------------
+bool
+MapperExplorerView::CamericaStateChanged (const camerica_debug_state_t &oldState,
+										  const camerica_debug_state_t &newState) const
+{
+	return oldState.prg_bank != newState.prg_bank;
+}
+
+
+
+// -----------------------------------------------------------------------------
 // MapperExplorerView::DrawMapperSummary
 //
 // Draws the Mapper Explorer title and high-level mapper information.
@@ -1017,7 +1083,7 @@ MapperExplorerView::DrawPRGTable()
 	y += 24.0f;
 
 	for (int i = 0; i < 5; ++i) {
-		DrawBankRow(y, ranges[i], fState.prg[i], 0x2000,fPRGChangeTicks[i] > 0);
+		DrawBankRow(y, ranges[i], fState.prg[i], 0x2000, fPRGChangeTicks[i] > 0);
 		y += 19.0f;
 	}
 }
@@ -1222,7 +1288,8 @@ MapperExplorerView::HaveMapperSpecificPanel() const
 		fHaveMMC3State ||
 		fHaveMMC5State ||
 		fHaveAxROMState ||
-		fHaveMMC2State;		
+		fHaveMMC2State ||
+		fHaveCamericaState;		
 }
 
 
@@ -1723,6 +1790,149 @@ MapperExplorerView::DrawMMC1Panel()
 
 
 // -----------------------------------------------------------------------------
+// MapperExplorerView::DrawUxROMPanel
+//
+// Draws UxROM-specific PRG-bank selection and mapper-write state.
+//
+// Section headings use muted blue, primary mapper state uses near-black, and
+// persistent write diagnostics use secondary gray.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+MapperExplorerView::DrawUxROMPanel()
+{
+	if (!fHaveUxROMState) {
+		return;
+	}
+
+	float y = 478.0f;
+
+	BString text;
+
+	SetFont(be_bold_font);
+	SetHighColor(45, 75, 115);
+	DrawString("UxROM Internal State", BPoint(20.0f, y));
+	y += 26.0f;
+
+	SetHighColor(25, 25, 25);
+	float x = 28.0f;
+	x = DrawText(x, y, "Bank Select: ", be_plain_font);
+
+	text.SetToFormat("$%02X", static_cast<unsigned int>(fUxROMState.bank_select));
+	x = DrawText(x, y, text.String(), be_fixed_font);
+	x += 16.0f;
+	x = DrawText(x, y, "PRG Bank: ", be_plain_font);
+
+	text.SetToFormat("%u", static_cast<unsigned int>(fUxROMState.prg_bank));
+	DrawText(x, y, text.String(), be_plain_font);
+	y += 30.0f;
+
+	SetFont(be_bold_font);
+	SetHighColor(45, 75, 115);
+	DrawString("Mapper Activity", BPoint(20.0f, y));
+	y += 24.0f;
+
+	SetHighColor(100, 100, 100);
+	x = 28.0f;
+	x = DrawText(x, y, "Writes: ", be_plain_font);
+
+	text.SetToFormat("%llu", static_cast<unsigned long long>(fUxROMState.write_count));
+	x = DrawText(x, y, text.String(), be_plain_font);
+	x += 16.0f;
+	x = DrawText(x, y, "Last Write: ", be_plain_font);
+
+	if (fUxROMState.have_last_write) {
+		text.SetToFormat("$%04X", static_cast<unsigned int>(fUxROMState.last_write_address));
+		x = DrawText(x, y, text.String(), be_fixed_font);
+		x = DrawText(x, y, " = ", be_plain_font);
+
+		text.SetToFormat("$%02X", static_cast<unsigned int>(fUxROMState.last_write_value));
+		DrawText(x, y, text.String(), be_fixed_font);
+	} else {
+		DrawText(x, y, "None", be_plain_font);
+	}
+
+	SetHighColor(25, 25, 25);
+}
+
+
+// -----------------------------------------------------------------------------
+// MapperExplorerView::DrawCNROMPanel
+//
+// Draws CNROM-specific CHR-bank selection and mapper-write state.
+//
+// Section headings use muted blue, primary mapper state uses near-black, and
+// persistent write diagnostics use secondary gray.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+MapperExplorerView::DrawCNROMPanel()
+{
+	if (!fHaveCNROMState) {
+		return;
+	}
+
+	float y = 478.0f;
+	BString text;
+	
+	SetFont(be_bold_font);
+	SetHighColor(45, 75, 115);
+	DrawString("CNROM Internal State", BPoint(20.0f, y));
+	y += 26.0f;
+
+	SetHighColor(25, 25, 25);
+	float x = 28.0f;
+	x = DrawText(x, y, "Bank Select: ", be_plain_font);
+
+	text.SetToFormat("$%02X", static_cast<unsigned int>(fCNROMState.bank_select));
+	x = DrawText(x, y, text.String(), be_fixed_font);
+	x += 16.0f;
+	x = DrawText(x, y, "Resolved CHR Bank: ", be_plain_font);
+
+	text.SetToFormat("%u", static_cast<unsigned int>(fCNROMState.resolved_chr_bank));
+	DrawText(x, y, text.String(), be_plain_font);
+	y += 30.0f;
+
+	SetFont(be_bold_font);
+	SetHighColor(45, 75, 115);
+	DrawString("Mapper Activity", BPoint(20.0f, y));
+	y += 24.0f;
+
+	SetHighColor(100, 100, 100);
+	x = 28.0f;
+	x = DrawText(x, y, "Writes: ", be_plain_font);
+
+	text.SetToFormat("%llu", static_cast<unsigned long long>(fCNROMState.write_count));
+	x = DrawText(x, y, text.String(), be_plain_font);
+	x += 16.0f;
+	x = DrawText(x, y, "Last Write: ", be_plain_font);
+
+	if (fCNROMState.have_last_write) {
+		text.SetToFormat("$%04X", static_cast<unsigned int>(fCNROMState.last_write_address));
+		x = DrawText(x, y, text.String(), be_fixed_font);
+		x = DrawText(x, y, " = ", be_plain_font);
+
+		text.SetToFormat("$%02X", static_cast<unsigned int>(fCNROMState.last_write_value));
+		DrawText(x, y, text.String(), be_fixed_font);
+	} else {
+		DrawText(x, y, "None", be_plain_font);
+	}
+
+	SetHighColor(25, 25, 25);
+}
+
+
+// -----------------------------------------------------------------------------
 // MapperExplorerView::MMC3HardwareModeName
 //
 // Returns the display name of the active MMC3 hardware revision.
@@ -1988,404 +2198,6 @@ MapperExplorerView::DrawMMC3Panel()
 	text.SetToFormat("%llu", static_cast<unsigned long long>(fMMC3State.last_a12_spacing));
 	x = DrawText(x, rightY, text.String(), be_plain_font);
 	DrawText(x, rightY, " PPU cycles", be_plain_font);
-
-	SetHighColor(25, 25, 25);
-}
-
-
-// -----------------------------------------------------------------------------
-// MapperExplorerView::MMC2LatchName
-//
-// Returns the display name of an MMC2 CHR latch state.
-//
-// Parameters:
-//   latch - Current latch state.
-//
-// Returns:
-//   "High" when the high CHR bank is selected, otherwise "Low".
-// -----------------------------------------------------------------------------
-const char*
-MapperExplorerView::MMC2LatchName (bool latch) const
-{
-	return latch ? "High" : "Low";
-}
-
-
-// -----------------------------------------------------------------------------
-// MapperExplorerView::DrawMMC2Panel
-//
-// Draws MMC2-specific PRG-bank, CHR-latch, and latch-trigger state.
-//
-// Section headings use muted blue, primary latch state uses near-black, and
-// persistent latch-activity diagnostics use secondary gray.
-//
-// Parameters:
-//   None.
-//
-// Returns:
-//   Nothing.
-// -----------------------------------------------------------------------------
-void
-MapperExplorerView::DrawMMC2Panel()
-{
-	if (!fHaveMMC2State) {
-		return;
-	}
-
-	const float left = 20.0f;
-	const float leftText = 28.0f;
-
-	const float right = 325.0f;
-	const float rightText = 333.0f;
-
-	float y = 478.0f;
-
-	BString text;
-
-
-	// General MMC2 state.
-
-	SetFont(be_bold_font);
-	SetHighColor(45, 75, 115);
-	DrawString("MMC2 Internal State", BPoint(left, y));
-	y += 26.0f;
-
-	SetHighColor(25, 25, 25);
-	float x = leftText;
-	x = DrawText(x, y, "PRG Bank: ", be_plain_font);
-
-	text.SetToFormat("$%02X", static_cast<unsigned int>(fMMC2State.prg_bank));
-	DrawText(x, y, text.String(), be_fixed_font);
-	y += 30.0f;
-
-
-	// Left column: latch 0.
-
-	float leftY = y;
-	SetFont(be_bold_font);
-	SetHighColor(45, 75, 115);
-	DrawString("CHR $0000-$0FFF", BPoint(left, leftY));
-
-	leftY += 24.0f;
-	SetHighColor(25, 25, 25);
-	x = leftText;
-	x = DrawText(x, leftY, "Latch: ", be_plain_font);
-	DrawText(x, leftY, MMC2LatchName(fMMC2State.latch0), be_plain_font);
-
-	leftY += 20.0f;
-	x = leftText;
-	x = DrawText(x, leftY, "Low Bank: ", be_plain_font);
-
-	text.SetToFormat("$%02X", static_cast<unsigned int>(fMMC2State.latch0_lo));
-	DrawText(x, leftY, text.String(), be_fixed_font);
-
-	leftY += 20.0f;
-	x = leftText;
-	x = DrawText(x, leftY, "High Bank: ", be_plain_font);
-	
-	text.SetToFormat("$%02X", static_cast<unsigned int>(fMMC2State.latch0_hi));
-	DrawText(x, leftY, text.String(), be_fixed_font);
-	
-	leftY += 20.0f;
-	x = leftText;
-	x = DrawText(x, leftY, "Active: ", be_plain_font);
-
-	text.SetToFormat("$%02X", static_cast<unsigned int>(fMMC2State.active_chr0_bank));
-	DrawText(x, leftY, text.String(), be_fixed_font);
-
-
-	// Right column: latch 1.
-
-	float rightY = y;
-
-	SetFont(be_bold_font);
-	SetHighColor(45, 75, 115);
-	DrawString("CHR $1000-$1FFF", BPoint(right, rightY));
-	rightY += 24.0f;
-
-	SetHighColor(25, 25, 25);
-
-	x = rightText;
-	x = DrawText(x, rightY, "Latch: ", be_plain_font);
-	DrawText(x, rightY, MMC2LatchName(fMMC2State.latch1), be_plain_font);
-	rightY += 20.0f;
-	x = rightText;
-
-	x = DrawText(x, rightY, "Low Bank: ", be_plain_font);
-	text.SetToFormat("$%02X", static_cast<unsigned int>(fMMC2State.latch1_lo));
-	DrawText(x, rightY, text.String(), be_fixed_font);
-	rightY += 20.0f;
-	x = rightText;
-
-	x = DrawText(x, rightY, "High Bank: ", be_plain_font);
-	text.SetToFormat("$%02X", static_cast<unsigned int>(fMMC2State.latch1_hi));
-	DrawText(x, rightY, text.String(), be_fixed_font);
-	rightY += 20.0f;
-	x = rightText;
-
-	x = DrawText(x, rightY, "Active: ", be_plain_font);
-	text.SetToFormat("$%02X", static_cast<unsigned int>(fMMC2State.active_chr1_bank));
-	DrawText(x, rightY, text.String(), be_fixed_font);
-
-
-	// Persistent latch activity.
-
-	y = std::max(leftY, rightY) + 30.0f;
-	SetFont(be_bold_font);
-	SetHighColor(45, 75, 115);
-	DrawString("Latch Activity", BPoint(left, y));
-	y += 24.0f;
-
-	SetHighColor(100, 100, 100);
-	x = leftText;
-	x = DrawText(x, y, "Latch 0 Low: ", be_plain_font);
-
-	text.SetToFormat("%llu", static_cast<unsigned long long>(fMMC2State.latch0_low_count));
-	x = DrawText(x, y, text.String(), be_plain_font);
-	x += 16.0f;
-	x = DrawText(x, y, "High: ", be_plain_font);
-
-	text.SetToFormat("%llu", static_cast<unsigned long long>(fMMC2State.latch0_high_count));
-	DrawText(x, y, text.String(), be_plain_font);
-	y += 20.0f;
-	x = leftText;
-	x = DrawText(x, y, "Latch 1 Low: ", be_plain_font);
-
-	text.SetToFormat("%llu", static_cast<unsigned long long>(fMMC2State.latch1_low_count));
-	x = DrawText(x, y, text.String(), be_plain_font);
-	x += 16.0f;
-
-	x = DrawText(x, y, "High: ", be_plain_font);
-	text.SetToFormat("%llu", static_cast<unsigned long long>(fMMC2State.latch1_high_count));
-	DrawText(x, y, text.String(), be_plain_font);
-	y += 20.0f;
-	x = leftText;
-	x = DrawText(x, y, "Last Trigger: ", be_plain_font);
-
-	if (fMMC2State.have_last_trigger) {
-		text.SetToFormat("$%04X", static_cast<unsigned int>(fMMC2State.last_trigger_address));
-		DrawText(x, y, text.String(), be_fixed_font);
-	} else {
-		DrawText(x, y, "None", be_plain_font);
-	}
-
-	SetHighColor(25, 25, 25);
-}
-
-
-// -----------------------------------------------------------------------------
-// MapperExplorerView::DrawAxROMPanel
-//
-// Draws AxROM-specific mapper-control and bank-selection state.
-//
-// Section headings use muted blue, primary mapper state uses near-black,
-// enabled state uses restrained green, and activity diagnostics use secondary
-// gray.
-//
-// Parameters:
-//   None.
-//
-// Returns:
-//   Nothing.
-// -----------------------------------------------------------------------------
-void
-MapperExplorerView::DrawAxROMPanel()
-{
-	if (!fHaveAxROMState) {
-		return;
-	}
-
-	float y = 478.0f;
-
-	BString text;
-
-	SetFont(be_bold_font);
-	SetHighColor(45, 75, 115);
-	DrawString("AxROM Internal State", BPoint(20.0f, y));
-	y += 26.0f;
-
-	SetHighColor(25, 25, 25);
-	float x = 28.0f;
-	x = DrawText(x, y, "Control: ", be_plain_font);
-	text.SetToFormat("$%02X", static_cast<unsigned int>(fAxROMState.control));
-	x = DrawText(x, y, text.String(), be_fixed_font);
-	x += 16.0f;
-	x = DrawText(x, y, "PRG Bank: ", be_plain_font);
-
-	text.SetToFormat("%u", static_cast<unsigned int>(fAxROMState.prg_bank));
-	x = DrawText(x, y, text.String(), be_plain_font);
-	x += 16.0f;
-	x = DrawText(x, y, "Single-Screen: ", be_plain_font);
-	DrawText(x, y, fAxROMState.single_screen_high ? "High" : "Low", be_plain_font);
-	y += 30.0f;
-
-	SetFont(be_bold_font);
-	SetHighColor(45, 75, 115);
-	DrawString("Mapper Activity", BPoint(20.0f, y));
-	y += 24.0f;
-
-	SetHighColor(100, 100, 100);
-	x = 28.0f;
-	x = DrawText(x, y, "Writes: ", be_plain_font);
-
-	text.SetToFormat("%llu", static_cast<unsigned long long>(fAxROMState.write_count));
-	x = DrawText(x, y, text.String(), be_plain_font);
-	x += 16.0f;
-	x = DrawText(x, y, "Last Write: ", be_plain_font);
-
-	if (fAxROMState.have_last_write) {
-		text.SetToFormat("$%04X", static_cast<unsigned int>(fAxROMState.last_write_address));
-		x = DrawText(x, y, text.String(), be_fixed_font);
-		x = DrawText(x, y, " = ", be_plain_font);
-
-		text.SetToFormat("$%02X", static_cast<unsigned int>(fAxROMState.last_write_value));
-		DrawText(x, y, text.String(), be_fixed_font);
-	} else {
-		DrawText(x, y, "None", be_plain_font);
-	}
-
-	SetHighColor(25, 25, 25);
-}
-
-
-// -----------------------------------------------------------------------------
-// MapperExplorerView::DrawUxROMPanel
-//
-// Draws UxROM-specific PRG-bank selection and mapper-write state.
-//
-// Section headings use muted blue, primary mapper state uses near-black, and
-// persistent write diagnostics use secondary gray.
-//
-// Parameters:
-//   None.
-//
-// Returns:
-//   Nothing.
-// -----------------------------------------------------------------------------
-void
-MapperExplorerView::DrawUxROMPanel()
-{
-	if (!fHaveUxROMState) {
-		return;
-	}
-
-	float y = 478.0f;
-
-	BString text;
-
-	SetFont(be_bold_font);
-	SetHighColor(45, 75, 115);
-	DrawString("UxROM Internal State", BPoint(20.0f, y));
-	y += 26.0f;
-
-	SetHighColor(25, 25, 25);
-	float x = 28.0f;
-	x = DrawText(x, y, "Bank Select: ", be_plain_font);
-
-	text.SetToFormat("$%02X", static_cast<unsigned int>(fUxROMState.bank_select));
-	x = DrawText(x, y, text.String(), be_fixed_font);
-	x += 16.0f;
-	x = DrawText(x, y, "PRG Bank: ", be_plain_font);
-
-	text.SetToFormat("%u", static_cast<unsigned int>(fUxROMState.prg_bank));
-	DrawText(x, y, text.String(), be_plain_font);
-	y += 30.0f;
-
-	SetFont(be_bold_font);
-	SetHighColor(45, 75, 115);
-	DrawString("Mapper Activity", BPoint(20.0f, y));
-	y += 24.0f;
-
-	SetHighColor(100, 100, 100);
-	x = 28.0f;
-	x = DrawText(x, y, "Writes: ", be_plain_font);
-
-	text.SetToFormat("%llu", static_cast<unsigned long long>(fUxROMState.write_count));
-	x = DrawText(x, y, text.String(), be_plain_font);
-	x += 16.0f;
-	x = DrawText(x, y, "Last Write: ", be_plain_font);
-
-	if (fUxROMState.have_last_write) {
-		text.SetToFormat("$%04X", static_cast<unsigned int>(fUxROMState.last_write_address));
-		x = DrawText(x, y, text.String(), be_fixed_font);
-		x = DrawText(x, y, " = ", be_plain_font);
-
-		text.SetToFormat("$%02X", static_cast<unsigned int>(fUxROMState.last_write_value));
-		DrawText(x, y, text.String(), be_fixed_font);
-	} else {
-		DrawText(x, y, "None", be_plain_font);
-	}
-
-	SetHighColor(25, 25, 25);
-}
-
-
-// -----------------------------------------------------------------------------
-// MapperExplorerView::DrawCNROMPanel
-//
-// Draws CNROM-specific CHR-bank selection and mapper-write state.
-//
-// Section headings use muted blue, primary mapper state uses near-black, and
-// persistent write diagnostics use secondary gray.
-//
-// Parameters:
-//   None.
-//
-// Returns:
-//   Nothing.
-// -----------------------------------------------------------------------------
-void
-MapperExplorerView::DrawCNROMPanel()
-{
-	if (!fHaveCNROMState) {
-		return;
-	}
-
-	float y = 478.0f;
-	BString text;
-	
-	SetFont(be_bold_font);
-	SetHighColor(45, 75, 115);
-	DrawString("CNROM Internal State", BPoint(20.0f, y));
-	y += 26.0f;
-
-	SetHighColor(25, 25, 25);
-	float x = 28.0f;
-	x = DrawText(x, y, "Bank Select: ", be_plain_font);
-
-	text.SetToFormat("$%02X", static_cast<unsigned int>(fCNROMState.bank_select));
-	x = DrawText(x, y, text.String(), be_fixed_font);
-	x += 16.0f;
-	x = DrawText(x, y, "Resolved CHR Bank: ", be_plain_font);
-
-	text.SetToFormat("%u", static_cast<unsigned int>(fCNROMState.resolved_chr_bank));
-	DrawText(x, y, text.String(), be_plain_font);
-	y += 30.0f;
-
-	SetFont(be_bold_font);
-	SetHighColor(45, 75, 115);
-	DrawString("Mapper Activity", BPoint(20.0f, y));
-	y += 24.0f;
-
-	SetHighColor(100, 100, 100);
-	x = 28.0f;
-	x = DrawText(x, y, "Writes: ", be_plain_font);
-
-	text.SetToFormat("%llu", static_cast<unsigned long long>(fCNROMState.write_count));
-	x = DrawText(x, y, text.String(), be_plain_font);
-	x += 16.0f;
-	x = DrawText(x, y, "Last Write: ", be_plain_font);
-
-	if (fCNROMState.have_last_write) {
-		text.SetToFormat("$%04X", static_cast<unsigned int>(fCNROMState.last_write_address));
-		x = DrawText(x, y, text.String(), be_fixed_font);
-		x = DrawText(x, y, " = ", be_plain_font);
-
-		text.SetToFormat("$%02X", static_cast<unsigned int>(fCNROMState.last_write_value));
-		DrawText(x, y, text.String(), be_fixed_font);
-	} else {
-		DrawText(x, y, "None", be_plain_font);
-	}
 
 	SetHighColor(25, 25, 25);
 }
@@ -2802,6 +2614,328 @@ MapperExplorerView::DrawMMC5Panel()
 
 	text.SetToFormat("$%04X", static_cast<unsigned int>(fMMC5State.multiplier_result));
 	DrawText(x, rightY, text.String(), be_fixed_font);
+
+	SetHighColor(25, 25, 25);
+}
+
+
+// -----------------------------------------------------------------------------
+// MapperExplorerView::DrawAxROMPanel
+//
+// Draws AxROM-specific mapper-control and bank-selection state.
+//
+// Section headings use muted blue, primary mapper state uses near-black,
+// enabled state uses restrained green, and activity diagnostics use secondary
+// gray.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+MapperExplorerView::DrawAxROMPanel()
+{
+	if (!fHaveAxROMState) {
+		return;
+	}
+
+	float y = 478.0f;
+
+	BString text;
+
+	SetFont(be_bold_font);
+	SetHighColor(45, 75, 115);
+	DrawString("AxROM Internal State", BPoint(20.0f, y));
+	y += 26.0f;
+
+	SetHighColor(25, 25, 25);
+	float x = 28.0f;
+	x = DrawText(x, y, "Control: ", be_plain_font);
+	text.SetToFormat("$%02X", static_cast<unsigned int>(fAxROMState.control));
+	x = DrawText(x, y, text.String(), be_fixed_font);
+	x += 16.0f;
+	x = DrawText(x, y, "PRG Bank: ", be_plain_font);
+
+	text.SetToFormat("%u", static_cast<unsigned int>(fAxROMState.prg_bank));
+	x = DrawText(x, y, text.String(), be_plain_font);
+	x += 16.0f;
+	x = DrawText(x, y, "Single-Screen: ", be_plain_font);
+	DrawText(x, y, fAxROMState.single_screen_high ? "High" : "Low", be_plain_font);
+	y += 30.0f;
+
+	SetFont(be_bold_font);
+	SetHighColor(45, 75, 115);
+	DrawString("Mapper Activity", BPoint(20.0f, y));
+	y += 24.0f;
+
+	SetHighColor(100, 100, 100);
+	x = 28.0f;
+	x = DrawText(x, y, "Writes: ", be_plain_font);
+
+	text.SetToFormat("%llu", static_cast<unsigned long long>(fAxROMState.write_count));
+	x = DrawText(x, y, text.String(), be_plain_font);
+	x += 16.0f;
+	x = DrawText(x, y, "Last Write: ", be_plain_font);
+
+	if (fAxROMState.have_last_write) {
+		text.SetToFormat("$%04X", static_cast<unsigned int>(fAxROMState.last_write_address));
+		x = DrawText(x, y, text.String(), be_fixed_font);
+		x = DrawText(x, y, " = ", be_plain_font);
+
+		text.SetToFormat("$%02X", static_cast<unsigned int>(fAxROMState.last_write_value));
+		DrawText(x, y, text.String(), be_fixed_font);
+	} else {
+		DrawText(x, y, "None", be_plain_font);
+	}
+
+	SetHighColor(25, 25, 25);
+}
+
+
+// -----------------------------------------------------------------------------
+// MapperExplorerView::MMC2LatchName
+//
+// Returns the display name of an MMC2 CHR latch state.
+//
+// Parameters:
+//   latch - Current latch state.
+//
+// Returns:
+//   "High" when the high CHR bank is selected, otherwise "Low".
+// -----------------------------------------------------------------------------
+const char*
+MapperExplorerView::MMC2LatchName (bool latch) const
+{
+	return latch ? "High" : "Low";
+}
+
+
+// -----------------------------------------------------------------------------
+// MapperExplorerView::DrawMMC2Panel
+//
+// Draws MMC2-specific PRG-bank, CHR-latch, and latch-trigger state.
+//
+// Section headings use muted blue, primary latch state uses near-black, and
+// persistent latch-activity diagnostics use secondary gray.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+MapperExplorerView::DrawMMC2Panel()
+{
+	if (!fHaveMMC2State) {
+		return;
+	}
+
+	const float left = 20.0f;
+	const float leftText = 28.0f;
+
+	const float right = 325.0f;
+	const float rightText = 333.0f;
+
+	float y = 478.0f;
+
+	BString text;
+
+
+	// General MMC2 state.
+
+	SetFont(be_bold_font);
+	SetHighColor(45, 75, 115);
+	DrawString("MMC2 Internal State", BPoint(left, y));
+	y += 26.0f;
+
+	SetHighColor(25, 25, 25);
+	float x = leftText;
+	x = DrawText(x, y, "PRG Bank: ", be_plain_font);
+
+	text.SetToFormat("$%02X", static_cast<unsigned int>(fMMC2State.prg_bank));
+	DrawText(x, y, text.String(), be_fixed_font);
+	y += 30.0f;
+
+
+	// Left column: latch 0.
+
+	float leftY = y;
+	SetFont(be_bold_font);
+	SetHighColor(45, 75, 115);
+	DrawString("CHR $0000-$0FFF", BPoint(left, leftY));
+
+	leftY += 24.0f;
+	SetHighColor(25, 25, 25);
+	x = leftText;
+	x = DrawText(x, leftY, "Latch: ", be_plain_font);
+	DrawText(x, leftY, MMC2LatchName(fMMC2State.latch0), be_plain_font);
+
+	leftY += 20.0f;
+	x = leftText;
+	x = DrawText(x, leftY, "Low Bank: ", be_plain_font);
+
+	text.SetToFormat("$%02X", static_cast<unsigned int>(fMMC2State.latch0_lo));
+	DrawText(x, leftY, text.String(), be_fixed_font);
+
+	leftY += 20.0f;
+	x = leftText;
+	x = DrawText(x, leftY, "High Bank: ", be_plain_font);
+	
+	text.SetToFormat("$%02X", static_cast<unsigned int>(fMMC2State.latch0_hi));
+	DrawText(x, leftY, text.String(), be_fixed_font);
+	
+	leftY += 20.0f;
+	x = leftText;
+	x = DrawText(x, leftY, "Active: ", be_plain_font);
+
+	text.SetToFormat("$%02X", static_cast<unsigned int>(fMMC2State.active_chr0_bank));
+	DrawText(x, leftY, text.String(), be_fixed_font);
+
+
+	// Right column: latch 1.
+
+	float rightY = y;
+
+	SetFont(be_bold_font);
+	SetHighColor(45, 75, 115);
+	DrawString("CHR $1000-$1FFF", BPoint(right, rightY));
+	rightY += 24.0f;
+
+	SetHighColor(25, 25, 25);
+
+	x = rightText;
+	x = DrawText(x, rightY, "Latch: ", be_plain_font);
+	DrawText(x, rightY, MMC2LatchName(fMMC2State.latch1), be_plain_font);
+	rightY += 20.0f;
+	x = rightText;
+
+	x = DrawText(x, rightY, "Low Bank: ", be_plain_font);
+	text.SetToFormat("$%02X", static_cast<unsigned int>(fMMC2State.latch1_lo));
+	DrawText(x, rightY, text.String(), be_fixed_font);
+	rightY += 20.0f;
+	x = rightText;
+
+	x = DrawText(x, rightY, "High Bank: ", be_plain_font);
+	text.SetToFormat("$%02X", static_cast<unsigned int>(fMMC2State.latch1_hi));
+	DrawText(x, rightY, text.String(), be_fixed_font);
+	rightY += 20.0f;
+	x = rightText;
+
+	x = DrawText(x, rightY, "Active: ", be_plain_font);
+	text.SetToFormat("$%02X", static_cast<unsigned int>(fMMC2State.active_chr1_bank));
+	DrawText(x, rightY, text.String(), be_fixed_font);
+
+
+	// Persistent latch activity.
+
+	y = std::max(leftY, rightY) + 30.0f;
+	SetFont(be_bold_font);
+	SetHighColor(45, 75, 115);
+	DrawString("Latch Activity", BPoint(left, y));
+	y += 24.0f;
+
+	SetHighColor(100, 100, 100);
+	x = leftText;
+	x = DrawText(x, y, "Latch 0 Low: ", be_plain_font);
+
+	text.SetToFormat("%llu", static_cast<unsigned long long>(fMMC2State.latch0_low_count));
+	x = DrawText(x, y, text.String(), be_plain_font);
+	x += 16.0f;
+	x = DrawText(x, y, "High: ", be_plain_font);
+
+	text.SetToFormat("%llu", static_cast<unsigned long long>(fMMC2State.latch0_high_count));
+	DrawText(x, y, text.String(), be_plain_font);
+	y += 20.0f;
+	x = leftText;
+	x = DrawText(x, y, "Latch 1 Low: ", be_plain_font);
+
+	text.SetToFormat("%llu", static_cast<unsigned long long>(fMMC2State.latch1_low_count));
+	x = DrawText(x, y, text.String(), be_plain_font);
+	x += 16.0f;
+
+	x = DrawText(x, y, "High: ", be_plain_font);
+	text.SetToFormat("%llu", static_cast<unsigned long long>(fMMC2State.latch1_high_count));
+	DrawText(x, y, text.String(), be_plain_font);
+	y += 20.0f;
+	x = leftText;
+	x = DrawText(x, y, "Last Trigger: ", be_plain_font);
+
+	if (fMMC2State.have_last_trigger) {
+		text.SetToFormat("$%04X", static_cast<unsigned int>(fMMC2State.last_trigger_address));
+		DrawText(x, y, text.String(), be_fixed_font);
+	} else {
+		DrawText(x, y, "None", be_plain_font);
+	}
+
+	SetHighColor(25, 25, 25);
+}
+
+
+// -----------------------------------------------------------------------------
+// MapperExplorerView::DrawCamericaPanel
+//
+// Draws Mapper-71-specific PRG-bank and board-configuration state.
+//
+// Mapper 71 uses a switchable 16 KB PRG-ROM bank at $8000-$BFFF, keeps the
+// final 16 KB PRG-ROM bank fixed at $C000-$FFFF, and provides 8 KB of CHR RAM.
+//
+// Standard Camerica boards use cartridge-header mirroring.  Fire Hawk variants
+// may provide mapper-controlled single-screen mirroring, which is not currently
+// enabled by this mapper implementation.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+MapperExplorerView::DrawCamericaPanel()
+{
+	if (!fHaveCamericaState) {
+		return;
+	}
+
+	float y = 478.0f;
+	BString text;
+
+	SetFont(be_bold_font);
+	SetHighColor(45, 75, 115);
+	DrawString("Camerica/Codemasters Mapper Internal State", BPoint(20.0f, y));
+	y += 26.0f;
+
+	SetHighColor(25, 25, 25);
+
+	float x = 28.0f;
+	x = DrawText(x, y, "PRG Bank: ", be_plain_font);
+	text.SetToFormat("$%02X", static_cast<unsigned int>(fCamericaState.prg_bank));
+	DrawText(x, y, text.String(), be_fixed_font);
+
+	y += 20.0f;
+	x = 28.0f;
+	x = DrawText(x, y, "PRG Mode: ", be_plain_font);
+	x = DrawText(x, y, "16 KB switch at ", be_plain_font);
+	x = DrawText(x, y, "$8000", be_fixed_font);
+	x = DrawText(x, y, ", fixed final 16 KB at ", be_plain_font);
+	DrawText(x, y, "$C000", be_fixed_font);
+
+	y += 20.0f;
+	x = 28.0f;
+	x = DrawText(x, y, "CHR: ", be_plain_font);
+	DrawText(x, y, "8 KB CHR RAM", be_plain_font);
+
+	y += 20.0f;
+	x = 28.0f;
+	x = DrawText(x, y, "Mirroring Source: ", be_plain_font);
+	DrawText(x, y, "Cartridge header", be_plain_font);
+
+	y += 20.0f;
+	x = 28.0f;
+	x = DrawText(x, y, "Mirroring: ", be_plain_font);
+	DrawText(x, y, MirroringName(fState.mirroring), be_plain_font);
 
 	SetHighColor(25, 25, 25);
 }

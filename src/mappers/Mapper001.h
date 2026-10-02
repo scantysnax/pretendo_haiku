@@ -1,6 +1,6 @@
  
-#ifndef MAPPER0001_20080314_H_
-#define MAPPER0001_20080314_H_
+#ifndef MAPPER_001_H_
+#define MAPPER_001_H_
 
 #include "Mapper.h"
 
@@ -48,22 +48,22 @@ class Mapper1 final : public Mapper
 	mmc1_debug_state_t debug_state() const;
 
 	public:
-	uint8_t read_6(uint_least16_t address) override;
-	uint8_t read_7(uint_least16_t address) override;
+	uint8_t read_6 (uint_least16_t address) override;
+	uint8_t read_7 (uint_least16_t address) override;
 
-	void write_6(uint_least16_t address, uint8_t value) override;
-	void write_7(uint_least16_t address, uint8_t value) override;
-	void write_8(uint_least16_t address, uint8_t value) override;
-	void write_9(uint_least16_t address, uint8_t value) override;
-	void write_a(uint_least16_t address, uint8_t value) override;
-	void write_b(uint_least16_t address, uint8_t value) override;
-	void write_c(uint_least16_t address, uint8_t value) override;
-	void write_d(uint_least16_t address, uint8_t value) override;
-	void write_e(uint_least16_t address, uint8_t value) override;
-	void write_f(uint_least16_t address, uint8_t value) override;
+	void write_6 (uint_least16_t address, uint8_t value) override;
+	void write_7 (uint_least16_t address, uint8_t value) override;
+	void write_8 (uint_least16_t address, uint8_t value) override;
+	void write_9 (uint_least16_t address, uint8_t value) override;
+	void write_a (uint_least16_t address, uint8_t value) override;
+	void write_b (uint_least16_t address, uint8_t value) override;
+	void write_c (uint_least16_t address, uint8_t value) override;
+	void write_d (uint_least16_t address, uint8_t value) override;
+	void write_e (uint_least16_t address, uint8_t value) override;
+	void write_f (uint_least16_t address, uint8_t value) override;
 
 	private:
-	void write_handler(uint_least16_t address, uint8_t value);
+	void write_handler (uint_least16_t address, uint8_t value);
 
 	private:
 	uint8_t chr_ram_[0x2000] = {};

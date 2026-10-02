@@ -16,6 +16,7 @@
 #include "Mapper005.h"
 #include "Mapper007.h"
 #include "Mapper009.h"
+#include "Mapper071.h"
 
 class PretendoWindow;
 
@@ -77,7 +78,13 @@ class MapperExplorerView : public BView
 	private:
 	bool CaptureMMC2State();
 	bool MMC2StateChanged (const mmc2_debug_state_t &oldState,
-						   const mmc2_debug_state_t &newState) const;					   									   
+						   const mmc2_debug_state_t &newState) const;
+	private:
+	private:
+	bool CaptureCamericaState();
+	bool CamericaStateChanged (const camerica_debug_state_t &oldState,
+							   const camerica_debug_state_t &newState) const;					   
+						   					   									   
 	private:
 	void DrawMapperSummary();
 	void DrawPRGTable();
@@ -102,6 +109,7 @@ class MapperExplorerView : public BView
 	void DrawMMC5Panel();
 	void DrawAxROMPanel();
 	void DrawMMC2Panel();
+	void DrawCamericaPanel();
 	
 	private:
 	const char *MemoryTypeName (MapperDebugMemoryType type) const;
@@ -152,7 +160,11 @@ class MapperExplorerView : public BView
 	
 	private:
 	mmc2_debug_state_t fMMC2State = {};
-	bool fHaveMMC2State = false;	
+	bool fHaveMMC2State = false;
+	
+	private:
+	camerica_debug_state_t fCamericaState = {};
+	bool fHaveCamericaState = false;	
 };
 
 
