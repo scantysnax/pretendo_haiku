@@ -9,10 +9,8 @@
 
 #include "Ppu.h"
 #include "Apu.h"
-#include "Cart.h"
 #include "Compiler.h"
 #include "Cpu.h"
-#include "Mapper.h"
 #include "Nes.h"
 
 #include <algorithm>
@@ -115,6 +113,10 @@ constexpr uint8_t kOAMZero     = 0b0001'0000;
 constexpr uint8_t kOAMPriority = 0b0010'0000;
 constexpr uint8_t kOAMHFlip    = 0b0100'0000;
 constexpr uint8_t kOAMVFlip    = 0b1000'0000;
+
+// PPU propogation delay
+constexpr uint8_t kPPUMaskRenderingBits  = 0x18;
+constexpr uint8_t kPPUMaskRenderingDelay = 3;
 
 
 // Pattern-table plane selectors used during tile fetch/decode.
@@ -292,6 +294,9 @@ uint8_t        	register_2007_buffer_       = 0;
 ppu_status_t	status_                     = {0};
 uint8_t        	tile_offset_                = 0; // loopy x
 uint8_t        	monochrome_mask_            = 0xff;
+uint8_t		 	pending_ppu_mask_ 			= 0;
+uint8_t		 	ppu_mask_delay_ 			= 0;
+
 
 // Frame tracking and resumable CPU-slot execution state.
 static uint64_t frame_counter_              = 0;
@@ -912,7 +917,6 @@ open_sprite_pattern()
 	sprite.y = sprite_y(current_sprite_index_);
 
 	if (sprite.y != 0xff) {
-
 		sprite.x     = sprite_x(current_sprite_index_);
 		sprite.attr  = sprite_attr(current_sprite_index_);
 		sprite.index = sprite_index(current_sprite_index_);
@@ -1130,6 +1134,41 @@ increment_vram_address()
 }
 
 
+// -----------------------------------------------------------------------------
+// clock_ppu_mask_delay
+//
+// Advances a pending PPUMASK rendering-state change.
+//
+// The NES PPU does not enable or disable background/sprite rendering
+// immediately when PPUMASK is written.  The rendering-state change propagates
+// through the PPU several dots after the CPU write.
+//
+// Only PPUMASK bits 3 and 4 are delayed here.  The remaining PPUMASK controls
+// continue to update immediately.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+clock_ppu_mask_delay()
+{
+	if (ppu_mask_delay_ == 0) {
+		return;
+	}
+
+	--ppu_mask_delay_;
+
+	if (ppu_mask_delay_ != 0) {
+		return;
+	}
+
+	ppu_mask_.raw = (ppu_mask_.raw & ~kPPUMaskRenderingBits) | (pending_ppu_mask_ & kPPUMaskRenderingBits);
+}
+
+
 //------------------------------------------------------------------------------
 // clock_ppu overloads
 //------------------------------------------------------------------------------
@@ -1150,6 +1189,8 @@ increment_vram_address()
 void
 clock_ppu (const nes::ppu::scanline_prerender &)
 {
+	clock_ppu_mask_delay();
+	
 	if (UNLIKELY(hpos_ == 0)) {
 		status_.sprite0  = 0;
 		status_.overflow = 0;
@@ -1312,6 +1353,8 @@ clock_ppu (const nes::ppu::scanline_prerender &)
 void 
 clock_ppu (const nes::ppu::scanline_render &target) 
 {
+	clock_ppu_mask_delay();
+	
 	if (UNLIKELY(!ppu_mask_.screen_enabled)) {
 
 		if (hpos_ < 1) {
@@ -1426,6 +1469,7 @@ clock_ppu (const nes::ppu::scanline_render &target)
 void 
 clock_ppu (const nes::ppu::scanline_postrender &) 
 {
+	clock_ppu_mask_delay();
 	// no-op
 }
 
@@ -1445,6 +1489,8 @@ clock_ppu (const nes::ppu::scanline_postrender &)
 void
 clock_ppu (const nes::ppu::scanline_vblank &)
 {
+	clock_ppu_mask_delay();
+	
 	// eli: really?
 	// vpos_ == 242 is treated as "line 241 in theory"
 	if (UNLIKELY(vpos_ == 242)) {
@@ -1664,7 +1710,6 @@ execute_scanline_impl (const T &target)
 	return true;
 }
 
-
 } // end anonymous namespace
 
 //------------------------------------------------------------------------------
@@ -1730,7 +1775,11 @@ reset (nes::reset_type type)
 	write_block_          = true;
 	monochrome_mask_      = 0xff;
 	frame_counter_		  = 0;
-	sPendingCpuSlot = false;
+	pending_ppu_mask_ 	  = 0;
+	ppu_mask_delay_   	  = 0;
+	sPendingCpuSlot 	  = false;
+	
+	
 	std::cout << "PPU reset complete" << std::endl;
 }
 
@@ -1775,8 +1824,11 @@ write2000 (uint8_t value)
 // -----------------------------------------------------------------------------
 // nes::ppu::write2001
 //
-// Writes PPUMASK, updating rendering enables, clipping, emphasis, and
-// monochrome state.
+// Writes PPUMASK.
+//
+// Non-rendering PPUMASK controls are applied immediately.  Background and
+// sprite rendering enables are applied after the PPU rendering-toggle delay,
+// matching the delayed rendering-state transition of the NES PPU.
 //
 // Parameters:
 //   value - Value written by the CPU.
@@ -1785,18 +1837,37 @@ write2000 (uint8_t value)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-write2001 (uint8_t value)
+write2001(uint8_t value)
 {
 	log_write(0x2001, value);
-	
+
 	latch_ = value;
 
 	if (write_block_) {
 		return;
 	}
 
-	ppu_mask_.raw     = value;
-	monochrome_mask_  = (ppu_mask_.monochrome) ? 0x30 : 0xff;
+	/*
+	 * PPUMASK controls other than the background/sprite rendering enables
+	 * retain their existing immediate behavior.
+	 */
+	ppu_mask_.raw = (ppu_mask_.raw & kPPUMaskRenderingBits) | (value & ~kPPUMaskRenderingBits);
+
+	monochrome_mask_ = ppu_mask_.monochrome ? 0x30 : 0xff;
+
+	pending_ppu_mask_ = value;
+
+	/*
+	 * If the requested rendering state differs from the currently effective
+	 * state, begin the rendering-toggle propagation delay.
+	 *
+	 * A later PPUMASK write replaces any still-pending transition.
+	 */
+	if ((pending_ppu_mask_ & kPPUMaskRenderingBits) != (ppu_mask_.raw & kPPUMaskRenderingBits)) {
+		ppu_mask_delay_ = kPPUMaskRenderingDelay;
+	} else {
+		ppu_mask_delay_ = 0;
+	}
 }
 
 
@@ -1855,6 +1926,8 @@ write2003 (uint8_t value)
 void 
 write2004 (uint8_t value)
 {
+	//log_write(0x2004, value);
+	
 	latch_ = value;
 	sprite_ram_[sprite_address_++] = value;
 }
@@ -2812,6 +2885,8 @@ debug_step_dot()
 		++vpos_;
 	}
 }
+
+
 
 
 } // namespace nes::ppu
