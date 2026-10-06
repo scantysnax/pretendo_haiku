@@ -3,7 +3,7 @@
 
 //------------------------------------------------------------------------------
 // Name: opcode_isc
-// Desc: Increment Memory & CMP
+// Desc: Increment Memory, then SBC
 //------------------------------------------------------------------------------
 struct opcode_isc : compare {
 

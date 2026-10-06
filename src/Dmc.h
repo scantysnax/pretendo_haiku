@@ -104,13 +104,14 @@ public:
 	bool loop() const;
 	bool output_clock();
 	void start_cycle();
-	void refill_sample_buffer();
+	void refill_sample_buffer(bool load_dma);
 
 	private:
 	// Channel, sample-reader, output-unit, and timer state.
 	bool enabled_              = false;
 	bool muted_                = false;
 	bool sample_buffer_empty_  = true;
+	bool sample_dma_pending_  = false;
 	uint16_t sample_pointer_   = 0xc000;
 	uint16_t sample_address_   = 0xc000;
 	uint16_t bytes_remaining_  = 0;
@@ -124,6 +125,7 @@ public:
 
 	// Debugger/user-controlled audio mute; does not stop DMC emulation.
 	bool channel_muted_ = false;
+
 };
 
 }

@@ -8,13 +8,14 @@ constexpr uint32 kThreadCount = 1;
 class Mutex
 {
 	public:
-			Mutex(char const* debugName, bigtime_t timeOut = B_INFINITE_TIMEOUT);
+			Mutex (char const *debugName, bigtime_t timeOut = B_INFINITE_TIMEOUT);
 	virtual ~Mutex();
 	
 	public:
 	bool Lock() const;
 	bool Lock (bigtime_t timeOut) const;
 	bool Unlock() const;
+	void UnlockIfNeeded();
 
 	sem_id Locker() const
 	{ 

@@ -3,8 +3,14 @@
 
 //------------------------------------------------------------------------------
 // Name: opcode_sya
-// Desc: AND Y register with the high byte of the target address of the
-//       argument + 1. Store the result in memory.
+// Desc: SHY
+//
+//       Store:
+//           Y & (high byte of base address + 1)
+//
+//       On an indexed page crossing, the unstable NMOS 6502 behavior also
+//       replaces the high byte of the destination address with the value
+//       being stored.
 //------------------------------------------------------------------------------
 struct opcode_sya {
 
@@ -12,10 +18,40 @@ struct opcode_sya {
 
 	static uint8_t execute(uint_least16_t &address) {
 
-		const uint8_t high_byte = ((address >> 8) & 0xff) + 1;
-		const uint8_t value     = (Y & high_byte);
-		address                 = (address & 0x00ff) | (value << 8);
-		return Y & high_byte;
+		const bool page_crossed = data16_.raw > 0xff;
+
+		/*
+		 * address is the corrected final effective address here.
+		 *
+		 * Recover the original high byte from before indexing if
+		 * the index crossed a page.
+		 */
+		uint8_t high_byte =
+			static_cast<uint8_t>((address >> 8) & 0xff);
+
+		if (page_crossed) {
+			--high_byte;
+		}
+
+		const uint8_t mask =
+			static_cast<uint8_t>(high_byte + 1);
+
+		const uint8_t value =
+			static_cast<uint8_t>(Y & mask);
+
+		/*
+		 * On a page crossing, SHY corrupts the destination high byte
+		 * with the value being stored.
+		 *
+		 * Without a crossing, use the normal indexed effective address.
+		 */
+		if (page_crossed) {
+			address =
+				(address & 0x00ff) |
+				(static_cast<uint_least16_t>(value) << 8);
+		}
+
+		return value;
 	}
 };
 

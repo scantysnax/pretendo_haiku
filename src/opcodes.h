@@ -11,6 +11,20 @@ struct operation_stack_write {};
 struct operation_jump {};
 struct operation_branch {};
 
+
+/*
+ * Identifies the direction of the CPU bus access performed by an individual
+ * processor cycle.
+ *
+ * This is separate from operation_read / operation_write / operation_modify,
+ * which describe the instruction as a whole.  An instruction such as STA, for
+ * example, performs several read cycles before its final write cycle.
+ *
+ * DMC DMA needs this per-cycle information because RDY can halt the CPU during
+ * a read cycle, but not during a write cycle.
+ */
+
+
 #include "opcodes/adc.h"
 #include "opcodes/and.h"
 #include "opcodes/asl.h"

@@ -45,6 +45,22 @@ class Timer
 	}
 
 	public:
+	// -------------------------------------------------------------------------
+	// Timer::value
+	//
+	// Returns the timer's current countdown value.
+	//
+	// Parameters:
+	//   None.
+	//
+	// Returns:
+	//   Current timer countdown value.
+	// -------------------------------------------------------------------------
+	uint16_t value() const {
+		return timer_;
+	}
+
+	public:
 	uint16_t frequency = 0xffff;
 
 	private:
@@ -55,5 +71,4 @@ class Timer
 
 
 #endif	// _TIMER_H_
-
 

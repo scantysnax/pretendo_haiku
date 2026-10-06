@@ -1,4 +1,3 @@
-
 #ifndef _MEMORY_H_
 #define _MEMORY_H_
 
@@ -9,6 +8,9 @@
 //
 // Real CPU reads are checked against debugger memory-read watchpoints before the
 // bus access is performed.
+//
+// During CPU bus-cycle validation, this also verifies that the current CPU
+// microcycle was classified as a read cycle.
 //
 // Parameters:
 //   address - CPU address to read.
@@ -32,8 +34,7 @@ read_byte (uint_least16_t address)
 // Reads a value from zero-page CPU memory.
 //
 // Zero-page accesses use a dedicated helper in the CPU core, so watchpoint
-// checking must also be performed here or zero-page reads would bypass memory
-// read watchpoints.
+// checking and CPU bus-cycle validation must also be performed here.
 //
 // Parameters:
 //   address - Zero-page CPU address to read.
@@ -58,6 +59,9 @@ read_byte_zp (uint8_t address)
 // Real CPU writes are checked against debugger memory-write watchpoints before
 // the bus write is performed.
 //
+// During CPU bus-cycle validation, this also verifies that the current CPU
+// microcycle was classified as a write cycle.
+//
 // Parameters:
 //   address - CPU address to write.
 //   value   - Value to write.
@@ -81,8 +85,7 @@ write_byte (uint_least16_t address, uint8_t value)
 // Writes a value to zero-page CPU memory.
 //
 // Zero-page accesses use a dedicated helper in the CPU core, so watchpoint
-// checking must also be performed here or zero-page writes would bypass memory
-// write watchpoints.
+// checking and CPU bus-cycle validation must also be performed here.
 //
 // Parameters:
 //   address - Zero-page CPU address to write.
@@ -92,7 +95,7 @@ write_byte (uint_least16_t address, uint8_t value)
 //   Nothing.
 // -----------------------------------------------------------------------------
 inline void
-write_byte_zp(uint8_t address, uint8_t value)
+write_byte_zp (uint8_t address, uint8_t value)
 {
 	nes::cpu::debug_check_memory_write(static_cast<uint16_t>(address));
 
@@ -100,4 +103,3 @@ write_byte_zp(uint8_t address, uint8_t value)
 }
 
 #endif	// _MEMORY_H_
-

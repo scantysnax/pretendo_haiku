@@ -106,3 +106,31 @@ Mutex::Unlock() const
 }
 
 
+// -----------------------------------------------------------------------------
+// UnlockIfNeeded
+//
+// Releases the mutex only when the underlying semaphore indicates that it is
+// currently held.
+//
+// This avoids issuing an unnecessary semaphore release when the mutex is
+// already unlocked, while preserving the same behavior as Unlock() when a
+// release is required.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   None.		
+// -----------------------------------------------------------------------------
+void
+Mutex::UnlockIfNeeded()
+{
+	int32 semCount = 0;
+
+	if (get_sem_count(fLocker, &semCount) == B_OK) {
+		if (semCount <= 0) {
+			Unlock();
+		}
+	}
+}
+

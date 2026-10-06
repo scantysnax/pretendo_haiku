@@ -3,12 +3,9 @@
 #pragma warning(disable : 4127)
 #endif
 
-
 #include "Bus.h"
-#include "Cart.h"
 #include "Compiler.h"
 #include "Cpu.h"
-#include "Mapper.h"
 #include "Nes.h"
 
 #include <algorithm>
@@ -37,7 +34,6 @@
 		rst_asserted_ = false;                             \
 	} while (0)
 
-
 // Mark the current opcode as complete and return to the instruction dispatcher.
 #define OPCODE_COMPLETE \
 	do {                \
@@ -58,6 +54,16 @@ uint8_t P     = Z_MASK | I_MASK | R_MASK;
 
 namespace {
 
+// Identifies the direction of an individual CPU bus cycle.
+//
+// DMC DMA needs this information because RDY can halt the CPU on a read
+// cycle, but not on a write cycle.
+enum class bus_cycle_type {
+	read,
+	write
+};
+
+	
 // vector address table
 constexpr uint16_t kNMIVectorAddress = 0xfffa;
 constexpr uint16_t kRSTVectorAddress = 0xfffc;
@@ -156,7 +162,6 @@ static uint32_t sDebugWriteWatchpointHitCount[0x10000] = {};
 // Address responsible for the most recent memory-watchpoint break.
 static uint16_t sDebugMemoryBreakAddress = 0x0000;
 
-
 // internal registers (which get trashed by instructions)
 register16 effective_address_ = {};
 register16 data16_            = {};
@@ -178,14 +183,47 @@ uint_least16_t spr_dma_count_          = 0;
 uint8_t spr_dma_byte_                  = 0;
 uint8_t spr_dma_delay_                 = 0;
 
-dma_handler_t dmc_dma_handler_         = nullptr;
+
+enum class dmc_dma_state {
+	idle,
+	pending,
+	dummy,
+	align,
+	get
+};
+
+
+dma_handler_t dmc_dma_handler_ = nullptr;
 uint_least16_t dmc_dma_source_address_ = 0;
-uint_least16_t dmc_dma_count_          = 0;
-uint8_t dmc_dma_byte_                  = 0;
-uint8_t dmc_dma_delay_                 = 0;
+uint_least16_t dmc_dma_cpu_address_ = 0;
+
+dmc_dma_state dmc_dma_state_ = dmc_dma_state::idle;
+dmc_dma_type dmc_dma_type_ = dmc_dma_type::reload;
+
+/*
+ * Number of ordinary CPU cycles which must pass before the first halt
+ * attempt is permitted.
+ *
+ * Load DMAs require a startup delay after the $4015 write. Reload DMAs
+ * are eligible immediately on their requested DMA phase.
+ */
+uint8_t dmc_dma_delay_ = 0;
+
+/*
+ * false until the DMA reaches its initially scheduled get/put phase.
+ *
+ * Once the first halt attempt has occurred, a CPU write delays the halt
+ * and the DMC retries on every following CPU cycle regardless of parity.
+ */
+bool dmc_dma_halt_attempted_ = false;
 
 // stats
 uint64_t executed_cycles_ = 1; // NOTE(eteran): 1 instead of 0 makes 4.irq_and_dma.nes pass...
+
+
+uint64_t sDmcIrqAssertCycle = 0;
+bool sDmcIrqAssertPending = false;
+
 
 // eli - made this useful
 [[noreturn]] void jam_handler() {
@@ -445,7 +483,6 @@ void set_flag_condition (bool cond)
 void
 update_nz_flags (uint8_t value)
 {
-
 	// basically no bits set = 0x02
 	// high bit set = 0x80
 	// else = 0x00
@@ -475,13 +512,16 @@ update_nz_flags (uint8_t value)
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void 
+void
 cycle_0 (uint8_t next_op)
 {
-	// first cycle is always instruction fetch
-	// or do we force an interrupt?
-
 	if (rst_executing_) {
+		static bool firstReset = true;
+
+		if (firstReset) {
+			firstReset = false;
+		}
+
 		instruction_ = 0x100;
 	} else if (nmi_executing_) {
 		instruction_ = 0x101;
@@ -493,293 +533,420 @@ cycle_0 (uint8_t next_op)
 	}
 }
 
+
 #include "address_modes.h"
+
+
+struct opcode_dispatch_entry {
+	void (*execute)();
+	bus_cycle_type (*bus_cycle)();
+	uint_least16_t (*bus_address)();
+};
+
+
+// -----------------------------------------------------------------------------
+// make_opcode_dispatch_entry
+//
+// Builds one dispatch-table entry for an opcode/address-mode implementation.
+// -----------------------------------------------------------------------------
+template <class T>
+opcode_dispatch_entry
+make_opcode_dispatch_entry()
+{
+	return {
+		&T::execute,
+		&T::bus_cycle,
+		&T::bus_address
+	};
+}
+
+
+// -----------------------------------------------------------------------------
+// opcode_dispatch_table
+//
+// Returns the single CPU dispatch table used both for instruction execution and
+// for querying the bus direction of the upcoming micro-cycle.
+//
+// The table contains all 256 6502 opcode values plus the internal reset, NMI,
+// and IRQ pseudo-instructions.
+// -----------------------------------------------------------------------------
+const opcode_dispatch_entry*
+opcode_dispatch_table()
+{
+	static const opcode_dispatch_entry table[] = {
+		make_opcode_dispatch_entry<opcode_brk>(),
+		make_opcode_dispatch_entry<indexed_indirect<opcode_ora>>(),
+		make_opcode_dispatch_entry<opcode_jam>(),
+		make_opcode_dispatch_entry<indexed_indirect<opcode_slo>>(),
+		make_opcode_dispatch_entry<zero_page<opcode_nop>>(),
+		make_opcode_dispatch_entry<zero_page<opcode_ora>>(),
+		make_opcode_dispatch_entry<zero_page<opcode_asl>>(),
+		make_opcode_dispatch_entry<zero_page<opcode_slo>>(),
+		make_opcode_dispatch_entry<stack<opcode_php>>(),
+		make_opcode_dispatch_entry<immediate<opcode_ora>>(),
+		make_opcode_dispatch_entry<accumulator<opcode_asl>>(),
+		make_opcode_dispatch_entry<immediate<opcode_aac>>(),
+		make_opcode_dispatch_entry<absolute<opcode_nop>>(),
+		make_opcode_dispatch_entry<absolute<opcode_ora>>(),
+		make_opcode_dispatch_entry<absolute<opcode_asl>>(),
+		make_opcode_dispatch_entry<absolute<opcode_slo>>(),
+		make_opcode_dispatch_entry<relative<opcode_bpl>>(),
+		make_opcode_dispatch_entry<indirect_indexed<opcode_ora>>(),
+		make_opcode_dispatch_entry<opcode_jam>(),
+		make_opcode_dispatch_entry<indirect_indexed<opcode_slo>>(),
+		make_opcode_dispatch_entry<zero_page_x<opcode_nop>>(),
+		make_opcode_dispatch_entry<zero_page_x<opcode_ora>>(),
+		make_opcode_dispatch_entry<zero_page_x<opcode_asl>>(),
+		make_opcode_dispatch_entry<zero_page_x<opcode_slo>>(),
+		make_opcode_dispatch_entry<implied<opcode_clc>>(),
+		make_opcode_dispatch_entry<absolute_y<opcode_ora>>(),
+		make_opcode_dispatch_entry<implied<opcode_nop>>(),
+		make_opcode_dispatch_entry<absolute_y<opcode_slo>>(),
+		make_opcode_dispatch_entry<absolute_x<opcode_nop>>(),
+		make_opcode_dispatch_entry<absolute_x<opcode_ora>>(),
+		make_opcode_dispatch_entry<absolute_x<opcode_asl>>(),
+		make_opcode_dispatch_entry<absolute_x<opcode_slo>>(),
+		make_opcode_dispatch_entry<opcode_jsr>(),
+		make_opcode_dispatch_entry<indexed_indirect<opcode_and>>(),
+		make_opcode_dispatch_entry<opcode_jam>(),
+		make_opcode_dispatch_entry<indexed_indirect<opcode_rla>>(),
+		make_opcode_dispatch_entry<zero_page<opcode_bit>>(),
+		make_opcode_dispatch_entry<zero_page<opcode_and>>(),
+		make_opcode_dispatch_entry<zero_page<opcode_rol>>(),
+		make_opcode_dispatch_entry<zero_page<opcode_rla>>(),
+		make_opcode_dispatch_entry<stack<opcode_plp>>(),
+		make_opcode_dispatch_entry<immediate<opcode_and>>(),
+		make_opcode_dispatch_entry<accumulator<opcode_rol>>(),
+		make_opcode_dispatch_entry<immediate<opcode_aac>>(),
+		make_opcode_dispatch_entry<absolute<opcode_bit>>(),
+		make_opcode_dispatch_entry<absolute<opcode_and>>(),
+		make_opcode_dispatch_entry<absolute<opcode_rol>>(),
+		make_opcode_dispatch_entry<absolute<opcode_rla>>(),
+		make_opcode_dispatch_entry<relative<opcode_bmi>>(),
+		make_opcode_dispatch_entry<indirect_indexed<opcode_and>>(),
+		make_opcode_dispatch_entry<opcode_jam>(),
+		make_opcode_dispatch_entry<indirect_indexed<opcode_rla>>(),
+		make_opcode_dispatch_entry<zero_page_x<opcode_nop>>(),
+		make_opcode_dispatch_entry<zero_page_x<opcode_and>>(),
+		make_opcode_dispatch_entry<zero_page_x<opcode_rol>>(),
+		make_opcode_dispatch_entry<zero_page_x<opcode_rla>>(),
+		make_opcode_dispatch_entry<implied<opcode_sec>>(),
+		make_opcode_dispatch_entry<absolute_y<opcode_and>>(),
+		make_opcode_dispatch_entry<implied<opcode_nop>>(),
+		make_opcode_dispatch_entry<absolute_y<opcode_rla>>(),
+		make_opcode_dispatch_entry<absolute_x<opcode_nop>>(),
+		make_opcode_dispatch_entry<absolute_x<opcode_and>>(),
+		make_opcode_dispatch_entry<absolute_x<opcode_rol>>(),
+		make_opcode_dispatch_entry<absolute_x<opcode_rla>>(),
+		make_opcode_dispatch_entry<opcode_rti>(),
+		make_opcode_dispatch_entry<indexed_indirect<opcode_eor>>(),
+		make_opcode_dispatch_entry<opcode_jam>(),
+		make_opcode_dispatch_entry<indexed_indirect<opcode_sre>>(),
+		make_opcode_dispatch_entry<zero_page<opcode_nop>>(),
+		make_opcode_dispatch_entry<zero_page<opcode_eor>>(),
+		make_opcode_dispatch_entry<zero_page<opcode_lsr>>(),
+		make_opcode_dispatch_entry<zero_page<opcode_sre>>(),
+		make_opcode_dispatch_entry<stack<opcode_pha>>(),
+		make_opcode_dispatch_entry<immediate<opcode_eor>>(),
+		make_opcode_dispatch_entry<accumulator<opcode_lsr>>(),
+		make_opcode_dispatch_entry<immediate<opcode_asr>>(),
+		make_opcode_dispatch_entry<absolute<opcode_jmp>>(),
+		make_opcode_dispatch_entry<absolute<opcode_eor>>(),
+		make_opcode_dispatch_entry<absolute<opcode_lsr>>(),
+		make_opcode_dispatch_entry<absolute<opcode_sre>>(),
+		make_opcode_dispatch_entry<relative<opcode_bvc>>(),
+		make_opcode_dispatch_entry<indirect_indexed<opcode_eor>>(),
+		make_opcode_dispatch_entry<opcode_jam>(),
+		make_opcode_dispatch_entry<indirect_indexed<opcode_sre>>(),
+		make_opcode_dispatch_entry<zero_page_x<opcode_nop>>(),
+		make_opcode_dispatch_entry<zero_page_x<opcode_eor>>(),
+		make_opcode_dispatch_entry<zero_page_x<opcode_lsr>>(),
+		make_opcode_dispatch_entry<zero_page_x<opcode_sre>>(),
+		make_opcode_dispatch_entry<implied<opcode_cli>>(),
+		make_opcode_dispatch_entry<absolute_y<opcode_eor>>(),
+		make_opcode_dispatch_entry<implied<opcode_nop>>(),
+		make_opcode_dispatch_entry<absolute_y<opcode_sre>>(),
+		make_opcode_dispatch_entry<absolute_x<opcode_nop>>(),
+		make_opcode_dispatch_entry<absolute_x<opcode_eor>>(),
+		make_opcode_dispatch_entry<absolute_x<opcode_lsr>>(),
+		make_opcode_dispatch_entry<absolute_x<opcode_sre>>(),
+		make_opcode_dispatch_entry<opcode_rts>(),
+		make_opcode_dispatch_entry<indexed_indirect<opcode_adc>>(),
+		make_opcode_dispatch_entry<opcode_jam>(),
+		make_opcode_dispatch_entry<indexed_indirect<opcode_rra>>(),
+		make_opcode_dispatch_entry<zero_page<opcode_nop>>(),
+		make_opcode_dispatch_entry<zero_page<opcode_adc>>(),
+		make_opcode_dispatch_entry<zero_page<opcode_ror>>(),
+		make_opcode_dispatch_entry<zero_page<opcode_rra>>(),
+		make_opcode_dispatch_entry<stack<opcode_pla>>(),
+		make_opcode_dispatch_entry<immediate<opcode_adc>>(),
+		make_opcode_dispatch_entry<accumulator<opcode_ror>>(),
+		make_opcode_dispatch_entry<immediate<opcode_arr>>(),
+		make_opcode_dispatch_entry<indirect<opcode_jmp>>(),
+		make_opcode_dispatch_entry<absolute<opcode_adc>>(),
+		make_opcode_dispatch_entry<absolute<opcode_ror>>(),
+		make_opcode_dispatch_entry<absolute<opcode_rra>>(),
+		make_opcode_dispatch_entry<relative<opcode_bvs>>(),
+		make_opcode_dispatch_entry<indirect_indexed<opcode_adc>>(),
+		make_opcode_dispatch_entry<opcode_jam>(),
+		make_opcode_dispatch_entry<indirect_indexed<opcode_rra>>(),
+		make_opcode_dispatch_entry<zero_page_x<opcode_nop>>(),
+		make_opcode_dispatch_entry<zero_page_x<opcode_adc>>(),
+		make_opcode_dispatch_entry<zero_page_x<opcode_ror>>(),
+		make_opcode_dispatch_entry<zero_page_x<opcode_rra>>(),
+		make_opcode_dispatch_entry<implied<opcode_sei>>(),
+		make_opcode_dispatch_entry<absolute_y<opcode_adc>>(),
+		make_opcode_dispatch_entry<implied<opcode_nop>>(),
+		make_opcode_dispatch_entry<absolute_y<opcode_rra>>(),
+		make_opcode_dispatch_entry<absolute_x<opcode_nop>>(),
+		make_opcode_dispatch_entry<absolute_x<opcode_adc>>(),
+		make_opcode_dispatch_entry<absolute_x<opcode_ror>>(),
+		make_opcode_dispatch_entry<absolute_x<opcode_rra>>(),
+		make_opcode_dispatch_entry<immediate<opcode_nop>>(),
+		make_opcode_dispatch_entry<indexed_indirect<opcode_sta>>(),
+		make_opcode_dispatch_entry<immediate<opcode_nop>>(),
+		make_opcode_dispatch_entry<indexed_indirect<opcode_aax>>(),
+		make_opcode_dispatch_entry<zero_page<opcode_sty>>(),
+		make_opcode_dispatch_entry<zero_page<opcode_sta>>(),
+		make_opcode_dispatch_entry<zero_page<opcode_stx>>(),
+		make_opcode_dispatch_entry<zero_page<opcode_aax>>(),
+		make_opcode_dispatch_entry<implied<opcode_dey>>(),
+		make_opcode_dispatch_entry<immediate<opcode_nop>>(),
+		make_opcode_dispatch_entry<implied<opcode_txa>>(),
+		make_opcode_dispatch_entry<immediate<opcode_xaa>>(),
+		make_opcode_dispatch_entry<absolute<opcode_sty>>(),
+		make_opcode_dispatch_entry<absolute<opcode_sta>>(),
+		make_opcode_dispatch_entry<absolute<opcode_stx>>(),
+		make_opcode_dispatch_entry<absolute<opcode_aax>>(),
+		make_opcode_dispatch_entry<relative<opcode_bcc>>(),
+		make_opcode_dispatch_entry<indirect_indexed<opcode_sta>>(),
+		make_opcode_dispatch_entry<opcode_jam>(),
+		make_opcode_dispatch_entry<indirect_indexed<opcode_axa>>(),
+		make_opcode_dispatch_entry<zero_page_x<opcode_sty>>(),
+		make_opcode_dispatch_entry<zero_page_x<opcode_sta>>(),
+		make_opcode_dispatch_entry<zero_page_y<opcode_stx>>(),
+		make_opcode_dispatch_entry<zero_page_y<opcode_aax>>(),
+		make_opcode_dispatch_entry<implied<opcode_tya>>(),
+		make_opcode_dispatch_entry<absolute_y<opcode_sta>>(),
+		make_opcode_dispatch_entry<implied<opcode_txs>>(),
+		make_opcode_dispatch_entry<absolute_y<opcode_xas>>(),
+		make_opcode_dispatch_entry<absolute_x<opcode_sya>>(),
+		make_opcode_dispatch_entry<absolute_x<opcode_sta>>(),
+		make_opcode_dispatch_entry<absolute_y<opcode_sxa>>(),
+		make_opcode_dispatch_entry<absolute_y<opcode_axa>>(),
+		make_opcode_dispatch_entry<immediate<opcode_ldy>>(),
+		make_opcode_dispatch_entry<indexed_indirect<opcode_lda>>(),
+		make_opcode_dispatch_entry<immediate<opcode_ldx>>(),
+		make_opcode_dispatch_entry<indexed_indirect<opcode_lax>>(),
+		make_opcode_dispatch_entry<zero_page<opcode_ldy>>(),
+		make_opcode_dispatch_entry<zero_page<opcode_lda>>(),
+		make_opcode_dispatch_entry<zero_page<opcode_ldx>>(),
+		make_opcode_dispatch_entry<zero_page<opcode_lax>>(),
+		make_opcode_dispatch_entry<implied<opcode_tay>>(),
+		make_opcode_dispatch_entry<immediate<opcode_lda>>(),
+		make_opcode_dispatch_entry<implied<opcode_tax>>(),
+		make_opcode_dispatch_entry<immediate<opcode_lax>>(),
+		make_opcode_dispatch_entry<absolute<opcode_ldy>>(),
+		make_opcode_dispatch_entry<absolute<opcode_lda>>(),
+		make_opcode_dispatch_entry<absolute<opcode_ldx>>(),
+		make_opcode_dispatch_entry<absolute<opcode_lax>>(),
+		make_opcode_dispatch_entry<relative<opcode_bcs>>(),
+		make_opcode_dispatch_entry<indirect_indexed<opcode_lda>>(),
+		make_opcode_dispatch_entry<opcode_jam>(),
+		make_opcode_dispatch_entry<indirect_indexed<opcode_lax>>(),
+		make_opcode_dispatch_entry<zero_page_x<opcode_ldy>>(),
+		make_opcode_dispatch_entry<zero_page_x<opcode_lda>>(),
+		make_opcode_dispatch_entry<zero_page_y<opcode_ldx>>(),
+		make_opcode_dispatch_entry<zero_page_y<opcode_lax>>(),
+		make_opcode_dispatch_entry<implied<opcode_clv>>(),
+		make_opcode_dispatch_entry<absolute_y<opcode_lda>>(),
+		make_opcode_dispatch_entry<implied<opcode_tsx>>(),
+		make_opcode_dispatch_entry<absolute_y<opcode_lar>>(),
+		make_opcode_dispatch_entry<absolute_x<opcode_ldy>>(),
+		make_opcode_dispatch_entry<absolute_x<opcode_lda>>(),
+		make_opcode_dispatch_entry<absolute_y<opcode_ldx>>(),
+		make_opcode_dispatch_entry<absolute_y<opcode_lax>>(),
+		make_opcode_dispatch_entry<immediate<opcode_cpy>>(),
+		make_opcode_dispatch_entry<indexed_indirect<opcode_cmp>>(),
+		make_opcode_dispatch_entry<immediate<opcode_nop>>(),
+		make_opcode_dispatch_entry<indexed_indirect<opcode_dcp>>(),
+		make_opcode_dispatch_entry<zero_page<opcode_cpy>>(),
+		make_opcode_dispatch_entry<zero_page<opcode_cmp>>(),
+		make_opcode_dispatch_entry<zero_page<opcode_dec>>(),
+		make_opcode_dispatch_entry<zero_page<opcode_dcp>>(),
+		make_opcode_dispatch_entry<implied<opcode_iny>>(),
+		make_opcode_dispatch_entry<immediate<opcode_cmp>>(),
+		make_opcode_dispatch_entry<implied<opcode_dex>>(),
+		make_opcode_dispatch_entry<immediate<opcode_axs>>(),
+		make_opcode_dispatch_entry<absolute<opcode_cpy>>(),
+		make_opcode_dispatch_entry<absolute<opcode_cmp>>(),
+		make_opcode_dispatch_entry<absolute<opcode_dec>>(),
+		make_opcode_dispatch_entry<absolute<opcode_dcp>>(),
+		make_opcode_dispatch_entry<relative<opcode_bne>>(),
+		make_opcode_dispatch_entry<indirect_indexed<opcode_cmp>>(),
+		make_opcode_dispatch_entry<opcode_jam>(),
+		make_opcode_dispatch_entry<indirect_indexed<opcode_dcp>>(),
+		make_opcode_dispatch_entry<zero_page_x<opcode_nop>>(),
+		make_opcode_dispatch_entry<zero_page_x<opcode_cmp>>(),
+		make_opcode_dispatch_entry<zero_page_x<opcode_dec>>(),
+		make_opcode_dispatch_entry<zero_page_x<opcode_dcp>>(),
+		make_opcode_dispatch_entry<implied<opcode_cld>>(),
+		make_opcode_dispatch_entry<absolute_y<opcode_cmp>>(),
+		make_opcode_dispatch_entry<implied<opcode_nop>>(),
+		make_opcode_dispatch_entry<absolute_y<opcode_dcp>>(),
+		make_opcode_dispatch_entry<absolute_x<opcode_nop>>(),
+		make_opcode_dispatch_entry<absolute_x<opcode_cmp>>(),
+		make_opcode_dispatch_entry<absolute_x<opcode_dec>>(),
+		make_opcode_dispatch_entry<absolute_x<opcode_dcp>>(),
+		make_opcode_dispatch_entry<immediate<opcode_cpx>>(),
+		make_opcode_dispatch_entry<indexed_indirect<opcode_sbc>>(),
+		make_opcode_dispatch_entry<immediate<opcode_nop>>(),
+		make_opcode_dispatch_entry<indexed_indirect<opcode_isc>>(),
+		make_opcode_dispatch_entry<zero_page<opcode_cpx>>(),
+		make_opcode_dispatch_entry<zero_page<opcode_sbc>>(),
+		make_opcode_dispatch_entry<zero_page<opcode_inc>>(),
+		make_opcode_dispatch_entry<zero_page<opcode_isc>>(),
+		make_opcode_dispatch_entry<implied<opcode_inx>>(),
+		make_opcode_dispatch_entry<immediate<opcode_sbc>>(),
+		make_opcode_dispatch_entry<implied<opcode_nop>>(),
+		make_opcode_dispatch_entry<immediate<opcode_sbc>>(),
+		make_opcode_dispatch_entry<absolute<opcode_cpx>>(),
+		make_opcode_dispatch_entry<absolute<opcode_sbc>>(),
+		make_opcode_dispatch_entry<absolute<opcode_inc>>(),
+		make_opcode_dispatch_entry<absolute<opcode_isc>>(),
+		make_opcode_dispatch_entry<relative<opcode_beq>>(),
+		make_opcode_dispatch_entry<indirect_indexed<opcode_sbc>>(),
+		make_opcode_dispatch_entry<opcode_jam>(),
+		make_opcode_dispatch_entry<indirect_indexed<opcode_isc>>(),
+		make_opcode_dispatch_entry<zero_page_x<opcode_nop>>(),
+		make_opcode_dispatch_entry<zero_page_x<opcode_sbc>>(),
+		make_opcode_dispatch_entry<zero_page_x<opcode_inc>>(),
+		make_opcode_dispatch_entry<zero_page_x<opcode_isc>>(),
+		make_opcode_dispatch_entry<implied<opcode_sed>>(),
+		make_opcode_dispatch_entry<absolute_y<opcode_sbc>>(),
+		make_opcode_dispatch_entry<implied<opcode_nop>>(),
+		make_opcode_dispatch_entry<absolute_y<opcode_isc>>(),
+		make_opcode_dispatch_entry<absolute_x<opcode_nop>>(),
+		make_opcode_dispatch_entry<absolute_x<opcode_sbc>>(),
+		make_opcode_dispatch_entry<absolute_x<opcode_inc>>(),
+		make_opcode_dispatch_entry<absolute_x<opcode_isc>>(),
+
+		make_opcode_dispatch_entry<opcode_rst>(),
+		make_opcode_dispatch_entry<opcode_nmi>(),
+		make_opcode_dispatch_entry<opcode_irq>(),
+	};
+
+	return table;
+}
 
 
 // -----------------------------------------------------------------------------
 // execute_opcode
 //
 // Executes the current CPU instruction cycle through the opcode dispatch table.
-//
-// The table contains handlers for all 256 6502 opcode values plus the internal
-// reset, NMI, and IRQ pseudo-instructions used by the CPU core.
-//
-// Parameters:
-//   None.
-//
-// Returns:
-//   Nothing.
 // -----------------------------------------------------------------------------
-void execute_opcode() {
+void
+execute_opcode()
+{
+	assert(instruction_ <= 0x102);
 
-	using fptr_t = void (*)();
+	const opcode_dispatch_entry *table = opcode_dispatch_table();
 
-	// instruction dispatch table
-	static const fptr_t table[] = {
-		opcode_brk::execute,
-		indexed_indirect<opcode_ora>::execute,
-		opcode_jam::execute,
-		indexed_indirect<opcode_slo>::execute,
-		zero_page<opcode_nop>::execute,
-		zero_page<opcode_ora>::execute,
-		zero_page<opcode_asl>::execute,
-		zero_page<opcode_slo>::execute,
-		stack<opcode_php>::execute,
-		immediate<opcode_ora>::execute,
-		accumulator<opcode_asl>::execute,
-		immediate<opcode_aac>::execute,
-		absolute<opcode_nop>::execute,
-		absolute<opcode_ora>::execute,
-		absolute<opcode_asl>::execute,
-		absolute<opcode_slo>::execute,
-		relative<opcode_bpl>::execute,
-		indirect_indexed<opcode_ora>::execute,
-		opcode_jam::execute,
-		indirect_indexed<opcode_slo>::execute,
-		zero_page_x<opcode_nop>::execute,
-		zero_page_x<opcode_ora>::execute,
-		zero_page_x<opcode_asl>::execute,
-		zero_page_x<opcode_slo>::execute,
-		implied<opcode_clc>::execute,
-		absolute_y<opcode_ora>::execute,
-		implied<opcode_nop>::execute,
-		absolute_y<opcode_slo>::execute,
-		absolute_x<opcode_nop>::execute,
-		absolute_x<opcode_ora>::execute,
-		absolute_x<opcode_asl>::execute,
-		absolute_x<opcode_slo>::execute,
-		opcode_jsr::execute,
-		indexed_indirect<opcode_and>::execute,
-		opcode_jam::execute,
-		indexed_indirect<opcode_rla>::execute,
-		zero_page<opcode_bit>::execute,
-		zero_page<opcode_and>::execute,
-		zero_page<opcode_rol>::execute,
-		zero_page<opcode_rla>::execute,
-		stack<opcode_plp>::execute,
-		immediate<opcode_and>::execute,
-		accumulator<opcode_rol>::execute,
-		immediate<opcode_aac>::execute,
-		absolute<opcode_bit>::execute,
-		absolute<opcode_and>::execute,
-		absolute<opcode_rol>::execute,
-		absolute<opcode_rla>::execute,
-		relative<opcode_bmi>::execute,
-		indirect_indexed<opcode_and>::execute,
-		opcode_jam::execute,
-		indirect_indexed<opcode_rla>::execute,
-		zero_page_x<opcode_nop>::execute,
-		zero_page_x<opcode_and>::execute,
-		zero_page_x<opcode_rol>::execute,
-		zero_page_x<opcode_rla>::execute,
-		implied<opcode_sec>::execute,
-		absolute_y<opcode_and>::execute,
-		implied<opcode_nop>::execute,
-		absolute_y<opcode_rla>::execute,
-		absolute_x<opcode_nop>::execute,
-		absolute_x<opcode_and>::execute,
-		absolute_x<opcode_rol>::execute,
-		absolute_x<opcode_rla>::execute,
-		opcode_rti::execute,
-		indexed_indirect<opcode_eor>::execute,
-		opcode_jam::execute,
-		indexed_indirect<opcode_sre>::execute,
-		zero_page<opcode_nop>::execute,
-		zero_page<opcode_eor>::execute,
-		zero_page<opcode_lsr>::execute,
-		zero_page<opcode_sre>::execute,
-		stack<opcode_pha>::execute,
-		immediate<opcode_eor>::execute,
-		accumulator<opcode_lsr>::execute,
-		immediate<opcode_asr>::execute,
-		absolute<opcode_jmp>::execute,
-		absolute<opcode_eor>::execute,
-		absolute<opcode_lsr>::execute,
-		absolute<opcode_sre>::execute,
-		relative<opcode_bvc>::execute,
-		indirect_indexed<opcode_eor>::execute,
-		opcode_jam::execute,
-		indirect_indexed<opcode_sre>::execute,
-		zero_page_x<opcode_nop>::execute,
-		zero_page_x<opcode_eor>::execute,
-		zero_page_x<opcode_lsr>::execute,
-		zero_page_x<opcode_sre>::execute,
-		implied<opcode_cli>::execute,
-		absolute_y<opcode_eor>::execute,
-		implied<opcode_nop>::execute,
-		absolute_y<opcode_sre>::execute,
-		absolute_x<opcode_nop>::execute,
-		absolute_x<opcode_eor>::execute,
-		absolute_x<opcode_lsr>::execute,
-		absolute_x<opcode_sre>::execute,
-		opcode_rts::execute,
-		indexed_indirect<opcode_adc>::execute,
-		opcode_jam::execute,
-		indexed_indirect<opcode_rra>::execute,
-		zero_page<opcode_nop>::execute,
-		zero_page<opcode_adc>::execute,
-		zero_page<opcode_ror>::execute,
-		zero_page<opcode_rra>::execute,
-		stack<opcode_pla>::execute,
-		immediate<opcode_adc>::execute,
-		accumulator<opcode_ror>::execute,
-		immediate<opcode_arr>::execute,
-		indirect<opcode_jmp>::execute,
-		absolute<opcode_adc>::execute,
-		absolute<opcode_ror>::execute,
-		absolute<opcode_rra>::execute,
-		relative<opcode_bvs>::execute,
-		indirect_indexed<opcode_adc>::execute,
-		opcode_jam::execute,
-		indirect_indexed<opcode_rra>::execute,
-		zero_page_x<opcode_nop>::execute,
-		zero_page_x<opcode_adc>::execute,
-		zero_page_x<opcode_ror>::execute,
-		zero_page_x<opcode_rra>::execute,
-		implied<opcode_sei>::execute,
-		absolute_y<opcode_adc>::execute,
-		implied<opcode_nop>::execute,
-		absolute_y<opcode_rra>::execute,
-		absolute_x<opcode_nop>::execute,
-		absolute_x<opcode_adc>::execute,
-		absolute_x<opcode_ror>::execute,
-		absolute_x<opcode_rra>::execute,
-		immediate<opcode_nop>::execute,
-		indexed_indirect<opcode_sta>::execute,
-		immediate<opcode_nop>::execute,
-		indexed_indirect<opcode_aax>::execute,
-		zero_page<opcode_sty>::execute,
-		zero_page<opcode_sta>::execute,
-		zero_page<opcode_stx>::execute,
-		zero_page<opcode_aax>::execute,
-		implied<opcode_dey>::execute,
-		immediate<opcode_nop>::execute,
-		implied<opcode_txa>::execute,
-		immediate<opcode_xaa>::execute,
-		absolute<opcode_sty>::execute,
-		absolute<opcode_sta>::execute,
-		absolute<opcode_stx>::execute,
-		absolute<opcode_aax>::execute,
-		relative<opcode_bcc>::execute,
-		indirect_indexed<opcode_sta>::execute,
-		opcode_jam::execute,
-		indirect_indexed<opcode_axa>::execute,
-		zero_page_x<opcode_sty>::execute,
-		zero_page_x<opcode_sta>::execute,
-		zero_page_y<opcode_stx>::execute,
-		zero_page_y<opcode_aax>::execute,
-		implied<opcode_tya>::execute,
-		absolute_y<opcode_sta>::execute,
-		implied<opcode_txs>::execute,
-		absolute_y<opcode_xas>::execute,
-		absolute_x<opcode_sya>::execute,
-		absolute_x<opcode_sta>::execute,
-		absolute_y<opcode_sxa>::execute,
-		absolute_y<opcode_axa>::execute,
-		immediate<opcode_ldy>::execute,
-		indexed_indirect<opcode_lda>::execute,
-		immediate<opcode_ldx>::execute,
-		indexed_indirect<opcode_lax>::execute,
-		zero_page<opcode_ldy>::execute,
-		zero_page<opcode_lda>::execute,
-		zero_page<opcode_ldx>::execute,
-		zero_page<opcode_lax>::execute,
-		implied<opcode_tay>::execute,
-		immediate<opcode_lda>::execute,
-		implied<opcode_tax>::execute,
-		immediate<opcode_lax>::execute,
-		absolute<opcode_ldy>::execute,
-		absolute<opcode_lda>::execute,
-		absolute<opcode_ldx>::execute,
-		absolute<opcode_lax>::execute,
-		relative<opcode_bcs>::execute,
-		indirect_indexed<opcode_lda>::execute,
-		opcode_jam::execute,
-		indirect_indexed<opcode_lax>::execute,
-		zero_page_x<opcode_ldy>::execute,
-		zero_page_x<opcode_lda>::execute,
-		zero_page_y<opcode_ldx>::execute,
-		zero_page_y<opcode_lax>::execute,
-		implied<opcode_clv>::execute,
-		absolute_y<opcode_lda>::execute,
-		implied<opcode_tsx>::execute,
-		absolute_y<opcode_lar>::execute,
-		absolute_x<opcode_ldy>::execute,
-		absolute_x<opcode_lda>::execute,
-		absolute_y<opcode_ldx>::execute,
-		absolute_y<opcode_lax>::execute,
-		immediate<opcode_cpy>::execute,
-		indexed_indirect<opcode_cmp>::execute,
-		immediate<opcode_nop>::execute,
-		indexed_indirect<opcode_dcp>::execute,
-		zero_page<opcode_cpy>::execute,
-		zero_page<opcode_cmp>::execute,
-		zero_page<opcode_dec>::execute,
-		zero_page<opcode_dcp>::execute,
-		implied<opcode_iny>::execute,
-		immediate<opcode_cmp>::execute,
-		implied<opcode_dex>::execute,
-		immediate<opcode_axs>::execute,
-		absolute<opcode_cpy>::execute,
-		absolute<opcode_cmp>::execute,
-		absolute<opcode_dec>::execute,
-		absolute<opcode_dcp>::execute,
-		relative<opcode_bne>::execute,
-		indirect_indexed<opcode_cmp>::execute,
-		opcode_jam::execute,
-		indirect_indexed<opcode_dcp>::execute,
-		zero_page_x<opcode_nop>::execute,
-		zero_page_x<opcode_cmp>::execute,
-		zero_page_x<opcode_dec>::execute,
-		zero_page_x<opcode_dcp>::execute,
-		implied<opcode_cld>::execute,
-		absolute_y<opcode_cmp>::execute,
-		implied<opcode_nop>::execute,
-		absolute_y<opcode_dcp>::execute,
-		absolute_x<opcode_nop>::execute,
-		absolute_x<opcode_cmp>::execute,
-		absolute_x<opcode_dec>::execute,
-		absolute_x<opcode_dcp>::execute,
-		immediate<opcode_cpx>::execute,
-		indexed_indirect<opcode_sbc>::execute,
-		immediate<opcode_nop>::execute,
-		indexed_indirect<opcode_isc>::execute,
-		zero_page<opcode_cpx>::execute,
-		zero_page<opcode_sbc>::execute,
-		zero_page<opcode_inc>::execute,
-		zero_page<opcode_isc>::execute,
-		implied<opcode_inx>::execute,
-		immediate<opcode_sbc>::execute,
-		implied<opcode_nop>::execute,
-		immediate<opcode_sbc>::execute,
-		absolute<opcode_cpx>::execute,
-		absolute<opcode_sbc>::execute,
-		absolute<opcode_inc>::execute,
-		absolute<opcode_isc>::execute,
-		relative<opcode_beq>::execute,
-		indirect_indexed<opcode_sbc>::execute,
-		opcode_jam::execute,
-		indirect_indexed<opcode_isc>::execute,
-		zero_page_x<opcode_nop>::execute,
-		zero_page_x<opcode_sbc>::execute,
-		zero_page_x<opcode_inc>::execute,
-		zero_page_x<opcode_isc>::execute,
-		implied<opcode_sed>::execute,
-		absolute_y<opcode_sbc>::execute,
-		implied<opcode_nop>::execute,
-		absolute_y<opcode_isc>::execute,
-		absolute_x<opcode_nop>::execute,
-		absolute_x<opcode_sbc>::execute,
-		absolute_x<opcode_inc>::execute,
-		absolute_x<opcode_isc>::execute,
+	table[instruction_].execute();
+}
 
-		opcode_rst::execute,
-		opcode_nmi::execute,
-		opcode_irq::execute,
-	};
+
+// -----------------------------------------------------------------------------
+// current_bus_cycle
+//
+// Reports whether the CPU micro-cycle that is about to execute is a read or a
+// write.
+//
+// Cycle zero is always the opcode fetch, so its bus direction is known before
+// the opcode itself has been decoded.
+// -----------------------------------------------------------------------------
+[[maybe_unused]] bus_cycle_type
+current_bus_cycle()
+{
+	if (cycle_ == 0) {
+		return bus_cycle_type::read;
+	}
 
 	assert(instruction_ <= 0x102);
-	table[instruction_]();
+
+	const opcode_dispatch_entry *table = opcode_dispatch_table();
+
+	return table[instruction_].bus_cycle();
+}
+
+
+// -----------------------------------------------------------------------------
+// current_bus_address
+//
+// Reports the CPU bus address for the micro-cycle that is about to execute.
+//
+// Cycle zero is always the opcode fetch from the current PC.  Later cycles
+// delegate to the active opcode/addressing-mode dispatch entry.
+// -----------------------------------------------------------------------------
+uint_least16_t
+current_bus_address()
+{
+	/*
+	 * Cycle zero is always an opcode fetch from the current PC.
+	 */
+	if (cycle_ == 0) {
+		return PC.raw;
+	}
+
+	assert(instruction_ <= 0x102);
+
+	const opcode_dispatch_entry *table = opcode_dispatch_table();
+
+	return table[instruction_].bus_address();
+}
+
+
+// -----------------------------------------------------------------------------
+// dmc_dma_get_cycle
+//
+// Reports whether the current CPU cycle is a DMC DMA get cycle.
+//
+// DMC DMA alternates between get and put phases according to CPU cycle parity.
+// -----------------------------------------------------------------------------
+bool
+dmc_dma_get_cycle()
+{
+	return (executed_cycles_ & 1) == 0;
+}
+
+
+// -----------------------------------------------------------------------------
+// dmc_dma_initial_phase
+//
+// Reports whether the current CPU cycle is on the phase required for the
+// initial DMC DMA halt attempt.
+//
+// Load DMA initially targets a get cycle, while reload DMA initially targets
+// a put cycle.
+// -----------------------------------------------------------------------------
+bool
+dmc_dma_initial_phase()
+{
+	switch (dmc_dma_type_) {
+	case dmc_dma_type::load:
+		/*
+		 * Load DMA initially targets a get cycle.
+		 */
+		return dmc_dma_get_cycle();
+
+	case dmc_dma_type::reload:
+		/*
+		 * Reload DMA initially targets a put cycle.
+		 */
+		return !dmc_dma_get_cycle();
+	}
+
+	abort();
 }
 
 
@@ -802,34 +969,69 @@ void execute_opcode() {
 void
 clock()
 {
-	if (UNLIKELY(dmc_dma_count_)) {
+	if (UNLIKELY(dmc_dma_state_ != dmc_dma_state::idle)) {
+		switch (dmc_dma_state_) {
+		case dmc_dma_state::pending:
+			if (dmc_dma_delay_ != 0) {
+				--dmc_dma_delay_;
+				break;
+			}
 
-		if (dmc_dma_delay_ != 0) {
-			read_byte(dmc_dma_source_address_);
-			--dmc_dma_delay_;
+			if (!dmc_dma_halt_attempted_) {
+				if (!dmc_dma_initial_phase()) {
+					break;
+				}
+
+				dmc_dma_halt_attempted_ = true;
+			}
+
+			if (current_bus_cycle() == bus_cycle_type::write) {
+				break;
+			}
+
+			dmc_dma_cpu_address_ = current_bus_address();
+			read_byte(dmc_dma_cpu_address_);
+
+			dmc_dma_state_ = dmc_dma_state::dummy;
+			return;
+
+		case dmc_dma_state::dummy:
+			read_byte(dmc_dma_cpu_address_);
+
+			dmc_dma_state_ =
+				dmc_dma_get_cycle()
+					? dmc_dma_state::align
+					: dmc_dma_state::get;
+
+			return;
+
+		case dmc_dma_state::align:
+			read_byte(dmc_dma_cpu_address_);
+
+			dmc_dma_state_ = dmc_dma_state::get;
+			return;
+
+		case dmc_dma_state::get:
+		{
+			assert(dmc_dma_get_cycle());
+				
+			const uint8_t value = read_byte(dmc_dma_source_address_);
+
+			(*dmc_dma_handler_)(value);
+
+			dmc_dma_handler_ = nullptr;
+			dmc_dma_state_ = dmc_dma_state::idle;
+			dmc_dma_halt_attempted_ = false;
+
 			return;
 		}
 
-		// the count will always be initially even (we multiply by 2)
-		// so, this forces us to idle for 1 cycle if
-		// the CPU starts DMA on an odd cycle
-		// after that, they should stay in sync
-		if ((dmc_dma_count_ & 1) != (executed_cycles_ & 1)) {
-			read_byte(dmc_dma_source_address_);
-			return;
+		case dmc_dma_state::idle:
+			break;
 		}
+	}
 
-		if ((dmc_dma_count_ & 1) == 0) {
-			// read cycle
-			dmc_dma_byte_ = read_byte(dmc_dma_source_address_++);
-		} else {
-			// write cycle
-			(*dmc_dma_handler_)(dmc_dma_byte_);
-		}
-
-		--dmc_dma_count_;
-
-	} else if (UNLIKELY(spr_dma_count_)) {
+	if (UNLIKELY(spr_dma_count_)) {
 
 		if (spr_dma_delay_ != 0) {
 			read_byte(spr_dma_source_address_);
@@ -837,32 +1039,29 @@ clock()
 			return;
 		}
 
-		// the count will always be initially even (we multiply by 2)
-		// so, this forces us to idle for 1 cycle if
-		// the CPU starts DMA on an odd cycle
-		// after that, they should stay in sync
 		if ((spr_dma_count_ & 1) != (executed_cycles_ & 1)) {
 			read_byte(spr_dma_source_address_);
 			return;
 		}
 
 		if ((executed_cycles_ & 1) == 0) {
-			// read cycle
-			spr_dma_byte_ = read_byte(spr_dma_source_address_++);
+			spr_dma_byte_ =
+				read_byte(spr_dma_source_address_++);
 		} else {
-			// write cycle
 			(*spr_dma_handler_)(spr_dma_byte_);
 		}
 
 		--spr_dma_count_;
+
 	} else {
 		assert(cycle_ < 10);
 
 		if (cycle_ == 0) {
-			const uint8_t next_op = read_byte(PC.raw);
+			const uint8_t next_op =
+				read_byte(PC.raw);
+
 			cycle_0(next_op);
 		} else {
-			// execute the current part of the instruction
 			execute_opcode();
 		}
 
@@ -871,6 +1070,23 @@ clock()
 }
 
 
+}
+
+
+// -----------------------------------------------------------------------------
+// debug_mark_dmc_irq_assert
+//
+// Records the CPU cycle on which the DMC IRQ was asserted and marks the event
+// as pending for later debug inspection.
+//
+// This is diagnostic state only and does not itself alter CPU interrupt
+// behavior.
+// -----------------------------------------------------------------------------
+void
+debug_mark_dmc_irq_assert()
+{
+	sDmcIrqAssertCycle = executed_cycles_;
+	sDmcIrqAssertPending = true;
 }
 
 
@@ -940,6 +1156,7 @@ tick()
 		 * memory watchpoints need the original instruction address.
 		 */
 		sDebugCurrentInstructionAddress = PC.raw;
+		
 		sDebugPreviousBoundaryS = S;
 		sDebugPreviousBoundaryWasInterrupt = nmi_executing_ || irq_executing_;
 		sDebugPreviousBoundaryOpcode = nes::bus::debug_read_memory(PC.raw);
@@ -1087,11 +1304,14 @@ stop()
 	spr_dma_source_address_ = 0;
 	spr_dma_count_          = 0;
 	spr_dma_delay_          = 0;
-
-	dmc_dma_handler_        = nullptr;
+	
+	dmc_dma_handler_ = nullptr;
 	dmc_dma_source_address_ = 0;
-	dmc_dma_count_          = 0;
-	dmc_dma_delay_          = 0;
+	dmc_dma_cpu_address_ = 0;
+	dmc_dma_state_ = dmc_dma_state::idle;
+	dmc_dma_type_ = dmc_dma_type::reload;
+	dmc_dma_delay_ = 0;
+	dmc_dma_halt_attempted_ = false;
 
 	sDebugCurrentInstructionAddress = 0x0000;
 
@@ -1204,26 +1424,24 @@ schedule_spr_dma (dma_handler_t dma_handler, uint_least16_t source_address, uint
 // -----------------------------------------------------------------------------
 // schedule_dmc_dma
 //
-// Schedules a DMC DMA transfer.
+// Schedules a single-byte DMC DMA transfer from the requested source address.
 //
-// The requested transfer count is converted into alternating DMA read/write
-// cycles beginning at the supplied CPU source address.
-//
-// Parameters:
-//   dma_handler    - Callback that receives each transferred byte.
-//   source_address - Initial CPU source address.
-//   count          - Number of bytes to transfer.
-//
-// Returns:
-//   Nothing.
+// The transfer is recorded as pending and is later advanced by the CPU's DMC
+// DMA state machine.  Load DMA begins after its initial two-cycle delay, while
+// reload DMA may begin immediately.
 // -----------------------------------------------------------------------------
-void 
-schedule_dmc_dma (dma_handler_t dma_handler, uint_least16_t source_address, uint_least16_t count)
+void
+schedule_dmc_dma (dma_handler_t dma_handler, uint_least16_t source_address, uint_least16_t count,
+				  dmc_dma_type type)
 {
-	dmc_dma_handler_        = dma_handler;
+	assert(count == 1);
+
+	dmc_dma_handler_ = dma_handler;
 	dmc_dma_source_address_ = source_address;
-	dmc_dma_count_          = count * 2;
-	dmc_dma_delay_          = 0;
+	dmc_dma_type_ = type;
+	dmc_dma_halt_attempted_ = false;
+	dmc_dma_delay_ = type == dmc_dma_type::load ? 2 : 0;
+	dmc_dma_state_ = dmc_dma_state::pending;
 }
 
 
@@ -1292,6 +1510,7 @@ debug_instruction_boundary()
 {
 	return cycle_ == 0;
 }
+
 
 // -----------------------------------------------------------------------------
 // nes::cpu::debug_instruction_was_executed
@@ -1611,6 +1830,7 @@ debug_clear_breakpoint_hit_counts()
 {
 	std::fill(sExecuteBreakpointHitCount, (sExecuteBreakpointHitCount + 0x10000), 0);
 }
+
 
 // -----------------------------------------------------------------------------
 // nes::cpu::debug_trace_count

@@ -3,7 +3,8 @@
 
 //------------------------------------------------------------------------------
 // Name: opcode_axs
-// Desc: Transfer A to X
+// Desc: AND A with X, subtract immediate value, store result in X.
+//       Sets C on no borrow and updates N/Z from X.
 //------------------------------------------------------------------------------
 struct opcode_axs {
 	using memory_access = operation_read;

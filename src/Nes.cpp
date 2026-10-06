@@ -1,11 +1,8 @@
 // Nes.cpp
 #include "Nes.h"
-
-#include "Cart.h"
-#include "Cpu.h"
 #include "Ppu.h"
 #include "Apu.h"
-#include "Bus.h"
+
 
 namespace nes {
 
@@ -76,124 +73,57 @@ frame_scanline_buffer()
 //   false - Execution stopped before the frame finished.
 // -----------------------------------------------------------------------------
 bool
-run_frame (FrameOutput *output)
+run_frame(FrameOutput *output)
 {
 	if (!output) {
 		return false;
 	}
 
-	while (true) {
-		const uint16_t scanline = static_cast<uint16_t>(nes::ppu::vpos());
-
-		/*
-		 * PPU scanline 0 is prerender after reset.
-		 *
-		 * At the end of a completed frame vpos_ is 262. Entering the
-		 * prerender scanline at 262 causes the PPU's start_frame() to
-		 * wrap vpos_ back to zero before executing the line.
-		 */
-		if (scanline == 0 || scanline == 262) {
-			if (!nes::ppu::execute_scanline(
-					nes::ppu::scanline_prerender{})) {
-
-				return false;
-			}
-
-			/*
-			 * Prerender completed. Latch the scroll state exactly once
-			 * before visible rendering begins.
-			 */
-			{
-				const nes::ppu::scroll_state_t s = nes::ppu::scroll_state();
-				const uint32_t v = s.v;
-				const int32_t coarseX = v & 0x1f;
-				const int32_t coarseY = (v >> 5) & 0x1f;
-				const int32_t fineY = (v >> 12) & 0x7;
-				const int32_t fineX = s.x & 0x7;
-
-				const int32_t ntX = (v & 0x400) ? 256 : 0;
-				const int32_t ntY = (v & 0x800) ? 240 : 0;
-
-				const uint32_t scrollX = static_cast<uint32_t>(
-					(ntX + coarseX * 8 + fineX) & 0x1ff);
-
-				const uint32_t scrollY = static_cast<uint32_t>(
-					(ntY + coarseY * 8 + fineY) % 480);
-
-				output->SetLatchedScroll(scrollX, scrollY);
-			}
-
-			continue;
-		}
-
-		/*
-		 * Visible scanlines.
-		 *
-		 * PPU vpos 1..240 maps to output rows 0..239.
-		 */
-		if (scanline >= 1 && scanline <= 240) {
-			const int32_t y = static_cast<int32_t>(scanline - 1);
-
-			if (!nes::ppu::execute_scanline(
-					nes::ppu::scanline_render(sFrameScanlineBuffer))) {
-
-				return false;
-			}
-
-			/*
-			 * Only submit a completely rendered scanline.
-			 */
-			output->SubmitScanline(y, sFrameScanlineBuffer);
-			continue;
-		}
-
-		/*
-		 * Postrender scanline.
-		 */
-		if (scanline == 241) {
-			if (!nes::ppu::execute_scanline(
-					nes::ppu::scanline_postrender{})) {
-
-				return false;
-			}
-
-			continue;
-		}
-
-		/*
-		 * VBlank scanlines.
-		 */
-		if (scanline >= 242 && scanline <= 261) {
-			if (!nes::ppu::execute_scanline(
-					nes::ppu::scanline_vblank{})) {
-
-				return false;
-			}
-
-			/*
-			 * Reaching vpos_ 262 means the complete frame has
-			 * finished. The next invocation begins the next
-			 * prerender scanline.
-			 */
-			if (nes::ppu::vpos() == 262) {
-				return true;
-			}
-
-			continue;
-		}
-
-		/*
-		 * This should never happen during correctly synchronized
-		 * PPU execution.
-		 */
+	/*
+	 * Scanline 0 is the pre-render scanline in Pretendo's
+	 * current PPU numbering.
+	 */
+	if (!nes::ppu::execute_scanline(nes::ppu::scanline_prerender{})) {
 		return false;
 	}
 
 	/*
-	 * The loop above always exits via a return, but keep an explicit
-	 * fallback so the compiler sees a value on every control path.
+	 * Visible scanlines 1..240 correspond to output rows 0..239.
+	 *
+	 * Use the persistent scanline buffer so normal execution and
+	 * debugger stepping operate on the same rendering storage.
 	 */
-	return false;
+	for (int y = 0; y < 240; ++y) {
+		uint32_t *buffer = frame_scanline_buffer();
+
+		if (!nes::ppu::execute_scanline(nes::ppu::scanline_render(buffer))) {
+			return false;
+		}
+
+		output->SubmitScanline(y, buffer);
+	}
+
+	/*
+	 * Scanline 241 is the post-render scanline.
+	 */
+	if (!nes::ppu::execute_scanline(nes::ppu::scanline_postrender{})) {
+		return false;
+	}
+
+	/*
+	 * Scanlines 242..261 are vblank.
+	 */
+	for (int scanline = 242; scanline <= 261; ++scanline) {
+		if (!nes::ppu::execute_scanline(nes::ppu::scanline_vblank{})) {
+			return false;
+		}
+	}
+
+	/*
+	 * Scanline 262 is handled by the PPU's frame-transition
+	 * logic when execution reaches the next frame.
+	 */
+	return true;
 }
 
 

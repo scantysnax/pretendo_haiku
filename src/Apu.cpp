@@ -40,11 +40,17 @@ union apu_frame_counter_t {
 	BitField<uint8_t, 7> mode;
 };
 
-constexpr double CPUFrequency = 1789772.7272; // 1.7897727272MHz
-// CPUFrequency / 44100Hz  = 40.5844155828 clocks per sample
-// CPUFrequency / 48000Hz  = 37.2869318167  clocks per sample
-// CPUFrequency / 192000Hz = 9.32173295417 clocks per sample
-constexpr auto ClocksPerSample = static_cast<int32_t>(CPUFrequency / kOutputFrequency);
+constexpr double kCPUFrequency = 1789772.7272; // 1.7897727272MHz
+
+// Fractional host-audio sample scheduler.
+//
+// One kOutputFrequency increment is accumulated for every CPU/APU clock.
+// Whenever the accumulator reaches one CPU clock-rate's worth of phase,
+// one output sample is generated.
+//
+// This avoids truncating 37.2869... CPU clocks/sample to 37 clocks/sample
+// when running at 48 kHz.
+double sample_phase_ = 0.0;
 
 
 // Global APU frame-sequencer timing state.
@@ -131,7 +137,7 @@ static void log_frame_event(apu_frame_event_type type);
 
 
 // -----------------------------------------------------------------------------
-// log_apu_write
+// log_write
 //
 // Appends one CPU write to an APU register to the rolling write log.
 //
@@ -149,9 +155,9 @@ static void log_frame_event(apu_frame_event_type type);
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-log_apu_write (uint16_t address, uint8_t value)
+log_write (uint16_t address, uint8_t value)
 {
-	write_log_entry_t& entry = write_log_[write_log_next_];
+	write_log_entry_t &entry = write_log_[write_log_next_];
 
 	entry.cycle = apu_cycles_;
 	entry.address = address;
@@ -166,49 +172,43 @@ log_apu_write (uint16_t address, uint8_t value)
 
 	switch (address) {
 		case 0x4002:
-			entry.timer_period =
-				(square_0.debug_timer_period() & 0x0700) |
-				static_cast<uint16_t>(value);
+			entry.timer_period = (square_0.debug_timer_period() & 0x700) |
+								 static_cast<uint16_t>(value);
 
 			entry.has_timer_period = true;
 			break;
 
 		case 0x4003:
-			entry.timer_period =
-				(square_0.debug_timer_period() & 0x00ff) |
-				(static_cast<uint16_t>(value & 0x07) << 8);
+			entry.timer_period = (square_0.debug_timer_period() & 0x00ff) |
+								 (static_cast<uint16_t>(value & 0x07) << 8);
 
 			entry.has_timer_period = true;
 			break;
 
 		case 0x4006:
-			entry.timer_period =
-				(square_1.debug_timer_period() & 0x0700) |
-				static_cast<uint16_t>(value);
+			entry.timer_period = (square_1.debug_timer_period() & 0x0700) |
+								 static_cast<uint16_t>(value);
 
 			entry.has_timer_period = true;
 			break;
 
 		case 0x4007:
-			entry.timer_period =
-				(square_1.debug_timer_period() & 0x00ff) |
-				(static_cast<uint16_t>(value & 0x07) << 8);
+			entry.timer_period = (square_1.debug_timer_period() & 0x00ff) |
+								 (static_cast<uint16_t>(value & 0x07) << 8);
 
 			entry.has_timer_period = true;
 			break;
 
 		case 0x400a:
-			entry.timer_period =
-				(triangle.debug_timer_period() & 0x0700) |
-				static_cast<uint16_t>(value);
+			entry.timer_period = (triangle.debug_timer_period() & 0x0700) |
+								 static_cast<uint16_t>(value);
 
 			entry.has_timer_period = true;
 			break;
 
 		case 0x400b:
-			entry.timer_period =
-				(triangle.debug_timer_period() & 0x00ff) |
-				(static_cast<uint16_t>(value & 0x07) << 8);
+			entry.timer_period = (triangle.debug_timer_period() & 0x00ff) |
+								 (static_cast<uint16_t>(value & 0x07) << 8);
 
 			entry.has_timer_period = true;
 			break;
@@ -272,7 +272,8 @@ log_apu_write (uint16_t address, uint8_t value)
 static void
 capture_scope_sample (uint8_t mixedSample)
 {
-	scope_sample_t& sample = scope_samples_[scope_sample_next_];
+	scope_sample_t &sample = scope_samples_[scope_sample_next_];
+	
 	sample.square1 = square_0.debug_output();
 	sample.square2 = square_1.debug_output();
 	sample.triangle = triangle.output();
@@ -283,8 +284,7 @@ capture_scope_sample (uint8_t mixedSample)
 
 	scope_sample_next_ = (scope_sample_next_ + 1) % APU_SCOPE_SAMPLE_CAPACITY;
 
-	if (scope_sample_count_ <
-		APU_SCOPE_SAMPLE_CAPACITY) {
+	if (scope_sample_count_ < APU_SCOPE_SAMPLE_CAPACITY) {
 		scope_sample_count_++;
 	}
 }
@@ -576,7 +576,6 @@ clock_frame_mode_0()
 void 
 clock_frame_mode_1()
 {
-
 	// 5 step sequence
 	switch (clock_step_) {
 	case 0:
@@ -763,7 +762,7 @@ reset (reset_type type)
 void
 write4000 (uint8_t value)
 {
-	log_apu_write(0x4000, value);
+	log_write(0x4000, value);
 	explorer_square1_[0] = value;
 	square_0.write_reg0(value);
 }
@@ -783,7 +782,7 @@ write4000 (uint8_t value)
 void 
 write4001 (uint8_t value)
 {
-	log_apu_write(0x4001, value);
+	log_write(0x4001, value);
 	explorer_square1_[1] = value;
 	square_0.write_reg1(value);
 }
@@ -803,7 +802,7 @@ write4001 (uint8_t value)
 void
 write4002 (uint8_t value)
 {
-	log_apu_write(0x4002, value);
+	log_write(0x4002, value);
 	explorer_square1_[2] = value;
 	square_0.write_reg2(value);
 }
@@ -824,7 +823,7 @@ write4002 (uint8_t value)
 void
 write4003 (uint8_t value)
 {
-	log_apu_write(0x4003, value);
+	log_write(0x4003, value);
 	explorer_square1_[3] = value;
 	square_0.write_reg3(value);
 }
@@ -844,7 +843,7 @@ write4003 (uint8_t value)
 void
 write4004 (uint8_t value)
 {
-	log_apu_write(0x4004, value);
+	log_write(0x4004, value);
 	explorer_square2_[0] = value;
 	square_1.write_reg0(value);
 }
@@ -864,7 +863,7 @@ write4004 (uint8_t value)
 void
 write4005(uint8_t value)
 {
-	log_apu_write(0x4005, value);
+	log_write(0x4005, value);
 	explorer_square2_[1] = value;
 	square_1.write_reg1(value);
 }
@@ -883,7 +882,7 @@ write4005(uint8_t value)
 // -----------------------------------------------------------------------------
 void write4006 (uint8_t value)
 {
-	log_apu_write(0x4006, value);
+	log_write(0x4006, value);
 	explorer_square2_[2] = value;
 	square_1.write_reg2(value);
 }
@@ -904,7 +903,7 @@ void write4006 (uint8_t value)
 void
 write4007 (uint8_t value)
 {
-	log_apu_write(0x4007, value);
+	log_write(0x4007, value);
 	explorer_square2_[3] = value;
 	square_1.write_reg3(value);
 }
@@ -924,7 +923,7 @@ write4007 (uint8_t value)
 void
 write4008 (uint8_t value)
 {
-	log_apu_write(0x4008, value);
+	log_write(0x4008, value);
 	explorer_triangle0_ = value;
 	triangle.write_reg0(value);
 }
@@ -944,7 +943,7 @@ write4008 (uint8_t value)
 void
 write400A (uint8_t value)
 {
-	log_apu_write(0x400a, value);
+	log_write(0x400a, value);
 	explorer_triangle2_ = value;
 	triangle.write_reg2(value);
 }
@@ -965,7 +964,7 @@ write400A (uint8_t value)
 void
 write400B (uint8_t value)
 {
-	log_apu_write(0x400b, value);
+	log_write(0x400b, value);
 	explorer_triangle3_ = value;
 	triangle.write_reg3(value);
 }
@@ -985,7 +984,7 @@ write400B (uint8_t value)
 void
 write400C (uint8_t value)
 {
-	log_apu_write(0x400c, value);
+	log_write(0x400c, value);
 	explorer_noise0_ = value;
 	noise.write_reg0(value);
 }
@@ -1005,7 +1004,7 @@ write400C (uint8_t value)
 void
 write400E (uint8_t value)
 {
-	log_apu_write(0x400e, value);
+	log_write(0x400e, value);
 	explorer_noise2_ = value;
 	noise.write_reg2(value);
 }
@@ -1025,7 +1024,7 @@ write400E (uint8_t value)
 void
 write400F (uint8_t value)
 {
-	log_apu_write(0x400f, value);
+	log_write(0x400f, value);
 	explorer_noise3_ = value;
 	noise.write_reg3(value);
 }
@@ -1045,7 +1044,7 @@ write400F (uint8_t value)
 void
 write4010 (uint8_t value)
 {
-	log_apu_write(0x4010, value);
+	log_write(0x4010, value);
 	explorer_dmc_[0] = value;
 	dmc.write_reg0(value);
 }
@@ -1065,7 +1064,7 @@ write4010 (uint8_t value)
 void 
 write4011 (uint8_t value)
 {
-	log_apu_write(0x4011, value);
+	log_write(0x4011, value);
 	explorer_dmc_[1] = value;
 	dmc.write_reg1(value);
 }
@@ -1085,7 +1084,7 @@ write4011 (uint8_t value)
 void
 write4012 (uint8_t value)
 {
-	log_apu_write(0x4012, value);
+	log_write(0x4012, value);
 	explorer_dmc_[2] = value;
 	dmc.write_reg2(value);
 }
@@ -1105,7 +1104,7 @@ write4012 (uint8_t value)
 void
 write4013 (uint8_t value)
 {
-	log_apu_write(0x4013, value);
+	log_write(0x4013, value);
 	explorer_dmc_[3] = value;
 	dmc.write_reg3(value);
 }
@@ -1129,7 +1128,7 @@ write4013 (uint8_t value)
 void
 write4015 (uint8_t value)
 {
-	log_apu_write(0x4015, value);
+	log_write(0x4015, value);
 
 	explorer_status_ = value;
 
@@ -1216,7 +1215,7 @@ read4015()
 void
 write4017 (uint8_t value)
 {
-	log_apu_write(0x4017, value);
+	log_write(0x4017, value);
 	
 	frame_counter_.raw  = value;
 	last_frame_counter_ = value;
@@ -1272,9 +1271,19 @@ tick()
 		}
 	}
 
-	if ((apu_cycles_ % ClocksPerSample) == 0) {
-		const uint8_t mixedSample = mix_channels();
+	/*
+	 * Generate host PCM at the exact requested average output rate.
+	 *
+	 * At 48 kHz the NTSC CPU rate gives approximately
+	 * 37.2869 CPU clocks per host sample, so an integer modulo period
+	 * cannot represent the rate accurately.
+	 */
+	sample_phase_ += static_cast<double>(kOutputFrequency);
 
+	if (sample_phase_ >= kCPUFrequency) {
+		sample_phase_ -= kCPUFrequency;
+
+		const uint8_t mixedSample = mix_channels();
 		capture_scope_sample(mixedSample);
 
 		if (debug_audio_is_muted()) {
@@ -1307,7 +1316,8 @@ tick()
 // Returns:
 //   Current APU cycle count.
 // -----------------------------------------------------------------------------
-uint64_t cycle_count() {
+uint64_t cycle_count()
+{
 	return apu_cycles_;
 }
 
@@ -1336,6 +1346,11 @@ read_samples (uint8_t *buffer, size_t size)
 		return 0;
 	}
 
+	/*
+	 * Debugger mute is intentional host silence rather than an APU
+	 * underrun. Discard anything accumulated while muted and satisfy
+	 * the requested buffer with silence.
+	 */
 	if (debug_audio_is_muted()) {
 		for (size_t i = 0; i < size; ++i) {
 			buffer[i] = kSilence;
@@ -1347,6 +1362,13 @@ read_samples (uint8_t *buffer, size_t size)
 		return size;
 	}
 
+	/*
+	 * Return only samples that the APU has actually generated.
+	 *
+	 * Do not pad a shortage here. The window-side audio staging code
+	 * will accumulate real samples across video frames and submit a
+	 * complete host block only when enough audio is available.
+	 */
 	size_t i = 0;
 
 	while (i < size && sample_buffer_start != sample_buffer_end) {
@@ -1355,17 +1377,11 @@ read_samples (uint8_t *buffer, size_t size)
 		buffer[i] = sample;
 		sLastOutputSample = sample;
 
-		sample_buffer_start = (sample_buffer_start + 1) %  kBufferSize;
-
+		sample_buffer_start = (sample_buffer_start + 1) % kBufferSize;
 		++i;
 	}
 
-	while (i < size) {
-		buffer[i] = sLastOutputSample;
-		++i;
-	}
-
-	return size;
+	return i;
 }
 
 
@@ -1387,13 +1403,14 @@ read_samples (uint8_t *buffer, size_t size)
 void
 start_frame()
 {
-	// we don't want to do this:
+	/*
+	 we don't want to do this:
 	
-	// sample_buffer_start = sample_buffer_end;
+		sample_buffer_start = sample_buffer_end;
 	
-	
-	// that discards queued samples at every video-frame boundary and is one 
-	// of the causes of audio discontinuities.
+	that discards queued samples at every video-frame boundary and is one 
+	of the causes of audio discontinuities.
+	*/
 }
 
 
@@ -1784,7 +1801,7 @@ explorer_state()
 // nes::apu::debug_set_audio_muted
 //
 // Enables or disables debugger audio mute.  The queued sample buffer is flushed
-// whenever the mute state changes so stale audio cannot remain frozen in the
+// whenever the mute state changes so 1 audio cannot remain frozen in the
 // host output path.
 //
 // Parameters:

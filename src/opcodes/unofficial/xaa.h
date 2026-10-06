@@ -3,7 +3,16 @@
 
 //------------------------------------------------------------------------------
 // Name: opcode_xaa
-// Desc: Logical Inclusive OR
+// Desc: XAA/ANE
+//
+//       Unstable undocumented opcode.
+//
+//       A commonly used deterministic model is:
+//
+//           A = (A | magic) & X & immediate
+//
+//       The real NMOS 6502 behavior is analog-dependent and the effective
+//       magic value can vary between chips and operating conditions.
 //------------------------------------------------------------------------------
 struct opcode_xaa {
 
@@ -11,11 +20,15 @@ struct opcode_xaa {
 
 	static void execute(uint8_t data) {
 
-		// who knows what the magic value should be...
+		/*
+		 * Common deterministic approximation for XAA/ANE.
+		 *
+		 * Real hardware is unstable, so this is an emulation policy
+		 * rather than a universally exact hardware constant.
+		 */
+		static const uint8_t magic = 0xee;
 
-		static const uint8_t magic = 0x00;
-
-		A = (A | magic) & X & data;
+		A = static_cast<uint8_t>((A | magic) & X & data);
 		update_nz_flags(A);
 	}
 };

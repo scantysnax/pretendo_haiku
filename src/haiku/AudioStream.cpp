@@ -283,29 +283,28 @@ AudioStream::Stream (void const *stream, size_t const samples)
 
 	if (fMutex->Lock()) {
 		uint8 const *output = reinterpret_cast<uint8 const *>(stream);
+
 		size_t length = samples * sizeof(uint8);
-		size_t const position = fWritePosition + length;
-		size_t const space = fBufferSize - fWritePosition;
 
-		if (position > fBufferSize) {
-			if (fMuted || !output) {
-				memset(fSoundBuffer + fWritePosition, 0x80, space);
-				memset(fSoundBuffer, 0x80, length - space);
-			} else {
-				mmx_copy(fSoundBuffer + fWritePosition, output, space);
-				output += space;
-				mmx_copy(fSoundBuffer, output, length - space);
+		while (length != 0) {
+			const size_t space = fBufferSize - fWritePosition;
+			const size_t amount = (length < space) ? length : space;
+
+			if (amount != 0) {
+				if (fMuted || !output) {
+					memset(fSoundBuffer + fWritePosition, 0x80, amount);
+				} else {
+					mmx_copy(fSoundBuffer + fWritePosition, output, amount);
+					output += amount;
+				}
+
+				fWritePosition += amount;
+				length -= amount;
 			}
 
-			fWritePosition = position - fBufferSize;
-		} else {
-			if (fMuted || !output) {
-				memset(fSoundBuffer + fWritePosition, 0x80, length);
-			} else {
-				mmx_copy(fSoundBuffer + fWritePosition, output, length);
+			if (fWritePosition == fBufferSize) {
+				fWritePosition = 0;
 			}
-
-			fWritePosition = position;
 		}
 	}
 }
@@ -331,10 +330,10 @@ AudioStream::Stream (void const *stream, size_t const samples)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-AudioStream::PlayBuffer(void *buffer, size_t const size)
+AudioStream::PlayBuffer (void *buffer, size_t const size)
 {
 	uint8 *output = reinterpret_cast<uint8 *>(buffer);
-
+		
 	if (!output || size == 0) {
 		fMutex->Unlock();
 		return;
@@ -342,32 +341,26 @@ AudioStream::PlayBuffer(void *buffer, size_t const size)
 
 	if (fMuted) {
 		memset(output, 0x80, size);
-
-		int32 semCount = 0;
-
-		if (get_sem_count(fMutex->Locker(), &semCount) == B_OK) {
-			if (semCount <= 0) {
-				fMutex->Unlock();
-			}
-		}
-
+		fMutex->UnlockIfNeeded();
 		return;
 	}
 
 	size_t length = size;
-	size_t const position = fPlayPosition + length;
-	size_t const space = fBufferSize - fPlayPosition;
 
-	if (position > fBufferSize) {
-		mmx_copy(output, fSoundBuffer + fPlayPosition, space);
-		output += space;
-		length -= space;
-		mmx_copy(output, fSoundBuffer, length);
+	while (length != 0) {
+		const size_t available = fBufferSize - fPlayPosition;
+		const size_t amount = (length < available) ? length : available;
 
-		fPlayPosition = position - fBufferSize;
-	} else {
-		mmx_copy(output, fSoundBuffer + fPlayPosition, length);
-		fPlayPosition = position;
+		if (amount != 0) {
+			mmx_copy(output, fSoundBuffer + fPlayPosition, amount);
+			output += amount;
+			fPlayPosition += amount;
+			length -= amount;
+		}
+
+		if (fPlayPosition == fBufferSize) {
+			fPlayPosition = 0;
+		}
 	}
 
 	fMutex->Unlock();

@@ -21,6 +21,16 @@ public:
 	static void execute() {
 		execute(typename Op::memory_access());
 	}
+	
+	static bus_cycle_type bus_cycle() {
+		return bus_cycle_type::read;
+	}
+
+
+	static uint_least16_t bus_address() {
+		return PC.raw;
+	}
+
 
 private:
 	// this addressing mode is annoying because the CPU does

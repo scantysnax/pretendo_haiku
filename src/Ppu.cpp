@@ -114,7 +114,7 @@ constexpr uint8_t kOAMPriority = 0b0010'0000;
 constexpr uint8_t kOAMHFlip    = 0b0100'0000;
 constexpr uint8_t kOAMVFlip    = 0b1000'0000;
 
-// PPU propogation delay
+// PPU write propogation delay
 constexpr uint8_t kPPUMaskRenderingBits  = 0x18;
 constexpr uint8_t kPPUMaskRenderingDelay = 3;
 
@@ -296,7 +296,6 @@ uint8_t        	tile_offset_                = 0; // loopy x
 uint8_t        	monochrome_mask_            = 0xff;
 uint8_t		 	pending_ppu_mask_ 			= 0;
 uint8_t		 	ppu_mask_delay_ 			= 0;
-
 
 // Frame tracking and resumable CPU-slot execution state.
 static uint64_t frame_counter_              = 0;
@@ -529,6 +528,7 @@ select_pixel (uint_least16_t index)
 	return pixel;
 }
 
+
 // -----------------------------------------------------------------------------
 // clock_x
 //
@@ -606,8 +606,8 @@ void
 open_background_pattern()
 {
 	const uint8_t tile_line = (vram_address_ & 0x7000) >> 12;
-	next_ppu_fetch_address_ =
-		(background_pattern_table() | (next_tile_index_ << 4) | Pattern::offset | tile_line) & 0xffff;
+	next_ppu_fetch_address_ = (background_pattern_table() | (next_tile_index_ << 4) | 
+							  Pattern::offset | tile_line) & 0xffff;
 	nes::cart.mapper()->vram_change_hook(next_ppu_fetch_address_);
 }
 
@@ -1008,7 +1008,6 @@ update_shift_registers_render() {
 	attribute_queue_[0] |= ((next_attribute_ >> 0) & 0x01) * 0xff;
 	attribute_queue_[1] |= ((next_attribute_ >> 1) & 0x01) * 0xff;
 }
-
 
 // -----------------------------------------------------------------------------
 // update_shift_registers_idle
@@ -1710,6 +1709,7 @@ execute_scanline_impl (const T &target)
 	return true;
 }
 
+
 } // end anonymous namespace
 
 //------------------------------------------------------------------------------
@@ -1778,7 +1778,6 @@ reset (nes::reset_type type)
 	pending_ppu_mask_ 	  = 0;
 	ppu_mask_delay_   	  = 0;
 	sPendingCpuSlot 	  = false;
-	
 	
 	std::cout << "PPU reset complete" << std::endl;
 }
@@ -2078,9 +2077,8 @@ read200x()
 uint8_t
 read2002()
 {
-	const uint8_t ret =
-		((status_.raw & (kOverflowStatus | kSprite0Status | kVBlankStatus)) |
-		 (latch_ & ~(kOverflowStatus | kSprite0Status | kVBlankStatus))) & 0xff;
+	const uint8_t ret = ((status_.raw & (kOverflowStatus | kSprite0Status | kVBlankStatus)) |
+		 				(latch_ & ~(kOverflowStatus | kSprite0Status | kVBlankStatus))) & 0xff;
 
 	write_latch_ = false;
 	status_.vblank = false;
@@ -2279,6 +2277,7 @@ scroll_state()
 
 	return s;
 }
+
 
 // -----------------------------------------------------------------------------
 // nes::ppu::vram_address
@@ -2479,7 +2478,6 @@ uint16_t
 scanline()
 { 
 	return static_cast<uint16_t>(vpos_);
-
 }
 
 
@@ -2557,7 +2555,7 @@ oam_addr()
 
 
 // -----------------------------------------------------------------------------
-// log_ppu_write
+// log_write
 //
 // Appends one CPU write to a PPU-facing register to the rolling write log.
 //
@@ -2590,7 +2588,7 @@ log_write (uint16_t address, uint8_t value)
 	entry.write_index = write_log_write_index_++;
 
 	/*
-	 * log_ppu_write() is called before write2005()/write2006() toggle
+	 * log_write() is called before write2005()/write2006() toggle
 	 * write_latch_, so this records the state that applies to the current
 	 * write.
 	 */
@@ -2770,8 +2768,9 @@ debug_read_memory (uint16_t address)
 	if (address >= 0x3f00) {
 		uint8_t paletteAddress = address & 0x1f;
 
-		if ((paletteAddress & 0x13) == 0x10)
+		if ((paletteAddress & 0x13) == 0x10) {
 			paletteAddress ^= 0x10;
+		}
 
 		return palette_[paletteAddress] & 0x3f;
 	}
@@ -2885,8 +2884,6 @@ debug_step_dot()
 		++vpos_;
 	}
 }
-
-
 
 
 } // namespace nes::ppu

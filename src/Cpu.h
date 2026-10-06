@@ -10,6 +10,11 @@ namespace nes::cpu {
 
 using dma_handler_t = void (*)(uint8_t);
 
+enum class dmc_dma_type {
+	load,
+	reload
+};
+
 
 enum irq_source : uint8_t {
 	MAPPER_IRQ = 0x01,
@@ -43,13 +48,18 @@ uint64_t cycle_count();
 void clear_irq(irq_source source);
 void clear_nmi();
 void irq(irq_source source);
-void schedule_spr_dma(dma_handler_t dma_handler, uint_least16_t source_address, uint_least16_t count);
-void schedule_dmc_dma(dma_handler_t dma_handler, uint_least16_t source_address, uint_least16_t count);
+void schedule_spr_dma(dma_handler_t dma_handler, uint_least16_t source_address, 
+					  uint_least16_t count);
+void schedule_dmc_dma(dma_handler_t dma_handler, uint_least16_t source_address,
+					  uint_least16_t count, dmc_dma_type type);
+
 void reset (reset_type type);
 void reset();
 void stop();
 void nmi();
 void tick();
+
+void debug_mark_dmc_irq_assert();
 
 
 // public registers

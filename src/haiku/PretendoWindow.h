@@ -13,7 +13,7 @@
 #include <Window.h>
 
 #include <atomic>
-#include <cstdio>
+
 
 #include "APUExplorerWindow.h"
 #include "APUFrameSequencerView.h"

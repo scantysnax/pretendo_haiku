@@ -29,8 +29,8 @@ class AudioStream
 	
 	private:
 	void PlayBuffer (void *buffer, size_t const size);
-	static void play_buffer (void *cookie, void *buffer, size_t size, 
-							 const media_raw_audio_format &format);				   
+	static void play_buffer (void *cookie, void *buffer, size_t size, const media_raw_audio_format &format);
+	
 	private:
 	BSoundPlayer *fSoundPlayer = nullptr;
 	size_t fWritePosition = 0;

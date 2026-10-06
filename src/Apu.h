@@ -22,7 +22,6 @@ constexpr int32_t kBufferSize = (kOutputFrequency / kFrameRate) * 4;
 // Unsigned 8-bit PCM silence level.
 constexpr uint8_t kSilence = 0x80;
 
-
 // Identifies the five NES APU sound channels.
 typedef enum {
 	SQUARE1 = 0,
