@@ -69,8 +69,7 @@ DMC::load_sample_buffer (uint8_t value)
 	sample_buffer_       = value;
 	sample_buffer_empty_ = false;
 
-	sample_pointer_ =
-		((sample_pointer_ + 1) & 0xffff) | 0x8000;
+	sample_pointer_ = ((sample_pointer_ + 1) & 0xffff) | 0x8000;
 
 	--bytes_remaining_;
 
@@ -381,16 +380,10 @@ DMC::refill_sample_buffer (bool load_dma)
 	if (bytes_remaining_ != 0) {
 		sample_dma_pending_ = true;
 
-		nes::cpu::schedule_dmc_dma(
-			[](uint8_t value) {
+		nes::cpu::schedule_dmc_dma ([](uint8_t value) {
 				nes::apu::dmc.load_sample_buffer(value);
-			},
-			sample_pointer_,
-			1,
-			load_dma
-				? nes::cpu::dmc_dma_type::load
-				: nes::cpu::dmc_dma_type::reload
-		);
+		}, sample_pointer_, 1,
+		   load_dma ? nes::cpu::dmc_dma_type::load : nes::cpu::dmc_dma_type::reload);
 	}
 }
 
