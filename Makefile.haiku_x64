@@ -42,7 +42,9 @@ CPP_FILES := \
 	src/Noise.cpp \
 	src/Palette.cpp \
 	src/Ppu.cpp \
+	src/ROMDatabase.cpp \
 	src/SaveState.cpp \
+	src/Settings.cpp \
 	src/Timer.cpp \
 	src/Triangle.cpp \
 	\
@@ -168,7 +170,6 @@ CPP_FILES := \
 	src/haiku/ROMFilePanel.cpp \
 	src/haiku/ROMInfoView.cpp \
 	src/haiku/ROMInfoWindow.cpp \
-	src/haiku/Settings.cpp \
 	src/haiku/Splitters.cpp \
 	src/haiku/StackView.cpp \
 	src/haiku/StackWindow.cpp \

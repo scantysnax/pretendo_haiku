@@ -1,6 +1,12 @@
 
 #include "Cart.h"
 #include "iNES/Error.h"
+
+#include "ROMDatabase.h"
+#include "sha1.h"
+
+#include <algorithm>
+#include <cctype>
 #include <iomanip>
 #include <iostream>
 
@@ -114,19 +120,38 @@ Cart::load(const std::string &s)
 		chr_hash_ = rom_->chr_hash();
 		rom_hash_ = rom_->rom_hash();
 
-		std::cout << "PRG HASH: " << std::hex << std::setw(8) << std::setfill('0') << 								prg_hash_ << std::dec << std::endl;
-		std::cout << "CHR HASH: " << std::hex << std::setw(8) << std::setfill('0') << 								chr_hash_ << std::dec << std::endl;
-		std::cout << "ROM HASH: " << std::hex << std::setw(8) << std::setfill('0') << 								rom_hash_ << std::dec << std::endl;
+		std::cout << "PRG HASH: " << std::hex << std::setw(8) << std::setfill('0') << prg_hash_ << std::dec << std::endl;
+		std::cout << "CHR HASH: " << std::hex << std::setw(8) << std::setfill('0') << chr_hash_ << std::dec << std::endl;
+		std::cout << "ROM HASH: " << std::hex << std::setw(8) << std::setfill('0') << rom_hash_ << std::dec << std::endl;
 
 		if (!is_power_of_2(rom_->prg_size())) {
-			std::cout << "WARNING: PRG size is not a power of 2, this is unusual" << 					std::endl;
+			std::cout << "WARNING: PRG size is not a power of 2, this is unusual" << std::endl;
 		}
 
 		if (!is_power_of_2(rom_->chr_size())) {
-			std::cout << "WARNING: CHR size is not a power of 2, this is unusual" << 					std::endl;
+			std::cout << "WARNING: CHR size is not a power of 2, this is unusual" << std::endl;
 		}
-
-		mapper_ = Mapper::create_mapper(rom_->header()->mapper());
+		
+		std::vector<uint8_t> image = raw_image();
+		hash::sha1 h(image.begin(), image.end());
+		auto digest = h.finalize();
+		std::string sha1 = digest.to_string();
+		std::transform(sha1.begin(), sha1.end(), sha1.begin(), [](unsigned char c) {
+			return static_cast<char>(std::toupper(c));
+		});
+		
+		
+		std::cout
+			<< "Mapper: "
+			<< rom_->header()->mapper()
+			<< "."
+			<< rom_->header()->submapper()
+			<< " (iNES "
+			<< rom_->header()->version()
+			<< ")"
+			<< std::endl;
+		
+		mapper_ = Mapper::create_mapper(rom_->header()->mapper(), rom_->header()->submapper());
 
 		return true;
 	} catch (const iNES::ines_error &e) {

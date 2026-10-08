@@ -62,7 +62,7 @@ using create_func = std::function<std::unique_ptr<Mapper>()>;
 class Mapper
 {
 	public:
-	static std::unique_ptr<Mapper> create_mapper(int num);
+	static std::unique_ptr<Mapper> create_mapper(int num, int submapper = 0);
 	static void register_mapper(int num, create_func create_ptr);
 
 	public:

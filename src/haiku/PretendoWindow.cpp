@@ -3867,8 +3867,7 @@ PretendoWindow::start_frame()
 void
 PretendoWindow::end_frame()
 {
-	static constexpr size_t kHostBlockSize =
-		nes::apu::kOutputFrequency / nes::apu::kFrameRate;
+	static constexpr size_t kHostBlockSize = nes::apu::kOutputFrequency / nes::apu::kFrameRate;
 
 	static uint8 hostBuffer[kHostBlockSize];
 	static size_t hostBufferCount = 0;
@@ -4644,6 +4643,7 @@ PretendoWindow::ConnectDebugViews()
 		fNameTable4Window->Unlock();
 	}
 }
+
 
 // -----------------------------------------------------------------------------
 // PretendoWindow::MuteAudioForDebugging

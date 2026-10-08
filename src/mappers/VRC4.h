@@ -1,4 +1,3 @@
-
 #ifndef VRC4_20120121_H_
 #define VRC4_20120121_H_
 
@@ -21,6 +20,12 @@ public:
 	std::string name() const override;
 
 public:
+	uint8_t read_6(uint_least16_t address) override;
+	uint8_t read_7(uint_least16_t address) override;
+
+	void write_6(uint_least16_t address, uint8_t value) override;
+	void write_7(uint_least16_t address, uint8_t value) override;
+
 	void write_8(uint_least16_t address, uint8_t value) override;
 	void write_9(uint_least16_t address, uint8_t value) override;
 	void write_a(uint_least16_t address, uint8_t value) override;
@@ -39,6 +44,9 @@ private:
 private:
 	uint8_t chr_[8] = {};
 	uint8_t prg_[2] = {};
+
+	uint8_t wram_[0x2000] = {};
+	bool wram_enabled_ = false;
 
 	uint8_t irq_latch_      = 0;
 	IRQControl irq_control_ = {0};

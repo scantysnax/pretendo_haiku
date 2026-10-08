@@ -225,8 +225,10 @@ Mapper::debug_set_prg_ram (bool enabled, bool writable, uint32_t bank)
 //   Newly created mapper instance, or nullptr if the mapper is unsupported.
 // -----------------------------------------------------------------------------
 std::unique_ptr<Mapper>
-Mapper::create_mapper (int num)
+Mapper::create_mapper(int num, int submapper)
 {
+	(void)submapper;
+	
 	create_func f = nullptr;
 
 	const std::map<int, create_func> &mappers = registered_mappers_ines();

@@ -42,6 +42,7 @@ CPP_FILES := \
 	src/Noise.cpp \
 	src/Palette.cpp \
 	src/Ppu.cpp \
+	src/ROMDatabase.cpp \
 	src/SaveState.cpp \
 	src/Timer.cpp \
 	src/Triangle.cpp \
