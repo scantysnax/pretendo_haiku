@@ -17,6 +17,29 @@ const uint8_t sequence[32] = {
 
 
 // -----------------------------------------------------------------------------
+// Triangle::Triangle
+//
+// Initializes the triangle timer so its effective frequency matches the
+// channel's initial timer-period state.
+//
+// The channel starts with timer_load_ equal to zero.  Since the timer uses
+// timer_load_ + 1 as its effective frequency, initialize the Timer object to
+// one rather than leaving its generic default frequency at 0xffff.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+Triangle::Triangle()
+{
+	timer_.frequency = timer_load_ + 1;
+	timer_.reset();
+}
+
+
+// -----------------------------------------------------------------------------
 // Triangle::set_enabled
 //
 // Enables or disables the triangle channel.
@@ -118,7 +141,7 @@ void
 Triangle::write_reg2 (uint8_t value)
 {
 	timer_load_      = (timer_load_ & 0xff00) | value;
-	timer_.frequency = (timer_load_ + 1);
+	timer_.frequency = timer_load_ + 1;
 }
 
 
@@ -127,7 +150,7 @@ Triangle::write_reg2 (uint8_t value)
 //
 // Writes the high timer-period bits and length-counter load value.
 //
-// When enabled, the length counter is loaded from the encoded table index.  The
+// When enabled, the length counter is loaded from the encoded table index. The
 // timer period is updated and the linear counter is marked for reload.
 //
 // Parameters:
@@ -143,8 +166,11 @@ Triangle::write_reg3 (uint8_t value)
 		length_counter.load((value >> 3) & 0x1f);
 	}
 
-	timer_load_      = (timer_load_ & 0x00ff) | ((value & 0x07) << 8);
-	timer_.frequency = (timer_load_ + 1);
+	timer_load_ =
+		(timer_load_ & 0x00ff)
+		| ((value & 0x07) << 8);
+
+	timer_.frequency = timer_load_ + 1;
 
 	linear_counter.reload();
 }
@@ -165,6 +191,34 @@ bool
 Triangle::enabled() const
 {
 	return enabled_;
+}
+
+// -----------------------------------------------------------------------------
+// Triangle::reset
+//
+// Resets the triangle channel's internal timer and waveform state.
+//
+// This clears state retained from the previously running program before APU
+// reset register writes are applied.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+Triangle::reset()
+{
+	enabled_ = false;
+
+	timer_load_ = 0;
+	sequence_index_ = 0;
+
+	timer_.frequency = 1;
+	timer_.reset();
+
+	length_counter.clear();
 }
 
 
@@ -198,28 +252,27 @@ Triangle::tick()
 //
 // Returns the current triangle-channel DAC output level.
 //
-// Muted channels and timer periods below the supported range produce zero.
-// Otherwise, the current value from the 32-step triangle waveform is returned.
+// The triangle DAC retains the current sequencer value even while the waveform
+// sequencer is not advancing. Timer period, length-counter state, and
+// linear-counter state control sequencing rather than directly forcing the DAC
+// output to zero.
+//
+// Debugger muting is handled separately and does not affect channel emulation.
 //
 // Parameters:
 //   None.
 //
 // Returns:
-//   Current triangle-channel output level.
+//   Current triangle-channel DAC output level.
 // -----------------------------------------------------------------------------
 uint8_t
 Triangle::output() const
 {
-	
 	if (channel_muted_) {
 		return 0x00;
 	}
-	
-	if (timer_.frequency < 4) {
-		return 0x00;
-	} else {
-		return sequence[sequence_index_];
-	}
+
+	return sequence[sequence_index_];
 }
 
 }

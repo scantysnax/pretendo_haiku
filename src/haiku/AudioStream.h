@@ -43,6 +43,7 @@ class AudioStream
 	private:
 	bool fMuted = false;
 	bool fStreaming = false;
+	bool fPlayerStarted = false;
 };
 
 

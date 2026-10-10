@@ -12,6 +12,7 @@ class LinearCounter {
 	void clock();
 	void reload();
 	void set_control(uint8_t value);
+	void reset();
 
 	private:
 	// Current count, reload value, and pending-reload state.

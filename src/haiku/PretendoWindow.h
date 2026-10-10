@@ -350,6 +350,14 @@ class PretendoWindow : public BWindow, public nes::FrameOutput
 	void MuteAudioForDebugging();
 	void ResumeAudioAfterDebugging();
 	
+	private:
+	static constexpr size_t kHostAudioBlockSize = 
+							nes::apu::kOutputFrequency / nes::apu::kFrameRate;
+
+	uint8 fHostAudioBuffer[kHostAudioBlockSize] = {};
+	size_t fHostAudioBufferCount = 0;
+	void ClearAudioStaging();
+	
 	// children
 	private:
 	ROMInfoWindow *fROMInfoWindow = nullptr;

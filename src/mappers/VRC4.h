@@ -1,11 +1,12 @@
-#ifndef VRC4_20120121_H_
-#define VRC4_20120121_H_
+#ifndef _VRC4_H_
+#define _VRC4_H_
 
 #include "BitField.h"
 #include "Mapper.h"
 
-class VRC4 : public Mapper {
-private:
+class VRC4 : public Mapper
+{
+	private:
 	union IRQControl {
 		uint8_t raw;
 		BitField<uint8_t, 0> a;
@@ -13,35 +14,35 @@ private:
 		BitField<uint8_t, 2> mode;
 	};
 
-public:
+	public:
 	VRC4();
 
-public:
+	public:
 	std::string name() const override;
 
-public:
-	uint8_t read_6(uint_least16_t address) override;
-	uint8_t read_7(uint_least16_t address) override;
+	public:
+	uint8_t read_6 (uint_least16_t address) override;
+	uint8_t read_7 (uint_least16_t address) override;
 
-	void write_6(uint_least16_t address, uint8_t value) override;
-	void write_7(uint_least16_t address, uint8_t value) override;
+	void write_6 (uint_least16_t address, uint8_t value) override;
+	void write_7 (uint_least16_t address, uint8_t value) override;
 
-	void write_8(uint_least16_t address, uint8_t value) override;
-	void write_9(uint_least16_t address, uint8_t value) override;
-	void write_a(uint_least16_t address, uint8_t value) override;
-	void write_b(uint_least16_t address, uint8_t value) override;
-	void write_c(uint_least16_t address, uint8_t value) override;
-	void write_d(uint_least16_t address, uint8_t value) override;
-	void write_e(uint_least16_t address, uint8_t value) override;
-	void write_f(uint_least16_t address, uint8_t value) override;
+	void write_8 (uint_least16_t address, uint8_t value) override;
+	void write_9 (uint_least16_t address, uint8_t value) override;
+	void write_a (uint_least16_t address, uint8_t value) override;
+	void write_b (uint_least16_t address, uint8_t value) override;
+	void write_c (uint_least16_t address, uint8_t value) override;
+	void write_d (uint_least16_t address, uint8_t value) override;
+	void write_e (uint_least16_t address, uint8_t value) override;
+	void write_f (uint_least16_t address, uint8_t value) override;
 
-public:
+	public:
 	void cpu_sync() override;
 
-private:
+	private:
 	void clock_irq();
 
-private:
+	private:
 	uint8_t chr_[8] = {};
 	uint8_t prg_[2] = {};
 
@@ -55,4 +56,5 @@ private:
 	int irq_prescaler_      = 341;
 };
 
-#endif
+#endif	// _VRC4_H_
+

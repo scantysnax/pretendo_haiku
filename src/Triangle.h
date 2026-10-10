@@ -4,14 +4,30 @@
 #include "LengthCounter.h"
 #include "LinearCounter.h"
 #include "Timer.h"
+
 #include <cstddef>
 #include <cstdint>
 
 namespace nes::apu {
 
 // NES APU triangle-wave channel.
+class Triangle 
+{
+	public:
+	// -------------------------------------------------------------------------
+	// Triangle::Triangle
+	//
+	// Initializes the triangle channel and synchronizes its internal timer with
+	// the channel's initial timer-period state.
+	//
+	// Parameters:
+	//   None.
+	//
+	// Returns:
+	//   Nothing.
+	// -------------------------------------------------------------------------
+	Triangle();
 
-class Triangle {
 	public:
 	// Channel enable/disable control.
 	void enable();
@@ -26,6 +42,7 @@ class Triangle {
 
 	public:
 	bool enabled() const;
+	void reset();
 
 	public:
 	// Length and linear counters gate waveform sequencing.
@@ -36,11 +53,11 @@ class Triangle {
 	// Advance the channel timer and return the current waveform output level.
 	void tick();
 	uint8_t output() const;
-	
-	void mute() { 
+
+	void mute() {
 		channel_muted_ = true;
 	}
-	
+
 	void unmute() {
 		channel_muted_ = false;
 	}
@@ -68,6 +85,7 @@ class Triangle {
 	bool enabled_          = false;
 	uint16_t timer_load_   = 0;
 	size_t sequence_index_ = 0;
+
 	Timer timer_;
 
 	// Debugger/user-controlled audio mute; does not stop channel emulation.

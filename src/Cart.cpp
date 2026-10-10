@@ -3,6 +3,7 @@
 #include "iNES/Error.h"
 
 #include "ROMDatabase.h"
+#include "Settings.h"
 #include "sha1.h"
 
 #include <algorithm>
@@ -77,7 +78,9 @@ is_power_of_2(size_t size)
 // Loads an iNES ROM image from disk and initializes cartridge metadata.
 //
 // The ROM image is parsed, PRG and CHR address masks are created, mirroring and
-// hash values are recorded, and the appropriate cartridge mapper is created.
+// hash values are recorded, the ROM database is queried by SHA-1, and the
+// appropriate cartridge mapper is created.
+//
 // Any iNES loading error clears the partially initialized cartridge state.
 //
 // Parameters:
@@ -86,81 +89,192 @@ is_power_of_2(size_t size)
 // Returns:
 //   true if the ROM was loaded and initialized successfully.
 // -----------------------------------------------------------------------------
-bool 
+bool
 Cart::load(const std::string &s)
 {
-	std::cout << "[Cart::load] loading '" << s << "'...";
+	std::cout
+		<< "[Cart::load] loading '"
+		<< s
+		<< "'...";
 
 	try {
 		filename_ = s;
 		rom_      = std::make_unique<iNES::Rom>(s.c_str());
 
-		std::cout << " OK!" << std::endl;
+		std::cout
+			<< " OK!"
+			<< std::endl;
 
-		// get mask values
+		/*
+		 * Build PRG/CHR address masks.
+		 */
 		prg_mask_ = create_mask(rom_->prg_size());
 		chr_mask_ = create_mask(rom_->chr_size());
 
+		/*
+		 * Determine cartridge nametable mirroring.
+		 */
 		switch (rom_->header()->mirroring()) {
 		case iNES::Mirroring::HORIZONTAL:
 			mirroring_ = MIR_HORIZONTAL;
 			break;
+
 		case iNES::Mirroring::VERTICAL:
 			mirroring_ = MIR_VERTICAL;
 			break;
+
 		case iNES::Mirroring::FOUR_SCREEN:
 			mirroring_ = MIR_4SCREEN;
 			break;
+
 		default:
 			mirroring_ = MIR_MAPPER;
 			break;
 		}
 
+		/*
+		 * Calculate the existing CRC-based ROM hashes.
+		 */
 		prg_hash_ = rom_->prg_hash();
 		chr_hash_ = rom_->chr_hash();
 		rom_hash_ = rom_->rom_hash();
 
-		std::cout << "PRG HASH: " << std::hex << std::setw(8) << std::setfill('0') << prg_hash_ << std::dec << std::endl;
-		std::cout << "CHR HASH: " << std::hex << std::setw(8) << std::setfill('0') << chr_hash_ << std::dec << std::endl;
-		std::cout << "ROM HASH: " << std::hex << std::setw(8) << std::setfill('0') << rom_hash_ << std::dec << std::endl;
+		std::cout
+			<< "PRG HASH: "
+			<< std::hex
+			<< std::setw(8)
+			<< std::setfill('0')
+			<< prg_hash_
+			<< std::dec
+			<< std::endl;
 
+		std::cout
+			<< "CHR HASH: "
+			<< std::hex
+			<< std::setw(8)
+			<< std::setfill('0')
+			<< chr_hash_
+			<< std::dec
+			<< std::endl;
+
+		std::cout
+			<< "ROM HASH: "
+			<< std::hex
+			<< std::setw(8)
+			<< std::setfill('0')
+			<< rom_hash_
+			<< std::dec
+			<< std::endl;
+
+		/*
+		 * Build the raw PRG+CHR image and calculate its SHA-1.
+		 *
+		 * This matches the SHA-1 values stored in nescarts.xml.
+		 */
+		std::vector<uint8_t> image =
+			raw_image();
+
+		hash::sha1 h(
+			image.begin(),
+			image.end());
+
+		auto digest =
+			h.finalize();
+
+		std::string sha1 =
+			digest.to_string();
+
+		std::transform(
+			sha1.begin(),
+			sha1.end(),
+			sha1.begin(),
+			[](unsigned char c) {
+				return static_cast<char>(
+					std::toupper(c));
+			});
+
+		/*
+		 * Look up board/chip information from the ROM database.
+		 */
+		const ROMDatabase::Entry db_entry =
+			ROMDatabase::LookupBySHA1(
+				Settings::romDatabasePath(),
+				sha1);
+
+		if (db_entry.found) {
+			std::cout
+				<< "ROM DATABASE: "
+				<< db_entry.game_name
+				<< std::endl
+				<< "  Board: "
+				<< db_entry.board_type
+				<< std::endl
+				<< "  Chip: "
+				<< db_entry.chip_type
+				<< std::endl
+				<< "  Pin 3: "
+				<< db_entry.pin3_function
+				<< std::endl
+				<< "  Pin 4: "
+				<< db_entry.pin4_function
+				<< std::endl;
+		} else {
+			std::cout
+				<< "ROM DATABASE: no match for SHA1 "
+				<< sha1
+				<< std::endl;
+		}
+
+		/*
+		 * Temporary diagnostic: determine whether this ROM uses the original
+		 * iNES header format or NES 2.0.
+		 */
+		std::cout
+			<< "iNES version: "
+			<< rom_->header()->version()
+			<< std::endl;
+
+		/*
+		 * Warn about unusual ROM sizes.
+		 */
 		if (!is_power_of_2(rom_->prg_size())) {
-			std::cout << "WARNING: PRG size is not a power of 2, this is unusual" << std::endl;
+			std::cout
+				<< "WARNING: PRG size is not a power of 2, this is unusual"
+				<< std::endl;
 		}
 
 		if (!is_power_of_2(rom_->chr_size())) {
-			std::cout << "WARNING: CHR size is not a power of 2, this is unusual" << std::endl;
+			std::cout
+				<< "WARNING: CHR size is not a power of 2, this is unusual"
+				<< std::endl;
 		}
-		
-		std::vector<uint8_t> image = raw_image();
-		hash::sha1 h(image.begin(), image.end());
-		auto digest = h.finalize();
-		std::string sha1 = digest.to_string();
-		std::transform(sha1.begin(), sha1.end(), sha1.begin(), [](unsigned char c) {
-			return static_cast<char>(std::toupper(c));
-		});
-		
-		
-		std::cout
-			<< "Mapper: "
-			<< rom_->header()->mapper()
-			<< "."
-			<< rom_->header()->submapper()
-			<< " (iNES "
-			<< rom_->header()->version()
-			<< ")"
-			<< std::endl;
-		
-		mapper_ = Mapper::create_mapper(rom_->header()->mapper(), rom_->header()->submapper());
+
+		/*
+		 * Create the mapper.
+		 *
+		 * NES 2.0 submapper information is passed directly to the mapper
+		 * factory.  For legacy mapper 23 ROMs, database metadata may be used
+		 * to distinguish the VRC hardware variant.
+		 */
+		mapper_ =
+			Mapper::create_mapper(
+				rom_->header()->mapper(),
+				rom_->header()->submapper(),
+				db_entry.found ? &db_entry : nullptr);
 
 		return true;
 	} catch (const iNES::ines_error &e) {
-		std::cout << " ERROR Loading ROM File! " << e.what() << std::endl;
+		std::cout
+			<< " ERROR Loading ROM File! "
+			<< e.what()
+			<< std::endl;
+
 		rom_      = nullptr;
 		mapper_   = nullptr;
 		prg_hash_ = 0;
 		chr_hash_ = 0;
 		rom_hash_ = 0;
+
 		filename_.clear();
 	}
 

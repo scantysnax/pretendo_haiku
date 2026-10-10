@@ -1,7 +1,7 @@
 
 #include "PretendoWindow.h"
 
-
+#include <iostream>
 // -----------------------------------------------------------------------------
 // InvalidateWindowContents
 //
@@ -1128,7 +1128,11 @@ PretendoWindow::OnLoadROM (BMessage *message)
 // -----------------------------------------------------------------------------
 void
 PretendoWindow::OnFreeROM()
-{	
+{
+	if (fAudioStream) {
+		fAudioStream->SetMuted(true);
+	}
+
 	OnStop();
 
 	ClearControllerInput();
@@ -1142,7 +1146,7 @@ PretendoWindow::OnFreeROM()
 	}
 
 	nes::cart.unload();
-	
+
 	ClearVideoView();
 
 	nes::cpu::debug_clear_instruction_trace();
@@ -1314,32 +1318,35 @@ PretendoWindow::OnRun()
 // -----------------------------------------------------------------------------
 void
 PretendoWindow::OnStop()
-{		
-	// if we're running, set fRunning to false to signal the thread we're not
-	// running, lock the mutual exclusion and stop the sound stream
-	if (fRunning) {
-		fRunning = false;
-		
-		if (! fPaused) {
-			fMutex->Lock();
-			fAudioStream->Stop();
-		}
+{
+    if (fRunning) {
+        fRunning = false;
 
-		// clear the window contents
-		if (fFramework == video_framework::OVERLAY) {
-			ClearBitmap(true);
-		} else {
-			ClearBitmap(false);
-			fView->SetViewColor(0, 0, 0);
-			fView->Invalidate();
-		}
-		
-		// make sure we can't go fullscreen
-		fVideoMenu->ItemAt(video_framework::FULLSCREEN)->SetEnabled(false);
-	}
-	
-	fPaused = false;
-	fEmuMenu->ItemAt(1)->SetMarked(false);
+        if (!fPaused) {
+            if (fMutex->Lock(B_INFINITE_TIMEOUT)) {
+                fAudioStream->Stop();
+            }
+        }
+
+        if (fFramework == video_framework::OVERLAY) {
+            ClearBitmap(true);
+        } else {
+            ClearBitmap(false);
+            fView->SetViewColor(0, 0, 0);
+        }
+
+        /*
+         * PretendoView keeps a private copy of the last completed frame.
+         * Clear that copy as well, otherwise an invalidate simply redraws
+         * the stale game frame after the front bitmap has been cleared.
+         */
+        ClearVideoView();
+
+        fVideoMenu->ItemAt(video_framework::FULLSCREEN)->SetEnabled(false);
+    }
+
+    fPaused = false;
+    fEmuMenu->ItemAt(1)->SetMarked(false);
 }
 
 
@@ -1381,7 +1388,11 @@ PretendoWindow::OnPause()
 // -----------------------------------------------------------------------------
 // PretendoWindow::OnSoftReset
 //
-// Performs a soft reset of the loaded emulator state.
+// Performs a soft reset while the emulator is actively running.
+//
+// A stopped emulator may already have the worker mutex held as part of the
+// stop/run synchronization scheme, so reset must not wait for that mutex while
+// fRunning is false.
 //
 // Parameters:
 //   None.
@@ -1392,14 +1403,26 @@ PretendoWindow::OnPause()
 void
 PretendoWindow::OnSoftReset()
 {
-	reset(nes::reset_type::soft);
+	if (!fRunning || !nes::cart.mapper()) {
+		return;
+	}
+
+	if (LockMutex(B_INFINITE_TIMEOUT)) {
+		reset(nes::reset_type::soft);
+		ClearAudioStaging();
+		UnlockMutex();
+	}
 }
 
 
 // -----------------------------------------------------------------------------
 // PretendoWindow::OnHardReset
 //
-// Performs a hard reset of the loaded emulator state.
+// Performs a hard reset while the emulator is actively running.
+//
+// A stopped emulator may already have the worker mutex held as part of the
+// stop/run synchronization scheme, so reset must not wait for that mutex while
+// fRunning is false.
 //
 // Parameters:
 //   None.
@@ -1410,7 +1433,15 @@ PretendoWindow::OnSoftReset()
 void
 PretendoWindow::OnHardReset()
 {
-	reset(nes::reset_type::hard);
+	if (!fRunning || !nes::cart.mapper()) {
+		return;
+	}
+
+	if (LockMutex(B_INFINITE_TIMEOUT)) {
+		reset(nes::reset_type::hard);
+		ClearAudioStaging();
+		UnlockMutex();
+	}
 }
 
 
@@ -3853,10 +3884,36 @@ PretendoWindow::start_frame()
 
 
 // -----------------------------------------------------------------------------
+// PretendoWindow::ClearAudioStaging
+//
+// Discards any partially accumulated host audio block.
+//
+// This is used when stopping, starting, or resetting emulation so samples from
+// two different emulator timelines cannot be combined into one host audio
+// block.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::ClearAudioStaging()
+{
+	fHostAudioBufferCount = 0;
+}
+
+
+// -----------------------------------------------------------------------------
 // PretendoWindow::end_frame
 //
-// Finalizes one emulator frame by blitting video and streaming one frame worth
-// of APU samples to the host audio stream.
+// Presents the completed video frame and transfers generated APU samples into
+// fixed-size host audio blocks.
+//
+// Samples are accumulated across normal video-frame boundaries because the
+// fractional APU sample scheduler does not necessarily generate exactly one
+// complete host block per video frame.
 //
 // Parameters:
 //   None.
@@ -3867,11 +3924,6 @@ PretendoWindow::start_frame()
 void
 PretendoWindow::end_frame()
 {
-	static constexpr size_t kHostBlockSize = nes::apu::kOutputFrequency / nes::apu::kFrameRate;
-
-	static uint8 hostBuffer[kHostBlockSize];
-	static size_t hostBufferCount = 0;
-
 	/*
 	 * Present the completed video frame first.
 	 */
@@ -3881,14 +3933,15 @@ PretendoWindow::end_frame()
 	 * Accumulate only samples actually generated by the APU.
 	 */
 	while (true) {
-		const size_t space = kHostBlockSize - hostBufferCount;
-		const size_t count = nes::apu::read_samples(hostBuffer + hostBufferCount, space);
+		const size_t space = kHostAudioBlockSize - fHostAudioBufferCount;
+		const size_t count = nes::apu::read_samples(fHostAudioBuffer + fHostAudioBufferCount, space);
 
-		hostBufferCount += count;
+		fHostAudioBufferCount += count;
 
-		if (hostBufferCount == kHostBlockSize) {
-			fAudioStream->Stream(hostBuffer, kHostBlockSize);
-			hostBufferCount = 0;
+		if (fHostAudioBufferCount == kHostAudioBlockSize) {
+			fAudioStream->Stream(fHostAudioBuffer, kHostAudioBlockSize);
+
+			fHostAudioBufferCount = 0;
 			continue;
 		}
 
@@ -3902,9 +3955,13 @@ PretendoWindow::end_frame()
 // -----------------------------------------------------------------------------
 // PretendoWindow::emulator_thread
 //
-// Main emulator thread.  In windowed mode, controller input is handled by
-// PretendoView key events.  In fullscreen mode, global key polling is used
+// Main emulator thread. In windowed mode, controller input is handled by
+// PretendoView key events. In fullscreen mode, global key polling is used
 // because normal BView keyboard focus may not be reliable.
+//
+// The thread waits while emulation is stopped instead of continuously
+// reacquiring the emulator mutex. This allows the UI thread to acquire the
+// mutex reliably when stopping or unloading a ROM.
 //
 // Global polling is disabled while debugger input is active or while the
 // emulator is debugger-paused, preventing debugger shortcuts from leaking into
@@ -3917,15 +3974,34 @@ PretendoWindow::end_frame()
 //   B_OK when the thread exits.
 // -----------------------------------------------------------------------------
 status_t
-PretendoWindow::emulator_thread(void* data)
+PretendoWindow::emulator_thread (void *data)
 {
-	PretendoWindow* window = reinterpret_cast<PretendoWindow*>(data);	
-	
+	PretendoWindow* window = reinterpret_cast<PretendoWindow*>(data);
+
 	while (1) {
-		if (window->LockMutex() == false) { 
+		/*
+		 * When emulation has been stopped, do not compete with the UI thread
+		 * for the emulator mutex. OnRun() will set fRunning and release the
+		 * mutex when execution should resume.
+		 */
+		if (!window->fRunning) {
+			snooze(1000);
+
+			/*
+			 * LockMutex() returning false is also how the existing shutdown
+			 * path tells this thread that the mutex no longer exists.
+			 */
+			if (!window->fMutex) {
+				break;
+			}
+
+			continue;
+		}
+
+		if (window->LockMutex() == false) {
 			break;
 		}
-		
+
 		if (!nes::ppu::system_paused) {
 			window->start_frame();
 			nes::run_frame(window);
@@ -3935,16 +4011,18 @@ PretendoWindow::emulator_thread(void* data)
 				window->ReadKeyStates();
 			}
 		}
-		
+
 		window->UnlockMutex();
 
 		if (nes::ppu::system_paused) {
 			snooze(10000);
 		}
-	}	
-	
+	}
+
 	return B_OK;
 }
+
+
 
 
 // -----------------------------------------------------------------------------

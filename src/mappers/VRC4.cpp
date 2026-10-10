@@ -1,15 +1,20 @@
 
-
 #include "VRC4.h"
 #include "Cpu.h"
 
-// TODO(eteran): implement sub-mapper madness...
 
-//------------------------------------------------------------------------------
-// Name: VRC4
-//------------------------------------------------------------------------------
-VRC4::VRC4() {
-
+// -----------------------------------------------------------------------------
+// VRC4::VRC4
+//
+// Initializes the VRC4 mapper core.
+//
+// The initial PRG mapping places the first 16 KB bank at $8000-$BFFF and the
+// final 16 KB bank at $C000-$FFFF. CHR is initially mapped as a contiguous
+// 8 KB region starting at bank 0, and the individual CHR bank registers are
+// initialized to banks 0 through 7.
+// -----------------------------------------------------------------------------
+VRC4::VRC4()
+{
 	set_prg_89ab(0);
 	set_prg_cdef(-1);
 
@@ -25,13 +30,20 @@ VRC4::VRC4() {
 	chr_[7] = 7;
 }
 
-//------------------------------------------------------------------------------
-// Name: name
-//------------------------------------------------------------------------------
-std::string VRC4::name() const {
+
+// -----------------------------------------------------------------------------
+// VRC4::name
+//
+// Returns the generic mapper hardware name for the VRC4 core.
+//
+// Derived mapper implementations override this when they represent a specific
+// VRC4 hardware variant such as VRC4a, VRC4b, VRC4c, VRC4d, VRC4e, or VRC4f.
+// -----------------------------------------------------------------------------
+std::string
+VRC4::name() const
+{
 	return "VRC4";
 }
-
 
 // -----------------------------------------------------------------------------
 // read_6
@@ -41,7 +53,7 @@ std::string VRC4::name() const {
 // Disabled WRAM currently returns $FF.
 // -----------------------------------------------------------------------------
 uint8_t
-VRC4::read_6(uint_least16_t address)
+VRC4::read_6 (uint_least16_t address)
 {
 	if (!wram_enabled_) {
 		return 0xff;
@@ -59,7 +71,7 @@ VRC4::read_6(uint_least16_t address)
 // Disabled WRAM currently returns $FF.
 // -----------------------------------------------------------------------------
 uint8_t
-VRC4::read_7(uint_least16_t address)
+VRC4::read_7 (uint_least16_t address)
 {
 	if (!wram_enabled_) {
 		return 0xff;
@@ -75,7 +87,7 @@ VRC4::read_7(uint_least16_t address)
 // Writes VRC4 work RAM in the CPU $6000-$6FFF range when WRAM is enabled.
 // -----------------------------------------------------------------------------
 void
-VRC4::write_6(uint_least16_t address, uint8_t value)
+VRC4::write_6 (uint_least16_t address, uint8_t value)
 {
 	if (!wram_enabled_) {
 		return;
@@ -91,7 +103,7 @@ VRC4::write_6(uint_least16_t address, uint8_t value)
 // Writes VRC4 work RAM in the CPU $7000-$7FFF range when WRAM is enabled.
 // -----------------------------------------------------------------------------
 void
-VRC4::write_7(uint_least16_t address, uint8_t value)
+VRC4::write_7 (uint_least16_t address, uint8_t value)
 {
 	if (!wram_enabled_) {
 		return;
@@ -101,11 +113,21 @@ VRC4::write_7(uint_least16_t address, uint8_t value)
 }
 
 
-//------------------------------------------------------------------------------
-// Name:
-//------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// VRC4::write_8
+//
+// Handles writes to the VRC4 $8000 register range.
+//
+// The selected value controls the switchable 8 KB PRG bank. Depending on the
+// current PRG mode, that bank is mapped at either $8000-$9FFF or $C000-$DFFF,
+// while the opposite slot is fixed to the second-last PRG bank.
+//
+// Parameters:
+//   address - CPU address being written.
+//   value   - Value written to the PRG bank register.
+// -----------------------------------------------------------------------------
 void
-VRC4::write_8(uint_least16_t address, uint8_t value) 
+VRC4::write_8 (uint_least16_t address, uint8_t value)
 {
 	switch (address & 0xf00c) {
 	case 0x8000:
@@ -113,6 +135,7 @@ VRC4::write_8(uint_least16_t address, uint8_t value)
 	case 0x8004:
 	case 0x8006:
 		prg_[0] = value;
+
 		if (prg_mode_ & 0x02) {
 			set_prg_cd(prg_[0] & 0x1f);
 			set_prg_89(-2);
@@ -124,12 +147,22 @@ VRC4::write_8(uint_least16_t address, uint8_t value)
 	}
 }
 
-//------------------------------------------------------------------------------
-// Name:
-//------------------------------------------------------------------------------
 
+// -----------------------------------------------------------------------------
+// VRC4::write_9
+//
+// Handles VRC4 mirroring, WRAM enable, and PRG banking mode control.
+//
+// $9000 selects nametable mirroring. $9008 controls WRAM availability and the
+// PRG banking mode, immediately reapplying the current PRG bank configuration.
+// The remaining decoded register addresses are unused by this implementation.
+//
+// Parameters:
+//   address - CPU address being written.
+//   value   - Value written to the selected control register.
+// -----------------------------------------------------------------------------
 void
-VRC4::write_9(uint_least16_t address, uint8_t value)
+VRC4::write_9 (uint_least16_t address, uint8_t value)
 {
 	switch (address & 0xf00c) {
 	case 0x9000:
@@ -176,10 +209,19 @@ VRC4::write_9(uint_least16_t address, uint8_t value)
 }
 
 
-//------------------------------------------------------------------------------
-// Name:
-//------------------------------------------------------------------------------
-void VRC4::write_a(uint_least16_t address, uint8_t value)
+// -----------------------------------------------------------------------------
+// VRC4::write_a
+//
+// Handles writes to the VRC4 $A000 register range.
+//
+// The value selects the switchable 8 KB PRG bank mapped at $A000-$BFFF.
+//
+// Parameters:
+//   address - CPU address being written.
+//   value   - Value written to the PRG bank register.
+// -----------------------------------------------------------------------------
+void
+VRC4::write_a (uint_least16_t address, uint8_t value)
 {
 	switch (address & 0xf00c) {
 	case 0xa000:
@@ -193,11 +235,20 @@ void VRC4::write_a(uint_least16_t address, uint8_t value)
 }
 
 
-//------------------------------------------------------------------------------
-// Name:
-//------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// VRC4::write_b
+//
+// Handles writes to the first two VRC4 CHR bank registers.
+//
+// Each 1 KB CHR bank number is assembled from separate low- and high-nibble
+// writes and immediately applied to PPU ranges $0000-$03FF and $0400-$07FF.
+//
+// Parameters:
+//   address - CPU address selecting the CHR register nibble.
+//   value   - Low four bits of the CHR bank value.
+// -----------------------------------------------------------------------------
 void
-VRC4::write_b(uint_least16_t address, uint8_t value)
+VRC4::write_b (uint_least16_t address, uint8_t value)
 {
 	switch (address & 0xf00c) {
 	case 0xb000:
@@ -223,12 +274,20 @@ VRC4::write_b(uint_least16_t address, uint8_t value)
 }
 
 
-//------------------------------------------------------------------------------
-// Name:
-//------------------------------------------------------------------------------
-
+// -----------------------------------------------------------------------------
+// VRC4::write_c
+//
+// Handles writes to VRC4 CHR bank registers 2 and 3.
+//
+// Separate low- and high-nibble writes form the complete bank numbers mapped to
+// PPU ranges $0800-$0BFF and $0C00-$0FFF.
+//
+// Parameters:
+//   address - CPU address selecting the CHR register nibble.
+//   value   - Low four bits of the CHR bank value.
+// -----------------------------------------------------------------------------
 void
-VRC4::write_c(uint_least16_t address, uint8_t value)
+VRC4::write_c (uint_least16_t address, uint8_t value)
 {
 	switch (address & 0xf00c) {
 	case 0xc000:
@@ -254,11 +313,20 @@ VRC4::write_c(uint_least16_t address, uint8_t value)
 }
 
 
-//------------------------------------------------------------------------------
-// Name:
-//------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// VRC4::write_d
+//
+// Handles writes to VRC4 CHR bank registers 4 and 5.
+//
+// Separate low- and high-nibble writes form the complete bank numbers mapped to
+// PPU ranges $1000-$13FF and $1400-$17FF.
+//
+// Parameters:
+//   address - CPU address selecting the CHR register nibble.
+//   value   - Low four bits of the CHR bank value.
+// -----------------------------------------------------------------------------
 void
-VRC4::write_d(uint_least16_t address, uint8_t value)
+VRC4::write_d (uint_least16_t address, uint8_t value)
 {
 	switch (address & 0xf00c) {
 	case 0xd000:
@@ -284,12 +352,20 @@ VRC4::write_d(uint_least16_t address, uint8_t value)
 }
 
 
-//------------------------------------------------------------------------------
-// Name:
-//------------------------------------------------------------------------------
-
+// -----------------------------------------------------------------------------
+// VRC4::write_e
+//
+// Handles writes to VRC4 CHR bank registers 6 and 7.
+//
+// Separate low- and high-nibble writes form the complete bank numbers mapped to
+// PPU ranges $1800-$1BFF and $1C00-$1FFF.
+//
+// Parameters:
+//   address - CPU address selecting the CHR register nibble.
+//   value   - Low four bits of the CHR bank value.
+// -----------------------------------------------------------------------------
 void
-VRC4::write_e(uint_least16_t address, uint8_t value)
+VRC4::write_e (uint_least16_t address, uint8_t value)
 {
 	switch (address & 0xf00c) {
 	case 0xe000:
@@ -315,22 +391,30 @@ VRC4::write_e(uint_least16_t address, uint8_t value)
 }
 
 
-//------------------------------------------------------------------------------
-// Name: write_f
-//------------------------------------------------------------------------------
-
+// -----------------------------------------------------------------------------
+// VRC4::write_f
+//
+// Handles writes to the VRC4 IRQ registers.
+//
+// The first two registers load the low and high nibbles of the IRQ latch.
+// The control register clears any pending mapper IRQ, configures IRQ operation,
+// and reloads the counter and prescaler when IRQs are enabled. The acknowledge
+// register clears the active IRQ and optionally re-enables the IRQ counter.
+//
+// Parameters:
+//   address - CPU address selecting the IRQ register.
+//   value   - Value written to the IRQ register.
+// -----------------------------------------------------------------------------
 void
-VRC4::write_f(uint_least16_t address, uint8_t value)
+VRC4::write_f (uint_least16_t address, uint8_t value)
 {
 	switch (address & 0xf00c) {
 	case 0xf000:
-		irq_latch_ =
-			(irq_latch_ & 0xf0) | (value & 0x0f);
+		irq_latch_ = (irq_latch_ & 0xf0) | (value & 0x0f);
 		break;
 
 	case 0xf004:
-		irq_latch_ =
-			(irq_latch_ & 0x0f) | ((value & 0x0f) << 4);
+		irq_latch_ = (irq_latch_ & 0x0f) | ((value & 0x0f) << 4);
 		break;
 
 	case 0xf008:
@@ -353,13 +437,18 @@ VRC4::write_f(uint_least16_t address, uint8_t value)
 }
 
 
-//------------------------------------------------------------------------------
-// Name:
-//------------------------------------------------------------------------------
-
+// -----------------------------------------------------------------------------
+// VRC4::cpu_sync
+//
+// Advances the VRC4 IRQ timing state by one CPU cycle.
+//
+// In cycle mode the IRQ counter is clocked once per CPU cycle. In scanline mode
+// the prescaler subtracts three PPU clocks per CPU cycle and clocks the IRQ
+// counter whenever approximately one scanline, 341 PPU clocks, has elapsed.
+// -----------------------------------------------------------------------------
 void
 VRC4::cpu_sync()
-{	
+{
 	if (irq_control_.enabled) {
 		if (irq_control_.mode) {
 			clock_irq();
@@ -375,9 +464,14 @@ VRC4::cpu_sync()
 }
 
 
-//------------------------------------------------------------------------------
-// Name: clock_irq
-//------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// VRC4::clock_irq
+//
+// Advances the VRC4 IRQ counter by one clock.
+//
+// When the counter reaches $FF, the next clock reloads it from the IRQ latch
+// and asserts the mapper IRQ line. Otherwise the counter is simply incremented.
+// -----------------------------------------------------------------------------
 void
 VRC4::clock_irq()
 {

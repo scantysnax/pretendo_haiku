@@ -5,6 +5,7 @@
 
 #include "Cpu.h"
 #include "MemoryMappedFile.h"
+#include "ROMDatabase.h"
 #include "VRAMBank.h"
 
 #include <cstdint>
@@ -62,7 +63,8 @@ using create_func = std::function<std::unique_ptr<Mapper>()>;
 class Mapper
 {
 	public:
-	static std::unique_ptr<Mapper> create_mapper(int num, int submapper = 0);
+	static std::unique_ptr<Mapper> create_mapper (int num, int submapper = 0,
+												 const ROMDatabase::Entry *database_entry = nullptr);
 	static void register_mapper(int num, create_func create_ptr);
 
 	public:
@@ -73,6 +75,7 @@ class Mapper
 	virtual void save() {}
 	virtual void restore() {}
 	virtual std::string name() const = 0;
+	virtual void reset() {}
 
 	// debugger-facing resolved mapper state
 	mapper_debug_state_t debug_state() const;
@@ -125,6 +128,22 @@ class Mapper
 	virtual void cpu_sync();
 	virtual void ppu_end_frame();
 	virtual void vram_change_hook(uint_least16_t vram_address);
+	
+// -----------------------------------------------------------------------------
+// audio_output
+//
+// Returns the mapper's current expansion-audio output level.
+//
+// Mappers without expansion audio return zero. Mapper implementations that
+// provide additional sound hardware override this method.
+//
+// Returns:
+//   Current unsigned expansion-audio level.
+// -----------------------------------------------------------------------------
+virtual uint8_t audio_output() const
+{
+	return 0;
+}
 
 	protected:
 	uint8_t read_memory (uint_least16_t address);

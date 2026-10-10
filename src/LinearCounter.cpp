@@ -63,6 +63,26 @@ void LinearCounter::reload() {
 	reload_ = true;
 }
 
+// -----------------------------------------------------------------------------
+// LinearCounter::reset
+//
+// Resets the triangle linear counter's current value and pending reload state.
+//
+// The programmed control value is preserved so this diagnostic does not alter
+// the emulated $4008 register contents.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+LinearCounter::reset()
+{
+	value_ = 0;
+	reload_ = false;
+}
 
 }
 

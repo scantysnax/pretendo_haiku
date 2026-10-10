@@ -2,6 +2,9 @@
 #include "Cart.h"
 #include "Compiler.h"
 #include "Mapper.h"
+#include "Mapper021.h"
+#include "Mapper023.h"
+#include "Mapper025.h"
 #include "Nes.h"
 #include "Ppu.h"
 #include "Settings.h"
@@ -218,31 +221,258 @@ Mapper::debug_set_prg_ram (bool enabled, bool writable, uint32_t bank)
 //
 // Creates the mapper implementation associated with an iNES mapper number.
 //
+// NES 2.0 submapper information is preferred when available. For legacy iNES
+// mapper 21, 23, and 25 ROMs, cartridge database information is used to
+// distinguish the Konami VRC hardware variants.
+//
+// All other mapper numbers continue to use the normal static mapper registry.
+//
 // Parameters:
-//   num - iNES mapper number.
+//   num            - iNES mapper number.
+//   submapper      - NES 2.0 submapper number, or zero for legacy/unspecified.
+//   database_entry - Optional cartridge database information.
 //
 // Returns:
 //   Newly created mapper instance, or nullptr if the mapper is unsupported.
 // -----------------------------------------------------------------------------
 std::unique_ptr<Mapper>
-Mapper::create_mapper(int num, int submapper)
+Mapper::create_mapper(int num, int submapper, const ROMDatabase::Entry *database_entry)
 {
-	(void)submapper;
-	
+	/*
+	 * Mapper 21 is shared by VRC4a and VRC4c.
+	 */
+	if (num == 21) {
+		std::unique_ptr<Mapper> mapper;
+
+		switch (submapper) {
+		case 1:
+			mapper = std::make_unique<Mapper21VRC4a>();
+			break;
+
+		case 2:
+			mapper = std::make_unique<Mapper21VRC4c>();
+			break;
+
+		case 0:
+			/*
+			 * Legacy iNES. Use the cartridge database when available.
+			 */
+			if (database_entry != nullptr) {
+				if (database_entry->chip_type == "VRC4") {
+					if (database_entry->pin3_function == "PRG A2"
+						&& database_entry->pin4_function == "PRG A1") {
+
+						mapper = std::make_unique<Mapper21VRC4a>();
+					} else if (database_entry->pin3_function == "PRG A7"
+							   && database_entry->pin4_function == "PRG A6") {
+						mapper = std::make_unique<Mapper21VRC4c>();
+					}
+				}
+			}
+
+			/*
+			 * Preserve the historical mapper-21 fallback when the exact
+			 * legacy wiring cannot be identified.
+			 */
+			if (mapper == nullptr) {
+				mapper = std::make_unique<Mapper21VRC4a>();
+			}
+
+			break;
+
+		default:
+			std::cout
+				<< "unsupported mapper hardware - iNES number: "
+				<< num
+				<< ", submapper: "
+				<< submapper
+				<< std::endl;
+
+			return nullptr;
+		}
+
+		std::cout
+			<< "[Mapper::create_mapper] mapper #"
+			<< num
+			<< "."
+			<< submapper
+			<< " loaded, type: "
+			<< mapper->name()
+			<< std::endl;
+
+		return mapper;
+	}
+
+	/*
+	 * Mapper 23 is shared by VRC2b, VRC4e, and VRC4f.
+	 */
+	if (num == 23) {
+		std::unique_ptr<Mapper> mapper;
+
+		switch (submapper) {
+		case 1:
+			mapper = std::make_unique<Mapper23VRC4f>();
+			break;
+
+		case 2:
+			mapper = std::make_unique<Mapper23VRC4e>();
+			break;
+
+		case 3:
+			mapper = std::make_unique<Mapper23VRC2b>();
+			break;
+
+		case 0:
+			/*
+			 * Legacy iNES. Use the cartridge database when available.
+			 */
+			if (database_entry != nullptr) {
+				if (database_entry->chip_type == "VRC4") {
+					if (database_entry->pin3_function == "PRG A3"
+						&& database_entry->pin4_function == "PRG A2") {
+							mapper = std::make_unique<Mapper23VRC4e>();
+					} else if (
+						database_entry->pin3_function == "PRG A1"
+						&& database_entry->pin4_function == "PRG A0") {
+							mapper = std::make_unique<Mapper23VRC4f>();
+					}
+				} else if (database_entry->chip_type == "VRC2") {
+					mapper = std::make_unique<Mapper23VRC2b>();
+				}
+			}
+
+			/*
+			 * Preserve the historical mapper-23 fallback when legacy
+			 * metadata cannot identify the board.
+			 */
+			if (mapper == nullptr) {
+				mapper = std::make_unique<Mapper23VRC2b>();
+			}
+
+			break;
+
+		default:
+			std::cout
+				<< "unsupported mapper hardware - iNES number: "
+				<< num
+				<< ", submapper: "
+				<< submapper
+				<< std::endl;
+
+			return nullptr;
+		}
+
+		std::cout
+			<< "[Mapper::create_mapper] mapper #"
+			<< num
+			<< "."
+			<< submapper
+			<< " loaded, type: "
+			<< mapper->name()
+			<< std::endl;
+
+		return mapper;
+	}
+
+	/*
+	 * Mapper 25 is shared by VRC2c, VRC4b, and VRC4d.
+	 */
+	if (num == 25) {
+		std::unique_ptr<Mapper> mapper;
+
+		switch (submapper) {
+		case 1:
+			mapper = std::make_unique<Mapper25VRC4b>();
+			break;
+
+		case 2:
+			mapper = std::make_unique<Mapper25VRC4d>();
+			break;
+
+		case 3:
+			mapper = std::make_unique<Mapper25VRC2c>();
+			break;
+
+		case 0:
+			/*
+			 * Legacy iNES. Use the cartridge database when available.
+			 */
+			if (database_entry != nullptr) {
+				if (database_entry->chip_type == "VRC4") {
+					if (database_entry->pin3_function == "PRG A0"
+						&& database_entry->pin4_function == "PRG A1") {
+						mapper = std::make_unique<Mapper25VRC4b>();
+					} else if (
+						database_entry->pin3_function == "PRG A2"
+						&& database_entry->pin4_function == "PRG A3") {
+						mapper = std::make_unique<Mapper25VRC4d>();
+					}
+				} else if (database_entry->chip_type == "VRC2") {
+					mapper = std::make_unique<Mapper25VRC2c>();
+				}
+			}
+
+			/*
+			 * Preserve the historical mapper-25 fallback when legacy
+			 * metadata cannot identify the board.
+			 */
+			if (mapper == nullptr) {
+				mapper = std::make_unique<Mapper25VRC2c>();
+			}
+
+			break;
+
+		default:
+			std::cout
+				<< "unsupported mapper hardware - iNES number: "
+				<< num
+				<< ", submapper: "
+				<< submapper
+				<< std::endl;
+
+			return nullptr;
+		}
+
+		std::cout
+			<< "[Mapper::create_mapper] mapper #"
+			<< num
+			<< "."
+			<< submapper
+			<< " loaded, type: "
+			<< mapper->name()
+			<< std::endl;
+
+		return mapper;
+	}
+
+	/*
+	 * All other mapper numbers continue to use the existing registry.
+	 */
 	create_func f = nullptr;
 
 	const std::map<int, create_func> &mappers = registered_mappers_ines();
-	auto it = mappers.find(num);
+
+	auto it =
+		mappers.find(num);
 
 	if (it != mappers.end() && (f = it->second)) {
 		auto ret = f();
 
 		std::cout
 			<< "[Mapper::create_mapper] mapper #"
-			<< num
+			<< num;
+
+		if (submapper != 0) {
+			std::cout
+				<< "."
+				<< submapper;
+		}
+
+		std::cout
 			<< " loaded, type: "
 			<< ret->name()
 			<< std::endl;
+
 		return ret;
 	}
 

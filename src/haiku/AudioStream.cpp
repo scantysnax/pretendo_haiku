@@ -73,8 +73,11 @@ AudioStream::~AudioStream()
 // -----------------------------------------------------------------------------
 // AudioStream::Start
 //
-// Clears the host audio buffer, drains stale pacing permits, and starts the
-// BSoundPlayer stream if the player is ready.
+// Prepares emulator audio playback.
+//
+// The MediaKit sound player is started only once. Subsequent emulator
+// Stop/Start transitions switch between silence and generated audio without
+// repeatedly stopping and restarting the host audio device.
 //
 // Parameters:
 //   None.
@@ -85,27 +88,40 @@ AudioStream::~AudioStream()
 void
 AudioStream::Start()
 {
+	fMuted = true;
+	fStreaming = false;
+
 	ClearBuffer();
 	ResetPacing();
 
-	if (fSoundPlayer->InitCheck() == B_OK) {
+	if (!fSoundPlayer || fSoundPlayer->InitCheck() != B_OK) {
+		if (fSoundPlayer) {
+			fSoundPlayer->SetHasData(false);
+		}
+
+		return;
+	}
+
+	if (!fPlayerStarted) {
 		fSoundPlayer->SetHasData(true);
 		fSoundPlayer->Start();
 
-		fStreaming = true;
-	} else {
-		fSoundPlayer->SetHasData(false);
-
-		fStreaming = false;
+		fPlayerStarted = true;
 	}
+
+	fStreaming = true;
+	fMuted = false;
 }
+
 
 // -----------------------------------------------------------------------------
 // AudioStream::Stop
 //
-// Stops MediaKit audio streaming and releases the audio pacing mutex so the
-// emulator thread cannot remain blocked waiting for a callback that will no
-// longer arrive.
+// Stops emulator audio production without stopping the MediaKit sound player.
+//
+// The host callback remains active and supplies unsigned 8-bit silence while
+// emulation is stopped. This avoids repeatedly restarting the host audio device,
+// which was found to contribute substantially to the startup pop.
 //
 // Parameters:
 //   None.
@@ -116,16 +132,16 @@ AudioStream::Start()
 void
 AudioStream::Stop()
 {
-	if (fStreaming) {
-		fSoundPlayer->SetHasData(false);
+	fMuted = true;
+	fStreaming = false;
 
-		fStreaming = false;
+	ClearBuffer();
 
-		fSoundPlayer->Stop();
-
-		fMutex->Unlock();
+	if (fMutex) {
+		fMutex->UnlockIfNeeded();
 	}
 }
+
 
 // -----------------------------------------------------------------------------
 // AudioStream::ClearBuffer

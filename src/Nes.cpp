@@ -28,8 +28,13 @@ alignas(512) static uint32_t sFrameScanlineBuffer[256] = {};
 void
 reset(reset_type type)
 {
-    cpu::reset(type);
+	cpu::reset(type);
     apu::reset(type);
+
+    if (cart.mapper()) {
+        cart.mapper()->reset();
+    }
+
     ppu::reset(type);
 }
 

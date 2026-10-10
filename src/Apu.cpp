@@ -6,6 +6,8 @@
 #include "Square.h"
 #include "Triangle.h"
 
+#include "Nes.h"
+
 #include <algorithm>
 #include <iostream>
 
@@ -620,18 +622,16 @@ clock_frame_mode_1()
 // -----------------------------------------------------------------------------
 // mix_channels
 //
-// Mixes the five NES audio channels and removes the DC component from the
-// resulting unipolar signal.
+// Mixes the native NES APU channels together with mapper expansion audio.
 //
-// The NES mixer naturally produces a positive-only output level, while unsigned
-// 8-bit host PCM uses 0x80 as silence.  A simple DC-blocking high-pass filter
-// converts the mixer output into a bipolar waveform centered around 0x80.
+// The mixed signal is passed through a one-pole DC-blocking high-pass filter
+// and then centered around unsigned 8-bit PCM silence.
 //
 // Parameters:
 //   None.
 //
 // Returns:
-//   Unsigned 8-bit PCM sample centered around 0x80.
+//   Mixed unsigned 8-bit audio sample.
 // -----------------------------------------------------------------------------
 uint8_t
 mix_channels()
@@ -644,22 +644,29 @@ mix_channels()
 
 	const double squareOut = 0.00752 * (square1Out + square2Out);
 	const double tndOut = 0.00851 * triangleOut + 0.00494 * noiseOut + 0.00335 * dmcOut;
+	double expansionOut = 0.0;
 
-	const double input = (squareOut + tndOut) * 255.0;
+	if (nes::cart.mapper() != nullptr) {
+		expansionOut = 0.00752 * static_cast<double>(nes::cart.mapper()->audio_output());
+	}
 
 	/*
-	 * One-pole DC-blocking high-pass filter:
-	 *
-	 *     y[n] = x[n] - x[n-1] + R * y[n-1]
-	 *
-	 * This removes the DC component of the positive-only NES mixer while
-	 * preserving the audible waveform.
-	 */
-	
-	constexpr double R = 0.995;	// R = dc decay/feedback coefficient
+ 	* One-pole DC-blocking high-pass filter.
+ 	*
+ 	* Removes the steady DC component from the mixed signal while preserving
+ 	* audible changes. The previous input and output samples are retained so the
+ 	* filter can distinguish a constant offset from actual waveform movement.
+ 	*
+ 	*     y[n] = x[n] - x[n - 1] + R * y[n - 1]
+ 	*/
+
+	const double input = (squareOut + tndOut - expansionOut) * 255.0;
+	constexpr double R = 0.995;
 	const double output = input - sDCBlockPreviousInput + R * sDCBlockPreviousOutput;
+
 	sDCBlockPreviousInput = input;
 	sDCBlockPreviousOutput = output;
+
 	const int32_t sample = static_cast<int32_t>(output + 128.0);
 
 	return static_cast<uint8_t>(std::clamp(sample, 0, 255));
@@ -669,7 +676,8 @@ mix_channels()
 // -----------------------------------------------------------------------------
 // nes::apu::reset
 //
-// Resets APU timing, channel state, sample-output state, and DC-blocking filter.
+// Resets APU timing, channel state, sample-output state, queued host samples,
+// and the DC-blocking filter.
 //
 // Parameters:
 //   reset_type - Hard or soft reset mode.
@@ -686,17 +694,27 @@ reset (reset_type type)
 	next_clock_    = 0;
 	clock_step_    = 0;
 
+	/*
+	 * Discard any PCM generated before the reset.  Otherwise the next host
+	 * audio block can begin with stale pre-reset samples followed immediately
+	 * by newly generated post-reset samples, creating an audible discontinuity.
+	 */
+	sample_buffer_start = 0;
+	sample_buffer_end   = 0;
+
 	sLastOutputSample = kSilence;
 
-	sDCBlockPreviousInput = 0.0;
+	sDCBlockPreviousInput  = 0.0;
 	sDCBlockPreviousOutput = 0.0;
-	
+
 	debug_clear_scope();
 	debug_clear_frame_events();
 
 	if (type == reset_type::hard) {
 		last_frame_counter_ = 0;
 	}
+	
+	triangle.reset();
 
 	write4017(last_frame_counter_);
 	write4015(0x00);
@@ -727,7 +745,7 @@ reset (reset_type type)
 	write4010(10);
 
 	// OK, the APU is supposed to act as if it has run for approximately 9
-	// cycles by the time the reset is complete. I beleive that the first 7
+	// cycles by the time the reset is complete. I believe that the first 7
 	// of these cycles are the 7 cycles of the reset itself. So we run the
 	// APU manually for an extra 2 ticks.
 	//
@@ -741,8 +759,15 @@ reset (reset_type type)
 	//       nop
 	//     reset:
 	if (type == reset_type::hard) {
-		exec<2>();
-	}
+	exec<2>();
+}
+
+	/*
+ 	* Seed the DC blocker with the triangle DAC level that already exists after
+ 	* reset.  The held triangle DAC is not a newly generated signal transition.
+ 	*/
+	sDCBlockPreviousInput = 0.00851 * static_cast<double>(triangle.output()) * 255.0;
+	sDCBlockPreviousOutput = 0.0;
 
 	std::cout << "APU Reset complete" << std::endl;
 }

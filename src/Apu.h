@@ -35,7 +35,6 @@ typedef enum {
 // Forward declarations for the APU channel implementations.
 template <int Channel>
 class Square;
-
 class Triangle;
 class Noise;
 class DMC;
