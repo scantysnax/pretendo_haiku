@@ -537,7 +537,7 @@ cycle_0 (uint8_t next_op)
 #include "address_modes.h"
 
 
-struct opcode_dispatch_entry {
+struct opcode_dispatch_entry_t {
 	void (*execute)();
 	bus_cycle_type (*bus_cycle)();
 	uint_least16_t (*bus_address)();
@@ -550,7 +550,7 @@ struct opcode_dispatch_entry {
 // Builds one dispatch-table entry for an opcode/address-mode implementation.
 // -----------------------------------------------------------------------------
 template <class T>
-opcode_dispatch_entry
+opcode_dispatch_entry_t
 make_opcode_dispatch_entry()
 {
 	return {
@@ -570,10 +570,10 @@ make_opcode_dispatch_entry()
 // The table contains all 256 6502 opcode values plus the internal reset, NMI,
 // and IRQ pseudo-instructions.
 // -----------------------------------------------------------------------------
-const opcode_dispatch_entry*
+const opcode_dispatch_entry_t*
 opcode_dispatch_table()
 {
-	static const opcode_dispatch_entry table[] = {
+	static const opcode_dispatch_entry_t table[] = {
 		make_opcode_dispatch_entry<opcode_brk>(),
 		make_opcode_dispatch_entry<indexed_indirect<opcode_ora>>(),
 		make_opcode_dispatch_entry<opcode_jam>(),
@@ -850,7 +850,7 @@ execute_opcode()
 {
 	assert(instruction_ <= 0x102);
 
-	const opcode_dispatch_entry *table = opcode_dispatch_table();
+	const opcode_dispatch_entry_t *table = opcode_dispatch_table();
 
 	table[instruction_].execute();
 }
@@ -874,7 +874,7 @@ current_bus_cycle()
 
 	assert(instruction_ <= 0x102);
 
-	const opcode_dispatch_entry *table = opcode_dispatch_table();
+	const opcode_dispatch_entry_t *table = opcode_dispatch_table();
 
 	return table[instruction_].bus_cycle();
 }
@@ -900,7 +900,7 @@ current_bus_address()
 
 	assert(instruction_ <= 0x102);
 
-	const opcode_dispatch_entry *table = opcode_dispatch_table();
+	const opcode_dispatch_entry_t *table = opcode_dispatch_table();
 
 	return table[instruction_].bus_address();
 }
@@ -997,17 +997,11 @@ clock()
 
 		case dmc_dma_state::dummy:
 			read_byte(dmc_dma_cpu_address_);
-
-			dmc_dma_state_ =
-				dmc_dma_get_cycle()
-					? dmc_dma_state::align
-					: dmc_dma_state::get;
-
+			dmc_dma_state_ = dmc_dma_get_cycle() ? dmc_dma_state::align : dmc_dma_state::get;
 			return;
 
 		case dmc_dma_state::align:
 			read_byte(dmc_dma_cpu_address_);
-
 			dmc_dma_state_ = dmc_dma_state::get;
 			return;
 
@@ -1057,9 +1051,7 @@ clock()
 		assert(cycle_ < 10);
 
 		if (cycle_ == 0) {
-			const uint8_t next_op =
-				read_byte(PC.raw);
-
+			const uint8_t next_op = read_byte(PC.raw);
 			cycle_0(next_op);
 		} else {
 			execute_opcode();

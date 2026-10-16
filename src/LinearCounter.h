@@ -6,7 +6,8 @@
 namespace nes::apu {
 
 // Triangle-channel linear counter controlling whether waveform sequencing may advance.
-class LinearCounter {
+class LinearCounter
+{
 	public:
 	uint8_t value() const { return value_; }
 	void clock();
@@ -20,6 +21,7 @@ class LinearCounter {
 	uint8_t control_ = 0;
 	bool reload_     = false;
 };
+
 
 }
 

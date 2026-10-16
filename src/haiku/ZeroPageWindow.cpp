@@ -21,7 +21,7 @@ ZeroPageWindow::ZeroPageWindow(PretendoWindow* parent)
 	fView = new ZeroPageView(Bounds(), parent);
 	AddChild(fView);
 
-	SetPulseRate(100000);
+	SetPulseRate(100000);	// we can be a little casual...
 }
 
 

@@ -10,21 +10,22 @@
 
 namespace nes::apu {
 
-class Noise {
-public:
+class Noise
+{
+	public:
 	void enable();
 	void disable();
 	void set_enabled(bool value);
 
-public:
-	void write_reg0(uint8_t value);
-	void write_reg2(uint8_t value);
-	void write_reg3(uint8_t value);
+	public:
+	void write_reg0 (uint8_t value);
+	void write_reg2 (uint8_t value);
+	void write_reg3 (uint8_t value);
 
-public:
+	public:
 	bool enabled() const;
 
-public:
+	public:
 	void tick();
 	uint8_t output() const;
 	
@@ -37,7 +38,7 @@ public:
 	}
 	
 
-public:
+	public:
 	uint16_t debug_timer_period() const {
 		return timer_.frequency;
 	}
@@ -60,16 +61,17 @@ public:
 	}
 	
 	
-public:
+	public:
 	LengthCounter length_counter;
 	Envelope envelope;
 
-private:
+	private:
 	bool enabled_ = false;
 	Timer timer_;
 	LFSR lfsr_;
 	bool channel_muted_ = false;
 };
+
 
 }
 

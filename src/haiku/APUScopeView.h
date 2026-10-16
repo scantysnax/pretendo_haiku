@@ -28,6 +28,7 @@ class APUScopeView : public BView
 	virtual void Draw (BRect updateRect);
 	virtual void Pulse();
 	virtual void KeyDown (const char *bytes, int32 numBytes);
+	virtual void MouseDown (BPoint where);
 
 	private:
 	bool HasROMLoaded() const;
@@ -66,6 +67,9 @@ class APUScopeView : public BView
 	private:
 	bool fChannelVisible[6] = { true, true, true, true, true, true };
 	int32 fSoloChannel = -1;
+	
+	private:
+	float fTriggerPosition = 0.25f;
 };
 
 

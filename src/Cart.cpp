@@ -63,7 +63,7 @@ create_mask (uint32_t size)
 //   true if the supplied value is a power of two.
 // -----------------------------------------------------------------------------
 constexpr bool 
-is_power_of_2(size_t size)
+is_power_of_2 (size_t size)
 {
 	return (size & (size - 1)) == 0;
 }
@@ -90,7 +90,7 @@ is_power_of_2(size_t size)
 //   true if the ROM was loaded and initialized successfully.
 // -----------------------------------------------------------------------------
 bool
-Cart::load(const std::string &s)
+Cart::load (const std::string &s)
 {
 	std::cout
 		<< "[Cart::load] loading '"
@@ -171,35 +171,18 @@ Cart::load(const std::string &s)
 		 *
 		 * This matches the SHA-1 values stored in nescarts.xml.
 		 */
-		std::vector<uint8_t> image =
-			raw_image();
-
-		hash::sha1 h(
-			image.begin(),
-			image.end());
-
-		auto digest =
-			h.finalize();
-
-		std::string sha1 =
-			digest.to_string();
-
-		std::transform(
-			sha1.begin(),
-			sha1.end(),
-			sha1.begin(),
-			[](unsigned char c) {
-				return static_cast<char>(
-					std::toupper(c));
-			});
+		std::vector<uint8_t> image = raw_image();
+		hash::sha1 h(image.begin(), image.end());
+		auto digest = h.finalize();
+		std::string sha1 = digest.to_string();
+		std::transform(sha1.begin(), sha1.end(), sha1.begin(), [](unsigned char c) {
+					   return static_cast<char>(std::toupper(c));
+					   });
 
 		/*
 		 * Look up board/chip information from the ROM database.
 		 */
-		const ROMDatabase::Entry db_entry =
-			ROMDatabase::LookupBySHA1(
-				Settings::romDatabasePath(),
-				sha1);
+		const ROMDatabase::Entry db_entry = ROMDatabase::LookupBySHA1(Settings::romDatabasePath(), sha1);
 
 		if (db_entry.found) {
 			std::cout
@@ -237,13 +220,15 @@ Cart::load(const std::string &s)
 		/*
 		 * Warn about unusual ROM sizes.
 		 */
-		if (!is_power_of_2(rom_->prg_size())) {
+		if (!is_power_of_2(rom_->prg_size()))
+		{
 			std::cout
 				<< "WARNING: PRG size is not a power of 2, this is unusual"
 				<< std::endl;
 		}
 
-		if (!is_power_of_2(rom_->chr_size())) {
+		if (!is_power_of_2(rom_->chr_size()))
+		{
 			std::cout
 				<< "WARNING: CHR size is not a power of 2, this is unusual"
 				<< std::endl;
@@ -256,11 +241,7 @@ Cart::load(const std::string &s)
 		 * factory.  For legacy mapper 23 ROMs, database metadata may be used
 		 * to distinguish the VRC hardware variant.
 		 */
-		mapper_ =
-			Mapper::create_mapper(
-				rom_->header()->mapper(),
-				rom_->header()->submapper(),
-				db_entry.found ? &db_entry : nullptr);
+		mapper_ = Mapper::create_mapper(rom_->header()->mapper(), rom_->header()->submapper(), db_entry.found ? &db_entry : nullptr);
 
 		return true;
 	} catch (const iNES::ines_error &e) {

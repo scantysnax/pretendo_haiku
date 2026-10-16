@@ -1147,6 +1147,31 @@ PretendoWindow::OnFreeROM()
 
 	nes::cart.unload();
 
+		/*
+	 * The cartridge is now gone, so remove any mapper-dependent
+	 * expansion-audio tabs from the APU debugger windows.
+	 */
+	if (fAPUExplorerWindow != nullptr) {
+		if (fAPUExplorerWindow->Lock()) {
+			fAPUExplorerWindow->UpdateExpansionTab();
+			fAPUExplorerWindow->Unlock();
+		}
+	}
+
+	if (fAPUStatusWindow != nullptr) {
+		if (fAPUStatusWindow->Lock()) {
+			fAPUStatusWindow->UpdateExpansionTab();
+			fAPUStatusWindow->Unlock();
+		}
+	}
+
+	if (fAPUScopeWindow != nullptr) {
+		if (fAPUScopeWindow->Lock()) {
+			fAPUScopeWindow->UpdateExpansionTab();
+			fAPUScopeWindow->Unlock();
+		}
+	}
+
 	ClearVideoView();
 
 	nes::cpu::debug_clear_instruction_trace();
@@ -4992,7 +5017,7 @@ PretendoWindow::DebugStepInstruction()
 // -----------------------------------------------------------------------------
 // PretendoWindow::LoadROMPath
 //
-// Loads a ROM from a filesystem path using the shared ROM-load path.  This keeps
+// Loads a ROM from a filesystem path using the shared ROM-load path. This keeps
 // manual loads, recent-document loads, and future drag/drop loads consistent.
 //
 // Parameters:
@@ -5043,6 +5068,31 @@ PretendoWindow::LoadROMPath (const char* path)
 		}
 	}
 
+	/*
+	 * The new mapper is now installed and reset. Synchronize the APU
+	 * debugger expansion-audio tabs with the new cartridge.
+	 */
+	if (fAPUExplorerWindow != nullptr) {
+		if (fAPUExplorerWindow->Lock()) {
+			fAPUExplorerWindow->UpdateExpansionTab();
+			fAPUExplorerWindow->Unlock();
+		}
+	}
+	
+	if (fAPUStatusWindow != nullptr) {
+		if (fAPUStatusWindow->Lock()) {
+			fAPUStatusWindow->UpdateExpansionTab();
+			fAPUStatusWindow->Unlock();
+		}
+	}
+
+	if (fAPUScopeWindow != nullptr) {
+		if (fAPUScopeWindow->Lock()) {
+			fAPUScopeWindow->UpdateExpansionTab();
+			fAPUScopeWindow->Unlock();
+		}
+	}
+	
 	InvalidateDebugViews();
 	ResetCPUDisasmWindow(fCPUDisasmWindow);
 	ResetAPUFrameSequencerWindow(fAPUFrameSequencerWindow);

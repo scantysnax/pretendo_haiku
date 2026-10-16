@@ -17,7 +17,9 @@ namespace nes::apu {
 // Returns:
 //   Current 4-bit envelope volume.
 // -----------------------------------------------------------------------------
-uint8_t Envelope::volume() const {
+uint8_t
+Envelope::volume() const 
+{
 	if (control_ & 0x10) {
 		return control_ & 0x0f;
 	} else {
@@ -37,7 +39,8 @@ uint8_t Envelope::volume() const {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void Envelope::set_control(uint8_t value) {
+void Envelope::set_control(uint8_t value)
+{
 	control_ = value;
 }
 
@@ -53,7 +56,8 @@ void Envelope::set_control(uint8_t value) {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void Envelope::start() {
+void Envelope::start()
+{
 	start_ = true;
 }
 
@@ -72,7 +76,8 @@ void Envelope::start() {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void Envelope::clock() {
+void Envelope::clock()
+{
 	if (!start_) {
 		clock_divider();
 	} else {
@@ -98,8 +103,8 @@ void Envelope::clock() {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void Envelope::clock_divider() {
-
+void Envelope::clock_divider()
+{
 	if (--divider_ == 0) {
 		divider_ = (control_ & 0x0f) + 1;
 		if (counter_) {

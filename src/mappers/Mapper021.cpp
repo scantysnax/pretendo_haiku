@@ -23,7 +23,7 @@ namespace {
 //   Equivalent canonical VRC4 address.
 // -----------------------------------------------------------------------------
 uint_least16_t
-translate_vrc4a_address(uint_least16_t address)
+translate_vrc4a_address (uint_least16_t address)
 {
 	const uint_least16_t selector = address & 0x0006;
 
@@ -51,7 +51,7 @@ translate_vrc4a_address(uint_least16_t address)
 //   Equivalent canonical VRC4 address.
 // -----------------------------------------------------------------------------
 uint_least16_t
-translate_vrc4c_address(uint_least16_t address)
+translate_vrc4c_address (uint_least16_t address)
 {
 	const uint_least16_t selector = address & 0x00c0;
 

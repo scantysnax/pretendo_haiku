@@ -75,6 +75,7 @@ void
 write_2 (uint_least16_t address, uint8_t value)
 {
 	nes::cart.mapper()->write_2(address, value);
+	
 	switch (address & 0x07) {
 	case 0x00:
 		nes::ppu::write2000(value);
@@ -126,6 +127,7 @@ void
 write_3(uint_least16_t address, uint8_t value)
 {
 	nes::cart.mapper()->write_3(address, value);
+	
 	switch (address & 0x07) {
 	case 0x00:
 		nes::ppu::write2000(value);
@@ -177,6 +179,7 @@ void
 write_4 (uint_least16_t address, uint8_t value)
 {
 	nes::cart.mapper()->write_4(address, value);
+	
 	switch (address) {
 	case 0x4000:
 		nes::apu::write4000(value);
@@ -896,7 +899,8 @@ write_memory (uint_least16_t address, uint8_t value)
 //   Byte value read from the selected CPU memory region.
 // -----------------------------------------------------------------------------
 uint8_t
-read_memory (uint_least16_t address) {
+read_memory (uint_least16_t address)
+{
 	switch ((address >> 12) & 0xf) {
 	case 0x0:
 		return read_0(address);

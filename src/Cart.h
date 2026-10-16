@@ -1,3 +1,4 @@
+
 #ifndef _CART_H_
 #define _CART_H_
 
@@ -10,7 +11,8 @@
 
 
 // Loaded NES cartridge image, mapper, ROM data, hashes, and mirroring state.
-class Cart {
+class Cart
+{
 	public:
 	enum cart_mirroring {
 		MIR_VERTICAL,
@@ -23,7 +25,7 @@ class Cart {
 
 	public:
 	const std::string &filename() const;
-	bool load(const std::string &s);
+	bool load (const std::string &s);
 	void unload();
 	bool has_chr_rom() const;
 	uint32_t prg_mask() const;

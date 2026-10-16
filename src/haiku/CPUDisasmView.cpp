@@ -70,8 +70,7 @@ class CPUDisasmScrollBar : public BScrollBar
 //   Nothing.
 // -----------------------------------------------------------------------------
 CPUDisasmView::CPUDisasmView (BRect frame, PretendoWindow *parent)
-	: BView(frame, "cpu_disasm_view", B_FOLLOW_ALL_SIDES,
-			B_WILL_DRAW | B_PULSE_NEEDED | B_FRAME_EVENTS)
+	: BView(frame, "cpu_disasm_view", B_FOLLOW_ALL_SIDES, B_WILL_DRAW | B_PULSE_NEEDED | B_FRAME_EVENTS)
 {
 	fParent = parent;
 

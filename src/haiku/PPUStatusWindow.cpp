@@ -15,9 +15,8 @@
 // -----------------------------------------------------------------------------
 PPUStatusWindow::PPUStatusWindow(PretendoWindow *parent)
 	: BWindow(
-		BRect(260.0f, 260.0f, 640.0f, 885.0f),
-		"PPU Status", 
-		B_FLOATING_WINDOW_LOOK, B_NORMAL_WINDOW_FEEL,B_NOT_RESIZABLE | B_NOT_ZOOMABLE)
+		BRect(260.0f, 260.0f, 640.0f, 885.0f), "PPU Status", B_FLOATING_WINDOW_LOOK, 
+		B_NORMAL_WINDOW_FEEL,B_NOT_RESIZABLE | B_NOT_ZOOMABLE)
 {
 	fParent = parent;
 

@@ -20,8 +20,9 @@ union DMCControl {
 // NES APU delta modulation channel.
 
 
-class DMC {
-public:
+class DMC
+{
+	public:
 	// Channel enable/disable control.
 	void enable();
 	void disable();

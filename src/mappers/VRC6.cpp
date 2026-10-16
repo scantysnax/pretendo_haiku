@@ -1,6 +1,12 @@
-
 #include "VRC6.h"
 #include "Cpu.h"
+
+
+namespace {
+
+constexpr double kVRC6NTSCClock = 1789773.0;
+
+}
 
 // -----------------------------------------------------------------------------
 // VRC6::PulseChannel::write_control
@@ -527,17 +533,20 @@ VRC6::write_a (uint_least16_t address, uint8_t value)
 // -----------------------------------------------------------------------------
 // VRC6::write_b
 //
-// Handles VRC6 sawtooth-audio and mirroring-control register writes.
+// Handles VRC6 sawtooth-audio and mapper-control register writes.
 //
-// $B000-$B002 program the sawtooth channel. $B003 retains the mapper's existing
-// mirroring behavior.
+// $B000-$B002 program the sawtooth channel. $B003 controls nametable
+// mirroring and enables or disables PRG RAM at $6000-$7FFF.
 //
 // Parameters:
 //   address - CPU address being written.
 //   value   - Value written to the selected register.
+//
+// Returns:
+//   Nothing.
 // -----------------------------------------------------------------------------
 void
-VRC6::write_b (uint_least16_t address, uint8_t value)
+VRC6::write_b(uint_least16_t address, uint8_t value)
 {
 	switch (address & 0xf003) {
 	case 0xb000:
@@ -553,6 +562,9 @@ VRC6::write_b (uint_least16_t address, uint8_t value)
 		break;
 
 	case 0xb003:
+		wram_enabled_ = (value & 0x80) != 0;
+		debug_set_prg_ram(wram_enabled_, wram_enabled_, 0);
+
 		switch ((value >> 2) & 0x03) {
 		case 0x00:
 			set_mirroring(mirror_vertical);
@@ -573,6 +585,7 @@ VRC6::write_b (uint_least16_t address, uint8_t value)
 		break;
 	}
 }
+
 
 // -----------------------------------------------------------------------------
 // VRC6::write_c
@@ -703,7 +716,6 @@ VRC6::write_f (uint_least16_t address, uint8_t value)
 
 	case 0xf002:
 		nes::cpu::clear_irq(nes::cpu::MAPPER_IRQ);
-
 		irq_control_.enabled = irq_control_.a;
 		break;
 	}
@@ -779,5 +791,326 @@ uint8_t
 VRC6::audio_output() const
 {
 	return static_cast<uint8_t>(pulse1_.output() + pulse2_.output() + saw_.output());
+}
+
+
+// -----------------------------------------------------------------------------
+// VRC6::debug_audio_scope_sample
+//
+// Returns the instantaneous output level of each VRC6 expansion-audio channel
+// for oscilloscope capture.
+//
+// Channel order is stable and matches the VRC6 debugger channel order:
+//
+//   0 - Pulse 1
+//   1 - Pulse 2
+//   2 - Saw
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Current per-channel VRC6 oscilloscope sample.
+// -----------------------------------------------------------------------------
+mapper_audio_scope_sample_t
+VRC6::debug_audio_scope_sample() const
+{
+	mapper_audio_scope_sample_t sample;
+
+	sample.channel_count = 3;
+
+	sample.channels[0] = pulse1_.output();
+	sample.channels[1] = pulse2_.output();
+	sample.channels[2] = saw_.output();
+
+	return sample;
+}
+
+
+// -----------------------------------------------------------------------------
+// VRC6::debug_audio_state
+//
+// Returns debugger-facing state for the VRC6 expansion-audio channels.
+//
+// The snapshot includes mapper-wide frequency-control state from $9003,
+// generic combined-output information, normalized output percentages,
+// mapper-calculated channel frequencies, and the live state of both pulse
+// channels and the sawtooth channel.
+//
+// Returns:
+//   Current VRC6 expansion-audio debug state.
+// -----------------------------------------------------------------------------
+mapper_audio_debug_state_t
+VRC6::debug_audio_state() const
+{
+	mapper_audio_debug_state_t state;
+
+	state.type = ExpansionAudioType::VRC6;
+	state.name = "VRC6";
+
+	state.output = static_cast<uint32_t>(pulse1_.output() + pulse2_.output() + saw_.output());
+
+	state.output_maximum = 61;
+
+
+	// -------------------------------------------------------------------------
+	// Global VRC6 audio state
+	// -------------------------------------------------------------------------
+
+	state.field_count = 6;
+
+	state.fields[0].label = "Frequency Control";
+	state.fields[0].value = frequency_control_;
+	state.fields[0].type = mapper_audio_debug_field_type::Hex;
+
+	state.fields[1].label = "Halt";
+	state.fields[1].value = (frequency_control_ & 0x01) != 0;
+	state.fields[1].type = mapper_audio_debug_field_type::Boolean;
+
+	state.fields[2].label = "16x Frequency";
+	state.fields[2].value = (frequency_control_ & 0x02) != 0;
+	state.fields[2].type = mapper_audio_debug_field_type::Timing;
+
+	state.fields[3].label = "256x Frequency";
+	state.fields[3].value = (frequency_control_ & 0x04) != 0;
+	state.fields[3].type = mapper_audio_debug_field_type::Timing;
+
+	state.fields[4].label = "Combined Output";
+	state.fields[4].value = state.output;
+	state.fields[4].type = mapper_audio_debug_field_type::Output;
+
+	state.fields[5].label = "Output Level";
+	state.fields[5].value = state.output;
+	state.fields[5].maximum = state.output_maximum;
+	state.fields[5].type = mapper_audio_debug_field_type::Percent;
+
+
+	// -------------------------------------------------------------------------
+	// Shared frequency-control state
+	// -------------------------------------------------------------------------
+
+	const bool halted = (frequency_control_ & 0x01) != 0;
+
+	auto effective_period =
+		[this](uint16_t period) -> uint16_t {
+			if (frequency_control_ & 0x04) {
+				return period >> 8;
+			}
+
+			if (frequency_control_ & 0x02) {
+				return period >> 4;
+			}
+
+			return period;
+		};
+
+
+	// -------------------------------------------------------------------------
+	// Pulse 1
+	// -------------------------------------------------------------------------
+
+	state.channel_count = 3;
+
+	state.channels[0].name = "VRC6 Pulse 1";
+	state.channels[0].period = pulse1_.period;
+	state.channels[0].output = pulse1_.output();
+	state.channels[0].output_maximum = 15;
+	state.channels[0].enabled = pulse1_.enabled;
+	state.channels[0].halted = halted;
+
+	if (!halted) {
+		const uint16_t period = effective_period(pulse1_.period);
+
+		state.channels[0].frequency_hz = kVRC6NTSCClock / 
+										 (16.0 * (static_cast<double>(period) + 1.0));
+
+		state.channels[0].frequency_valid = true;
+	}
+
+	state.channels[0].field_count = 7;
+
+	state.channels[0].fields[0].label = "Output Level";
+	state.channels[0].fields[0].value = pulse1_.output();
+	state.channels[0].fields[0].maximum = 15;
+	state.channels[0].fields[0].type = mapper_audio_debug_field_type::Percent;
+
+	state.channels[0].fields[1].label = "Volume";
+	state.channels[0].fields[1].value = pulse1_.volume;
+
+	state.channels[0].fields[2].label = "Duty";
+	state.channels[0].fields[2].value = pulse1_.duty;
+
+	state.channels[0].fields[3].label = "Duty Cycle";
+
+	switch (pulse1_.duty) {
+		case 0:
+			state.channels[0].fields[3].text = "6.25%";
+			break;
+
+		case 1:
+			state.channels[0].fields[3].text = "12.5%";
+			break;
+
+		case 2:
+			state.channels[0].fields[3].text = "18.75%";
+			break;
+
+		case 3:
+			state.channels[0].fields[3].text = "25.0%";
+			break;
+
+		case 4:
+			state.channels[0].fields[3].text = "31.25%";
+			break;
+
+		case 5:
+			state.channels[0].fields[3].text = "37.5%";
+			break;
+
+		case 6:
+			state.channels[0].fields[3].text = "43.75%";
+			break;
+
+		default:
+			state.channels[0].fields[3].text = "50.0%";
+			break;
+	}
+
+	state.channels[0].fields[3].type = mapper_audio_debug_field_type::Text;
+	state.channels[0].fields[4].label = "Mode";
+	state.channels[0].fields[4].text = pulse1_.mode ? "Constant" : "Duty";
+	state.channels[0].fields[4].type = mapper_audio_debug_field_type::Text;
+
+	state.channels[0].fields[5].label = "Timer";
+	state.channels[0].fields[5].value = pulse1_.timer;
+
+	state.channels[0].fields[6].label = "Sequence Step";
+	state.channels[0].fields[6].value = pulse1_.step;
+
+
+	// -------------------------------------------------------------------------
+	// Pulse 2
+	// -------------------------------------------------------------------------
+
+	state.channels[1].name = "VRC6 Pulse 2";
+	state.channels[1].period = pulse2_.period;
+	state.channels[1].output = pulse2_.output();
+	state.channels[1].output_maximum = 15;
+	state.channels[1].enabled = pulse2_.enabled;
+	state.channels[1].halted = halted;
+
+	if (!halted) {
+		const uint16_t period = effective_period(pulse2_.period);
+
+		state.channels[1].frequency_hz = kVRC6NTSCClock / (16.0
+										 * (static_cast<double>(period) + 1.0));
+		state.channels[1].frequency_valid = true;
+	}
+
+	state.channels[1].field_count = 7;
+
+	state.channels[1].fields[0].label = "Output Level";
+	state.channels[1].fields[0].value = pulse2_.output();
+	state.channels[1].fields[0].maximum = 15;
+	state.channels[1].fields[0].type = mapper_audio_debug_field_type::Percent;
+
+	state.channels[1].fields[1].label = "Volume";
+	state.channels[1].fields[1].value = pulse2_.volume;
+
+	state.channels[1].fields[2].label = "Duty";
+	state.channels[1].fields[2].value = pulse2_.duty;
+
+	state.channels[1].fields[3].label = "Duty Cycle";
+
+	switch (pulse2_.duty) {
+		case 0:
+			state.channels[1].fields[3].text = "6.25%";
+			break;
+
+		case 1:
+			state.channels[1].fields[3].text = "12.5%";
+			break;
+
+		case 2:
+			state.channels[1].fields[3].text = "18.75%";
+			break;
+
+		case 3:
+			state.channels[1].fields[3].text = "25.0%";
+			break;
+
+		case 4:
+			state.channels[1].fields[3].text = "31.25%";
+			break;
+
+		case 5:
+			state.channels[1].fields[3].text = "37.5%";
+			break;
+
+		case 6:
+			state.channels[1].fields[3].text = "43.75%";
+			break;
+
+		default:
+			state.channels[1].fields[3].text = "50.0%";
+			break;
+	}
+
+	state.channels[1].fields[3].type = mapper_audio_debug_field_type::Text;
+	state.channels[1].fields[4].label = "Mode";
+	state.channels[1].fields[4].text = pulse2_.mode ? "Constant" : "Duty";
+	state.channels[1].fields[4].type = mapper_audio_debug_field_type::Text;
+
+	state.channels[1].fields[5].label = "Timer";
+	state.channels[1].fields[5].value = pulse2_.timer;
+
+	state.channels[1].fields[6].label = "Sequence Step";
+	state.channels[1].fields[6].value = pulse2_.step;
+
+
+	// -------------------------------------------------------------------------
+	// Saw
+	// -------------------------------------------------------------------------
+
+	state.channels[2].name = "VRC6 Saw";
+	state.channels[2].period = saw_.period;
+	state.channels[2].output = saw_.output();
+	state.channels[2].output_maximum = 31;
+	state.channels[2].enabled = saw_.enabled;
+	state.channels[2].halted = halted;
+
+	if (!halted) {
+		const uint16_t period = effective_period(saw_.period);
+
+		state.channels[2].frequency_hz = kVRC6NTSCClock / (14.0
+										 * (static_cast<double>(period) + 1.0));
+		state.channels[2].frequency_valid = true;
+	}
+
+	state.channels[2].field_count = 7;
+	state.channels[2].fields[0].label = "Output Level";
+	state.channels[2].fields[0].value = saw_.output();
+	state.channels[2].fields[0].maximum = 31;
+	state.channels[2].fields[0].type = mapper_audio_debug_field_type::Percent;
+
+	state.channels[2].fields[1].label = "Rate";
+	state.channels[2].fields[1].value = saw_.rate;
+
+	state.channels[2].fields[2].label = "Adds / Sequence";
+	state.channels[2].fields[2].value = 6;
+
+	state.channels[2].fields[3].label = "Rate x 6";
+	state.channels[2].fields[3].value = static_cast<uint32_t>(saw_.rate) * 6;
+
+	state.channels[2].fields[4].label = "Timer";
+	state.channels[2].fields[4].value = saw_.timer;
+
+	state.channels[2].fields[5].label = "Accumulator";
+	state.channels[2].fields[5].value = saw_.accumulator;
+
+	state.channels[2].fields[6].label = "Step";
+	state.channels[2].fields[6].value = saw_.step;	
+
+	return state;
 }
 

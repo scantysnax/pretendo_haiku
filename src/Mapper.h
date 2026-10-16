@@ -1,4 +1,3 @@
-
 #ifndef _MAPPER_H_
 #define _MAPPER_H_
 
@@ -8,6 +7,7 @@
 #include "ROMDatabase.h"
 #include "VRAMBank.h"
 
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <map>
@@ -22,6 +22,7 @@ enum class MapperDebugMemoryType {
 	CHRROM,
 	CHRRAM
 };
+
 
 enum class MapperDebugMirroring {
 	Unknown,
@@ -50,8 +51,140 @@ struct mapper_debug_state_t {
 	mapper_debug_bank_t chr[8];
 
 	MapperDebugMirroring mirroring = MapperDebugMirroring::Unknown;
-	
+
 	uint64_t revision = 0;
+};
+
+
+// -----------------------------------------------------------------------------
+// ExpansionAudioType
+//
+// Identifies the type of mapper-provided expansion-audio hardware represented
+// by a mapper audio debugger snapshot.
+//
+// None indicates that the mapper does not provide expansion audio.
+// -----------------------------------------------------------------------------
+enum class ExpansionAudioType {
+	None,
+	VRC6
+};
+
+
+// -----------------------------------------------------------------------------
+// mapper_audio_debug_field_type
+//
+// Describes how an additional expansion-audio debugger field should be
+// interpreted by the debugger UI.
+//
+// Value represents an ordinary numeric value. Boolean represents a true/false
+// state that may be displayed using semantic state coloring.
+// -----------------------------------------------------------------------------
+enum class mapper_audio_debug_field_type {
+	Value,
+	Boolean,
+	Hex,
+	Text,
+	Output,
+	Percent,
+	Timing
+};
+
+
+// -----------------------------------------------------------------------------
+// mapper_audio_debug_field_t
+//
+// Describes one mapper-provided expansion-audio debugger field.
+//
+// Mapper-specific audio implementations use these fields to expose additional
+// channel state without requiring the generic debugger interface to know about
+// chip-specific concepts such as VRC6 duty, accumulator, or saw step.
+//
+// The label is static descriptive text owned by the mapper implementation.
+// -----------------------------------------------------------------------------
+struct mapper_audio_debug_field_t {
+	const char *label = nullptr;
+
+	uint32_t value = 0;
+	uint32_t maximum = 100;
+
+	const char *text = nullptr;
+
+	mapper_audio_debug_field_type type = mapper_audio_debug_field_type::Value;
+};
+
+// -----------------------------------------------------------------------------
+// mapper_audio_channel_debug_t
+//
+// Describes one mapper-provided expansion-audio channel.
+//
+// The common enabled, period, and output values are available directly.
+// Additional mapper-specific channel information is exposed through fields[].
+// -----------------------------------------------------------------------------
+struct mapper_audio_channel_debug_t {
+	std::string name;
+
+	uint16_t period = 0;
+	uint8_t output = 0;
+	uint8_t output_maximum = 0;
+
+	double frequency_hz = 0.0;
+	bool frequency_valid = false;
+	bool halted = false;
+
+	bool enabled = false;
+
+	mapper_audio_debug_field_t fields[8];
+	size_t field_count = 0;
+};
+
+
+// -----------------------------------------------------------------------------
+// mapper_audio_debug_state_t
+//
+// Snapshot of the expansion-audio state exposed by a mapper.
+//
+// Mappers without expansion audio return the default empty state. Expansion
+// audio implementations populate the hardware type, optional mapper-wide
+// fields, and one or more channels.
+//
+// Mapper-wide fields describe expansion-audio state that affects the whole
+// device rather than one individual channel.
+//
+// Examples include VRC6 frequency-control state from $9003.
+//
+// -----------------------------------------------------------------------------
+struct mapper_audio_debug_state_t {
+	ExpansionAudioType type = ExpansionAudioType::None;
+
+	std::string name;
+
+	uint32_t output = 0;
+	uint32_t output_maximum = 0;
+
+	mapper_audio_debug_field_t fields[8];
+	size_t field_count = 0;
+
+	mapper_audio_channel_debug_t channels[3];
+	size_t channel_count = 0;
+};
+
+
+
+
+// -----------------------------------------------------------------------------
+// mapper_audio_scope_sample_t
+//
+// Describes one instantaneous mapper-provided expansion-audio oscilloscope
+// sample.
+//
+// channels[] contains the current raw output level of each expansion-audio
+// channel. channel_count identifies how many entries are valid.
+//
+// Mappers without expansion audio return the default empty sample.
+// -----------------------------------------------------------------------------
+struct mapper_audio_scope_sample_t {
+	uint8_t channels[8] = {};
+	size_t channel_count = 0;
 };
 
 
@@ -75,7 +208,6 @@ class Mapper
 	virtual void save() {}
 	virtual void restore() {}
 	virtual std::string name() const = 0;
-	virtual void reset() {}
 
 	// debugger-facing resolved mapper state
 	mapper_debug_state_t debug_state() const;
@@ -128,7 +260,13 @@ class Mapper
 	virtual void cpu_sync();
 	virtual void ppu_end_frame();
 	virtual void vram_change_hook(uint_least16_t vram_address);
-	
+
+	// mapper lifecycle reset hook
+	virtual void reset()
+	{
+	}
+
+
 // -----------------------------------------------------------------------------
 // audio_output
 //
@@ -144,6 +282,44 @@ virtual uint8_t audio_output() const
 {
 	return 0;
 }
+
+
+// -----------------------------------------------------------------------------
+// debug_audio_state
+//
+// Returns debugger-facing state for mapper-provided expansion audio.
+//
+// Mappers without expansion-audio hardware return an empty state. Mapper
+// implementations that provide additional audio channels override this method
+// and expose their current channel state.
+//
+// Returns:
+//   Current mapper expansion-audio debug state.
+// -----------------------------------------------------------------------------
+virtual mapper_audio_debug_state_t debug_audio_state() const
+{
+	return {};
+}
+
+
+
+// -----------------------------------------------------------------------------
+// debug_audio_scope_sample
+//
+// Returns instantaneous per-channel expansion-audio output levels for the
+// debugger oscilloscope.
+//
+// Mappers without expansion-audio hardware return an empty sample. Mapper
+// implementations that provide additional audio channels override this method.
+//
+// Returns:
+//   Current mapper expansion-audio oscilloscope sample.
+// -----------------------------------------------------------------------------
+virtual mapper_audio_scope_sample_t debug_audio_scope_sample() const
+{
+	return {};
+}
+
 
 	protected:
 	uint8_t read_memory (uint_least16_t address);
@@ -215,7 +391,7 @@ virtual uint8_t audio_output() const
 	protected:
 	void set_mirroring(uint8_t mir);
 	void debug_set_mirroring_unknown();
-	
+
 	// Records the debugger-visible state of the $6000-$7FFF PRG-RAM region.
 	void debug_set_prg_ram (bool enabled, bool writable = true, uint32_t bank = 0);
 
@@ -268,7 +444,7 @@ virtual uint8_t audio_output() const
 		page_[0x0f] = nullptr;
 
 		debug_set_prg_bank(0, 0x6000, 0, MapperDebugMemoryType::Unmapped, false, false);
-}
+	}
 
 	void unmap_89()
 	{
@@ -319,11 +495,13 @@ virtual uint8_t audio_output() const
 
 	public:
 	// Update one resolved PRG mapping slot for debugger inspection.
-	void debug_set_prg_bank (int slot, uint16_t address, uint32_t bank, MapperDebugMemoryType type,
+	void debug_set_prg_bank (int slot, uint16_t address, uint32_t bank,
+							 MapperDebugMemoryType type,
 							 bool readable = true, bool writable = false);
 
 	// Update one resolved CHR mapping slot for debugger inspection.
-	void debug_set_chr_bank (int slot, uint16_t address, uint32_t bank, MapperDebugMemoryType type);
+	void debug_set_chr_bank (int slot, uint16_t address, uint32_t bank,
+							 MapperDebugMemoryType type);
 
 	private:
 	constexpr static unsigned int PageCount = 32;

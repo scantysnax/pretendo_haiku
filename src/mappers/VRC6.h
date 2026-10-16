@@ -1,9 +1,9 @@
-
 #ifndef _VRC6_H_
 #define _VRC6_H_
 
 #include "BitField.h"
 #include "Mapper.h"
+
 
 // Konami VRC-6
 class VRC6 : public Mapper
@@ -37,17 +37,16 @@ class VRC6 : public Mapper
 	};
 
 
-	
-// -------------------------------------------------------------------------
-// SawChannel
-//
-// Represents the VRC6 sawtooth audio channel.
-//
-// The channel uses a 12-bit timer and a 14-step sequence. On every second
-// sequencer step, the programmed 6-bit rate is added to an 8-bit accumulator.
-// After six additions, the next pair of sequencer steps begins by clearing the
-// accumulator.
-// -------------------------------------------------------------------------
+	// -------------------------------------------------------------------------
+	// SawChannel
+	//
+	// Represents the VRC6 sawtooth audio channel.
+	//
+	// The channel uses a 12-bit timer and a 14-step sequence. On every second
+	// sequencer step, the programmed 6-bit rate is added to an 8-bit accumulator.
+	// After six additions, the next pair of sequencer steps begins by clearing the
+	// accumulator.
+	// -------------------------------------------------------------------------
 	struct SawChannel {
 		uint8_t rate = 0;
 		bool enabled = false;
@@ -82,7 +81,7 @@ class VRC6 : public Mapper
 	void write_d (uint_least16_t address, uint8_t value) override;
 	void write_e (uint_least16_t address, uint8_t value) override;
 	void write_f (uint_least16_t address, uint8_t value) override;
-	
+
 	public:
 	uint8_t read_6 (uint_least16_t address) override;
 	uint8_t read_7 (uint_least16_t address) override;
@@ -95,6 +94,8 @@ class VRC6 : public Mapper
 	void reset() override;
 
 	uint8_t audio_output() const override;
+	mapper_audio_debug_state_t debug_audio_state() const override;
+	mapper_audio_scope_sample_t debug_audio_scope_sample() const override;
 
 	private:
 	void clock_irq();
@@ -102,7 +103,7 @@ class VRC6 : public Mapper
 	private:
 	uint8_t wram_[0x2000] = {};
 	bool wram_enabled_ = false;
-	
+
 	PulseChannel pulse1_;
 	PulseChannel pulse2_;
 	SawChannel saw_;

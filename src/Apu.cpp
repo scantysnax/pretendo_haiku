@@ -113,6 +113,10 @@ size_t sample_buffer_end   = 0;
 // Most recently emitted host PCM sample, used when the buffer runs short.
 static uint8_t sLastOutputSample = kSilence;
 
+// Most recently generated native APU mixer level before mapper expansion audio
+// and before the DC-blocking filter. Used only by debugger views.
+static uint8_t sDebugNativeOutput = 0;
+
 
 // Rolling APU register-write log and ring-buffer bookkeeping.
 static nes::apu::write_log_entry_t write_log_[nes::apu::APU_WRITE_LOG_CAPACITY];
@@ -257,11 +261,12 @@ log_write (uint16_t address, uint8_t value)
 // capture_scope_sample
 //
 // Captures one debugger oscilloscope sample containing the instantaneous output
-// level of each APU channel together with the already-generated mixed PCM
-// sample.
+// level of each native APU channel, mapper-provided expansion-audio channels,
+// the mapper's combined expansion-audio output, and the already-generated mixed
+// PCM sample.
 //
 // The mixed sample is supplied by the normal APU audio-generation path rather
-// than generated here.  This is important because mix_channels() contains a
+// than generated here. This is important because mix_channels() contains a
 // stateful DC-blocking filter and must only be called once for each output
 // sample.
 //
@@ -275,21 +280,51 @@ static void
 capture_scope_sample (uint8_t mixedSample)
 {
 	scope_sample_t &sample = scope_samples_[scope_sample_next_];
-	
+
 	sample.square1 = square_0.debug_output();
 	sample.square2 = square_1.debug_output();
 	sample.triangle = triangle.output();
 	sample.noise = noise.debug_output();
 	sample.dmc = dmc.output();
 
-	sample.mixed = static_cast<float>(mixedSample);
+	/*
+	 * Clear mapper-provided channel data before capturing the current sample.
+	 *
+	 * The scope history is a ring buffer, so this slot may contain expansion
+	 * channels from an earlier sample or even from a previously loaded mapper.
+	 */
+	for (size_t index = 0;
+		 index < APU_SCOPE_EXPANSION_CHANNEL_CAPACITY; ++index) {
+		sample.expansion[index] = 0;
+	}
 
+	sample.expansion_channel_count = 0;
+	sample.expansion_total = 0;
+
+	if (nes::cart.mapper() != nullptr) {
+		const mapper_audio_scope_sample_t expansionSample = nes::cart.mapper()->debug_audio_scope_sample();
+		size_t channelCount = expansionSample.channel_count;
+
+		if (channelCount > APU_SCOPE_EXPANSION_CHANNEL_CAPACITY) {
+			channelCount = APU_SCOPE_EXPANSION_CHANNEL_CAPACITY;
+		}
+
+		for (size_t index = 0; index < channelCount; ++index) {
+			sample.expansion[index] = expansionSample.channels[index];
+		}
+
+		sample.expansion_channel_count = channelCount;
+		sample.expansion_total = nes::cart.mapper()->audio_output();
+	}
+
+	sample.mixed = static_cast<float>(mixedSample);
 	scope_sample_next_ = (scope_sample_next_ + 1) % APU_SCOPE_SAMPLE_CAPACITY;
 
 	if (scope_sample_count_ < APU_SCOPE_SAMPLE_CAPACITY) {
 		scope_sample_count_++;
 	}
 }
+
 
 // -----------------------------------------------------------------------------
 // nes::apu::debug_scope_snapshot
@@ -624,8 +659,11 @@ clock_frame_mode_1()
 //
 // Mixes the native NES APU channels together with mapper expansion audio.
 //
-// The mixed signal is passed through a one-pole DC-blocking high-pass filter
-// and then centered around unsigned 8-bit PCM silence.
+// The current native APU mixer level is cached for debugger display before
+// mapper expansion audio is applied and before the stateful DC-blocking filter.
+//
+// The final mixed signal is passed through a one-pole DC-blocking high-pass
+// filter and then centered around unsigned 8-bit PCM silence.
 //
 // Parameters:
 //   None.
@@ -643,7 +681,18 @@ mix_channels()
 	const int32_t dmcOut = dmc.output();
 
 	const double squareOut = 0.00752 * (square1Out + square2Out);
+
 	const double tndOut = 0.00851 * triangleOut + 0.00494 * noiseOut + 0.00335 * dmcOut;
+
+	/*
+	 * Preserve the native APU contribution for debugger views.
+	 *
+	 * This is intentionally captured before mapper expansion audio and before
+	 * the DC-blocking filter so the Native APU Explorer reports only the five
+	 * built-in NES channels.
+	 */
+	const int32_t nativeOutput = static_cast<int32_t>((squareOut + tndOut) * 255.0);
+	sDebugNativeOutput = static_cast<uint8_t>(std::clamp(nativeOutput, 0, 217));
 	double expansionOut = 0.0;
 
 	if (nes::cart.mapper() != nullptr) {
@@ -651,15 +700,14 @@ mix_channels()
 	}
 
 	/*
- 	* One-pole DC-blocking high-pass filter.
- 	*
- 	* Removes the steady DC component from the mixed signal while preserving
- 	* audible changes. The previous input and output samples are retained so the
- 	* filter can distinguish a constant offset from actual waveform movement.
- 	*
- 	*     y[n] = x[n] - x[n - 1] + R * y[n - 1]
- 	*/
-
+	 * One-pole DC-blocking high-pass filter.
+	 *
+	 * Removes the steady DC component from the mixed signal while preserving
+	 * audible changes. The previous input and output samples are retained so the
+	 * filter can distinguish a constant offset from actual waveform movement.
+	 *
+	 *     y[n] = x[n] - x[n - 1] + R * y[n - 1]
+	 */
 	const double input = (squareOut + tndOut - expansionOut) * 255.0;
 	constexpr double R = 0.995;
 	const double output = input - sDCBlockPreviousInput + R * sDCBlockPreviousOutput;
@@ -703,8 +751,8 @@ reset (reset_type type)
 	sample_buffer_end   = 0;
 
 	sLastOutputSample = kSilence;
-
-	sDCBlockPreviousInput  = 0.0;
+	sDebugNativeOutput = 0;
+	sDCBlockPreviousInput = 0.0;
 	sDCBlockPreviousOutput = 0.0;
 
 	debug_clear_scope();
@@ -1520,8 +1568,8 @@ unmute_channel (int const channel)
 // -----------------------------------------------------------------------------
 // nes::apu::debug_state
 //
-// Returns a side-effect-free snapshot of the current APU state for debugger
-// views.
+// Returns a side-effect-free snapshot of the current APU and channel state for
+// debugger views.
 //
 // This function intentionally avoids read4015(), because reading $4015 has
 // emulation-visible side effects, including clearing the frame IRQ flag.
@@ -1544,8 +1592,9 @@ debug_state()
 	state.next_frame_cycle = next_clock_;
 	state.frame_irq = status.frame_irq;
 	state.dmc_irq = status.dmc_irq;
-
 	state.audio_muted = debug_audio_is_muted();
+	state.output = sDebugNativeOutput;
+	state.output_maximum = 217;
 
 	// square 1
 	state.square1.enabled = square_0.enabled();
@@ -1611,24 +1660,27 @@ debug_state()
 	state.dmc.bytes_remaining = dmc.bytes_remaining();
 	state.dmc.bits_remaining = dmc.debug_bits_remaining();
 	state.dmc.sample_buffer_empty = dmc.debug_sample_buffer_empty();
-	
-	// apu status (rebuilt from $4015 without reading it)
-	uint8_t status = 0x0;
+
+	/*
+	 * Rebuild $4015 status without reading the register, since read4015()
+	 * clears the frame IRQ flag.
+	 */
+	uint8_t status = 0x00;
 
 	if (state.square1.length_counter != 0) {
-		status |= 0x1;
+		status |= 0x01;
 	}
 
 	if (state.square2.length_counter != 0) {
-		status |= 0x2;
+		status |= 0x02;
 	}
 
 	if (state.triangle.length_counter != 0) {
-		status |= 0x4;
+		status |= 0x04;
 	}
 
 	if (state.noise.length_counter != 0) {
-		status |= 0x8;
+		status |= 0x08;
 	}
 
 	if (state.dmc.bytes_remaining != 0) {
@@ -1643,7 +1695,8 @@ debug_state()
 		status |= 0x80;
 	}
 
-	state.status = status;
+	state.status =
+		status;
 
 	return state;
 }

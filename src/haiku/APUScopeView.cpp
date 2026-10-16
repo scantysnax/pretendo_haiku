@@ -159,7 +159,7 @@ APUScopeView::Draw (BRect updateRect)
 	const float margin = 4.0f;
 	const float gap = 4.0f;
 	const float top = 88.0f;
-	const float bottom = Bounds().bottom - margin;
+	const float bottom = Bounds().bottom - 12.0f;
 
 	if (visiblePanelCount == 0) {
 		BFont prevFont;
@@ -424,6 +424,58 @@ APUScopeView::KeyDown (const char *bytes, int32 numBytes)
 	}
 
 	BView::KeyDown(bytes, numBytes);
+}
+
+
+// -----------------------------------------------------------------------------
+// APUScopeView::MouseDown
+//
+// Allows the trigger position to be moved horizontally with the mouse.
+//
+// When trigger mode is enabled, clicking inside the waveform area moves the
+// trigger reference position to the clicked horizontal location. The position
+// is stored as a normalized fraction of the waveform width and is shared by
+// all Native APU waveform panels.
+//
+// Parameters:
+//   where - Mouse position in view coordinates.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+APUScopeView::MouseDown (BPoint where)
+{
+	if (!fTriggerEnabled) {
+		BView::MouseDown(where);
+		return;
+	}
+
+	const float left = 4.0f + 8.0f;
+	const float right = Bounds().right - 4.0f - 8.0f;
+
+		const float width = right - left;
+		
+		if (width <= 0.0f) {
+			return;
+		}
+
+	if (where.x < left ||
+		where.x > right) {
+		return;
+	}
+
+	fTriggerPosition = (where.x - left) / width;
+
+	if (fTriggerPosition < 0.0f) {
+		fTriggerPosition = 0.0f;
+	}
+
+	if (fTriggerPosition > 1.0f) {
+		fTriggerPosition = 1.0f;
+	}
+
+	Invalidate();
 }
 
 
@@ -736,8 +788,7 @@ APUScopeView::DrawWaveformPanel (BRect panel, const char *title, scope_channel c
 				double clockRate = 0.0;
 
 				if (fDebugState.noise.timer_period != 0) {
-					clockRate = kNTSCCPUClock /
-								static_cast<double>(fDebugState.noise.timer_period);
+					clockRate = kNTSCCPUClock / static_cast<double>(fDebugState.noise.timer_period);
 				}
 
 				if (fDebugState.noise.muted) {
@@ -792,8 +843,7 @@ APUScopeView::DrawWaveformPanel (BRect panel, const char *title, scope_channel c
 			break;
 	}
 
-	::DrawDebugPanel(this, panel,
-		panelTitle.String());
+	::DrawDebugPanel(this, panel, panelTitle.String());
 
 	if (fSampleCount != 0) {
 		float minimumValue;

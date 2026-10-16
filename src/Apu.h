@@ -248,6 +248,24 @@ struct debug_state_t {
 	// Debugger-controlled host audio mute state.
 	bool audio_muted = false;
 
+	// Current native APU mixed output level before mapper expansion audio and
+	// before the DC-blocking filter.
+	uint8_t output = 0;
+
+	/* 
+	Full-scale value used by debugger output meters.
+	The 217 comes from the maximum possible level of the exact native weighting already used by this emulator:
+	
+	Square 1 + Square 2: 0.00752 *× 30
+	Triangle:            0.00851 ×* 15
+	Noise:               0.00494 *× 15
+	DMC:                 0.00335 ×* 127
+	----------------------------------
+                        		0.8528
+	0.8528 ×* 255 = ~217
+	*/
+	uint8_t output_maximum = 217;
+
 	// Square-channel debugger state.
 	square_debug_state_t square1;
 	square_debug_state_t square2;
@@ -512,25 +530,37 @@ explorer_state_t explorer_state();
 constexpr uint32_t APU_SCOPE_SAMPLE_CAPACITY = 1024;
 
 
+// Maximum number of mapper-provided expansion-audio channels retained in one
+// oscilloscope sample.
+//
+// Eight channels is sufficient for the currently anticipated expansion-audio
+// devices, including multi-channel implementations such as Namco 163.
+constexpr size_t APU_SCOPE_EXPANSION_CHANNEL_CAPACITY = 8;
+
+
 // -----------------------------------------------------------------------------
-// apu_scope_sample_t
+// scope_sample_t
 //
 // Describes one captured APU oscilloscope sample.
 //
-// The individual channel fields contain their instantaneous output levels.
-// mixed contains the final mixed unsigned PCM sample produced by the normal
-// audio path.
+// Native APU channel outputs and mapper-provided expansion-audio outputs are
+// captured at the same host-audio sampling instant.  expansion_channel_count
+// identifies how many entries in expansion[] are valid for this sample.
+//
+// mixed contains the final mixed PCM sample produced by the normal audio path.
 // -----------------------------------------------------------------------------
 struct scope_sample_t {
-	// Instantaneous channel output levels.
-	uint8_t square1;
-	uint8_t square2;
-	uint8_t triangle;
-	uint8_t noise;
-	uint8_t dmc;
+	uint8_t square1 = 0;
+	uint8_t square2 = 0;
+	uint8_t triangle = 0;
+	uint8_t noise = 0;
+	uint8_t dmc = 0;
 
-	// Final mixed PCM sample.
-	float mixed;
+	uint8_t expansion[APU_SCOPE_EXPANSION_CHANNEL_CAPACITY] = {};
+	size_t expansion_channel_count = 0;
+	uint8_t expansion_total = 0;
+
+	float mixed = 0.0f;
 };
 
 

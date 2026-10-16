@@ -17,7 +17,7 @@
 // -----------------------------------------------------------------------------
 PaletteDebugWindow::PaletteDebugWindow (PretendoWindow *parent)
 	: BWindow(BRect(0, 0, 0, 0), "Palette Viewer", B_FLOATING_WINDOW_LOOK,
-			B_NORMAL_WINDOW_FEEL, B_NOT_RESIZABLE|B_NOT_ZOOMABLE)
+			  B_NORMAL_WINDOW_FEEL, B_NOT_RESIZABLE|B_NOT_ZOOMABLE)
 {			
 	fParent = parent;
 	fSettingsMessage = new BMessage;

@@ -7,8 +7,9 @@
 #include <memory>
 #include <string>
 
-class MemoryMappedFile {
-public:
+class MemoryMappedFile
+{
+	public:
 	MemoryMappedFile(const std::string &filename, size_t size);
 	MemoryMappedFile()                                    = default;
 	MemoryMappedFile(MemoryMappedFile &&)                 = default;
@@ -17,13 +18,14 @@ public:
 	MemoryMappedFile &operator=(const MemoryMappedFile &) = delete;
 	~MemoryMappedFile();
 
-public:
+	public:
 	uint8_t operator[](size_t index) const;
 	uint8_t &operator[](size_t index);
 
-private:
+	private:
 	uint8_t *ptr_ = nullptr;
 	std::function<void(uint8_t *)> deleter_;
 };
+
 
 #endif

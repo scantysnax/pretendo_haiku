@@ -2398,8 +2398,7 @@ MapperExplorerView::DrawMMC5Panel()
 		if (i < 7) {
 			x += 10.0f;
 		}
-	}
-
+	} 
 
 	// Extended CHR selection state.
 
@@ -2436,7 +2435,6 @@ MapperExplorerView::DrawMMC5Panel()
 
 	text.SetToFormat("%u", static_cast<unsigned int>(fMMC5State.exram_mode));
 	DrawText(x, middleY, text.String(), be_plain_font);
-
 
 	// Fill mode.
 

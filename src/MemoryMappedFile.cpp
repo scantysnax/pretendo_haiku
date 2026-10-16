@@ -116,7 +116,7 @@ MemoryMappedFile::operator[](size_t index) const
 // Returns:
 //   Reference to the byte at the requested position.
 // -----------------------------------------------------------------------------
-uint8_t &
+uint8_t&
 MemoryMappedFile::operator[] (size_t index) {
 	return ptr_[index];
 }

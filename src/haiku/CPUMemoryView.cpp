@@ -635,11 +635,7 @@ CPUMemoryView::DrawHeaderPanel()
 		s.SetToFormat("Base:$%04X  %-15s  PC:$%04X  Length:%u   Stack:$%02X($%04X)  A:$%02X  X:$%02X  Y:$%02X  P:$%02X",
 					  fBaseAddress, RegionLabel(fBaseAddress), state.pc, instructionLength, state.s, stackSlotAddress,
 					  state.a, state.x, state.y, state.p);
-
-		DrawString(
-			s.String(),
-			BPoint(textX, statusY)
-		);
+		DrawString(s.String(), BPoint(textX, statusY));
 
 		BString byteText;
 

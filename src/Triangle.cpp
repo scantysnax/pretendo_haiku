@@ -51,7 +51,7 @@ Triangle::Triangle()
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-Triangle::set_enabled(bool value)
+Triangle::set_enabled (bool value)
 {
 	if (value) {
 		enable();

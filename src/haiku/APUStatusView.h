@@ -12,6 +12,8 @@
 #include "PretendoWindow.h"
 
 
+namespace {
+
 constexpr double kNESClockRate = 1789773.0;
 
 constexpr float kTopMargin = 14.0f;
@@ -45,6 +47,8 @@ const rgb_color kDisabledColor =	{ 120, 120, 120, 255 };
 
 const rgb_color kMutedColor = 	{ 150, 70, 30, 255 };
 const rgb_color kIRQColor = 	{ 170, 35, 35, 255 };
+
+}
 
 
 class APUStatusView : public BView

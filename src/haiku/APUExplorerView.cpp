@@ -217,7 +217,7 @@ APUExplorerView::DrawHeaderPanel()
 // Draws the Square 1 register and effective channel-state panel.
 //
 // The upper portion shows the most recently programmed raw values for $4000
-// through $4003.  The lower portion shows the current effective state derived
+// through $4003. The lower portion shows the current effective state derived
 // from the live APU channel.
 //
 // Parameters:
@@ -272,9 +272,9 @@ APUExplorerView::DrawSquare1Panel (BRect panel)
 	DrawFixedLine("Timer Period", value.String(), x, y);
 	y += lineH;
 
-	const double frequency = kNTSCCPUClock / 
-							 (16.0 * (static_cast<double>(fDebugState.square1.timer_period) + 1.0));
-	value.SetToFormat("%.1f Hz", frequency);	
+	const double frequency = kNTSCCPUClock / (16.0 * (static_cast<double>(fDebugState.square1.timer_period) + 1.0));
+	value.SetToFormat("%.1f Hz", frequency);
+
 	DrawColoredFixedLine("Frequency", value.String(), kTimingColor, x, y);
 	y += lineH;
 
@@ -295,7 +295,7 @@ APUExplorerView::DrawSquare1Panel (BRect panel)
 	y += lineH;
 
 	value.SetToFormat("%s Period:%u %s Shift:%u", fDebugState.square1.sweep_enabled ? "On" : "Off",
-					  static_cast<unsigned>(fDebugState.square1.sweep_period),
+					  static_cast<unsigned>(fDebugState.square1.sweep_period), 
 					  fDebugState.square1.sweep_negate ? "Down" : "Up",
 					  static_cast<unsigned>(fDebugState.square1.sweep_shift));
 	DrawFixedLine("Sweep", value.String(), x, y);
@@ -307,6 +307,9 @@ APUExplorerView::DrawSquare1Panel (BRect panel)
 	value.SetToFormat("%u", static_cast<unsigned>(fDebugState.square1.output));
 	DrawColoredFixedLine("Output", value.String(), kOutputColor, x, y);
 
+	BRect meterRect(panel.left + 155.0f, y - 8.0f, panel.right - 10.0f,y);
+	DrawLevelMeter(meterRect, fDebugState.square1.output, 15);
+
 	SetFont(&previousFont);
 }
 
@@ -317,7 +320,7 @@ APUExplorerView::DrawSquare1Panel (BRect panel)
 // Draws the Square 2 register and effective channel-state panel.
 //
 // The upper portion shows the most recently programmed raw values for $4004
-// through $4007.  The lower portion shows the current effective state derived
+// through $4007. The lower portion shows the current effective state derived
 // from the live APU channel.
 //
 // Parameters:
@@ -368,13 +371,12 @@ APUExplorerView::DrawSquare2Panel (BRect panel)
 	y += lineH;
 
 	BString value;
-	
+
 	value.SetToFormat("%u", static_cast<unsigned>(fDebugState.square2.timer_period));
 	DrawFixedLine("Timer Period", value.String(), x, y);
 	y += lineH;
 
-	const double frequency = kNTSCCPUClock /
-							 (16.0 * (static_cast<double>(fDebugState.square2.timer_period) + 1.0));
+	const double frequency = kNTSCCPUClock / (16.0 * (static_cast<double>(fDebugState.square2.timer_period) + 1.0));
 	value.SetToFormat("%.1f Hz", frequency);
 	DrawColoredFixedLine("Frequency", value.String(), kTimingColor, x, y);
 	y += lineH;
@@ -396,9 +398,9 @@ APUExplorerView::DrawSquare2Panel (BRect panel)
 	y += lineH;
 
 	value.SetToFormat("%s Period:%u %s Shift:%u", fDebugState.square2.sweep_enabled ? "On" : "Off",
-												  static_cast<unsigned>(fDebugState.square2.sweep_period),
-												  fDebugState.square2.sweep_negate ? "Down" : "Up",
-												  static_cast<unsigned>(fDebugState.square2.sweep_shift));
+					  static_cast<unsigned>(fDebugState.square2.sweep_period),
+					  fDebugState.square2.sweep_negate ? "Down" : "Up",
+					  static_cast<unsigned>(fDebugState.square2.sweep_shift));
 	DrawFixedLine("Sweep", value.String(), x, y);
 	y += lineH;
 
@@ -407,6 +409,9 @@ APUExplorerView::DrawSquare2Panel (BRect panel)
 
 	value.SetToFormat("%u", static_cast<unsigned>(fDebugState.square2.output));
 	DrawColoredFixedLine("Output", value.String(), kOutputColor, x, y);
+
+	BRect meterRect(panel.left + 155.0f, y - 8.0f, panel.right - 10.0f, y);
+	DrawLevelMeter(meterRect, fDebugState.square2.output, 15);
 
 	SetFont(&previousFont);
 }
@@ -418,7 +423,7 @@ APUExplorerView::DrawSquare2Panel (BRect panel)
 // Draws the Triangle register and effective channel-state panel.
 //
 // The upper portion shows the most recently programmed raw values for $4008,
-// $400A, and $400B.  The lower portion shows the current effective timer,
+// $400A, and $400B. The lower portion shows the current effective timer,
 // length-counter, linear-counter, sequencer, and output state.
 //
 // Parameters:
@@ -471,8 +476,7 @@ APUExplorerView::DrawTrianglePanel (BRect panel)
 	DrawFixedLine("Timer Period", value.String(), x, y);
 	y += lineH;
 
-	const double frequency = kNTSCCPUClock /
-							 (32.0 * (static_cast<double>(fDebugState.triangle.timer_period) + 1.0));
+	const double frequency = kNTSCCPUClock / (32.0 * (static_cast<double>(fDebugState.triangle.timer_period) + 1.0));
 	value.SetToFormat("%.1f Hz", frequency);
 	DrawColoredFixedLine("Frequency", value.String(), kTimingColor, x, y);
 	y += lineH;
@@ -492,6 +496,13 @@ APUExplorerView::DrawTrianglePanel (BRect panel)
 	value.SetToFormat("%u", static_cast<unsigned>(fDebugState.triangle.output));
 	DrawColoredFixedLine("Output", value.String(), kOutputColor, x, y);
 
+	BRect meterRect(panel.left + 155.0f, y - 8.0f, panel.right - 10.0f, y);
+
+	const uint32_t meterOutput = (fDebugState.triangle.enabled && !fDebugState.triangle.muted &&
+	 							  fDebugState.triangle.length_counter != 0 &&
+	 							  fDebugState.triangle.linear_counter != 0) ? fDebugState.triangle.output : 0;
+	 DrawLevelMeter(meterRect, meterOutput, 15);
+
 	SetFont(&previousFont);
 }
 
@@ -502,7 +513,7 @@ APUExplorerView::DrawTrianglePanel (BRect panel)
 // Draws the Noise register and effective channel-state panel.
 //
 // The upper portion shows the most recently programmed raw values for $400C,
-// $400E, and $400F.  The lower portion shows the current effective timer,
+// $400E, and $400F. The lower portion shows the current effective timer,
 // length-counter, envelope, and output state.
 //
 // Parameters:
@@ -550,7 +561,6 @@ APUExplorerView::DrawNoisePanel (BRect panel)
 	y += lineH;
 
 	BString value;
-
 	value.SetToFormat("%u", static_cast<unsigned>(fDebugState.noise.timer_period));
 	DrawFixedLine("Timer Period", value.String(), x, y);
 	y += lineH;
@@ -561,7 +571,7 @@ APUExplorerView::DrawNoisePanel (BRect panel)
 	} else {
 		value.SetTo("-");
 	}
-	
+
 	DrawColoredFixedLine("Clock Rate", value.String(), kTimingColor, x, y);
 	y += lineH;
 
@@ -576,6 +586,9 @@ APUExplorerView::DrawNoisePanel (BRect panel)
 	value.SetToFormat("%u", static_cast<unsigned>(fDebugState.noise.output));
 	DrawColoredFixedLine("Output", value.String(), kOutputColor, x, y);
 
+	BRect meterRect(panel.left + 155.0f, y - 8.0f, panel.right - 10.0f, y);
+	DrawLevelMeter(meterRect, fDebugState.noise.output, 15);
+
 	SetFont(&previousFont);
 }
 
@@ -586,7 +599,7 @@ APUExplorerView::DrawNoisePanel (BRect panel)
 // Draws the DMC register and effective channel-state panel.
 //
 // The upper portion shows the most recently programmed raw values for $4010
-// through $4013.  The lower portion shows the current effective DMC playback,
+// through $4013. The lower portion shows the current effective DMC playback,
 // timing, sample-address, progress, IRQ, loop, and output state.
 //
 // Parameters:
@@ -639,16 +652,13 @@ APUExplorerView::DrawDMCPanel (BRect panel)
 	DrawStateLine("Muted", fDebugState.dmc.muted, false, x, y);
 	y += lineH;
 
-	
 	BString value;
-
 	value.SetToFormat("%u", static_cast<unsigned>(fDebugState.dmc.timer_period));
 	DrawFixedLine("Timer Period", value.String(), x, y);
 	y += lineH;
 
 	if (fDebugState.dmc.timer_period != 0) {
 		const double bitRate = kNTSCCPUClock / static_cast<double>(fDebugState.dmc.timer_period);
-
 		value.SetToFormat("%.1f Hz", bitRate);
 	} else {
 		value.SetTo("-");
@@ -689,6 +699,9 @@ APUExplorerView::DrawDMCPanel (BRect panel)
 	value.SetToFormat("%u", static_cast<unsigned>(fDebugState.dmc.output));
 	DrawColoredFixedLine("Output", value.String(), kOutputColor, x, y);
 
+	BRect meterRect(panel.left + 155.0f, y - 8.0f, panel.right - 10.0f, y);
+	DrawLevelMeter(meterRect, fDebugState.dmc.output, 127);
+
 	SetFont(&previousFont);
 }
 
@@ -699,8 +712,8 @@ APUExplorerView::DrawDMCPanel (BRect panel)
 // Draws the global APU register and effective state panel.
 //
 // The upper portion shows the most recently programmed raw values for $4015 and
-// $4017.  The lower portion shows the current frame-counter, interrupt, status,
-// timing, and global audio state.
+// $4017. The lower portion shows the current frame-counter, interrupt, status,
+// timing, mute state, and current native APU mixed output.
 //
 // Parameters:
 //   panel - Rectangle defining the bounds of the Global APU panel.
@@ -738,7 +751,6 @@ APUExplorerView::DrawGlobalPanel (BRect panel)
 	y += lineH;
 
 	BString value;
-
 	value.SetToFormat("%llu", static_cast<unsigned long long>(fDebugState.cycle));
 	DrawFixedLine("APU Cycle", value.String(), x, y);
 	y += lineH;
@@ -770,6 +782,13 @@ APUExplorerView::DrawGlobalPanel (BRect panel)
 	y += lineH;
 
 	DrawStateLine("Audio Muted", fDebugState.audio_muted, false, x, y);
+	y += lineH;
+
+	value.SetToFormat("%u", static_cast<unsigned>(fDebugState.output));
+	DrawColoredFixedLine("Output", value.String(), kOutputColor, x, y);
+
+	BRect meterRect(panel.left + 155.0f, y - 8.0f, panel.right - 10.0f, y);
+	DrawLevelMeter(meterRect, fDebugState.output, fDebugState.output_maximum);
 
 	SetFont(&previousFont);
 }
@@ -847,7 +866,6 @@ void
 APUExplorerView::DrawTextLine (const char *label, const char *value, float x, float y)
 {
 	BString line;
-
 	line.SetToFormat("%s: %s", label, value);
 
 	SetHighColor(kTextColor);
@@ -875,7 +893,6 @@ void
 APUExplorerView::DrawBoolLine (const char *label, bool value, float x, float y)
 {
 	BString line;
-
 	line.SetToFormat("%-18s", label);
 	SetHighColor(kTextColor);
 	DrawString(line.String(), BPoint(x, y));
@@ -956,7 +973,6 @@ APUExplorerView::DrawStateLine (const char *label, bool value, bool goodWhenTrue
 	SetFont(&fixed);
 
 	BString labelText;
-
 	labelText.SetToFormat("%-18s ", label);
 	SetHighColor(kTextColor);
 	DrawString(labelText.String(), BPoint(x, y));
@@ -1003,7 +1019,6 @@ APUExplorerView::DrawColoredFixedLine (const char *label, const char *value, rgb
 	SetFont(&fixed);
 
 	BString labelText;
-
 	labelText.SetToFormat("%-18s ", label);
 	SetHighColor(kTextColor);
 	DrawString(labelText.String(), BPoint(x, y));
@@ -1014,6 +1029,51 @@ APUExplorerView::DrawColoredFixedLine (const char *label, const char *value, rgb
 	DrawString(value, BPoint(valueX, y));
 
 	SetFont(&previousFont);
+}
+
+
+// -----------------------------------------------------------------------------
+// APUExplorerView::DrawLevelMeter
+//
+// Draws a compact horizontal output-level meter.
+//
+// The meter displays value relative to maximum. Values greater than maximum
+// are clamped to the full meter width. A zero maximum produces an empty meter.
+//
+// Parameters:
+//   rect    - Rectangle defining the meter bounds.
+//   value   - Current channel output level.
+//   maximum - Full-scale channel output level.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+APUExplorerView::DrawLevelMeter (BRect rect, uint32_t value, uint32_t maximum)
+{
+	SetHighColor(105, 105, 105);
+	StrokeRect(rect);
+
+	BRect inner = rect;
+	inner.InsetBy(1.0f, 1.0f);
+	SetHighColor(195, 195, 195);
+	FillRect(inner);
+
+	if (maximum == 0 || value == 0) {
+		return;
+	}
+
+	double level = static_cast<double>(value) / static_cast<double>(maximum);
+
+	if (level > 1.0) {
+		level = 1.0;
+	}
+
+	BRect fill = inner;
+	fill.right = fill.left + (inner.Width() * level);
+
+	SetHighColor(kOutputColor);
+	FillRect(fill);
 }
 
 

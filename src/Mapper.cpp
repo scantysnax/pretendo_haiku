@@ -236,7 +236,7 @@ Mapper::debug_set_prg_ram (bool enabled, bool writable, uint32_t bank)
 //   Newly created mapper instance, or nullptr if the mapper is unsupported.
 // -----------------------------------------------------------------------------
 std::unique_ptr<Mapper>
-Mapper::create_mapper(int num, int submapper, const ROMDatabase::Entry *database_entry)
+Mapper::create_mapper (int num, int submapper, const ROMDatabase::Entry *database_entry)
 {
 	/*
 	 * Mapper 21 is shared by VRC4a and VRC4c.

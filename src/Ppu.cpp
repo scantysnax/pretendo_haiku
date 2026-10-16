@@ -1002,12 +1002,14 @@ render_pixel()
 //   Nothing.
 // -----------------------------------------------------------------------------
 void 
-update_shift_registers_render() {
+update_shift_registers_render()
+{
 	pattern_queue_[0] |= next_pattern_[0];
 	pattern_queue_[1] |= next_pattern_[1];
 	attribute_queue_[0] |= ((next_attribute_ >> 0) & 0x01) * 0xff;
 	attribute_queue_[1] |= ((next_attribute_ >> 1) & 0x01) * 0xff;
 }
+
 
 // -----------------------------------------------------------------------------
 // update_shift_registers_idle
@@ -1022,7 +1024,8 @@ update_shift_registers_render() {
 //   Nothing.
 // -----------------------------------------------------------------------------
 void 
-update_shift_registers_idle() {
+update_shift_registers_idle()
+{
 	pattern_queue_[0] <<= 8;
 	pattern_queue_[1] <<= 8;
 	attribute_queue_[0] <<= 8;
@@ -1836,7 +1839,7 @@ write2000 (uint8_t value)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-write2001(uint8_t value)
+write2001 (uint8_t value)
 {
 	log_write(0x2001, value);
 
@@ -1910,6 +1913,7 @@ write2003 (uint8_t value)
 	latch_          = value;
 	sprite_address_ = value;
 }
+
 
 // -----------------------------------------------------------------------------
 // nes::ppu::write2004
@@ -2349,7 +2353,8 @@ fine_x()
 // Returns:
 //   Current PPU cycle count.
 // -----------------------------------------------------------------------------
-uint64_t cycle_count() 
+uint64_t
+cycle_count() 
 { 
 	return ppu_cycle_;
 }

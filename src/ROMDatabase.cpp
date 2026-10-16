@@ -299,11 +299,7 @@ ROMDatabase::LookupBySHA1 (const std::string &database_path, const std::string &
 					continue;
 				}
 
-				const std::string number =
-					GetProperty(
-						pin,
-						"number");
-
+				const std::string number = GetProperty(pin, "number");
 				const std::string function = GetProperty(pin, "function");
 
 				if (number == "3") {

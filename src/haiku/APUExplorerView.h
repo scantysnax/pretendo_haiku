@@ -52,7 +52,8 @@ class APUExplorerView : public BView
 	void DrawFixedLine (const char *label, const char *value, float x, float y);
 	void DrawStateLine (const char *label, bool value, bool goodWhenTrue, float x, float y);
 	void DrawColoredFixedLine (const char *label, const char *value, rgb_color color, float x, float y);
-
+	void DrawLevelMeter (BRect rect, uint32_t value, uint32_t maximum);
+	
 	private:
 	bool HasROMLoaded() const;
 	void DrawNoROMMessage(BRect panel);

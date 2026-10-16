@@ -140,6 +140,9 @@ CPP_FILES := \
 	src/haiku/CPUStatusWindow.cpp \
 	src/haiku/CPUTraceView.cpp \
 	src/haiku/CPUTraceWindow.cpp \
+	src/haiku/ExpansionAudioExplorerView.cpp \
+	src/haiku/ExpansionAudioScopeView.cpp \
+	src/haiku/ExpansionAudioStatusView.cpp \
 	src/haiku/HaikuMain.cpp \
 	src/haiku/InputView.cpp \
 	src/haiku/InputWindow.cpp \

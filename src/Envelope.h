@@ -7,14 +7,15 @@
 
 namespace nes::apu {
 
-class Envelope {
-public:
+class Envelope
+{
+	public:
 	void clock();
 	void start();
 	void set_control(uint8_t value);
 	uint8_t volume() const;
 
-public:
+	public:
 	uint8_t debug_volume() const {
 		return volume();	// 4-bit volume
 	}
@@ -35,10 +36,10 @@ public:
 		return start_;	// pending envelope restart
 	}
 
-private:
+	private:
 	void clock_divider();
 
-private:
+	private:
 	bool start_      = false;
 	uint8_t counter_ = 0;
 	uint8_t divider_ = 0xff;

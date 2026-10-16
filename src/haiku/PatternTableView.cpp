@@ -1037,8 +1037,7 @@ PatternTableView::DrawPatternStatePanel()
 	SetHighColor(60, 60, 60);
 	DrawString("Colors:", BPoint(labelX, textY));
 
-	float 
-	legendX = valueX;
+	float legendX = valueX;
 
 	auto drawLegendItem = [&](const rgb_color &color, const char *text) {
 		const float boxSize = 7.0f;

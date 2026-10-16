@@ -18,7 +18,9 @@ namespace nes::apu {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void LinearCounter::clock() {
+void
+LinearCounter::clock()
+{
 
 	if (reload_) {
 		value_ = (control_ & 0x7f);
@@ -43,7 +45,9 @@ void LinearCounter::clock() {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void LinearCounter::set_control(uint8_t value) {
+void
+LinearCounter::set_control(uint8_t value)
+{
 	control_ = value;
 }
 
@@ -59,7 +63,9 @@ void LinearCounter::set_control(uint8_t value) {
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void LinearCounter::reload() {
+void
+LinearCounter::reload()
+{
 	reload_ = true;
 }
 
@@ -83,6 +89,7 @@ LinearCounter::reset()
 	value_ = 0;
 	reload_ = false;
 }
+
 
 }
 

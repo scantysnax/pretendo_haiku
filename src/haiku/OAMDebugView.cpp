@@ -1298,7 +1298,7 @@ OAMDebugView::DrawSelectedSpritePanel()
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-OAMDebugView::SetFirstSpriteFromScrollBar  (int32 firstSprite)
+OAMDebugView::SetFirstSpriteFromScrollBar (int32 firstSprite)
 {
 	if (firstSprite < 0) {
 		firstSprite = 0;

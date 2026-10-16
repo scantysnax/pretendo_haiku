@@ -659,8 +659,8 @@ PaletteDebugView::DrawNoROMMessage (BRect panel)
 	font.SetSize(12.0f);
 	SetFont(&font);
 
-	const char* title = "No ROM loaded";
-	const char* detail = "Load a cartridge to inspect palettes.";
+	const char *title = "No ROM loaded";
+	const char *detail = "Load a cartridge to inspect palettes.";
 
 	font_height fh;
 	GetFontHeight(&fh);

@@ -15,6 +15,8 @@
 class APUWriteLogScrollBar;
 
 
+namespace {
+
 constexpr double kNTSCCPUClock = 1789773.0;
 
 const uint16 kNoisePeriodTable[16] = {
@@ -30,6 +32,7 @@ const uint8 kLengthCounterTable[32] = {
 	192, 24, 72, 26, 16, 28, 32, 30
 };
 
+}
 
 // -----------------------------------------------------------------------------
 // APUWriteLogView
