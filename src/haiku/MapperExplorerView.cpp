@@ -2997,6 +2997,7 @@ MapperExplorerView::CaptureVRC6State()
 }
 
 
+
 // -----------------------------------------------------------------------------
 // MapperExplorerView::VRC6StateChanged
 //
