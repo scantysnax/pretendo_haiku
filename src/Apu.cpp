@@ -113,10 +113,6 @@ size_t sample_buffer_end   = 0;
 // Most recently emitted host PCM sample, used when the buffer runs short.
 static uint8_t sLastOutputSample = kSilence;
 
-// Most recently generated native APU mixer level before mapper expansion audio
-// and before the DC-blocking filter. Used only by debugger views.
-static uint8_t sDebugNativeOutput = 0;
-
 
 // Rolling APU register-write log and ring-buffer bookkeeping.
 static nes::apu::write_log_entry_t write_log_[nes::apu::APU_WRITE_LOG_CAPACITY];
@@ -145,23 +141,14 @@ static void log_frame_event(apu_frame_event_type type);
 // -----------------------------------------------------------------------------
 // log_write
 //
-// Appends one CPU write to an APU register to the rolling write log.
-//
-// The current APU cycle is captured together with the CPU-visible register
-// address and written value.  For pulse and triangle timer writes, the resulting
-// complete 11-bit timer period is reconstructed and stored.  For $4015 writes,
-// the previous channel-enable mask is also captured so debugger views can show
-// which channel enable states actually changed.
-//
-// Parameters:
-//   address - CPU-visible APU register address.
-//   value   - Value written by the CPU.
-//
-// Returns:
-//   Nothing.
+// Appends one native or expansion-audio register write to the rolling write
+// log. Native APU writes reconstruct timer state locally. Expansion-audio
+// writes receive any mapper-owned timer and frequency-control state from the
+// mapper at the moment the write occurs.
 // -----------------------------------------------------------------------------
 void
-log_write (uint16_t address, uint8_t value)
+log_write (uint16_t address, uint8_t value, write_log_source_t source, uint16_t externalTimerPeriod, 
+		   bool hasExternalTimerPeriod, uint8_t externalFrequencyControl, bool hasExternalFrequencyControl)
 {
 	write_log_entry_t &entry = write_log_[write_log_next_];
 
@@ -169,6 +156,7 @@ log_write (uint16_t address, uint8_t value)
 	entry.address = address;
 	entry.value = value;
 	entry.write_index = write_log_write_index_++;
+	entry.source = source;
 
 	entry.timer_period = 0;
 	entry.has_timer_period = false;
@@ -176,77 +164,91 @@ log_write (uint16_t address, uint8_t value)
 	entry.previous_enable_mask = 0;
 	entry.has_previous_enable_mask = false;
 
-	switch (address) {
-		case 0x4002:
-			entry.timer_period = (square_0.debug_timer_period() & 0x700) |
+	entry.external_frequency_control = 0;
+	entry.has_external_frequency_control = false;
+
+	if (source == write_log_source_t::NATIVE_APU) {
+		switch (address) {
+			case 0x4002:
+				entry.timer_period = (square_0.debug_timer_period() & 0x0700) |
 								 static_cast<uint16_t>(value);
 
-			entry.has_timer_period = true;
-			break;
+				entry.has_timer_period = true;
+				break;
 
-		case 0x4003:
-			entry.timer_period = (square_0.debug_timer_period() & 0x00ff) |
+			case 0x4003:
+				entry.timer_period = (square_0.debug_timer_period() & 0x00ff) |
 								 (static_cast<uint16_t>(value & 0x07) << 8);
 
-			entry.has_timer_period = true;
-			break;
+				entry.has_timer_period = true;
+				break;
 
-		case 0x4006:
-			entry.timer_period = (square_1.debug_timer_period() & 0x0700) |
+			case 0x4006:
+				entry.timer_period = (square_1.debug_timer_period() & 0x0700) |
 								 static_cast<uint16_t>(value);
 
-			entry.has_timer_period = true;
-			break;
+				entry.has_timer_period = true;
+				break;
 
-		case 0x4007:
-			entry.timer_period = (square_1.debug_timer_period() & 0x00ff) |
+			case 0x4007:
+				entry.timer_period = (square_1.debug_timer_period() & 0x00ff) |
 								 (static_cast<uint16_t>(value & 0x07) << 8);
 
-			entry.has_timer_period = true;
-			break;
+				entry.has_timer_period = true;
+				break;
 
-		case 0x400a:
-			entry.timer_period = (triangle.debug_timer_period() & 0x0700) |
+			case 0x400a:
+				entry.timer_period = (triangle.debug_timer_period() & 0x0700) |
 								 static_cast<uint16_t>(value);
 
-			entry.has_timer_period = true;
-			break;
+				entry.has_timer_period = true;
+				break;
 
-		case 0x400b:
-			entry.timer_period = (triangle.debug_timer_period() & 0x00ff) |
+			case 0x400b:
+				entry.timer_period = (triangle.debug_timer_period() & 0x00ff) |
 								 (static_cast<uint16_t>(value & 0x07) << 8);
 
-			entry.has_timer_period = true;
+				entry.has_timer_period = true;
+				break;
+
+			case 0x4015:
+			{
+				uint8_t previousMask = 0;
+
+				if (square_0.enabled()) {
+					previousMask |= 0x01;
+				}
+
+				if (square_1.enabled()) {
+					previousMask |= 0x02;
+				}
+
+				if (triangle.enabled()) {
+					previousMask |= 0x04;
+				}
+
+				if (noise.enabled()) {
+					previousMask |= 0x08;
+				}
+
+				if (dmc.debug_enabled()) {
+					previousMask |= 0x10;
+				}
+
+				entry.previous_enable_mask = previousMask;
+				entry.has_previous_enable_mask = true;
+			}
 			break;
 
-		case 0x4015:
-		{
-			uint8_t previousMask = 0;
-
-			if (square_0.enabled()) {
-				previousMask |= 0x01;
-			}
-
-			if (square_1.enabled()) {
-				previousMask |= 0x02;
-			}
-
-			if (triangle.enabled()) {
-				previousMask |= 0x04;
-			}
-
-			if (noise.enabled()) {
-				previousMask |= 0x08;
-			}
-
-			if (dmc.debug_enabled()) {
-				previousMask |= 0x10;
-			}
-
-			entry.previous_enable_mask = previousMask;
-			entry.has_previous_enable_mask = true;
+			default:
+				break;
 		}
-		break;
+	} else {
+		entry.timer_period = externalTimerPeriod;
+		entry.has_timer_period = hasExternalTimerPeriod;
+
+		entry.external_frequency_control = externalFrequencyControl;
+		entry.has_external_frequency_control = hasExternalFrequencyControl;
 	}
 
 	write_log_next_ = (write_log_next_ + 1) % APU_WRITE_LOG_CAPACITY;
@@ -258,15 +260,43 @@ log_write (uint16_t address, uint8_t value)
 
 
 // -----------------------------------------------------------------------------
+// log_write
+//
+// Native-APU convenience wrapper used by the existing $4000-$4017 register
+// write handlers.
+// -----------------------------------------------------------------------------
+void
+log_write (uint16_t address, uint8_t value)
+{
+	log_write(address, value, write_log_source_t::NATIVE_APU, 0, false, 0, false);
+}
+
+
+// -----------------------------------------------------------------------------
+// nes::apu::log_external_audio_write
+//
+// Adds one mapper expansion-audio write to the same chronological history used
+// by native APU writes. Mapper-owned state is supplied by the mapper so the log
+// preserves the state that existed at the exact time of the write.
+// -----------------------------------------------------------------------------
+void
+log_external_audio_write (uint16_t address, uint8_t value, uint16_t timerPeriod, bool hasTimerPeriod,
+					  	  uint8_t frequencyControl)
+{
+	log_write(address, value, write_log_source_t::EXTERNAL_AUDIO, timerPeriod, hasTimerPeriod,
+			  frequencyControl, true);
+}
+
+
+// -----------------------------------------------------------------------------
 // capture_scope_sample
 //
 // Captures one debugger oscilloscope sample containing the instantaneous output
-// level of each native APU channel, mapper-provided expansion-audio channels,
-// the mapper's combined expansion-audio output, and the already-generated mixed
-// PCM sample.
+// level of each APU channel together with the already-generated mixed PCM
+// sample.
 //
 // The mixed sample is supplied by the normal APU audio-generation path rather
-// than generated here. This is important because mix_channels() contains a
+// than generated here.  This is important because mix_channels() contains a
 // stateful DC-blocking filter and must only be called once for each output
 // sample.
 //
@@ -293,17 +323,17 @@ capture_scope_sample (uint8_t mixedSample)
 	 * The scope history is a ring buffer, so this slot may contain expansion
 	 * channels from an earlier sample or even from a previously loaded mapper.
 	 */
-	for (size_t index = 0;
-		 index < APU_SCOPE_EXPANSION_CHANNEL_CAPACITY; ++index) {
+	for (size_t index = 0; index < APU_SCOPE_EXPANSION_CHANNEL_CAPACITY; ++index) {
 		sample.expansion[index] = 0;
 	}
 
 	sample.expansion_channel_count = 0;
-	sample.expansion_total = 0;
 
 	if (nes::cart.mapper() != nullptr) {
 		const mapper_audio_scope_sample_t expansionSample = nes::cart.mapper()->debug_audio_scope_sample();
-		size_t channelCount = expansionSample.channel_count;
+
+		size_t channelCount =
+			expansionSample.channel_count;
 
 		if (channelCount > APU_SCOPE_EXPANSION_CHANNEL_CAPACITY) {
 			channelCount = APU_SCOPE_EXPANSION_CHANNEL_CAPACITY;
@@ -314,17 +344,16 @@ capture_scope_sample (uint8_t mixedSample)
 		}
 
 		sample.expansion_channel_count = channelCount;
-		sample.expansion_total = nes::cart.mapper()->audio_output();
 	}
 
 	sample.mixed = static_cast<float>(mixedSample);
+
 	scope_sample_next_ = (scope_sample_next_ + 1) % APU_SCOPE_SAMPLE_CAPACITY;
 
 	if (scope_sample_count_ < APU_SCOPE_SAMPLE_CAPACITY) {
 		scope_sample_count_++;
 	}
 }
-
 
 // -----------------------------------------------------------------------------
 // nes::apu::debug_scope_snapshot
@@ -659,11 +688,8 @@ clock_frame_mode_1()
 //
 // Mixes the native NES APU channels together with mapper expansion audio.
 //
-// The current native APU mixer level is cached for debugger display before
-// mapper expansion audio is applied and before the stateful DC-blocking filter.
-//
-// The final mixed signal is passed through a one-pole DC-blocking high-pass
-// filter and then centered around unsigned 8-bit PCM silence.
+// The mixed signal is passed through a one-pole DC-blocking high-pass filter
+// and then centered around unsigned 8-bit PCM silence.
 //
 // Parameters:
 //   None.
@@ -681,18 +707,7 @@ mix_channels()
 	const int32_t dmcOut = dmc.output();
 
 	const double squareOut = 0.00752 * (square1Out + square2Out);
-
 	const double tndOut = 0.00851 * triangleOut + 0.00494 * noiseOut + 0.00335 * dmcOut;
-
-	/*
-	 * Preserve the native APU contribution for debugger views.
-	 *
-	 * This is intentionally captured before mapper expansion audio and before
-	 * the DC-blocking filter so the Native APU Explorer reports only the five
-	 * built-in NES channels.
-	 */
-	const int32_t nativeOutput = static_cast<int32_t>((squareOut + tndOut) * 255.0);
-	sDebugNativeOutput = static_cast<uint8_t>(std::clamp(nativeOutput, 0, 217));
 	double expansionOut = 0.0;
 
 	if (nes::cart.mapper() != nullptr) {
@@ -700,14 +715,15 @@ mix_channels()
 	}
 
 	/*
-	 * One-pole DC-blocking high-pass filter.
-	 *
-	 * Removes the steady DC component from the mixed signal while preserving
-	 * audible changes. The previous input and output samples are retained so the
-	 * filter can distinguish a constant offset from actual waveform movement.
-	 *
-	 *     y[n] = x[n] - x[n - 1] + R * y[n - 1]
-	 */
+ 	* One-pole DC-blocking high-pass filter.
+ 	*
+ 	* Removes the steady DC component from the mixed signal while preserving
+ 	* audible changes. The previous input and output samples are retained so the
+ 	* filter can distinguish a constant offset from actual waveform movement.
+ 	*
+ 	*     y[n] = x[n] - x[n - 1] + R * y[n - 1]
+ 	*/
+
 	const double input = (squareOut + tndOut - expansionOut) * 255.0;
 	constexpr double R = 0.995;
 	const double output = input - sDCBlockPreviousInput + R * sDCBlockPreviousOutput;
@@ -751,8 +767,8 @@ reset (reset_type type)
 	sample_buffer_end   = 0;
 
 	sLastOutputSample = kSilence;
-	sDebugNativeOutput = 0;
-	sDCBlockPreviousInput = 0.0;
+
+	sDCBlockPreviousInput  = 0.0;
 	sDCBlockPreviousOutput = 0.0;
 
 	debug_clear_scope();
@@ -1389,7 +1405,8 @@ tick()
 // Returns:
 //   Current APU cycle count.
 // -----------------------------------------------------------------------------
-uint64_t cycle_count()
+uint64_t
+cycle_count()
 {
 	return apu_cycles_;
 }
@@ -1568,8 +1585,8 @@ unmute_channel (int const channel)
 // -----------------------------------------------------------------------------
 // nes::apu::debug_state
 //
-// Returns a side-effect-free snapshot of the current APU and channel state for
-// debugger views.
+// Returns a side-effect-free snapshot of the current APU state for debugger
+// views.
 //
 // This function intentionally avoids read4015(), because reading $4015 has
 // emulation-visible side effects, including clearing the frame IRQ flag.
@@ -1592,9 +1609,8 @@ debug_state()
 	state.next_frame_cycle = next_clock_;
 	state.frame_irq = status.frame_irq;
 	state.dmc_irq = status.dmc_irq;
+
 	state.audio_muted = debug_audio_is_muted();
-	state.output = sDebugNativeOutput;
-	state.output_maximum = 217;
 
 	// square 1
 	state.square1.enabled = square_0.enabled();
@@ -1660,27 +1676,24 @@ debug_state()
 	state.dmc.bytes_remaining = dmc.bytes_remaining();
 	state.dmc.bits_remaining = dmc.debug_bits_remaining();
 	state.dmc.sample_buffer_empty = dmc.debug_sample_buffer_empty();
-
-	/*
-	 * Rebuild $4015 status without reading the register, since read4015()
-	 * clears the frame IRQ flag.
-	 */
-	uint8_t status = 0x00;
+	
+	// apu status (rebuilt from $4015 without reading it)
+	uint8_t status = 0x0;
 
 	if (state.square1.length_counter != 0) {
-		status |= 0x01;
+		status |= 0x1;
 	}
 
 	if (state.square2.length_counter != 0) {
-		status |= 0x02;
+		status |= 0x2;
 	}
 
 	if (state.triangle.length_counter != 0) {
-		status |= 0x04;
+		status |= 0x4;
 	}
 
 	if (state.noise.length_counter != 0) {
-		status |= 0x08;
+		status |= 0x8;
 	}
 
 	if (state.dmc.bytes_remaining != 0) {
@@ -1695,8 +1708,7 @@ debug_state()
 		status |= 0x80;
 	}
 
-	state.status =
-		status;
+	state.status = status;
 
 	return state;
 }

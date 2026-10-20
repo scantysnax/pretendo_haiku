@@ -17,6 +17,7 @@
 #include "Mapper007.h"
 #include "Mapper009.h"
 #include "Mapper071.h"
+#include "VRC6.h"
 
 class PretendoWindow;
 
@@ -83,7 +84,11 @@ class MapperExplorerView : public BView
 	private:
 	bool CaptureCamericaState();
 	bool CamericaStateChanged (const camerica_debug_state_t &oldState,
-							   const camerica_debug_state_t &newState) const;					   
+							   const camerica_debug_state_t &newState) const;				
+	private:							   
+	bool CaptureVRC6State();					   
+	bool VRC6StateChanged (const vrc6_debug_state_t &oldState,
+						   const vrc6_debug_state_t &newState) const;
 						   					   									   
 	private:
 	void DrawMapperSummary();
@@ -110,6 +115,7 @@ class MapperExplorerView : public BView
 	void DrawAxROMPanel();
 	void DrawMMC2Panel();
 	void DrawCamericaPanel();
+	void DrawVRC6Panel();
 	
 	private:
 	const char *MemoryTypeName (MapperDebugMemoryType type) const;
@@ -164,7 +170,11 @@ class MapperExplorerView : public BView
 	
 	private:
 	camerica_debug_state_t fCamericaState = {};
-	bool fHaveCamericaState = false;	
+	bool fHaveCamericaState = false;
+	
+	private:
+	vrc6_debug_state_t fVRC6State = {};
+	bool fHaveVRC6State = false;	
 };
 
 

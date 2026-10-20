@@ -1,6 +1,40 @@
 
 #include "APUWriteLogView.h"
 
+namespace {
+
+constexpr double kNTSCCPUClock = 1789773.0;
+
+const uint16 kNoisePeriodTable[16] = {
+	4, 8, 16, 32, 64, 96, 128, 160,
+	202, 254, 380, 508, 762, 1016, 2034, 4068
+};
+
+
+const uint8 kLengthCounterTable[32] = {
+	10, 254, 20, 2, 40, 4, 80, 6,
+	160, 8, 60, 10, 14, 12, 26, 14,
+	12, 16, 24, 18, 48, 20, 96, 22,
+	192, 24, 72, 26, 16, 28, 32, 30
+};
+
+uint16
+EffectiveVRC6Period (uint16 period, uint8 frequencyControl)
+{
+	if (frequencyControl & 0x04) {
+		return period >> 8;
+	}
+
+	if (frequencyControl & 0x02) {
+		return period >> 4;
+	}
+
+	return period;
+}
+
+}
+
+
 
 // -----------------------------------------------------------------------------
 // APUWriteLogScrollBar
@@ -472,13 +506,11 @@ APUWriteLogView::DrawLogPanel()
 	GetFontHeight(&fh);
 
 	const float lineH = ceilf(fh.ascent + fh.descent + fh.leading) + 1.0f;
-
 	const float cycleX = panel.left + 8.0f;
 	const float regX = cycleX + 92.0f;
 	const float valX = regX + 100.0f;
 	const float channelX = valX + 52.0f;
 	const float descX = channelX + 82.0f;
-
 	float y = panel.top + 48.0f;
 
 	SetHighColor(80, 80, 80);
@@ -498,7 +530,7 @@ APUWriteLogView::DrawLogPanel()
 
 	if (count == 0) {
 		SetHighColor(90, 90, 90);
-		DrawString("No APU writes logged yet.", BPoint(cycleX, y + lineH));
+		DrawString("No audio writes logged yet.", BPoint(cycleX, y + lineH));
 
 		SetFont(&prevFont);
 
@@ -520,8 +552,7 @@ APUWriteLogView::DrawLogPanel()
 		firstIndex = 0;
 	}
 
-	const int32 maxFirstIndex = (static_cast<int32>(count) > visibleRows)
-							  ? (static_cast<int32>(count) - visibleRows) : 0;
+	const int32 maxFirstIndex = (static_cast<int32>(count) > visibleRows) ? (static_cast<int32>(count) - visibleRows) : 0;
 
 	if (firstIndex > maxFirstIndex) {
 		firstIndex = maxFirstIndex;
@@ -581,6 +612,28 @@ APUWriteLogView::DrawLogPanel()
 				SetHighColor(150, 30, 30);
 				break;
 
+			case 0x9000:
+			case 0x9001:
+			case 0x9002:
+				SetHighColor(40, 90, 170);
+				break;
+
+			case 0x9003:
+				SetHighColor(120, 50, 150);
+				break;
+
+			case 0xa000:
+			case 0xa001:
+			case 0xa002:
+				SetHighColor(0, 125, 145);
+				break;
+
+			case 0xb000:
+			case 0xb001:
+			case 0xb002:
+				SetHighColor(150, 70, 20);
+				break;
+
 			default:
 				SetHighColor(0, 0, 0);
 				break;
@@ -593,6 +646,7 @@ APUWriteLogView::DrawLogPanel()
 		s.SetToFormat("$%02X", entry.value);
 		DrawString(s.String(), BPoint(valX, y));
 		DrawString(ChannelName(entry.address), BPoint(channelX, y));
+
 		DrawString(desc.String(), BPoint(descX, y));
 		y += lineH;
 	}
@@ -850,6 +904,21 @@ APUWriteLogView::ScrollBarValueChanged (float value)
 }
 
 
+// -----------------------------------------------------------------------------
+// APUWriteLogView::NoiseTimerPeriodFromIndex
+//
+// Returns the NTSC noise-channel timer period corresponding to a $400E period
+// table index.
+//
+// Only the low four bits of the supplied index are significant, matching the
+// native NES noise period selector.
+//
+// Parameters:
+//   index - Noise period-table index.
+//
+// Returns:
+//   NTSC noise timer period in CPU clocks.
+// -----------------------------------------------------------------------------
 uint16
 APUWriteLogView::NoiseTimerPeriodFromIndex (uint8 index) const
 {
@@ -857,6 +926,22 @@ APUWriteLogView::NoiseTimerPeriodFromIndex (uint8 index) const
 }
 
 
+// -----------------------------------------------------------------------------
+// APUWriteLogView::NoiseClockRateHzFromIndex
+//
+// Converts a noise-channel period-table index into its corresponding NTSC timer
+// clock rate.
+//
+// The selected timer period is looked up through NoiseTimerPeriodFromIndex() and
+// used to divide the NTSC CPU clock. A zero period is guarded against even
+// though the standard noise period table contains no zero entries.
+//
+// Parameters:
+//   index - Noise period-table index.
+//
+// Returns:
+//   Noise timer clock rate in hertz, or 0.0 if the resolved period is zero.
+// -----------------------------------------------------------------------------
 double
 APUWriteLogView::NoiseClockRateHzFromIndex (uint8 index) const
 {
@@ -945,6 +1030,36 @@ APUWriteLogView::RegisterName (uint16 address) const
 		case 0x4017:
 			return "FRAME";
 
+		case 0x9000:
+			return "VRC6 P1 CTRL";
+
+		case 0x9001:
+			return "VRC6 P1 TIMERL";
+
+		case 0x9002:
+			return "VRC6 P1 TIMERH";
+
+		case 0x9003:
+			return "VRC6 FREQ CTRL";
+
+		case 0xa000:
+			return "VRC6 P2 CTRL";
+
+		case 0xa001:
+			return "VRC6 P2 TIMERL";
+
+		case 0xa002:
+			return "VRC6 P2 TIMERH";
+
+		case 0xb000:
+			return "VRC6 SAW RATE";
+
+		case 0xb001:
+			return "VRC6 SAW TIMERL";
+
+		case 0xb002:
+			return "VRC6 SAW TIMERH";
+
 		default:
 			return "UNKNOWN";
 	}
@@ -994,6 +1109,22 @@ APUWriteLogView::ChannelName (uint16 address) const
 		return "APU";
 	}
 
+	if (address >= 0x9000 && address <= 0x9002) {
+		return "VRC6 P1";
+	}
+
+	if (address == 0x9003) {
+		return "VRC6";
+	}
+
+	if (address >= 0xa000 && address <= 0xa002) {
+		return "VRC6 P2";
+	}
+
+	if (address >= 0xb000 && address <= 0xb002) {
+		return "VRC6 Saw";
+	}
+
 	return "Unknown";
 }
 
@@ -1015,6 +1146,7 @@ APUWriteLogView::DescribeWrite (const nes::apu::write_log_entry_t &entry, BStrin
 {
 	const uint16 address = entry.address;
 	const uint8 value = entry.value;
+
 	text.SetTo("");
 
 	switch (address) {
@@ -1059,16 +1191,16 @@ APUWriteLogView::DescribeWrite (const nes::apu::write_log_entry_t &entry, BStrin
 			const bool negate = (value & 0x8) != 0;
 			const unsigned shift = static_cast<unsigned>(value & 0x7);
 
-			text.SetToFormat("Sweep: %s, Period: %u, Direction: %s, Shift: %u", enabled ? "On" : "Off", period,
-							 negate ? "Down" : "Up", shift);
+			text.SetToFormat("Sweep: %s, Period: %u, Direction: %s, Shift: %u", enabled ? "On" : "Off",
+							 period, negate ? "Down" : "Up", shift);
 		}
 		break;
 
 		case 0x4002:
 		case 0x4006:
 		{
-			const double frequency = kNTSCCPUClock /  (16.0 * (static_cast<double>(entry.timer_period) + 1.0));
-
+			const double frequency = kNTSCCPUClock /
+									 (16.0 * (static_cast<double>(entry.timer_period) + 1.0));
 			text.SetToFormat("Timer Low: $%02X, Period: %u, Frequency: %.1f Hz", value,
 							 static_cast<unsigned>(entry.timer_period), frequency);
 		}
@@ -1079,11 +1211,13 @@ APUWriteLogView::DescribeWrite (const nes::apu::write_log_entry_t &entry, BStrin
 		{
 			const unsigned lengthIndex = static_cast<unsigned>((value >> 3) & 0x1f);
 			const unsigned lengthValue = static_cast<unsigned>(kLengthCounterTable[lengthIndex]);
-			const double frequency = kNTSCCPUClock / (16.0 * (static_cast<double>(entry.timer_period) + 1.0));
 
-			text.SetToFormat("Timer High: %u, Length Index: %u, Length: %u, Period: %u, Frequency: %.1f Hz, Sequence Reset",
-							 static_cast<unsigned>(value & 0x7), lengthIndex, lengthValue,
-							 static_cast<unsigned>(entry.timer_period), frequency);
+			const double frequency = kNTSCCPUClock / 
+									 (16.0 * (static_cast<double>(entry.timer_period) + 1.0));
+				text.SetToFormat("Timer High: %u, Length Index: %u, Length: %u, Period: %u, "
+								 "Frequency: %.1f Hz, Sequence Reset", static_cast<unsigned>(value & 0x7), 
+								 lengthIndex, lengthValue, static_cast<unsigned>(entry.timer_period),
+								 frequency);
 		}
 		break;
 
@@ -1094,7 +1228,8 @@ APUWriteLogView::DescribeWrite (const nes::apu::write_log_entry_t &entry, BStrin
 
 		case 0x400a:
 		{
-			const double frequency = kNTSCCPUClock / (32.0 * (static_cast<double>(entry.timer_period) + 1.0));
+			const double frequency = kNTSCCPUClock /
+									 (32.0 * (static_cast<double>(entry.timer_period) + 1.0));
 
 			text.SetToFormat("Timer Low: $%02X, Period: %u, Frequency: %.1f Hz", value,
 							 static_cast<unsigned>(entry.timer_period), frequency);
@@ -1105,11 +1240,11 @@ APUWriteLogView::DescribeWrite (const nes::apu::write_log_entry_t &entry, BStrin
 		{
 			const unsigned lengthIndex = static_cast<unsigned>((value >> 3) & 0x1f);
 			const unsigned lengthValue = static_cast<unsigned>(kLengthCounterTable[lengthIndex]);
-			const double frequency = kNTSCCPUClock / (32.0 * (static_cast<double>(entry.timer_period) + 1.0));
-
-			text.SetToFormat("Timer High: %u, Length Index: %u, Length: %u, Period: %u, "
-							 "Frequency: %.1f Hz, Linear Reload Set", static_cast<unsigned>(value & 0x7), 
-							 lengthIndex, lengthValue, static_cast<unsigned>(entry.timer_period), frequency);
+			const double frequency = kNTSCCPUClock /
+									 (32.0 * (static_cast<double>(entry.timer_period) + 1.0));
+				text.SetToFormat("Timer High: %u, Length Index: %u, Length: %u, Period: %u, Frequency: %.1f Hz, Linear Reload Set",
+								 static_cast<unsigned>(value & 0x7), lengthIndex, lengthValue,
+								 static_cast<unsigned>(entry.timer_period), frequency);
 		}
 		break;
 
@@ -1119,30 +1254,29 @@ APUWriteLogView::DescribeWrite (const nes::apu::write_log_entry_t &entry, BStrin
 			const bool constantVolume = (value & 0x10) != 0;
 			const unsigned volume = static_cast<unsigned>(value & 0xf);
 
-			text.SetToFormat("Halt/Loop: %s, Mode: %s, %s: %u", lengthHalt ? "On" : "Off",
-							 constantVolume ? "Constant Volume" : "Envelope",
-							 constantVolume ? "Volume" : "Envelope Period", volume);
+			text.SetToFormat("Halt/Loop: %s, Mode: %s, %s: %u", lengthHalt ? "On" : "Off", 
+							 constantVolume ? "Constant Volume" : "Envelope", constantVolume ? "Volume" : "Envelope Period",
+							 volume);
 		}
 		break;
 
 		case 0x400e:
-		{			
+		{
 			const uint8 periodIndex = static_cast<uint8>(value & 0xf);
 			const uint16 timerPeriod = NoiseTimerPeriodFromIndex(periodIndex);
 			const double clockHz = NoiseClockRateHzFromIndex(periodIndex);
 
 			text.SetToFormat("Mode: %s, Index: %u, Timer: %u, Clock: %.2f Hz", (value & 0x80) ? "Short" : "Long",
 							 static_cast<unsigned>(periodIndex), static_cast<unsigned>(timerPeriod), clockHz);
-		} 
+		}
 		break;
 
 		case 0x400f:
 		{
 			const unsigned lengthIndex = static_cast<unsigned>((value >> 3) & 0x1f);
 			const unsigned lengthValue = static_cast<unsigned>(kLengthCounterTable[lengthIndex]);
-
-			text.SetToFormat("Length Index: %u, Length: %u, Length Reload, Envelope Restart", 
-							 lengthIndex, lengthValue);
+			
+			text.SetToFormat("Length Index: %u, Length: %u, Length Reload, Envelope Restart", lengthIndex, lengthValue);
 		}
 		break;
 
@@ -1159,10 +1293,8 @@ APUWriteLogView::DescribeWrite (const nes::apu::write_log_entry_t &entry, BStrin
 			const unsigned period = static_cast<unsigned>(dmcPeriods[rateIndex]);
 			const double bitRate = kNTSCCPUClock / static_cast<double>(period);
 
-			text.SetToFormat("IRQ: %s, Loop: %s, Rate: %u ($%X), %u cycles, %.1f Hz",
-							 (value & 0x80) ? "On" : "Off",
-							 (value & 0x40) ? "On" : "Off",
-							 rateIndex, rateIndex, period, bitRate);
+			text.SetToFormat("IRQ: %s, Loop: %s, Rate: %u ($%X), %u cycles, %.1f Hz", (value & 0x80) ? "On" : "Off",
+							(value & 0x40) ? "On" : "Off", rateIndex, rateIndex, period, bitRate);
 		}
 		break;
 
@@ -1171,18 +1303,17 @@ APUWriteLogView::DescribeWrite (const nes::apu::write_log_entry_t &entry, BStrin
 			break;
 
 		case 0x4012:
-			text.SetToFormat("Sample Address: $%04X",
-							 static_cast<unsigned>(0xc000 | (static_cast<uint16>(value) << 6)));
+			text.SetToFormat("Sample Address: $%04X", static_cast<unsigned>(0xc000 |(static_cast<uint16>(value) << 6)));
 			break;
 
 		case 0x4013:
-			text.SetToFormat("Sample Length: %u bytes",
-							 static_cast<unsigned>((static_cast<uint16>(value) << 4) | 1));
+			text.SetToFormat("Sample Length: %u bytes", static_cast<unsigned>((static_cast<uint16>(value) << 4) | 1));
 			break;
 
 		case 0x4015:
 		{
 			const uint8 enableMask = static_cast<uint8>(value & 0x1f);
+
 			const bool square1Enabled = (enableMask & 0x01) != 0;
 			const bool square2Enabled = (enableMask & 0x02) != 0;
 			const bool triangleEnabled = (enableMask & 0x04) != 0;
@@ -1194,36 +1325,40 @@ APUWriteLogView::DescribeWrite (const nes::apu::write_log_entry_t &entry, BStrin
 			if (entry.has_previous_enable_mask) {
 				const uint8 changed = static_cast<uint8>(entry.previous_enable_mask ^ enableMask);
 
-				if (changed & 0x1) {
+				if (changed & 0x01) {
 					if (changes.Length() != 0) {
 						changes << ", ";
 					}
 
-					changes << "SQ1: " << (square1Enabled ? "On" : "Off");
+					changes << "SQ1: "
+							<< (square1Enabled ? "On" : "Off");
 				}
 
-				if (changed & 0x2) {
+				if (changed & 0x02) {
 					if (changes.Length() != 0) {
 						changes << ", ";
 					}
 
-					changes << "SQ2: " << (square2Enabled ? "On" : "Off");
+					changes << "SQ2: "
+							<< (square2Enabled ? "On" : "Off");
 				}
 
-				if (changed & 0x4) {
+				if (changed & 0x04) {
 					if (changes.Length() != 0) {
 						changes << ", ";
 					}
 
-					changes << "TRI: " << (triangleEnabled ? "On" : "Off");
+					changes << "TRI: "
+							<< (triangleEnabled ? "On" : "Off");
 				}
 
-				if (changed & 0x8) {
+				if (changed & 0x08) {
 					if (changes.Length() != 0) {
 						changes << ", ";
 					}
 
-					changes << "NOI: " << (noiseEnabled ? "On" : "Off");
+					changes << "NOI: "
+							<< (noiseEnabled ? "On" : "Off");
 				}
 
 				if (changed & 0x10) {
@@ -1231,7 +1366,8 @@ APUWriteLogView::DescribeWrite (const nes::apu::write_log_entry_t &entry, BStrin
 						changes << ", ";
 					}
 
-					changes << "DMC: " << (dmcEnabled ? "On" : "Off");
+					changes << "DMC: "
+							<< (dmcEnabled ? "On" : "Off");
 				}
 			}
 
@@ -1239,15 +1375,9 @@ APUWriteLogView::DescribeWrite (const nes::apu::write_log_entry_t &entry, BStrin
 				changes.SetTo("None");
 			}
 
-			text.SetToFormat(
-				"Enable Mask: $%02X, SQ1: %s SQ2: %s TRI: %s NOI: %s DMC: %s, Changed: %s",
-				static_cast<unsigned>(enableMask),
-				square1Enabled ? "On" : "Off",
-				square2Enabled ? "On" : "Off",
-				triangleEnabled ? "On" : "Off",
-				noiseEnabled ? "On" : "Off",
-				dmcEnabled ? "On" : "Off",
-				changes.String());
+			text.SetToFormat("Enable Mask: $%02X, SQ1: %s SQ2: %s TRI: %s NOI: %s DMC: %s, Changed: %s",
+				static_cast<unsigned>(enableMask), square1Enabled ? "On" : "Off", square2Enabled ? "On" : "Off",
+				triangleEnabled ? "On" : "Off", noiseEnabled ? "On" : "Off", dmcEnabled ? "On" : "Off", changes.String());
 		}
 		break;
 
@@ -1258,11 +1388,9 @@ APUWriteLogView::DescribeWrite (const nes::apu::write_log_entry_t &entry, BStrin
 
 			if (fiveStep) {
 				if (irqInhibit) {
-					text.SetTo(
-						"Frame: 5-Step, IRQ Inhibit: Yes, Frame IRQ Cleared, Immediate Quarter/Half Clock");
+					text.SetTo("Frame: 5-Step, IRQ Inhibit: Yes, Frame IRQ Cleared, Immediate Quarter/Half Clock");
 				} else {
-					text.SetTo(
-						"Frame: 5-Step, IRQ Inhibit: No, Immediate Quarter/Half Clock");
+					text.SetTo("Frame: 5-Step, IRQ Inhibit: No, Immediate Quarter/Half Clock");
 				}
 			} else {
 				if (irqInhibit) {
@@ -1273,9 +1401,132 @@ APUWriteLogView::DescribeWrite (const nes::apu::write_log_entry_t &entry, BStrin
 			}
 		}
 		break;
-		
+
+		case 0x9000:
+		case 0xa000:
+		{
+			const unsigned volume = static_cast<unsigned>(value & 0x0f);
+			const unsigned duty = static_cast<unsigned>((value >> 4) & 0x07);
+			const bool constantMode = (value & 0x80) != 0;
+			const double dutyPercent = (static_cast<double>(duty + 1) / 16.0) * 100.0;
+
+			text.SetToFormat("Volume: %u, Duty: %u (%.2f%%), Mode: %s", volume, duty, dutyPercent,
+							 constantMode ? "Constant" : "Duty");
+		}
+		break;
+
+		case 0x9001:
+		case 0x9002:
+		case 0xa001:
+		case 0xa002:
+		{
+			if (!entry.has_timer_period) {
+				text.SetTo("VRC6 Pulse Timer Write");
+				break;
+			}
+
+			const uint8 frequencyControl = entry.has_external_frequency_control
+										 ? entry.external_frequency_control
+										 : 0;
+			const uint16 effectivePeriod = EffectiveVRC6Period(entry.timer_period, frequencyControl);
+			const bool halted = (frequencyControl & 0x01) != 0;
+			const double frequency = kNTSCCPUClock /
+									(16.0 * (static_cast<double>(effectivePeriod) + 1.0));
+
+			if (address == 0x9002 || 
+			    address == 0xa002) {
+				const bool enabled = (value & 0x80) != 0;
+				if (halted) {
+					text.SetToFormat("Timer High: $%X, Enabled: %s, Period: %u, Effective: %u, Oscillator Halted",
+									 static_cast<unsigned>(value & 0x0f), enabled ? "Yes" : "No",
+									 static_cast<unsigned>(entry.timer_period), static_cast<unsigned>(effectivePeriod));
+				} else {
+					text.SetToFormat("Timer High: $%X, Enabled: %s, Period: %u, Effective: %u, Frequency: %.1f Hz",
+									 static_cast<unsigned>(value & 0x0f), enabled ? "Yes" : "No",
+									 static_cast<unsigned>(entry.timer_period), static_cast<unsigned>(effectivePeriod),
+									 frequency);
+				}
+			} else {
+				if (halted) {
+					text.SetToFormat("Timer Low: $%02X, Period: %u, Effective: %u, Oscillator Halted", value,
+									 static_cast<unsigned>(entry.timer_period), static_cast<unsigned>(effectivePeriod));
+				} else {
+					text.SetToFormat("Timer Low: $%02X, Period: %u, Effective: %u, Frequency: %.1f Hz", value,
+									 static_cast<unsigned>(entry.timer_period),static_cast<unsigned>(effectivePeriod),
+									 frequency);
+				}
+			}
+		}
+		break;
+
+		case 0x9003:
+		{
+			const bool halted = (value & 0x01) != 0;
+			const bool scale16 = (value & 0x02) != 0;
+			const bool scale256 = (value & 0x04) != 0;
+
+			const char *scale = "1x";
+
+			if (scale256) {
+				scale = "256x";
+			} else if (scale16) {
+				scale = "16x";
+			}
+
+			text.SetToFormat("Oscillators: %s, Frequency Scale: %s", halted ? "Halted" : "Running", scale);
+		}
+		break;
+
+		case 0xb000:
+		{
+			const unsigned rate = static_cast<unsigned>(value & 0x3f);
+			text.SetToFormat("Saw Rate: %u, Six-Step Accumulation: %u", rate, rate * 6);
+		}
+		break;
+
+		case 0xb001:
+		case 0xb002:
+		{
+			if (!entry.has_timer_period) {
+				text.SetTo("VRC6 Saw Timer Write");
+				break;
+			}
+
+			const uint8 frequencyControl = entry.has_external_frequency_control ? entry.external_frequency_control : 0;
+			const uint16 effectivePeriod = EffectiveVRC6Period(entry.timer_period, frequencyControl);
+			const bool halted = (frequencyControl & 0x01) != 0;
+			const double frequency = kNTSCCPUClock / (14.0 * (static_cast<double>(effectivePeriod) + 1.0));
+
+			if (address == 0xb002) {
+				const bool enabled = (value & 0x80) != 0;
+
+				if (halted) {
+					text.SetToFormat("Timer High: $%X, Enabled: %s, Period: %u, Effective: %u, Oscillator Halted",
+									 static_cast<unsigned>(value & 0x0f), enabled ? "Yes" : "No",
+									 static_cast<unsigned>(entry.timer_period),
+									 static_cast<unsigned>(effectivePeriod));
+				} else {
+					text.SetToFormat("Timer High: $%X, Enabled: %s, Period: %u, Effective: %u, Frequency: %.1f Hz",
+									 static_cast<unsigned>(value & 0x0f), enabled ? "Yes" : "No",
+									 static_cast<unsigned>(entry.timer_period),
+									 static_cast<unsigned>(effectivePeriod), frequency);
+				}
+			} else {
+				if (halted) {
+					text.SetToFormat("Timer Low: $%02X, Period: %u, Effective: %u, Oscillator Halted", value,
+									 static_cast<unsigned>(entry.timer_period),
+									 static_cast<unsigned>(effectivePeriod));
+				} else {
+					text.SetToFormat("Timer Low: $%02X, Period: %u, Effective: %u, Frequency: %.1f Hz", value,
+									 static_cast<unsigned>(entry.timer_period),
+									 static_cast<unsigned>(effectivePeriod), frequency);
+				}
+			}
+		}
+		break;
+
 		default:
-			text.SetTo("Unknown APU Write");
+			text.SetTo("Unknown Audio Write");
 			break;
 	}
 }

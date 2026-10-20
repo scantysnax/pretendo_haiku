@@ -1,5 +1,7 @@
+
 #include "ExpansionAudioStatusView.h"
 
+#include <CheckBox.h>
 #include <Font.h>
 #include <String.h>
 #include <Window.h>
@@ -11,6 +13,8 @@
 namespace {
 
 constexpr bigtime_t kPulseRate = 100000;
+
+constexpr uint32 kMessageToggleExpansionChannel = 'EAMU';
 
 constexpr float kTopMargin = 14.0f;
 
@@ -74,11 +78,10 @@ PanelHeightForLines (size_t lines)
 float
 PanelContentY (BRect panel)
 {
-	return
-		panel.top + kHeaderHeight + kPanelPadding + kLineHeight;
+	return panel.top + kHeaderHeight + kPanelPadding + kLineHeight;
 }
 
-}
+} // end anonymous namespace
 
 
 // -----------------------------------------------------------------------------
@@ -143,6 +146,8 @@ ExpansionAudioStatusView::AttachedToWindow()
 	}
 
 	CaptureState();
+	RebuildChannelControls();
+	UpdateChannelControls();
 }
 
 
@@ -171,6 +176,110 @@ ExpansionAudioStatusView::CaptureState()
 	}
 }
 
+// -----------------------------------------------------------------------------
+// ExpansionAudioStatusView::RebuildChannelControls
+//
+// Rebuilds the debugger mute controls for the currently loaded mapper.
+//
+// The current Expansion Status layout displays up to three channels. Each
+// checkbox corresponds to the mapper channel at the same index.
+//
+// A checked checkbox means the channel is audible. An unchecked checkbox means
+// the channel is muted.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+ExpansionAudioStatusView::RebuildChannelControls()
+{
+	for (size_t channel = 0; channel < 3; ++channel) {
+		if (fChannelCheckBoxes[channel] != nullptr) {
+			fChannelCheckBoxes[channel]->RemoveSelf();
+			delete fChannelCheckBoxes[channel];
+			fChannelCheckBoxes[channel] = nullptr;
+		}
+	}
+
+	fControlChannelCount = 0;
+
+	Mapper *mapper = nes::cart.mapper();
+
+	if (mapper == nullptr) {
+		return;
+	}
+
+	fControlChannelCount = mapper->audio_channel_count();
+
+	if (fControlChannelCount > 3) {
+		fControlChannelCount = 3;
+	}
+
+	for (size_t channel = 0; channel < fControlChannelCount; ++channel) {
+		BMessage *message = new BMessage(kMessageToggleExpansionChannel);
+			message->AddInt32("channel", static_cast<int32>(channel));
+
+		BCheckBox *checkBox = new BCheckBox(BRect(0.0f, 0.0f, 0.0f, 0.0f),
+										    "expansion_audio_enable",
+											"Enabled", message);
+		checkBox->ResizeToPreferred();
+		checkBox->SetViewColor(kHeaderColor);
+		checkBox->SetTarget(this);
+
+		AddChild(checkBox);
+
+		fChannelCheckBoxes[channel] = checkBox;
+	}
+}
+
+
+// -----------------------------------------------------------------------------
+// ExpansionAudioStatusView::UpdateChannelControls
+//
+// Synchronizes the expansion-audio checkboxes with the mapper-owned mute state.
+//
+// Checked means audible. Unchecked means muted.
+//
+// The mapper remains the source of truth so changes made through the main Audio
+// menu automatically appear here on the next debugger pulse.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+ExpansionAudioStatusView::UpdateChannelControls()
+{
+	Mapper *mapper = nes::cart.mapper();
+
+	if (mapper == nullptr) {
+		return;
+	}
+
+	size_t channelCount = mapper->audio_channel_count();
+
+	if (channelCount > 3) {
+		channelCount = 3;
+	}
+
+	if (channelCount != fControlChannelCount) {
+		RebuildChannelControls();
+	}
+
+	for (size_t channel = 0; channel < fControlChannelCount; ++channel) {
+		if (fChannelCheckBoxes[channel] == nullptr) {
+			continue;
+		}
+
+		fChannelCheckBoxes[channel]->SetValue(mapper->audio_channel_muted(channel) ? B_CONTROL_OFF : B_CONTROL_ON);
+	}
+}
+
 
 // -----------------------------------------------------------------------------
 // ExpansionAudioStatusView::Pulse
@@ -187,7 +296,76 @@ void
 ExpansionAudioStatusView::Pulse()
 {
 	CaptureState();
+	UpdateChannelControls();
+
 	Invalidate();
+}
+
+
+// -----------------------------------------------------------------------------
+// ExpansionAudioStatusView::MessageReceived
+//
+// Handles debugger mute controls for mapper-provided expansion-audio channels.
+//
+// The checkbox does not modify the emulated channel enable state. It changes
+// only the debugger/UI mute state exposed by the mapper.
+//
+// Checked means audible. Unchecked means muted.
+//
+// Parameters:
+//   message - Message received by the view.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+ExpansionAudioStatusView::MessageReceived (BMessage *message)
+{
+	if (message == nullptr) {
+		return;
+	}
+
+	switch (message->what) {
+		case kMessageToggleExpansionChannel:
+		{
+			int32 channel = -1;
+
+			if (message->FindInt32("channel", &channel) != B_OK) {
+				break;
+			}
+
+			if (channel < 0 || channel >= static_cast<int32>(fControlChannelCount)) {
+				break;
+			}
+
+			Mapper *mapper = nes::cart.mapper();
+
+			if (mapper == nullptr) {
+				break;
+			}
+
+			const size_t channelIndex = static_cast<size_t>(channel);
+
+			if (channelIndex >= mapper->audio_channel_count()) {
+				break;
+			}
+
+			BCheckBox *checkBox = fChannelCheckBoxes[channelIndex];
+
+			if (checkBox == nullptr) {
+				break;
+			}
+
+			mapper->set_audio_channel_muted(channelIndex, checkBox->Value() != B_CONTROL_ON);
+
+			UpdateChannelControls();
+			break;
+		}
+
+		default:
+			BView::MessageReceived(message);
+			break;
+	}
 }
 
 
@@ -267,6 +445,42 @@ ExpansionAudioStatusView::Draw (BRect updateRect)
 
 	const float topY = kTopMargin;
 	const float bottomY = topY + topPanelHeight + kSectionGap;
+	
+	// -------------------------------------------------------------------------
+	// Position expansion-audio mute controls in the channel-panel headers.
+	//
+	// These offsets mirror the native APU Status controls.
+	// -------------------------------------------------------------------------
+
+	if (fChannelCheckBoxes[0] != nullptr) {
+		fChannelCheckBoxes[0]->MoveTo(kColumn2X + 158.0f, topY + 1.0f);
+	}
+
+	if (fChannelCheckBoxes[1] != nullptr) {
+		fChannelCheckBoxes[1]->MoveTo(kColumn3X + 158.0f, topY + 1.0f);
+	}
+
+	if (fChannelCheckBoxes[2] != nullptr) {
+		fChannelCheckBoxes[2]->MoveTo(kColumn1X + 178.0f, bottomY + 1.0f);
+	}
+	
+	// -------------------------------------------------------------------------
+	// Position expansion-audio mute controls in the channel-panel headers.
+	//
+	// These offsets mirror the native APU Status controls.
+	// -------------------------------------------------------------------------
+
+	if (fChannelCheckBoxes[0] != nullptr) {
+		fChannelCheckBoxes[0]->MoveTo(kColumn2X + 158.0f, topY + 1.0f);
+	}
+
+	if (fChannelCheckBoxes[1] != nullptr) {
+		fChannelCheckBoxes[1]->MoveTo(kColumn3X + 158.0f, topY + 1.0f);
+	}
+
+	if (fChannelCheckBoxes[2] != nullptr) {
+		fChannelCheckBoxes[2]->MoveTo(kColumn1X + 178.0f, bottomY + 1.0f);
+	}
 
 	const BRect globalPanel(kColumn1X, topY, kColumn1X + kGlobalPanelWidth, topY + topPanelHeight);
 	DrawPanelBackground(globalPanel, fState.name.empty() ? "Expansion Audio" : fState.name.c_str());

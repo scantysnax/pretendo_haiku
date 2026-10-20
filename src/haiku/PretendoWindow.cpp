@@ -721,6 +721,10 @@ PretendoWindow::MessageReceived (BMessage *message)
 			OnAudioDMC();
 			break;
 			
+		case messages::ENABLE_EXP:
+			OnExpansionAudio(message);
+			break;
+			
 		case messages::RECV_ROM_DIR:
 			OnReceiveRomDirectory(message);
 			break;
@@ -837,19 +841,22 @@ PretendoWindow::WindowActivated (bool flag)
 // -----------------------------------------------------------------------------
 void
 PretendoWindow::MenusBeginning()
-{	
+{
+	UpdateExpansionAudioMenu();
+
 	// set up recently opened ROM menu, we keep 5 most recent
 	// item list count seems to be off by 1
 	int32 const recentItems = 5+1;
+
 	BMenu *menu = BRecentFilesList::NewFileListMenu("Load ROM" B_UTF8_ELLIPSIS,
-				  nullptr, nullptr, this->PreferredHandler(), recentItems, false, nullptr, 0, 
-				  "application/x-vnd.scantysnax-Pretendo");
-	
+													nullptr, nullptr, this->PreferredHandler(),
+													recentItems, false, nullptr, 0,
+													"application/x-vnd.scantysnax-Pretendo");
+
 	fFileMenu->AddItem(new BMenuItem(menu, new BMessage(messages::SHOW_OPEN)), 0);
-	
+
 	BWindow::MenusBeginning();
 }
-
 
 // -----------------------------------------------------------------------------
 // PretendoWindow::MenusEnded
@@ -1034,6 +1041,11 @@ PretendoWindow::AddMenu()
 	(fAudioMenu->ItemAt(nes::apu::sound_channel::TRIANGLE))->SetMarked(true);
 	(fAudioMenu->ItemAt(nes::apu::sound_channel::NOISE))->SetMarked(true);
 	(fAudioMenu->ItemAt(nes::apu::sound_channel::DPCM))->SetMarked(true);
+	fAudioMenu->AddSeparatorItem();
+	
+	fExpansionAudioMenu = new BMenu("Expansion Audio");
+	fAudioMenu->AddItem(fExpansionAudioMenu);
+	fExpansionAudioMenu->SetEnabled(false);
 	
 	fSettingsMenu->AddItem(new BMenuItem("Adjust Palette" B_UTF8_ELLIPSIS, new BMessage(messages::ADJ_PALETTE)));
 	fSettingsMenu->AddItem(new BMenuItem("Setup Input" B_UTF8_ELLIPSIS, new BMessage(messages::CFG_INPUT)));
@@ -1923,6 +1935,115 @@ PretendoWindow::OnAudioDMC()
 	} else {
 		nes::apu::mute_channel(nes::apu::DPCM);
 	}
+}
+
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::OnExpansionAudio
+//
+// Toggles one mapper-provided expansion-audio channel.
+//
+// The selected channel index is carried in the menu item's message.  Muting is
+// delegated entirely to the active mapper so the main window does not need to
+// know which expansion-audio chip is present.
+//
+// Parameters:
+//   message - Menu message containing the expansion channel index.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::OnExpansionAudio (BMessage *message)
+{
+	if (message == nullptr) {
+		return;
+	}
+
+	int32 channel = -1;
+
+	if (message->FindInt32("channel", &channel) != B_OK) {
+		return;
+	}
+
+	if (channel < 0) {
+		return;
+	}
+
+	Mapper *mapper = nes::cart.mapper();
+
+	if (mapper == nullptr) {
+		return;
+	}
+
+	const size_t channelIndex = static_cast<size_t>(channel);
+
+	if (channelIndex >= mapper->audio_channel_count()) {
+		return;
+	}
+
+	const bool muted = mapper->audio_channel_muted(channelIndex);
+	mapper->set_audio_channel_muted(channelIndex, !muted);
+
+	UpdateExpansionAudioMenu();
+}
+
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::UpdateExpansionAudioMenu
+//
+// Rebuilds the expansion-audio submenu from the currently loaded mapper.
+//
+// The mapper supplies the number of independently controllable audio channels,
+// their display names, and their current mute states.  This keeps the main menu
+// generic and allows future expansion-audio implementations to appear without
+// adding chip-specific menu code.
+//
+// A checked item means that the channel is audible.  An unchecked item means
+// that the channel is muted.
+// -----------------------------------------------------------------------------
+void
+PretendoWindow::UpdateExpansionAudioMenu()
+{
+	if (fExpansionAudioMenu == nullptr) {
+		return;
+	}
+
+	while (fExpansionAudioMenu->CountItems() > 0) {
+		BMenuItem *item = fExpansionAudioMenu->RemoveItem(static_cast<int32>(0));
+		delete item;
+	}
+
+	Mapper *mapper = nes::cart.mapper();
+
+	if (mapper == nullptr) {
+		fExpansionAudioMenu->SetEnabled(false);
+		return;
+	}
+
+	const size_t channelCount = mapper->audio_channel_count();
+
+	if (channelCount == 0) {
+		fExpansionAudioMenu->SetEnabled(false);
+		return;
+	}
+
+	for (size_t channel = 0; channel < channelCount; ++channel) {
+		const char *name = mapper->audio_channel_name(channel);
+
+		if (name == nullptr) {
+			continue;
+		}
+
+		BMessage *message = new BMessage(messages::ENABLE_EXP);
+		message->AddInt32("channel", static_cast<int32>(channel));
+
+		BMenuItem *item = new BMenuItem(name, message);
+		item->SetMarked(!mapper->audio_channel_muted(channel));
+		fExpansionAudioMenu->AddItem(item);
+	}
+
+	fExpansionAudioMenu->SetEnabled(fExpansionAudioMenu->CountItems() > 0);
 }
 
 
@@ -3483,7 +3604,7 @@ PretendoWindow::ChangeFramework (video_framework fw)
 			break;
 			
 		case video_framework::BITMAP:
-			SetFrontBuffer(fBitmapBits, B_CMAP8, 4, fBitmap->BytesPerRow());
+			SetFrontBuffer(fBitmapBits, B_CMAP8, 1, fBitmap->BytesPerRow());
 			
 			// force a screen update in case we are coming from WindowScreen
 			ClearBitmap(false);

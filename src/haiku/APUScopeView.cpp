@@ -3,6 +3,8 @@
 
 
 namespace {
+	constexpr double kNTSCCPUClock = 1789773.0;
+
 	const rgb_color kTextColor = { 25, 25, 25, 255 };
 	const rgb_color kGoodColor = { 0, 120, 40, 255 };
 	const rgb_color kBadColor = { 170, 35, 35, 255 };

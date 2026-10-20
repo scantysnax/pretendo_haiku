@@ -132,6 +132,7 @@ struct mapper_audio_channel_debug_t {
 	bool halted = false;
 
 	bool enabled = false;
+	bool muted = false;
 
 	mapper_audio_debug_field_t fields[8];
 	size_t field_count = 0;
@@ -164,11 +165,9 @@ struct mapper_audio_debug_state_t {
 	mapper_audio_debug_field_t fields[8];
 	size_t field_count = 0;
 
-	mapper_audio_channel_debug_t channels[3];
+	mapper_audio_channel_debug_t channels[8];
 	size_t channel_count = 0;
 };
-
-
 
 
 // -----------------------------------------------------------------------------
@@ -196,8 +195,7 @@ using create_func = std::function<std::unique_ptr<Mapper>()>;
 class Mapper
 {
 	public:
-	static std::unique_ptr<Mapper> create_mapper (int num, int submapper = 0,
-												 const ROMDatabase::Entry *database_entry = nullptr);
+	static std::unique_ptr<Mapper> create_mapper (int num, int submapper = 0, const ROMDatabase::Entry *database_entry = nullptr);
 	static void register_mapper(int num, create_func create_ptr);
 
 	public:
@@ -282,6 +280,65 @@ virtual uint8_t audio_output() const
 {
 	return 0;
 }
+
+// -----------------------------------------------------------------------------
+// audio_channel_count
+//
+// Returns the number of independently controllable expansion-audio channels
+// exposed by this mapper.
+//
+// Mappers without expansion audio return zero.
+// -----------------------------------------------------------------------------
+virtual size_t audio_channel_count() const
+{
+	return 0;
+}
+
+
+// -----------------------------------------------------------------------------
+// audio_channel_name
+//
+// Returns the display name of one expansion-audio channel.
+//
+// Mappers without expansion audio return nullptr.
+// -----------------------------------------------------------------------------
+virtual const char *audio_channel_name (size_t channel) const
+{
+	(void)channel;
+
+	return nullptr;
+}
+
+
+// -----------------------------------------------------------------------------
+// audio_channel_muted
+//
+// Returns whether one expansion-audio channel is muted by the debugger/UI.
+//
+// Muting affects audible output only and must not stop or disable the emulated
+// channel itself.
+// -----------------------------------------------------------------------------
+virtual bool audio_channel_muted (size_t channel) const
+{
+	(void)channel;
+
+	return false;
+}
+
+
+// -----------------------------------------------------------------------------
+// set_audio_channel_muted
+//
+// Changes debugger/UI mute state for one expansion-audio channel.
+//
+// Mappers without expansion audio ignore the request.
+// -----------------------------------------------------------------------------
+virtual void set_audio_channel_muted (size_t channel, bool muted)
+{
+	(void)channel;
+	(void)muted;
+}
+
 
 
 // -----------------------------------------------------------------------------
@@ -495,13 +552,11 @@ virtual mapper_audio_scope_sample_t debug_audio_scope_sample() const
 
 	public:
 	// Update one resolved PRG mapping slot for debugger inspection.
-	void debug_set_prg_bank (int slot, uint16_t address, uint32_t bank,
-							 MapperDebugMemoryType type,
+	void debug_set_prg_bank (int slot, uint16_t address, uint32_t bank, MapperDebugMemoryType type,
 							 bool readable = true, bool writable = false);
 
 	// Update one resolved CHR mapping slot for debugger inspection.
-	void debug_set_chr_bank (int slot, uint16_t address, uint32_t bank,
-							 MapperDebugMemoryType type);
+	void debug_set_chr_bank (int slot, uint16_t address, uint32_t bank, MapperDebugMemoryType type);
 
 	private:
 	constexpr static unsigned int PageCount = 32;

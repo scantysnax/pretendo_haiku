@@ -6,6 +6,9 @@
 #include "Mapper.h"
 
 
+class BCheckBox;
+
+
 class ExpansionAudioStatusView : public BView
 {
 	public:
@@ -16,9 +19,13 @@ class ExpansionAudioStatusView : public BView
 	virtual void AttachedToWindow();
 	virtual void Draw (BRect updateRect);
 	virtual void Pulse();
+	virtual void MessageReceived (BMessage *message);
 
 	private:
 	void CaptureState();
+
+	void RebuildChannelControls();
+	void UpdateChannelControls();
 
 	private:
 	void DrawHeader();
@@ -37,6 +44,9 @@ class ExpansionAudioStatusView : public BView
 
 	private:
 	mapper_audio_debug_state_t fState;
+
+	BCheckBox *fChannelCheckBoxes[3] = {};
+	size_t fControlChannelCount = 0;
 };
 
 

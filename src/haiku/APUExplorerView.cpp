@@ -4,6 +4,9 @@
 
 
 namespace {
+	constexpr double kNTSCCPUClock = 1789773.0;
+
+	
 	const rgb_color kTextColor = { 25, 25, 25, 255 };
 	const rgb_color kAddressColor = { 0, 70, 150, 255 };
 	const rgb_color kValueColor = { 105, 35, 135, 255 };

@@ -452,8 +452,7 @@ Mapper::create_mapper (int num, int submapper, const ROMDatabase::Entry *databas
 
 	const std::map<int, create_func> &mappers = registered_mappers_ines();
 
-	auto it =
-		mappers.find(num);
+	auto it = mappers.find(num);
 
 	if (it != mappers.end() && (f = it->second)) {
 		auto ret = f();
@@ -2335,6 +2334,7 @@ Mapper::set_mirroring (uint8_t mirror)
 	vram_banks_[0xf] = vram_banks_[0xb];
 }
 
+
 // -----------------------------------------------------------------------------
 // Mapper::debug_set_mirroring_unknown
 //
@@ -2363,8 +2363,6 @@ Mapper::debug_set_mirroring_unknown()
 
 	++debug_state_.revision;
 }
-
-
 
 
 // -----------------------------------------------------------------------------

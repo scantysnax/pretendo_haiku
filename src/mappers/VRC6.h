@@ -5,6 +5,36 @@
 #include "Mapper.h"
 
 
+// -----------------------------------------------------------------------------
+// vrc6_debug_state_t
+//
+// Debugger-facing snapshot of VRC6 mapper-control state.
+//
+// Generic resolved PRG/CHR mappings and mirroring are already exposed through
+// Mapper::debug_state(), so this structure contains only VRC6-specific internal
+// control state that cannot be derived reliably from those mappings.
+// -----------------------------------------------------------------------------
+struct vrc6_debug_state_t {
+	bool wram_enabled = false;
+
+	uint8_t irq_latch = 0;
+	uint8_t irq_counter = 0;
+	int irq_prescaler = 341;
+
+	uint8_t irq_control = 0;
+	bool irq_enable_after_ack = false;
+	bool irq_enabled = false;
+	bool irq_cycle_mode = false;
+
+	uint8_t frequency_control = 0;
+	bool audio_halted = false;
+	uint16_t audio_clock_scale = 1;
+	
+	uint64_t irq_clock_count = 0;
+	uint64_t irq_assert_count = 0;
+};
+
+
 // Konami VRC-6
 class VRC6 : public Mapper
 {
@@ -94,8 +124,15 @@ class VRC6 : public Mapper
 	void reset() override;
 
 	uint8_t audio_output() const override;
+	size_t audio_channel_count() const override;
+	const char *audio_channel_name (size_t channel) const override;
+	bool audio_channel_muted (size_t channel) const override;
+	void set_audio_channel_muted (size_t channel, bool muted) override;
+
 	mapper_audio_debug_state_t debug_audio_state() const override;
 	mapper_audio_scope_sample_t debug_audio_scope_sample() const override;
+
+	vrc6_debug_state_t debug_mapper_state() const;
 
 	private:
 	void clock_irq();
@@ -104,16 +141,24 @@ class VRC6 : public Mapper
 	uint8_t wram_[0x2000] = {};
 	bool wram_enabled_ = false;
 
+	private:
 	PulseChannel pulse1_;
 	PulseChannel pulse2_;
 	SawChannel saw_;
 
+	private:
 	uint8_t frequency_control_ = 0;
+	bool audio_channel_muted_[3] = {};
 
+	private:
 	uint8_t irq_latch_      = 0;
 	IRQControl irq_control_ = {0};
 	uint8_t irq_counter_    = 0;
 	int irq_prescaler_      = 341;
+	
+	private:
+	uint64_t irq_clock_count_ = 0;
+	uint64_t irq_assert_count_ = 0;
 };
 
 #endif

@@ -110,6 +110,7 @@ class PretendoWindow : public BWindow, public nes::FrameOutput
 		ENABLE_TRI = 	'TRIA',
 		ENABLE_NOISE = 	'NOIS',
 		ENABLE_DMC = 	'DPCM',
+		ENABLE_EXP =	'EXPA',
 		// tools
 		ADJ_PALETTE =			'ADJP',
 		VIEW_PTNTBL1 = 			'PTB1',
@@ -221,6 +222,11 @@ class PretendoWindow : public BWindow, public nes::FrameOutput
 	void OnAudioTriangle();
 	void OnAudioNoise();
 	void OnAudioDMC();
+	
+	void OnExpansionAudio (BMessage *message);
+	void UpdateExpansionAudioMenu();
+	
+	
 	void OnReceiveRomDirectory (BMessage *message);
 	void OnViewPaletteDebugger();
 	void OnViewOAMDebugger();
@@ -286,6 +292,7 @@ class PretendoWindow : public BWindow, public nes::FrameOutput
 	BMenu *fSettingsMenu = nullptr;
 	BMenu *fVideoMenu = nullptr;
 	BMenu *fAudioMenu = nullptr;
+	BMenu *fExpansionAudioMenu = nullptr;
 	BMenu *fToolMenu = nullptr;
 	BMenu *fCPUToolMenu = nullptr;
 	BMenu *fPPUToolMenu = nullptr;
@@ -294,6 +301,7 @@ class PretendoWindow : public BWindow, public nes::FrameOutput
 	BMenu *fNameTableMenu = nullptr;
 	MenuBarIcon *fMenuBarIcon = nullptr;
 	int32 fMenuHeight;
+	
 	
 	// panels
 	private:

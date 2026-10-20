@@ -48,8 +48,9 @@ MapperExplorerView::~MapperExplorerView()
 // Initializes the Mapper Explorer after the view has been attached to its
 // window.
 //
-// The initial generic mapper state and any supported mapper-specific debugger
-// state are captured before the first redraw.
+// The view enables periodic refreshes, then captures the initial generic mapper
+// state and any supported mapper-specific debugger state before the first
+// redraw.
 //
 // Parameters:
 //   None.
@@ -62,6 +63,10 @@ MapperExplorerView::AttachedToWindow()
 {
 	BView::AttachedToWindow();
 
+	if (Window() != nullptr) {
+		Window()->SetPulseRate(100000);
+	}
+
 	CaptureState();
 	CaptureMMC1State();
 	CaptureUxROMState();
@@ -71,7 +76,8 @@ MapperExplorerView::AttachedToWindow()
 	CaptureAxROMState();
 	CaptureMMC2State();
 	CaptureCamericaState();
-	
+	CaptureVRC6State();
+
 	Invalidate();
 }
 
@@ -121,6 +127,7 @@ MapperExplorerView::Draw (BRect updateRect)
 		DrawAxROMPanel();
 		DrawMMC2Panel();
 		DrawCamericaPanel();
+		DrawVRC6Panel();
 	} else if (MapperSpecificPanelExpected()) {
 		DrawMapperSpecificSeparator();
 		DrawUnsupportedMapperPanel();
@@ -180,6 +187,10 @@ MapperExplorerView::Pulse()
 	}
 	
 	if (CaptureCamericaState()) {
+		redraw = true;
+	}
+	
+	if (CaptureVRC6State()) {
 		redraw = true;
 	}
 
@@ -1289,7 +1300,9 @@ MapperExplorerView::HaveMapperSpecificPanel() const
 		fHaveMMC5State ||
 		fHaveAxROMState ||
 		fHaveMMC2State ||
-		fHaveCamericaState;		
+		fHaveCamericaState ||
+		fHaveVRC6State;
+				
 }
 
 
@@ -2934,6 +2947,431 @@ MapperExplorerView::DrawCamericaPanel()
 	x = 28.0f;
 	x = DrawText(x, y, "Mirroring: ", be_plain_font);
 	DrawText(x, y, MirroringName(fState.mirroring), be_plain_font);
+
+	SetHighColor(25, 25, 25);
+}
+
+
+// -----------------------------------------------------------------------------
+// MapperExplorerView::CaptureVRC6State
+//
+// Captures VRC6-specific debugger state from the active mapper.
+//
+// The generic Mapper Explorer state continues to provide resolved PRG/CHR
+// mappings and mirroring. This snapshot contains VRC6-specific control state
+// such as WRAM, IRQ, and global expansion-audio timing controls.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   true if the VRC6 state changed or VRC6 availability changed.
+// -----------------------------------------------------------------------------
+bool
+MapperExplorerView::CaptureVRC6State()
+{
+	Mapper *mapper = nes::cart.mapper();
+	VRC6 *vrc6 = dynamic_cast<VRC6 *>(mapper);
+
+	if (!vrc6) {
+		if (!fHaveVRC6State) {
+			return false;
+		}
+
+		fVRC6State = {};
+		fHaveVRC6State = false;
+
+		return true;
+	}
+
+	const vrc6_debug_state_t state = vrc6->debug_mapper_state();
+
+	if (fHaveVRC6State && !VRC6StateChanged(fVRC6State, state)) {
+		return false;
+	}
+
+	fVRC6State = state;
+	fHaveVRC6State = true;
+
+	return true;
+}
+
+
+// -----------------------------------------------------------------------------
+// MapperExplorerView::VRC6StateChanged
+//
+// Determines whether any VRC6-specific debugger state changed.
+//
+// Parameters:
+//   oldState - Previously captured VRC6 state.
+//   newState - Newly captured VRC6 state.
+//
+// Returns:
+//   true if any displayed VRC6 state changed; false otherwise.
+// -----------------------------------------------------------------------------
+bool
+MapperExplorerView::VRC6StateChanged (const vrc6_debug_state_t &oldState,
+									  const vrc6_debug_state_t &newState) const
+{
+	return
+		oldState.wram_enabled          != newState.wram_enabled ||
+		oldState.irq_latch             != newState.irq_latch ||
+		oldState.irq_counter           != newState.irq_counter ||
+		oldState.irq_prescaler         != newState.irq_prescaler ||
+		oldState.irq_control           != newState.irq_control ||
+		oldState.irq_enable_after_ack  != newState.irq_enable_after_ack ||
+		oldState.irq_enabled           != newState.irq_enabled ||
+		oldState.irq_cycle_mode        != newState.irq_cycle_mode ||
+		oldState.frequency_control     != newState.frequency_control ||
+		oldState.audio_halted          != newState.audio_halted ||
+		oldState.audio_clock_scale     != newState.audio_clock_scale ||
+		oldState.irq_clock_count  	    != newState.irq_clock_count ||
+		oldState.irq_assert_count 	   != newState.irq_assert_count;
+}
+
+
+// -----------------------------------------------------------------------------
+// MapperExplorerView::DrawVRC6Panel
+//
+// Draws VRC6-specific mapper-control, IRQ, and global expansion-audio state.
+//
+// Resolved PRG/CHR mappings and nametable mirroring are already displayed by
+// the generic Mapper Explorer tables, so this panel focuses on internal VRC6
+// control state that cannot be inferred reliably from those mappings.
+//
+// Detailed Pulse 1, Pulse 2, and Saw channel state is intentionally left to the
+// APU debugger. Only the VRC6-wide $9003 frequency-control state is shown here.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+MapperExplorerView::DrawVRC6Panel()
+{
+	if (!fHaveVRC6State) {
+		return;
+	}
+
+	const float left = 20.0f;
+	const float leftText = 28.0f;
+
+	const float middle = 285.0f;
+	const float middleText = 293.0f;
+
+	const float right = 555.0f;
+	const float rightText = 563.0f;
+
+	float y = 478.0f;
+
+	BString text;
+
+
+	// -------------------------------------------------------------------------
+	// Main heading.
+	// -------------------------------------------------------------------------
+
+	SetFont(be_bold_font);
+	SetHighColor(45, 75, 115);
+	DrawString("VRC6 Internal State", BPoint(left, y));
+
+	y += 30.0f;
+
+
+	// -------------------------------------------------------------------------
+	// Mapper control.
+	// -------------------------------------------------------------------------
+
+	SetFont(be_bold_font);
+	SetHighColor(45, 75, 115);
+	DrawString("Mapper Control", BPoint(left, y));
+
+	float controlY = y + 24.0f;
+
+	SetHighColor(25, 25, 25);
+
+	float x = leftText;
+	x = DrawText(
+		x,
+		controlY,
+		"PRG RAM: ",
+		be_plain_font);
+
+	if (fVRC6State.wram_enabled) {
+		SetHighColor(30, 110, 45);
+		DrawText(
+			x,
+			controlY,
+			"Enabled",
+			be_plain_font);
+	} else {
+		SetHighColor(120, 120, 120);
+		DrawText(
+			x,
+			controlY,
+			"Disabled",
+			be_plain_font);
+	}
+
+
+	// -------------------------------------------------------------------------
+	// IRQ counter state.
+	// -------------------------------------------------------------------------
+
+	SetFont(be_bold_font);
+	SetHighColor(45, 75, 115);
+	DrawString("IRQ Counter", BPoint(middle, y));
+
+	float irqY = y + 24.0f;
+
+	SetHighColor(25, 25, 25);
+
+	x = middleText;
+	x = DrawText(x, irqY, "Latch: ", be_plain_font);
+
+	text.SetToFormat(
+		"$%02X",
+		static_cast<unsigned int>(
+			fVRC6State.irq_latch));
+
+	DrawText(
+		x,
+		irqY,
+		text.String(),
+		be_fixed_font);
+
+	irqY += 20.0f;
+
+	x = middleText;
+	x = DrawText(x, irqY, "Counter: ", be_plain_font);
+
+	text.SetToFormat(
+		"$%02X",
+		static_cast<unsigned int>(
+			fVRC6State.irq_counter));
+
+	DrawText(
+		x,
+		irqY,
+		text.String(),
+		be_fixed_font);
+
+	irqY += 20.0f;
+
+	x = middleText;
+	x = DrawText(x, irqY, "Prescaler: ", be_plain_font);
+
+	text.SetToFormat(
+		"%d",
+		fVRC6State.irq_prescaler);
+
+	DrawText(
+		x,
+		irqY,
+		text.String(),
+		be_plain_font);
+
+	irqY += 20.0f;
+
+	x = middleText;
+	x = DrawText(x, irqY, "Control: ", be_plain_font);
+
+	text.SetToFormat(
+		"$%02X",
+		static_cast<unsigned int>(
+			fVRC6State.irq_control));
+
+	DrawText(
+		x,
+		irqY,
+		text.String(),
+		be_fixed_font);
+
+
+	// -------------------------------------------------------------------------
+	// IRQ control flags.
+	// -------------------------------------------------------------------------
+
+	SetFont(be_bold_font);
+	SetHighColor(45, 75, 115);
+	DrawString("IRQ Control", BPoint(right, y));
+
+	float irqControlY = y + 24.0f;
+
+	SetHighColor(25, 25, 25);
+
+	x = rightText;
+	x = DrawText(
+		x,
+		irqControlY,
+		"Enabled: ",
+		be_plain_font);
+
+	if (fVRC6State.irq_enabled) {
+		SetHighColor(30, 110, 45);
+		DrawText(
+			x,
+			irqControlY,
+			"YES",
+			be_plain_font);
+	} else {
+		SetHighColor(120, 120, 120);
+		DrawText(
+			x,
+			irqControlY,
+			"NO",
+			be_plain_font);
+	}
+
+	irqControlY += 20.0f;
+
+	SetHighColor(25, 25, 25);
+
+	x = rightText;
+	x = DrawText(
+		x,
+		irqControlY,
+		"Enable after ACK: ",
+		be_plain_font);
+
+	if (fVRC6State.irq_enable_after_ack) {
+		SetHighColor(30, 110, 45);
+		DrawText(
+			x,
+			irqControlY,
+			"YES",
+			be_plain_font);
+	} else {
+		SetHighColor(120, 120, 120);
+		DrawText(
+			x,
+			irqControlY,
+			"NO",
+			be_plain_font);
+	}
+
+	irqControlY += 20.0f;
+
+	SetHighColor(25, 25, 25);
+
+	x = rightText;
+	x = DrawText(
+		x,
+		irqControlY,
+		"Mode: ",
+		be_plain_font);
+
+	DrawText(
+		x,
+		irqControlY,
+		fVRC6State.irq_cycle_mode
+			? "CPU Cycle"
+			: "Scanline",
+		be_plain_font);
+
+// -------------------------------------------------------------------------
+// Persistent IRQ activity.
+// -------------------------------------------------------------------------
+
+	irqControlY += 30.0f;
+
+	SetFont(be_bold_font);
+	SetHighColor(45, 75, 115);
+	DrawString("IRQ Activity", BPoint(right, irqControlY));
+
+	irqControlY += 24.0f;
+	SetHighColor(100, 100, 100);
+	x = rightText;
+	x = DrawText(x, irqControlY, "Clocks: ", be_plain_font);
+	text.SetToFormat("%llu", static_cast<unsigned long long>(fVRC6State.irq_clock_count));
+
+	DrawText(x, irqControlY, text.String(), be_plain_font);
+	irqControlY += 20.0f;
+	x = rightText;
+	x = DrawText(x, irqControlY, "Assertions: ", be_plain_font);
+	text.SetToFormat("%llu", static_cast<unsigned long long>(fVRC6State.irq_assert_count));
+	DrawText(x, irqControlY, text.String(), be_plain_font);
+
+	// -------------------------------------------------------------------------
+	// Global VRC6 expansion-audio control.
+	// -------------------------------------------------------------------------
+
+	y = std::max(irqY, irqControlY) + 32.0f;
+
+	SetFont(be_bold_font);
+	SetHighColor(45, 75, 115);
+	DrawString("Expansion Audio Control", BPoint(left, y));
+
+	y += 24.0f;
+
+	SetHighColor(25, 25, 25);
+
+	x = leftText;
+	x = DrawText(
+		x,
+		y,
+		"Frequency Control: ",
+		be_plain_font);
+
+	text.SetToFormat(
+		"$%02X",
+		static_cast<unsigned int>(
+			fVRC6State.frequency_control));
+
+	x = DrawText(
+		x,
+		y,
+		text.String(),
+		be_fixed_font);
+
+	x += 24.0f;
+
+	SetHighColor(25, 25, 25);
+
+	x = DrawText(
+		x,
+		y,
+		"Halt: ",
+		be_plain_font);
+
+	if (fVRC6State.audio_halted) {
+		SetHighColor(170, 35, 35);
+		x = DrawText(
+			x,
+			y,
+			"YES",
+			be_plain_font);
+	} else {
+		SetHighColor(30, 110, 45);
+		x = DrawText(
+			x,
+			y,
+			"NO",
+			be_plain_font);
+	}
+
+	x += 24.0f;
+
+	SetHighColor(25, 25, 25);
+
+	x = DrawText(
+		x,
+		y,
+		"Clock Scale: ",
+		be_plain_font);
+
+	text.SetToFormat(
+		"%ux",
+		static_cast<unsigned int>(
+			fVRC6State.audio_clock_scale));
+
+	DrawText(
+		x,
+		y,
+		text.String(),
+		be_plain_font);
 
 	SetHighColor(25, 25, 25);
 }

@@ -429,38 +429,59 @@ constexpr uint32_t APU_WRITE_LOG_CAPACITY = 256;
 
 
 // -----------------------------------------------------------------------------
+// APU register-write history
+// -----------------------------------------------------------------------------
+
+enum class write_log_source_t : uint8_t
+{
+	NATIVE_APU,
+	EXTERNAL_AUDIO
+};
+
+
+// -----------------------------------------------------------------------------
 // write_log_entry_t
 //
-// Describes one recorded CPU write to an APU register.
+// Describes one recorded CPU write affecting native or expansion audio.
 //
-// timer_period is valid only when has_timer_period is true and is used for
-// writes that affect a complete channel timer value.
+// timer_period is valid when has_timer_period is true.
 //
-// previous_enable_mask is valid only when has_previous_enable_mask is true and
-// records the channel-enable state that existed before a $4015 write.
+// previous_enable_mask is used by native $4015 writes.
+//
+// external_frequency_control captures expansion-audio frequency-control state
+// associated with the write.  For VRC6 this is the current $9003 value.
 // -----------------------------------------------------------------------------
-struct write_log_entry_t {
-	// APU cycle on which the write occurred.
+struct write_log_entry_t
+{
 	uint64_t cycle;
 
-	// CPU-visible APU register address.
 	uint16_t address;
-
-	// Value written to the register.
 	uint8_t value;
 
-	// Monotonically increasing debugger write sequence number.
 	uint32_t write_index;
 
-	// Optional reconstructed timer period after the write.
+	write_log_source_t source;
+
 	uint16_t timer_period;
 	bool has_timer_period;
 
-	// Optional channel-enable mask captured before a $4015 write.
 	uint8_t previous_enable_mask;
 	bool has_previous_enable_mask;
+
+	uint8_t external_frequency_control;
+	bool has_external_frequency_control;
 };
 
+uint32_t write_log_count();
+
+uint32_t
+write_log_snapshot (write_log_entry_t *entries, uint32_t capacity);
+
+void clear_write_log();
+
+void
+log_external_audio_write (uint16_t address, uint8_t value, uint16_t timerPeriod, bool hasTimerPeriod, 
+						  uint8_t frequencyControl);
 
 // Returns the number of valid entries currently stored in the write log.
 uint32_t write_log_count();
@@ -470,6 +491,10 @@ uint32_t write_log_snapshot(write_log_entry_t *entries, uint32_t capacity);
 
 // Clears the debugger APU register-write history.
 void clear_write_log();
+
+void
+log_external_audio_write (uint16_t address, uint8_t value, uint16_t timerPeriod, bool hasTimerPeriod,
+						  uint8_t frequencyControl);
 
 
 // -----------------------------------------------------------------------------

@@ -1,4 +1,5 @@
 #include "VRC6.h"
+#include "Apu.h"
 #include "Cpu.h"
 
 
@@ -482,18 +483,22 @@ VRC6::write_9 (uint_least16_t address, uint8_t value)
 	switch (address & 0xf003) {
 	case 0x9000:
 		pulse1_.write_control(value);
+		nes::apu::log_external_audio_write(0x9000, value, pulse1_.period, false, frequency_control_);
 		break;
 
 	case 0x9001:
 		pulse1_.write_period_low(value);
+		nes::apu::log_external_audio_write(0x9001, value, pulse1_.period, true, frequency_control_);
 		break;
 
 	case 0x9002:
 		pulse1_.write_period_high(value);
+		nes::apu::log_external_audio_write(0x9002, value, pulse1_.period, true, frequency_control_);
 		break;
 
 	case 0x9003:
 		frequency_control_ = value;
+		nes::apu::log_external_audio_write(0x9003, value, 0, false, frequency_control_);
 		break;
 	}
 }
@@ -517,14 +522,17 @@ VRC6::write_a (uint_least16_t address, uint8_t value)
 	switch (address & 0xf003) {
 	case 0xa000:
 		pulse2_.write_control(value);
+		nes::apu::log_external_audio_write(0xa000, value, pulse2_.period, false, frequency_control_);
 		break;
 
 	case 0xa001:
 		pulse2_.write_period_low(value);
+		nes::apu::log_external_audio_write(0xa001, value, pulse2_.period, true, frequency_control_);
 		break;
 
 	case 0xa002:
 		pulse2_.write_period_high(value);
+		nes::apu::log_external_audio_write(0xa002, value, pulse2_.period, true, frequency_control_);
 		break;
 	}
 }
@@ -546,19 +554,22 @@ VRC6::write_a (uint_least16_t address, uint8_t value)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-VRC6::write_b(uint_least16_t address, uint8_t value)
+VRC6::write_b (uint_least16_t address, uint8_t value)
 {
 	switch (address & 0xf003) {
 	case 0xb000:
 		saw_.write_rate(value);
+		nes::apu::log_external_audio_write(0xb000, value, saw_.period, false, frequency_control_);
 		break;
 
 	case 0xb001:
 		saw_.write_period_low(value);
+		nes::apu::log_external_audio_write(0xb001, value, saw_.period, true, frequency_control_);
 		break;
 
 	case 0xb002:
 		saw_.write_period_high(value);
+		nes::apu::log_external_audio_write(0xb002, value, saw_.period, true, frequency_control_);
 		break;
 
 	case 0xb003:
@@ -610,6 +621,7 @@ VRC6::write_c (uint_least16_t address, uint8_t value)
 		break;
 	}
 }
+
 
 // -----------------------------------------------------------------------------
 // VRC6::write_d
@@ -756,17 +768,29 @@ VRC6::cpu_sync()
 // -----------------------------------------------------------------------------
 // VRC6::clock_irq
 //
-// Advances the VRC6 IRQ counter by one clock.
+// Advances the VRC6 IRQ counter by one mapper IRQ clock.
 //
-// When the counter reaches $FF, the next clock reloads it from the programmed
-// IRQ latch and asserts the mapper IRQ line. Otherwise the counter increments
-// normally.
+// A persistent debugger clock counter is incremented on every IRQ-counter clock.
+// When the IRQ counter reaches $FF, it reloads from the programmed latch and
+// asserts the mapper IRQ line. A second persistent counter records those IRQ
+// assertions so debugger tools can show activity even when periodic UI sampling
+// repeatedly observes the mapper at the same point in its frame cycle.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
 // -----------------------------------------------------------------------------
 void
 VRC6::clock_irq()
 {
+	++irq_clock_count_;
+
 	if (irq_counter_ == 0xff) {
 		irq_counter_ = irq_latch_;
+
+		++irq_assert_count_;
 
 		nes::cpu::irq(nes::cpu::MAPPER_IRQ);
 	} else {
@@ -790,7 +814,69 @@ VRC6::clock_irq()
 uint8_t
 VRC6::audio_output() const
 {
-	return static_cast<uint8_t>(pulse1_.output() + pulse2_.output() + saw_.output());
+	uint8_t output = 0;
+
+	if (!audio_channel_muted_[0]) {
+		output += pulse1_.output();
+	}
+
+	if (!audio_channel_muted_[1]) {
+		output += pulse2_.output();
+	}
+
+	if (!audio_channel_muted_[2]) {
+		output += saw_.output();
+	}
+
+	return output;
+}
+
+
+size_t
+VRC6::audio_channel_count() const
+{
+	return 3;
+}
+
+
+const char*
+VRC6::audio_channel_name (size_t channel) const
+{
+	switch (channel) {
+		case 0:
+			return "Pulse 1";
+
+		case 1:
+			return "Pulse 2";
+
+		case 2:
+			return "Saw";
+
+		default:
+			return nullptr;
+	}
+}
+
+
+bool
+VRC6::audio_channel_muted (size_t channel) const
+{
+	if (channel >= audio_channel_count()) {
+		return false;
+	}
+
+	return audio_channel_muted_[channel];
+}
+
+
+void
+VRC6::set_audio_channel_muted (size_t channel, bool muted)
+{
+	if (channel >= audio_channel_count()) {
+		return;
+	}
+
+	audio_channel_muted_[channel] = muted;
 }
 
 
@@ -828,6 +914,56 @@ VRC6::debug_audio_scope_sample() const
 
 
 // -----------------------------------------------------------------------------
+// VRC6::debug_mapper_state
+//
+// Returns a debugger-facing snapshot of VRC6-specific mapper-control state.
+//
+// Resolved PRG/CHR mappings and nametable mirroring are intentionally omitted
+// because they are already available through Mapper::debug_state(). This
+// snapshot exposes internal VRC6 state that is otherwise not visible from the
+// resolved mappings alone.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Current VRC6 mapper-specific debugger state.
+// -----------------------------------------------------------------------------
+vrc6_debug_state_t
+VRC6::debug_mapper_state() const
+{
+	vrc6_debug_state_t state;
+
+	state.wram_enabled = wram_enabled_;
+
+	state.irq_latch = irq_latch_;
+	state.irq_counter = irq_counter_;
+	state.irq_prescaler = irq_prescaler_;
+
+	state.irq_control = irq_control_.raw;
+	state.irq_enable_after_ack = irq_control_.a;
+	state.irq_enabled = irq_control_.enabled;
+	state.irq_cycle_mode = irq_control_.mode;
+
+	state.frequency_control = frequency_control_;
+	state.audio_halted = (frequency_control_ & 0x01) != 0;
+
+	if (frequency_control_ & 0x04) {
+		state.audio_clock_scale = 256;
+	} else if (frequency_control_ & 0x02) {
+		state.audio_clock_scale = 16;
+	} else {
+		state.audio_clock_scale = 1;
+	}
+	
+	state.irq_clock_count = irq_clock_count_;
+	state.irq_assert_count = irq_assert_count_;
+
+	return state;
+}
+
+
+// -----------------------------------------------------------------------------
 // VRC6::debug_audio_state
 //
 // Returns debugger-facing state for the VRC6 expansion-audio channels.
@@ -848,7 +984,7 @@ VRC6::debug_audio_state() const
 	state.type = ExpansionAudioType::VRC6;
 	state.name = "VRC6";
 
-	state.output = static_cast<uint32_t>(pulse1_.output() + pulse2_.output() + saw_.output());
+	state.output = audio_output();
 
 	state.output_maximum = 61;
 
@@ -916,6 +1052,7 @@ VRC6::debug_audio_state() const
 	state.channels[0].output = pulse1_.output();
 	state.channels[0].output_maximum = 15;
 	state.channels[0].enabled = pulse1_.enabled;
+	state.channels[0].muted = audio_channel_muted_[0];
 	state.channels[0].halted = halted;
 
 	if (!halted) {
@@ -997,13 +1134,14 @@ VRC6::debug_audio_state() const
 	state.channels[1].output = pulse2_.output();
 	state.channels[1].output_maximum = 15;
 	state.channels[1].enabled = pulse2_.enabled;
+	state.channels[1].muted = audio_channel_muted_[1];
 	state.channels[1].halted = halted;
 
 	if (!halted) {
 		const uint16_t period = effective_period(pulse2_.period);
 
-		state.channels[1].frequency_hz = kVRC6NTSCClock / (16.0
-										 * (static_cast<double>(period) + 1.0));
+		state.channels[1].frequency_hz = kVRC6NTSCClock / 
+									     (16.0 *(static_cast<double>(period) + 1.0));
 		state.channels[1].frequency_valid = true;
 	}
 
@@ -1077,13 +1215,14 @@ VRC6::debug_audio_state() const
 	state.channels[2].output = saw_.output();
 	state.channels[2].output_maximum = 31;
 	state.channels[2].enabled = saw_.enabled;
+	state.channels[2].muted = audio_channel_muted_[2];
 	state.channels[2].halted = halted;
 
 	if (!halted) {
 		const uint16_t period = effective_period(saw_.period);
 
-		state.channels[2].frequency_hz = kVRC6NTSCClock / (14.0
-										 * (static_cast<double>(period) + 1.0));
+		state.channels[2].frequency_hz = kVRC6NTSCClock / 
+										 (14.0 * (static_cast<double>(period) + 1.0));
 		state.channels[2].frequency_valid = true;
 	}
 
