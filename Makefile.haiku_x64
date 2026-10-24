@@ -51,6 +51,7 @@ CPP_FILES := \
 	src/mappers/Bandai.cpp \
 	src/mappers/MMC3.cpp \
 	src/mappers/VRC2.cpp \
+	src/mappers/VRC3.cpp \
 	src/mappers/VRC4.cpp \
 	src/mappers/VRC6.cpp \
 	src/mappers/Mapper000.cpp \
@@ -91,6 +92,7 @@ CPP_FILES := \
 	src/mappers/Mapper068.cpp \
 	src/mappers/Mapper069.cpp \
 	src/mappers/Mapper071.cpp \
+	src/mappers/Mapper073.cpp \
 	src/mappers/Mapper075.cpp \
 	src/mappers/Mapper076.cpp \
 	src/mappers/Mapper079.cpp \

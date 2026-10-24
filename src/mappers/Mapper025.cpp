@@ -114,7 +114,7 @@ Mapper25VRC2c::Mapper25VRC2c()
 std::string
 Mapper25VRC2c::name() const
 {
-	return "VRC2c";
+	return "Konami VRC2c";
 }
 
 
@@ -157,6 +157,7 @@ Mapper25VRC2c::read_7 (uint_least16_t address)
 {
 	return wram_[address & 0x1fff];
 }
+
 
 // -----------------------------------------------------------------------------
 // Mapper25VRC2c::write_6
@@ -299,7 +300,7 @@ Mapper25VRC4b::Mapper25VRC4b()
 std::string
 Mapper25VRC4b::name() const
 {
-	return "VRC4b";
+	return "Konami VRC4b";
 }
 
 
@@ -418,7 +419,7 @@ Mapper25VRC4d::Mapper25VRC4d()
 std::string
 Mapper25VRC4d::name() const
 {
-	return "VRC4d";
+	return "Konami VRC4d";
 }
 
 
