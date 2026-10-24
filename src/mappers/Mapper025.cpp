@@ -121,24 +121,78 @@ Mapper25VRC2c::name() const
 // -----------------------------------------------------------------------------
 // Mapper25VRC2c::read_6
 //
-// Translates VRC2c's reversed A0/A1 selection and forwards the read to VRC2.
+// Reads VRC2c cartridge work RAM in the CPU $6000-$6FFF range.
+//
+// PCB 351948 contains 8 KB of external PRG RAM and additional address-decoding
+// logic that prevents the VRC2 Microwire interface from conflicting with this
+// memory.  Unlike the other VRC2 variants, CPU accesses in this range therefore
+// reach cartridge RAM rather than the VRC2 one-bit latch.
+//
+// Parameters:
+//   address - CPU address being read.
+//
+// Returns:
+//   Byte stored in VRC2c work RAM.
 // -----------------------------------------------------------------------------
 uint8_t
 Mapper25VRC2c::read_6 (uint_least16_t address)
 {
-	return VRC2::read_6(translate_vrc2c_address(address));
+	return wram_[address & 0x1fff];
 }
 
 
 // -----------------------------------------------------------------------------
+// Mapper25VRC2c::read_7
+//
+// Reads VRC2c cartridge work RAM in the CPU $7000-$7FFF range.
+//
+// Parameters:
+//   address - CPU address being read.
+//
+// Returns:
+//   Byte stored in VRC2c work RAM.
+// -----------------------------------------------------------------------------
+uint8_t
+Mapper25VRC2c::read_7 (uint_least16_t address)
+{
+	return wram_[address & 0x1fff];
+}
+
+// -----------------------------------------------------------------------------
 // Mapper25VRC2c::write_6
 //
-// Translates VRC2c's reversed A0/A1 selection and forwards the write to VRC2.
+// Writes VRC2c cartridge work RAM in the CPU $6000-$6FFF range.
+//
+// Parameters:
+//   address - CPU address being written.
+//   value   - Value written to work RAM.
+//
+// Returns:
+//   Nothing.
 // -----------------------------------------------------------------------------
 void
 Mapper25VRC2c::write_6 (uint_least16_t address, uint8_t value)
 {
-	VRC2::write_6(translate_vrc2c_address(address), value);
+	wram_[address & 0x1fff] = value;
+}
+
+
+// -----------------------------------------------------------------------------
+// Mapper25VRC2c::write_7
+//
+// Writes VRC2c cartridge work RAM in the CPU $7000-$7FFF range.
+//
+// Parameters:
+//   address - CPU address being written.
+//   value   - Value written to work RAM.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+Mapper25VRC2c::write_7 (uint_least16_t address, uint8_t value)
+{
+	wram_[address & 0x1fff] = value;
 }
 
 

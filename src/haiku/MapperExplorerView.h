@@ -16,8 +16,11 @@
 #include "Mapper005.h"
 #include "Mapper007.h"
 #include "Mapper009.h"
-#include "Mapper071.h"
+#include "VRC2.h"
+#include "VRC4.h"
 #include "VRC6.h"
+#include "Mapper071.h"
+
 
 class PretendoWindow;
 
@@ -81,15 +84,21 @@ class MapperExplorerView : public BView
 	bool MMC2StateChanged (const mmc2_debug_state_t &oldState,
 						   const mmc2_debug_state_t &newState) const;
 	private:
+	bool CaptureVRC2State();
+	bool VRC2StateChanged (const vrc2_debug_state_t &oldState,
+						   const vrc2_debug_state_t &newState) const;
 	private:
-	bool CaptureCamericaState();
-	bool CamericaStateChanged (const camerica_debug_state_t &oldState,
-							   const camerica_debug_state_t &newState) const;				
+	bool CaptureVRC4State();
+	bool VRC4StateChanged (const vrc4_debug_state_t &oldState, 
+						   const vrc4_debug_state_t &newState) const;
 	private:							   
 	bool CaptureVRC6State();					   
 	bool VRC6StateChanged (const vrc6_debug_state_t &oldState,
 						   const vrc6_debug_state_t &newState) const;
-						   					   									   
+	private:
+	bool CaptureCamericaState();
+	bool CamericaStateChanged (const camerica_debug_state_t &oldState,
+							   const camerica_debug_state_t &newState) const;				   					   									   
 	private:
 	void DrawMapperSummary();
 	void DrawPRGTable();
@@ -114,8 +123,10 @@ class MapperExplorerView : public BView
 	void DrawMMC5Panel();
 	void DrawAxROMPanel();
 	void DrawMMC2Panel();
-	void DrawCamericaPanel();
+	void DrawVRC2Panel();
+	void DrawVRC4Panel();
 	void DrawVRC6Panel();
+	void DrawCamericaPanel();
 	
 	private:
 	const char *MemoryTypeName (MapperDebugMemoryType type) const;
@@ -123,10 +134,10 @@ class MapperExplorerView : public BView
 	void FormatAccess (const mapper_debug_bank_t &bank, BString &text) const;
 
 	private:
-	const char *MMC1PRGModeName (uint8_t mode) const;
-	const char *MMC1CHRModeName (uint8_t mode) const;
-	const char *MMC1RegisterName (uint8_t reg) const;
-	const char *MMC3HardwareModeName (uint8_t mode) const;
+	const char *MMC1PRGModeName (uint8 mode) const;
+	const char *MMC1CHRModeName (uint8 mode) const;
+	const char *MMC1RegisterName (uint8 reg) const;
+	const char *MMC3HardwareModeName (uint8 mode) const;
 	const char *MMC2LatchName (bool latch) const;
 
 	private:
@@ -169,12 +180,20 @@ class MapperExplorerView : public BView
 	bool fHaveMMC2State = false;
 	
 	private:
-	camerica_debug_state_t fCamericaState = {};
-	bool fHaveCamericaState = false;
+	vrc2_debug_state_t fVRC2State = {};
+	bool fHaveVRC2State = false;
+	
+	private:
+	vrc4_debug_state_t fVRC4State = {};
+	bool fHaveVRC4State = false;
 	
 	private:
 	vrc6_debug_state_t fVRC6State = {};
-	bool fHaveVRC6State = false;	
+	bool fHaveVRC6State = false;
+		
+	private:
+	camerica_debug_state_t fCamericaState = {};
+	bool fHaveCamericaState = false;		
 };
 
 

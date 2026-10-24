@@ -4,6 +4,40 @@
 #include "BitField.h"
 #include "Mapper.h"
 
+
+// -----------------------------------------------------------------------------
+// vrc4_debug_state_t
+//
+// Debugger-facing snapshot of VRC4 mapper-control state.
+//
+// Generic resolved PRG/CHR mappings and nametable mirroring are already exposed
+// through Mapper::debug_state(), so this structure contains VRC4-specific
+// internal register and IRQ state that cannot be derived reliably from those
+// resolved mappings alone.
+// -----------------------------------------------------------------------------
+struct vrc4_debug_state_t {
+	uint8_t prg[2] = {};
+	uint8_t chr[8] = {};
+
+	bool wram_enabled = false;
+
+	uint8_t prg_mode = 0;
+	bool prg_swap_mode = false;
+
+	uint8_t irq_latch = 0;
+	uint8_t irq_counter = 0;
+	int irq_prescaler = 341;
+
+	uint8_t irq_control = 0;
+	bool irq_enable_after_ack = false;
+	bool irq_enabled = false;
+	bool irq_cycle_mode = false;
+
+	uint64_t irq_clock_count = 0;
+	uint64_t irq_assert_count = 0;
+};
+
+
 class VRC4 : public Mapper
 {
 	private:
@@ -38,6 +72,9 @@ class VRC4 : public Mapper
 
 	public:
 	void cpu_sync() override;
+	
+	public:
+	vrc4_debug_state_t debug_mapper_state() const;
 
 	private:
 	void clock_irq();
@@ -54,6 +91,9 @@ class VRC4 : public Mapper
 	uint8_t irq_counter_    = 0;
 	uint8_t prg_mode_       = 0;
 	int irq_prescaler_      = 341;
+	
+	uint64_t irq_clock_count_ = 0;
+	uint64_t irq_assert_count_ = 0;
 };
 
 #endif	// _VRC4_H_

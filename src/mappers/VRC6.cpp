@@ -832,6 +832,20 @@ VRC6::audio_output() const
 }
 
 
+// -----------------------------------------------------------------------------
+// VRC6::audio_channel_count
+//
+// Returns the number of VRC6 expansion-audio channels exposed through the
+// generic mapper audio interface.
+//
+// VRC6 provides two pulse channels and one sawtooth channel.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Number of available VRC6 audio channels.
+// -----------------------------------------------------------------------------
 size_t
 VRC6::audio_channel_count() const
 {
@@ -839,6 +853,23 @@ VRC6::audio_channel_count() const
 }
 
 
+// -----------------------------------------------------------------------------
+// VRC6::audio_channel_name
+//
+// Returns the display name associated with a VRC6 expansion-audio channel.
+//
+// Channel numbering matches the generic mapper audio interface:
+//
+//   0 - Pulse 1
+//   1 - Pulse 2
+//   2 - Saw
+//
+// Parameters:
+//   channel - Zero-based VRC6 audio channel index.
+//
+// Returns:
+//   Channel name for a valid index, or nullptr if channel is out of range.
+// -----------------------------------------------------------------------------
 const char*
 VRC6::audio_channel_name (size_t channel) const
 {
@@ -858,6 +889,20 @@ VRC6::audio_channel_name (size_t channel) const
 }
 
 
+// -----------------------------------------------------------------------------
+// VRC6::audio_channel_muted
+//
+// Returns whether a VRC6 expansion-audio channel is currently muted.
+//
+// Invalid channel indices are treated as unmuted so callers can safely query
+// the generic mapper audio interface without accessing past the channel array.
+//
+// Parameters:
+//   channel - Zero-based VRC6 audio channel index.
+//
+// Returns:
+//   true if the selected channel is muted; false otherwise.
+// -----------------------------------------------------------------------------
 bool
 VRC6::audio_channel_muted (size_t channel) const
 {
@@ -869,6 +914,22 @@ VRC6::audio_channel_muted (size_t channel) const
 }
 
 
+// -----------------------------------------------------------------------------
+// VRC6::set_audio_channel_muted
+//
+// Changes the mute state of a VRC6 expansion-audio channel.
+//
+// Muting affects only the channel's contribution to the mixed VRC6 audio
+// output.  The underlying channel timers and waveform generators continue to
+// run normally so debugger and oscilloscope state remain live.
+//
+// Parameters:
+//   channel - Zero-based VRC6 audio channel index.
+//   muted   - true to mute the channel; false to enable audible output.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 VRC6::set_audio_channel_muted (size_t channel, bool muted)
 {
@@ -1027,18 +1088,17 @@ VRC6::debug_audio_state() const
 
 	const bool halted = (frequency_control_ & 0x01) != 0;
 
-	auto effective_period =
-		[this](uint16_t period) -> uint16_t {
-			if (frequency_control_ & 0x04) {
-				return period >> 8;
-			}
+	auto effective_period = [this](uint16_t period) -> uint16_t {
+		if (frequency_control_ & 0x04) {
+			return period >> 8;
+		}
 
-			if (frequency_control_ & 0x02) {
-				return period >> 4;
-			}
+		if (frequency_control_ & 0x02) {
+			return period >> 4;
+		}
 
-			return period;
-		};
+		return period;
+	};
 
 
 	// -------------------------------------------------------------------------

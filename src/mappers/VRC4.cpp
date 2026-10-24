@@ -467,20 +467,81 @@ VRC4::cpu_sync()
 // -----------------------------------------------------------------------------
 // VRC4::clock_irq
 //
-// Advances the VRC4 IRQ counter by one clock.
+// Advances the VRC4 IRQ counter by one mapper IRQ clock.
 //
-// When the counter reaches $FF, the next clock reloads it from the IRQ latch
-// and asserts the mapper IRQ line. Otherwise the counter is simply incremented.
+// Persistent debugger counters record both IRQ-counter clocks and IRQ
+// assertions so mapper activity remains visible even when periodic debugger
+// sampling repeatedly observes the mapper at the same point in its IRQ cycle.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
 // -----------------------------------------------------------------------------
 void
 VRC4::clock_irq()
 {
+	++irq_clock_count_;
+
 	if (irq_counter_ == 0xff) {
 		irq_counter_ = irq_latch_;
+
+		++irq_assert_count_;
 
 		nes::cpu::irq(nes::cpu::MAPPER_IRQ);
 	} else {
 		++irq_counter_;
 	}
+}
+
+
+// -----------------------------------------------------------------------------
+// VRC4::debug_state
+//
+// Returns a debugger-facing snapshot of VRC4-specific mapper-control state.
+//
+// Resolved PRG/CHR mappings and nametable mirroring are intentionally omitted
+// because they are already available through Mapper::debug_state(). The raw
+// VRC4 bank registers are retained here because they expose the mapper's
+// internal register state, including CHR values assembled by separate nibble
+// writes.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Current VRC4 mapper-specific debugger state.
+// -----------------------------------------------------------------------------
+vrc4_debug_state_t
+VRC4::debug_mapper_state() const
+{
+	vrc4_debug_state_t state;
+
+	state.prg[0] = prg_[0];
+	state.prg[1] = prg_[1];
+
+	for (int i = 0; i < 8; ++i) {
+		state.chr[i] = chr_[i];
+	}
+
+	state.wram_enabled = wram_enabled_;
+
+	state.prg_mode = prg_mode_;
+	state.prg_swap_mode = (prg_mode_ & 0x02) != 0;
+
+	state.irq_latch = irq_latch_;
+	state.irq_counter = irq_counter_;
+	state.irq_prescaler = irq_prescaler_;
+
+	state.irq_control = irq_control_.raw;
+	state.irq_enable_after_ack = irq_control_.a;
+	state.irq_enabled = irq_control_.enabled;
+	state.irq_cycle_mode = irq_control_.mode;
+
+	state.irq_clock_count = irq_clock_count_;
+	state.irq_assert_count = irq_assert_count_;
+
+	return state;
 }
 
