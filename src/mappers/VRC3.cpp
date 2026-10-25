@@ -1,3 +1,4 @@
+
 #include "VRC3.h"
 
 #include "Cpu.h"
@@ -9,8 +10,8 @@
 // Initializes the VRC3 mapper core.
 //
 // The initial PRG mapping places the first 16 KB bank at $8000-$BFFF and the
-// final 16 KB bank at $C000-$FFFF.  VRC3 uses a fixed 8 KB CHR RAM region and
-// does not provide CHR banking.
+// final 16 KB bank at $C000-$FFFF.  VRC3 provides a fixed 8 KB writable CHR RAM
+// region mapped across the complete PPU pattern-table range.
 //
 // Parameters:
 //   None.
@@ -23,7 +24,7 @@ VRC3::VRC3()
 	set_prg_89ab(0);
 	set_prg_cdef(-1);
 
-	set_chr_0000_1fff(0);
+	set_chr_0000_1fff_ram(chr_ram_, 0);
 }
 
 
@@ -335,6 +336,10 @@ VRC3::cpu_sync()
 // only the low byte is reloaded from the low byte of the IRQ latch; the high
 // byte of the counter remains unchanged.
 //
+// Persistent debugger counters record IRQ-counter clocks and IRQ assertions so
+// activity remains visible even when periodic debugger sampling misses the
+// individual counter transitions.
+//
 // Parameters:
 //   None.
 //
@@ -344,24 +349,70 @@ VRC3::cpu_sync()
 void
 VRC3::clock_irq()
 {
+	++irq_clock_count_;
+
 	if (irq_control_.mode) {
-		const uint8_t counter = static_cast<uint8_t>(irq_counter_ & 0x00ff);
+		const uint8_t counter =
+			static_cast<uint8_t>(irq_counter_ & 0x00ff);
 
 		if (counter == 0xff) {
-			irq_counter_ = (irq_counter_ & 0xff00) | (irq_latch_ & 0x00ff);
+			irq_counter_ =
+				(irq_counter_ & 0xff00) |
+				(irq_latch_ & 0x00ff);
+
+			++irq_assert_count_;
 
 			nes::cpu::irq(nes::cpu::MAPPER_IRQ);
 		} else {
-			irq_counter_ = (irq_counter_ & 0xff00) | static_cast<uint16_t>(counter + 1);
+			irq_counter_ =
+				(irq_counter_ & 0xff00) |
+				static_cast<uint16_t>(counter + 1);
 		}
 	} else {
 		if (irq_counter_ == 0xffff) {
 			irq_counter_ = irq_latch_;
+
+			++irq_assert_count_;
 
 			nes::cpu::irq(nes::cpu::MAPPER_IRQ);
 		} else {
 			++irq_counter_;
 		}
 	}
+}
+
+
+// -----------------------------------------------------------------------------
+// VRC3::debug_mapper_state
+//
+// Returns a debugger-facing snapshot of VRC3-specific mapper state.
+//
+// The snapshot exposes the IRQ latch, counter, control bits, counter mode, and
+// persistent IRQ activity counters.  Resolved PRG and CHR mappings are handled
+// separately by the generic mapper debugger state.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Current VRC3 mapper-specific debugger state.
+// -----------------------------------------------------------------------------
+vrc3_mapper_debug_state_t
+VRC3::debug_mapper_state() const
+{
+	vrc3_mapper_debug_state_t state;
+
+	state.irq_latch = irq_latch_;
+	state.irq_counter = irq_counter_;
+
+	state.irq_control = irq_control_.raw;
+	state.irq_enable_after_ack = irq_control_.a;
+	state.irq_enabled = irq_control_.enabled;
+	state.irq_8bit_mode = irq_control_.mode;
+
+	state.irq_clock_count = irq_clock_count_;
+	state.irq_assert_count = irq_assert_count_;
+
+	return state;
 }
 

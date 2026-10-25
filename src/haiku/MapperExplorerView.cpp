@@ -79,6 +79,7 @@ MapperExplorerView::AttachedToWindow()
 	CaptureVRC6State();
 	CaptureVRC4State();
 	CaptureVRC2State();
+	CaptureVRC3State();
 	
 	Invalidate();
 }
@@ -132,6 +133,7 @@ MapperExplorerView::Draw (BRect updateRect)
 		DrawVRC6Panel();
 		DrawVRC4Panel();
 		DrawVRC2Panel();
+		DrawVRC3Panel();
 	} else if (MapperSpecificPanelExpected()) {
 		DrawMapperSpecificSeparator();
 		DrawUnsupportedMapperPanel();
@@ -203,6 +205,10 @@ MapperExplorerView::Pulse()
 	}
 	
 	if (CaptureVRC2State()) {
+		redraw = true;
+	}
+	
+	if (CaptureVRC3State()) {
 		redraw = true;
 	}
 
@@ -1031,6 +1037,51 @@ MapperExplorerView::VRC2StateChanged (const vrc2_debug_state_t &oldState,
 }
 
 
+bool
+MapperExplorerView::CaptureVRC3State()
+{
+	Mapper *mapper = nes::cart.mapper();
+	VRC3 *vrc3 = dynamic_cast<VRC3 *>(mapper);
+
+	if (mapper == nullptr) {
+		const bool changed = fHaveVRC3State;
+
+		fVRC3State = {};
+		fHaveVRC3State = false;
+
+		return changed;
+	}
+
+	const vrc3_mapper_debug_state_t state =
+		vrc3->debug_mapper_state();		
+
+	const bool changed =
+		!fHaveVRC3State ||
+		VRC3StateChanged(fVRC3State, state);
+
+	fVRC3State = state;
+	fHaveVRC3State = true;
+
+	return changed;
+}
+
+
+bool
+MapperExplorerView::VRC3StateChanged (const vrc3_mapper_debug_state_t &oldState,
+									  const vrc3_mapper_debug_state_t &newState) const
+{
+	return
+		oldState.irq_latch != newState.irq_latch ||
+		oldState.irq_counter != newState.irq_counter ||
+		oldState.irq_control != newState.irq_control ||
+		oldState.irq_enable_after_ack != newState.irq_enable_after_ack ||
+		oldState.irq_enabled != newState.irq_enabled ||
+		oldState.irq_8bit_mode != newState.irq_8bit_mode ||
+		oldState.irq_clock_count != newState.irq_clock_count ||
+		oldState.irq_assert_count != newState.irq_assert_count;
+}
+
+
 // -----------------------------------------------------------------------------
 // MapperExplorerView::CaptureVRC4State
 //
@@ -1540,7 +1591,8 @@ MapperExplorerView::HaveMapperSpecificPanel() const
 		fHaveCamericaState ||
 		fHaveVRC6State ||
 		fHaveVRC4State ||
-		fHaveVRC2State;
+		fHaveVRC2State ||
+		fHaveVRC3State;
 				
 }
 
@@ -3294,6 +3346,192 @@ MapperExplorerView::DrawVRC2Panel()
 		text.SetToFormat("$%02X", static_cast<unsigned int>(fVRC2State.chr[i]));
 		DrawText(x, rowY, text.String(), be_fixed_font);
 	}
+
+	SetHighColor(25, 25, 25);
+}
+
+
+// -----------------------------------------------------------------------------
+// MapperExplorerView::DrawVRC3Panel
+//
+// Draws the VRC3-specific mapper state section of Mapper Explorer.
+//
+// The panel displays the VRC3 IRQ latch, counter, control register, decoded IRQ
+// control bits, counter mode, and persistent IRQ activity counters.  Resolved
+// PRG/CHR mappings are shown separately by the generic mapper-state display.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+MapperExplorerView::DrawVRC3Panel()
+{
+	if (!fHaveVRC3State) {
+		return;
+	}
+
+	const float left = 20.0f;
+	const float leftText = 28.0f;
+
+	const float middle = 285.0f;
+	const float middleText = 293.0f;
+
+	const float right = 555.0f;
+	const float rightText = 563.0f;
+
+	float y = 478.0f;
+
+	BString text;
+
+	SetFont(be_bold_font);
+	SetHighColor(45, 75, 115);
+	DrawString("VRC3 Internal State", BPoint(left, y));
+
+	y += 30.0f;
+
+	// IRQ Counter
+	SetFont(be_bold_font);
+	SetHighColor(45, 75, 115);
+	DrawString("IRQ Counter", BPoint(left, y));
+
+	float irqY = y + 24.0f;
+
+	SetHighColor(25, 25, 25);
+
+	float x = leftText;
+	x = DrawText(x, irqY, "Latch: ", be_plain_font);
+
+	text.SetToFormat(
+		"$%04X",
+		static_cast<unsigned int>(fVRC3State.irq_latch));
+
+	DrawText(
+		x,
+		irqY,
+		text.String(),
+		be_fixed_font);
+
+	irqY += 20.0f;
+
+	x = leftText;
+	x = DrawText(x, irqY, "Counter: ", be_plain_font);
+
+	text.SetToFormat(
+		"$%04X",
+		static_cast<unsigned int>(fVRC3State.irq_counter));
+
+	DrawText(
+		x,
+		irqY,
+		text.String(),
+		be_fixed_font);
+
+	irqY += 20.0f;
+
+	x = leftText;
+	x = DrawText(x, irqY, "Control: ", be_plain_font);
+
+	text.SetToFormat(
+		"$%02X",
+		static_cast<unsigned int>(fVRC3State.irq_control));
+
+	DrawText(
+		x,
+		irqY,
+		text.String(),
+		be_fixed_font);
+
+	// IRQ Control
+	SetFont(be_bold_font);
+	SetHighColor(45, 75, 115);
+	DrawString("IRQ Control", BPoint(middle, y));
+
+	float controlY = y + 24.0f;
+
+	SetHighColor(
+		fVRC3State.irq_enabled
+			? rgb_color{30, 110, 45, 255}
+			: rgb_color{170, 35, 35, 255});
+
+	x = middleText;
+	x = DrawText(x, controlY, "Enabled: ", be_plain_font);
+
+	DrawText(
+		x,
+		controlY,
+		fVRC3State.irq_enabled ? "Yes" : "No",
+		be_plain_font);
+
+	controlY += 20.0f;
+
+	SetHighColor(
+		fVRC3State.irq_enable_after_ack
+			? rgb_color{30, 110, 45, 255}
+			: rgb_color{170, 35, 35, 255});
+
+	x = middleText;
+	x = DrawText(x, controlY, "After ACK: ", be_plain_font);
+
+	DrawText(
+		x,
+		controlY,
+		fVRC3State.irq_enable_after_ack ? "Enabled" : "Disabled",
+		be_plain_font);
+
+	controlY += 20.0f;
+
+	SetHighColor(25, 25, 25);
+
+	x = middleText;
+	x = DrawText(x, controlY, "Mode: ", be_plain_font);
+
+	DrawText(
+		x,
+		controlY,
+		fVRC3State.irq_8bit_mode ? "8-bit" : "16-bit",
+		be_plain_font);
+
+	// IRQ Activity
+	SetFont(be_bold_font);
+	SetHighColor(45, 75, 115);
+	DrawString("IRQ Activity", BPoint(right, y));
+
+	float activityY = y + 24.0f;
+
+	SetHighColor(100, 100, 100);
+
+	x = rightText;
+	x = DrawText(x, activityY, "Clocks: ", be_plain_font);
+
+	text.SetToFormat(
+		"%llu",
+		static_cast<unsigned long long>(
+			fVRC3State.irq_clock_count));
+
+	DrawText(
+		x,
+		activityY,
+		text.String(),
+		be_plain_font);
+
+	activityY += 20.0f;
+
+	x = rightText;
+	x = DrawText(x, activityY, "Assertions: ", be_plain_font);
+
+	text.SetToFormat(
+		"%llu",
+		static_cast<unsigned long long>(
+			fVRC3State.irq_assert_count));
+
+	DrawText(
+		x,
+		activityY,
+		text.String(),
+		be_plain_font);
 
 	SetHighColor(25, 25, 25);
 }
