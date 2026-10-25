@@ -80,6 +80,8 @@ MapperExplorerView::AttachedToWindow()
 	CaptureVRC4State();
 	CaptureVRC2State();
 	CaptureVRC3State();
+	CaptureVRC1State();
+	
 	
 	Invalidate();
 }
@@ -134,6 +136,7 @@ MapperExplorerView::Draw (BRect updateRect)
 		DrawVRC4Panel();
 		DrawVRC2Panel();
 		DrawVRC3Panel();
+		DrawVRC1Panel();
 	} else if (MapperSpecificPanelExpected()) {
 		DrawMapperSpecificSeparator();
 		DrawUnsupportedMapperPanel();
@@ -209,6 +212,10 @@ MapperExplorerView::Pulse()
 	}
 	
 	if (CaptureVRC3State()) {
+		redraw = true;
+	}
+	
+	if (CaptureVRC1State()) {
 		redraw = true;
 	}
 
@@ -1037,13 +1044,29 @@ MapperExplorerView::VRC2StateChanged (const vrc2_debug_state_t &oldState,
 }
 
 
+// -----------------------------------------------------------------------------
+// MapperExplorerView::CaptureVRC3State
+//
+// Captures the current VRC3-specific debugger state from the active mapper.
+//
+// If the current cartridge does not use a VRC3 mapper, any previously cached
+// VRC3 state is cleared.  When VRC3 is active, the latest mapper snapshot is
+// compared with the cached state so callers can determine whether the display
+// needs to be refreshed.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   true if the cached VRC3 state changed; false otherwise.
+// -----------------------------------------------------------------------------
 bool
 MapperExplorerView::CaptureVRC3State()
 {
 	Mapper *mapper = nes::cart.mapper();
 	VRC3 *vrc3 = dynamic_cast<VRC3 *>(mapper);
 
-	if (mapper == nullptr) {
+	if (!vrc3) {
 		const bool changed = fHaveVRC3State;
 
 		fVRC3State = {};
@@ -1052,12 +1075,8 @@ MapperExplorerView::CaptureVRC3State()
 		return changed;
 	}
 
-	const vrc3_mapper_debug_state_t state =
-		vrc3->debug_mapper_state();		
-
-	const bool changed =
-		!fHaveVRC3State ||
-		VRC3StateChanged(fVRC3State, state);
+	const vrc3_debug_state_t state = vrc3->debug_mapper_state();
+	const bool changed = !fHaveVRC3State || VRC3StateChanged(fVRC3State, state);
 
 	fVRC3State = state;
 	fHaveVRC3State = true;
@@ -1066,19 +1085,34 @@ MapperExplorerView::CaptureVRC3State()
 }
 
 
+// -----------------------------------------------------------------------------
+// MapperExplorerView::VRC3StateChanged
+//
+// Compares two VRC3 debugger-state snapshots.
+//
+// The comparison includes the IRQ latch, counter, raw control register,
+// decoded control bits, counter mode, and persistent IRQ activity counters.
+//
+// Parameters:
+//   oldState - Previously captured VRC3 debugger state.
+//   newState - Newly captured VRC3 debugger state.
+//
+// Returns:
+//   true if any VRC3-specific debugger state changed; false otherwise.
+// -----------------------------------------------------------------------------
 bool
-MapperExplorerView::VRC3StateChanged (const vrc3_mapper_debug_state_t &oldState,
-									  const vrc3_mapper_debug_state_t &newState) const
+MapperExplorerView::VRC3StateChanged (const vrc3_debug_state_t &oldState,
+									  const vrc3_debug_state_t &newState) const
 {
 	return
-		oldState.irq_latch != newState.irq_latch ||
-		oldState.irq_counter != newState.irq_counter ||
-		oldState.irq_control != newState.irq_control ||
+		oldState.irq_latch != 			 newState.irq_latch ||
+		oldState.irq_counter != 		 newState.irq_counter ||
+		oldState.irq_control != 		 newState.irq_control ||
 		oldState.irq_enable_after_ack != newState.irq_enable_after_ack ||
-		oldState.irq_enabled != newState.irq_enabled ||
-		oldState.irq_8bit_mode != newState.irq_8bit_mode ||
-		oldState.irq_clock_count != newState.irq_clock_count ||
-		oldState.irq_assert_count != newState.irq_assert_count;
+		oldState.irq_enabled != 		 newState.irq_enabled ||
+		oldState.irq_8bit_mode != 		 newState.irq_8bit_mode ||
+		oldState.irq_clock_count != 	 newState.irq_clock_count ||
+		oldState.irq_assert_count != 	 newState.irq_assert_count;
 }
 
 
@@ -1300,6 +1334,74 @@ MapperExplorerView::CamericaStateChanged (const camerica_debug_state_t &oldState
 										  const camerica_debug_state_t &newState) const
 {
 	return oldState.prg_bank != newState.prg_bank;
+}
+
+
+// -----------------------------------------------------------------------------
+// MapperExplorerView::CaptureVRC1State
+//
+// Captures the current VRC1-specific debugger state from the active mapper.
+//
+// If the current cartridge does not use mapper 75/VRC1, any previously cached
+// VRC1 state is cleared.  When VRC1 is active, the latest mapper snapshot is
+// compared with the cached state so callers can determine whether the display
+// needs to be refreshed.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   true if the cached VRC1 state changed; false otherwise.
+// -----------------------------------------------------------------------------
+bool
+MapperExplorerView::CaptureVRC1State()
+{
+	Mapper *mapper = nes::cart.mapper();
+	Mapper75 *vrc1 = dynamic_cast<Mapper75 *>(mapper);
+
+	if (vrc1 == nullptr) {
+		const bool changed = fHaveVRC1State;
+
+		fVRC1State = {};
+		fHaveVRC1State = false;
+
+		return changed;
+	}
+
+	const vrc1_debug_state_t state = vrc1->debug_mapper_state();
+	const bool changed = !fHaveVRC1State || VRC1StateChanged(fVRC1State, state);
+
+	fVRC1State = state;
+	fHaveVRC1State = true;
+
+	return changed;
+}
+
+
+// -----------------------------------------------------------------------------
+// MapperExplorerView::VRC1StateChanged
+//
+// Compares two VRC1 debugger-state snapshots.
+//
+// The comparison includes both raw 5-bit CHR bank registers, the $9000 control
+// register, and the decoded nametable-mirroring state.
+//
+// Parameters:
+//   oldState - Previously captured VRC1 debugger state.
+//   newState - Newly captured VRC1 debugger state.
+//
+// Returns:
+//   true if any VRC1-specific debugger state changed; false otherwise.
+// -----------------------------------------------------------------------------
+bool
+MapperExplorerView::VRC1StateChanged (const vrc1_debug_state_t &oldState,
+									  const vrc1_debug_state_t &newState) const
+{
+	return
+		oldState.chr[0] != newState.chr[0] ||
+		oldState.chr[1] != newState.chr[1] ||
+		oldState.control != newState.control ||
+		oldState.horizontal_mirroring != newState.horizontal_mirroring;
 }
 
 
@@ -1592,8 +1694,8 @@ MapperExplorerView::HaveMapperSpecificPanel() const
 		fHaveVRC6State ||
 		fHaveVRC4State ||
 		fHaveVRC2State ||
-		fHaveVRC3State;
-				
+		fHaveVRC3State ||
+		fHaveVRC1State;			
 }
 
 
@@ -3243,6 +3345,118 @@ MapperExplorerView::DrawCamericaPanel()
 }
 
 
+// -----------------------------------------------------------------------------
+// MapperExplorerView::DrawVRC1Panel
+//
+// Draws the VRC1-specific mapper state section of Mapper Explorer.
+//
+// The panel displays the two raw 5-bit CHR bank registers, the $9000 control
+// register, and the decoded nametable-mirroring state.  Resolved PRG/CHR
+// mappings are shown separately by the generic mapper-state display.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+MapperExplorerView::DrawVRC1Panel()
+{
+	if (!fHaveVRC1State) {
+		return;
+	}
+
+	const float left = 20.0f;
+	const float leftText = 28.0f;
+
+	const float middle = 285.0f;
+	const float middleText = 293.0f;
+
+	float y = 478.0f;
+
+	BString text;
+
+	SetFont(be_bold_font);
+	SetHighColor(45, 75, 115);
+	DrawString("VRC1 Internal State", BPoint(left, y));
+
+	y += 30.0f;
+
+	// CHR Registers
+	SetFont(be_bold_font);
+	SetHighColor(45, 75, 115);
+	DrawString("CHR Registers", BPoint(left, y));
+
+	float chrY = y + 24.0f;
+
+	SetHighColor(25, 25, 25);
+
+	float x = leftText;
+	x = DrawText(x, chrY, "CHR 0: ", be_plain_font);
+
+	text.SetToFormat(
+		"$%02X",
+		static_cast<unsigned int>(fVRC1State.chr[0]));
+
+	DrawText(
+		x,
+		chrY,
+		text.String(),
+		be_fixed_font);
+
+	chrY += 20.0f;
+
+	x = leftText;
+	x = DrawText(x, chrY, "CHR 1: ", be_plain_font);
+
+	text.SetToFormat(
+		"$%02X",
+		static_cast<unsigned int>(fVRC1State.chr[1]));
+
+	DrawText(
+		x,
+		chrY,
+		text.String(),
+		be_fixed_font);
+
+	// Mapper Control
+	SetFont(be_bold_font);
+	SetHighColor(45, 75, 115);
+	DrawString("Mapper Control", BPoint(middle, y));
+
+	float controlY = y + 24.0f;
+
+	SetHighColor(25, 25, 25);
+
+	x = middleText;
+	x = DrawText(x, controlY, "Control: ", be_plain_font);
+
+	text.SetToFormat(
+		"$%02X",
+		static_cast<unsigned int>(fVRC1State.control));
+
+	DrawText(
+		x,
+		controlY,
+		text.String(),
+		be_fixed_font);
+
+	controlY += 20.0f;
+
+	x = middleText;
+	x = DrawText(x, controlY, "Mirroring: ", be_plain_font);
+
+	DrawText(
+		x,
+		controlY,
+		fVRC1State.horizontal_mirroring
+			? "Horizontal"
+			: "Vertical",
+		be_plain_font);
+
+	SetHighColor(25, 25, 25);
+}
 
 
 // -----------------------------------------------------------------------------

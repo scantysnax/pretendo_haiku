@@ -6,7 +6,7 @@
 
 
 // -----------------------------------------------------------------------------
-// vrc3_mapper_debug_state_t
+// vrc3_debug_state_t
 //
 // Debugger-facing snapshot of VRC3-specific mapper state.
 //
@@ -14,7 +14,7 @@
 // Mapper::debug_state().  This structure contains the VRC3 IRQ register state
 // and activity information that cannot be derived reliably from those mappings.
 // -----------------------------------------------------------------------------
-struct vrc3_mapper_debug_state_t {
+struct vrc3_debug_state_t {
 	uint16_t irq_latch = 0;
 	uint16_t irq_counter = 0;
 
@@ -67,7 +67,7 @@ class VRC3 : public Mapper
 	void clock_irq();
 	
 	public:
-	vrc3_mapper_debug_state_t debug_mapper_state() const;
+	vrc3_debug_state_t debug_mapper_state() const;
 
 	private:
 	uint8_t wram_[0x2000] = {};

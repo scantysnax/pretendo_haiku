@@ -21,7 +21,7 @@
 #include "VRC4.h"
 #include "VRC6.h"
 #include "Mapper071.h"
-
+#include "Mapper075.h"
 
 class PretendoWindow;
 
@@ -102,8 +102,12 @@ class MapperExplorerView : public BView
 							   const camerica_debug_state_t &newState) const;
 	private:						   
 	bool CaptureVRC3State();
-	bool VRC3StateChanged (const vrc3_mapper_debug_state_t &oldState,
-						   const vrc3_mapper_debug_state_t &newState) const;
+	bool VRC3StateChanged (const vrc3_debug_state_t &oldState,
+						   const vrc3_debug_state_t &newState) const;
+	private:
+	bool CaptureVRC1State();
+	bool VRC1StateChanged (const vrc1_debug_state_t &oldState,
+						   const vrc1_debug_state_t &newState) const;
 							   				   					   									   
 	private:
 	void DrawMapperSummary();
@@ -134,6 +138,7 @@ class MapperExplorerView : public BView
 	void DrawVRC4Panel();
 	void DrawVRC6Panel();
 	void DrawCamericaPanel();
+	void DrawVRC1Panel();
 	
 	private:
 	const char *MemoryTypeName (MapperDebugMemoryType type) const;
@@ -203,8 +208,12 @@ class MapperExplorerView : public BView
 	bool fHaveCamericaState = false;
 	
 	private:
-	vrc3_mapper_debug_state_t fVRC3State = {};
-	bool fHaveVRC3State = false;		
+	vrc3_debug_state_t fVRC3State = {};
+	bool fHaveVRC3State = false;
+	
+	private:
+	vrc1_debug_state_t fVRC1State = {};
+	bool fHaveVRC1State = false;		
 };
 
 

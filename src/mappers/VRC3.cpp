@@ -383,7 +383,7 @@ VRC3::clock_irq()
 
 
 // -----------------------------------------------------------------------------
-// VRC3::debug_mapper_state
+// VRC3::debug_state
 //
 // Returns a debugger-facing snapshot of VRC3-specific mapper state.
 //
@@ -397,10 +397,10 @@ VRC3::clock_irq()
 // Returns:
 //   Current VRC3 mapper-specific debugger state.
 // -----------------------------------------------------------------------------
-vrc3_mapper_debug_state_t
+vrc3_debug_state_t
 VRC3::debug_mapper_state() const
 {
-	vrc3_mapper_debug_state_t state;
+	vrc3_debug_state_t state;
 
 	state.irq_latch = irq_latch_;
 	state.irq_counter = irq_counter_;
