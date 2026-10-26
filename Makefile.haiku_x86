@@ -53,6 +53,7 @@ CPP_FILES := \
 	src/mappers/VRC3.cpp
 	src/mappers/VRC4.cpp \
 	src/mappers/VRC6.cpp \
+	src/mappers/VRC7.cpp \
 	src/mappers/Mapper000.cpp \
 	src/mappers/Mapper001.cpp \
 	src/mappers/Mapper002.cpp \

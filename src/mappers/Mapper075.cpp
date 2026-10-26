@@ -35,18 +35,37 @@ Mapper75::Mapper75()
 }
 
 
-//------------------------------------------------------------------------------
-// Name:
-//------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// Mapper75::name
+//
+// Returns the hardware name for mapper 75.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Mapper hardware name.
+// -----------------------------------------------------------------------------
 std::string
 Mapper75::name() const
 {
 	return "Konami VRC1";
 }
 
-//------------------------------------------------------------------------------
-// Name:
-//------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// Mapper75::write_8
+//
+// Handles writes to the VRC1 $8000 register range.
+//
+// The low four bits select the 8 KB PRG ROM bank mapped at $8000-$9FFF.
+//
+// Parameters:
+//   address - CPU address being written.
+//   value   - Value written to the PRG bank register.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 Mapper75::write_8 (uint_least16_t address, uint8_t value)
 {
@@ -71,7 +90,7 @@ Mapper75::write_8 (uint_least16_t address, uint8_t value)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-Mapper75::write_9(uint_least16_t address, uint8_t value)
+Mapper75::write_9 (uint_least16_t address, uint8_t value)
 {
 	(void)address;
 
@@ -90,20 +109,42 @@ Mapper75::write_9(uint_least16_t address, uint8_t value)
 	set_chr_1000_1fff(chr_reg_[1]);
 }
 
-//------------------------------------------------------------------------------
-// Name:
-//------------------------------------------------------------------------------
-void Mapper75::write_a(uint_least16_t address, uint8_t value)
+// -----------------------------------------------------------------------------
+// Mapper75::write_a
+//
+// Handles writes to the VRC1 $A000 register range.
+//
+// The low four bits select the 8 KB PRG ROM bank mapped at $A000-$BFFF.
+//
+// Parameters:
+//   address - CPU address being written.
+//   value   - Value written to the PRG bank register.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void Mapper75::write_a (uint_least16_t address, uint8_t value)
 {
 	(void)address;
 	set_prg_ab(value & 0x0f);
 }
 
 
-//------------------------------------------------------------------------------
-// Name:
-//------------------------------------------------------------------------------
-void Mapper75::write_c(uint_least16_t address, uint8_t value)
+// -----------------------------------------------------------------------------
+// Mapper75::write_c
+//
+// Handles writes to the VRC1 $C000 register range.
+//
+// The low four bits select the 8 KB PRG ROM bank mapped at $C000-$DFFF.
+//
+// Parameters:
+//   address - CPU address being written.
+//   value   - Value written to the PRG bank register.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void Mapper75::write_c (uint_least16_t address, uint8_t value)
 {
 	(void)address;
 	set_prg_cd(value & 0x0f);
@@ -126,7 +167,7 @@ void Mapper75::write_c(uint_least16_t address, uint8_t value)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-Mapper75::write_e(uint_least16_t address, uint8_t value)
+Mapper75::write_e (uint_least16_t address, uint8_t value)
 {
 	(void)address;
 	chr_reg_[0] = (chr_reg_[0] & 0xf0) | (value & 0x0f);
@@ -151,7 +192,7 @@ Mapper75::write_e(uint_least16_t address, uint8_t value)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-Mapper75::write_f(uint_least16_t address, uint8_t value)
+Mapper75::write_f (uint_least16_t address, uint8_t value)
 {
 	(void)address;
 	chr_reg_[1] = (chr_reg_[1] & 0xf0) | (value & 0x0f);
@@ -188,3 +229,5 @@ Mapper75::debug_mapper_state() const
 
 	return state;
 }
+
+

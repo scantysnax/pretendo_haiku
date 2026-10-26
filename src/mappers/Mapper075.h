@@ -1,6 +1,6 @@
 
-#ifndef MAPPER075_20080314_H_
-#define MAPPER075_20080314_H_
+#ifndef _MAPPER075_H_
+#define _MAPPER075_H_
 
 #include "Mapper.h"
 
@@ -47,4 +47,4 @@ class Mapper75 final : public Mapper
 	uint8_t control_ = 0;
 };
 
-#endif
+#endif	// _MAPPER_075_H_
