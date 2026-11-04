@@ -712,23 +712,15 @@ mix_channels_raw()
     const double squareOut =
         0.00752 * (square1Out + square2Out);
 
-    const double tndOut =
-        0.00851 * triangleOut +
-        0.00494 * noiseOut +
-        0.00335 * dmcOut;
+    const double tndOut = 0.00851 * triangleOut + 0.00494 * noiseOut + 0.00335 * dmcOut;
 
     double expansionOut = 0.0;
 
     if (nes::cart.mapper() != nullptr) {
-        const int32_t mapperOutput =
-            static_cast<int32_t>(
-                nes::cart.mapper()->audio_output());
+        const int32_t mapperOutput = static_cast<int32_t>(nes::cart.mapper()->audio_output());
+        const int32_t mapperBias = nes::cart.mapper()->audio_output_bias();
 
-        const int32_t mapperBias =
-            nes::cart.mapper()->audio_output_bias();
-
-        expansionOut = 0.00752 *
-            static_cast<double>(mapperOutput - mapperBias);
+        expansionOut = 0.00752 * static_cast<double>(mapperOutput - mapperBias);
     }
 
     return (squareOut + tndOut - expansionOut) * 255.0;
@@ -755,22 +747,15 @@ uint8_t
 mix_channels()
 {
     const double input = mix_channels_raw();
-
     constexpr double R = 0.995;
-
-    const double output =
-        input -
-        sDCBlockPreviousInput +
-        R * sDCBlockPreviousOutput;
+    const double output = input - sDCBlockPreviousInput + R * sDCBlockPreviousOutput;
 
     sDCBlockPreviousInput = input;
     sDCBlockPreviousOutput = output;
 
-    const int32_t sample =
-        static_cast<int32_t>(output + 128.0);
+    const int32_t sample = static_cast<int32_t>(output + 128.0);
 
-    return static_cast<uint8_t>(
-        std::clamp(sample, 0, 255));
+    return static_cast<uint8_t>(std::clamp(sample, 0, 255));
 }
 
 

@@ -130,19 +130,14 @@ Mapper5::write_5(uint_least16_t address, uint8_t value)
 		break;
 
 	case 0x5002:
-		pulse_[0].period =
-			(pulse_[0].period & 0x0700) |
-			value;
+		pulse_[0].period = (pulse_[0].period & 0x0700) | value;
 		break;
 
 	case 0x5003:
-		pulse_[0].period =
-			(pulse_[0].period & 0x00ff) |
-			((static_cast<uint16_t>(value & 0x07)) << 8);
+		pulse_[0].period = (pulse_[0].period & 0x00ff) | ((static_cast<uint16_t>(value & 0x07)) << 8);
 
 		if (pulse_[0].enabled) {
-			pulse_[0].length_counter =
-				kMMC5LengthTable[(value >> 3) & 0x1f];
+			pulse_[0].length_counter = kMMC5LengthTable[(value >> 3) & 0x1f];
 		}
 
 		pulse_[0].sequence_step = 0;
@@ -159,19 +154,14 @@ Mapper5::write_5(uint_least16_t address, uint8_t value)
 		break;
 
 	case 0x5006:
-		pulse_[1].period =
-			(pulse_[1].period & 0x0700) |
-			value;
+		pulse_[1].period = (pulse_[1].period & 0x0700) | value;
 		break;
 
 	case 0x5007:
-		pulse_[1].period =
-			(pulse_[1].period & 0x00ff) |
-			((static_cast<uint16_t>(value & 0x07)) << 8);
+		pulse_[1].period = (pulse_[1].period & 0x00ff) | ((static_cast<uint16_t>(value & 0x07)) << 8);
 
 		if (pulse_[1].enabled) {
-			pulse_[1].length_counter =
-				kMMC5LengthTable[(value >> 3) & 0x1f];
+			pulse_[1].length_counter = kMMC5LengthTable[(value >> 3) & 0x1f];
 		}
 
 		pulse_[1].sequence_step = 0;
@@ -251,15 +241,8 @@ Mapper5::write_5(uint_least16_t address, uint8_t value)
 	case 0x5113:
 		prg_bank_[0] = value;
 
-		prg_ram_banks_[0x06] =
-			prg_ram_[(value >> 2) & 0x01] +
-			(((value & 0x03) * 0x2000) & 0x7fff) +
-			0x0000;
-
-		prg_ram_banks_[0x07] =
-			prg_ram_[(value >> 2) & 0x01] +
-			(((value & 0x03) * 0x2000) & 0x7fff) +
-			0x1000;
+		prg_ram_banks_[0x06] = prg_ram_[(value >> 2) & 0x01] + (((value & 0x03) * 0x2000) & 0x7fff) + 0x0000;
+		prg_ram_banks_[0x07] = prg_ram_[(value >> 2) & 0x01] + (((value & 0x03) * 0x2000) & 0x7fff) + 0x1000;
 		break;
 
 
@@ -279,15 +262,8 @@ Mapper5::write_5(uint_least16_t address, uint8_t value)
 				prg_ram_banks_[0x08] = nullptr;
 				prg_ram_banks_[0x09] = nullptr;
 			} else {
-				prg_ram_banks_[0x08] =
-					prg_ram_[(value >> 2) & 0x01] +
-					(((value & 0x03) * 0x2000) & 0x7fff) +
-					0x0000;
-
-				prg_ram_banks_[0x09] =
-					prg_ram_[(value >> 2) & 0x01] +
-					(((value & 0x03) * 0x2000) & 0x7fff) +
-					0x1000;
+				prg_ram_banks_[0x08] = prg_ram_[(value >> 2) & 0x01] + (((value & 0x03) * 0x2000) & 0x7fff) + 0x0000;
+				prg_ram_banks_[0x09] = prg_ram_[(value >> 2) & 0x01] + (((value & 0x03) * 0x2000) & 0x7fff) + 0x1000;
 			}
 			break;
 		}
@@ -310,25 +286,10 @@ Mapper5::write_5(uint_least16_t address, uint8_t value)
 				prg_ram_banks_[0x0a] = nullptr;
 				prg_ram_banks_[0x0b] = nullptr;
 			} else {
-				prg_ram_banks_[0x08] =
-					prg_ram_[(value >> 2) & 0x01] +
-					(((value & 0x03) * 0x2000) & 0x7fff) +
-					0x0000;
-
-				prg_ram_banks_[0x09] =
-					prg_ram_[(value >> 2) & 0x01] +
-					(((value & 0x03) * 0x2000) & 0x7fff) +
-					0x1000;
-
-				prg_ram_banks_[0x0a] =
-					prg_ram_[(value >> 2) & 0x01] +
-					(((value & 0x03) * 0x2000) & 0x7fff) +
-					0x0000;
-
-				prg_ram_banks_[0x0b] =
-					prg_ram_[(value >> 2) & 0x01] +
-					(((value & 0x03) * 0x2000) & 0x7fff) +
-					0x1000;
+				prg_ram_banks_[0x08] = prg_ram_[(value >> 2) & 0x01] + (((value & 0x03) * 0x2000) & 0x7fff) + 0x0000;
+				prg_ram_banks_[0x09] = prg_ram_[(value >> 2) & 0x01] + (((value & 0x03) * 0x2000) & 0x7fff) + 0x1000;
+				prg_ram_banks_[0x0a] = prg_ram_[(value >> 2) & 0x01] + (((value & 0x03) * 0x2000) & 0x7fff) + 0x0000;
+				prg_ram_banks_[0x0b] = prg_ram_[(value >> 2) & 0x01] + (((value & 0x03) * 0x2000) & 0x7fff) + 0x1000;
 			}
 			break;
 
@@ -340,15 +301,8 @@ Mapper5::write_5(uint_least16_t address, uint8_t value)
 				prg_ram_banks_[0x0a] = nullptr;
 				prg_ram_banks_[0x0b] = nullptr;
 			} else {
-				prg_ram_banks_[0x0a] =
-					prg_ram_[(value >> 2) & 0x01] +
-					(((value & 0x03) * 0x2000) & 0x7fff) +
-					0x0000;
-
-				prg_ram_banks_[0x0b] =
-					prg_ram_[(value >> 2) & 0x01] +
-					(((value & 0x03) * 0x2000) & 0x7fff) +
-					0x1000;
+				prg_ram_banks_[0x0a] = prg_ram_[(value >> 2) & 0x01] + (((value & 0x03) * 0x2000) & 0x7fff) + 0x0000;
+				prg_ram_banks_[0x0b] = prg_ram_[(value >> 2) & 0x01] + (((value & 0x03) * 0x2000) & 0x7fff) + 0x1000;
 			}
 			break;
 		}
@@ -371,15 +325,8 @@ Mapper5::write_5(uint_least16_t address, uint8_t value)
 				prg_ram_banks_[0x0c] = nullptr;
 				prg_ram_banks_[0x0d] = nullptr;
 			} else {
-				prg_ram_banks_[0x0c] =
-					prg_ram_[(value >> 2) & 0x01] +
-					(((value & 0x03) * 0x2000) & 0x7fff) +
-					0x0000;
-
-				prg_ram_banks_[0x0d] =
-					prg_ram_[(value >> 2) & 0x01] +
-					(((value & 0x03) * 0x2000) & 0x7fff) +
-					0x1000;
+				prg_ram_banks_[0x0c] = prg_ram_[(value >> 2) & 0x01] + (((value & 0x03) * 0x2000) & 0x7fff) + 0x0000;
+				prg_ram_banks_[0x0d] = prg_ram_[(value >> 2) & 0x01] + (((value & 0x03) * 0x2000) & 0x7fff) + 0x1000;
 			}
 			break;
 		}
@@ -738,20 +685,14 @@ Mapper5::read_5 (uint_least16_t address)
 	// The multiplier result is exposed as low/high bytes at $5205/$5206.
 	case 0x5205:
 	{
-		const uint16_t x =
-			static_cast<uint16_t>(multiplier_1_) *
-			static_cast<uint16_t>(multiplier_2_);
-
+		const uint16_t x = static_cast<uint16_t>(multiplier_1_) * static_cast<uint16_t>(multiplier_2_);
 		ret = x & 0xff;
 		break;
 	}
 
 	case 0x5206:
 	{
-		const uint16_t x =
-			static_cast<uint16_t>(multiplier_1_) *
-			static_cast<uint16_t>(multiplier_2_);
-
+		const uint16_t x = static_cast<uint16_t>(multiplier_1_) * static_cast<uint16_t>(multiplier_2_);
 		ret = (x >> 8) & 0xff;
 		break;
 	}
@@ -1035,38 +976,21 @@ Mapper5::read_vram(uint_least16_t address)
 				return exram_[vertical_split_tile_ & 0x03ff];
 			}
 
-			const uint8_t shift =
-				((vertical_split_tile_ >> 4) & 0x04) |
-				(vertical_split_tile_ & 0x02);
+			const uint8_t shift = ((vertical_split_tile_ >> 4) & 0x04) | (vertical_split_tile_ & 0x02);
+			const uint16_t attribute_address = 0x03c0 | ((vertical_split_tile_ & 0x0380) >> 4) |
+											   ((vertical_split_tile_ & 0x001f) >> 2);
+			const uint8_t palette = (exram_[attribute_address] >> shift) & 0x03;
 
-			const uint16_t attribute_address =
-				0x03c0 |
-				((vertical_split_tile_ & 0x0380) >> 4) |
-				((vertical_split_tile_ & 0x001f) >> 2);
-
-			const uint8_t palette =
-				(exram_[attribute_address] >> shift) & 0x03;
-
-			return palette |
-				(palette << 2) |
-				(palette << 4) |
-				(palette << 6);
+			return palette | (palette << 2) | (palette << 4) | (palette << 6);
 		}
 
 
 		// Extended Attribute mode supplies the palette from the latched
 		// ExRAM byte rather than from the normal attribute table.
-		if (irq_status_.in_frame &&
-			(exram_mode_ & 0x03) == 0x01 &&
-			offset >= 0x03c0) {
+		if (irq_status_.in_frame && (exram_mode_ & 0x03) == 0x01 && offset >= 0x03c0) {
+			const uint8_t palette = extended_attribute_ >> 6;
 
-			const uint8_t palette =
-				extended_attribute_ >> 6;
-
-			return palette |
-				(palette << 2) |
-				(palette << 4) |
-				(palette << 6);
+			return palette | (palette << 2) | (palette << 4) | (palette << 6);
 		}
 
 
@@ -1088,13 +1012,9 @@ Mapper5::read_vram(uint_least16_t address)
 			}
 
 			{
-				const uint8_t palette =
-					fill_mode_attr_ & 0x03;
+				const uint8_t palette = fill_mode_attr_ & 0x03;
 
-				return palette |
-					(palette << 2) |
-					(palette << 4) |
-					(palette << 6);
+				return palette | (palette << 2) | (palette << 4) | (palette << 6);
 			}
 		}
 		break;
@@ -1109,36 +1029,19 @@ Mapper5::read_vram(uint_least16_t address)
 				return exram_[vertical_split_tile_ & 0x03ff];
 			}
 
-			const uint8_t shift =
-				((vertical_split_tile_ >> 4) & 0x04) |
-				(vertical_split_tile_ & 0x02);
+			const uint8_t shift = ((vertical_split_tile_ >> 4) & 0x04) | (vertical_split_tile_ & 0x02);
+			const uint16_t attribute_address = 0x03c0 | ((vertical_split_tile_ & 0x0380) >> 4) |
+											   ((vertical_split_tile_ & 0x001f) >> 2);
+			const uint8_t palette = (exram_[attribute_address] >> shift) & 0x03;
 
-			const uint16_t attribute_address =
-				0x03c0 |
-				((vertical_split_tile_ & 0x0380) >> 4) |
-				((vertical_split_tile_ & 0x001f) >> 2);
-
-			const uint8_t palette =
-				(exram_[attribute_address] >> shift) & 0x03;
-
-			return palette |
-				(palette << 2) |
-				(palette << 4) |
-				(palette << 6);
+			return palette | (palette << 2) | (palette << 4) | (palette << 6);
 		}
 
 
-		if (irq_status_.in_frame &&
-			(exram_mode_ & 0x03) == 0x01 &&
-			offset >= 0x03c0) {
+		if (irq_status_.in_frame && (exram_mode_ & 0x03) == 0x01 && offset >= 0x03c0) {
+			const uint8_t palette = extended_attribute_ >> 6;
 
-			const uint8_t palette =
-				extended_attribute_ >> 6;
-
-			return palette |
-				(palette << 2) |
-				(palette << 4) |
-				(palette << 6);
+			return palette | (palette << 2) | (palette << 4) | (palette << 6);
 		}
 
 
@@ -1150,9 +1053,7 @@ Mapper5::read_vram(uint_least16_t address)
 			return Mapper::read_vram(address);
 
 		case 0x02:
-			return (exram_mode_ & 0x02)
-				? 0x00
-				: exram_[offset];
+			return (exram_mode_ & 0x02) ? 0x00 : exram_[offset];
 
 		case 0x03:
 			if (offset < 0x03c0) {
@@ -1160,13 +1061,9 @@ Mapper5::read_vram(uint_least16_t address)
 			}
 
 			{
-				const uint8_t palette =
-					fill_mode_attr_ & 0x03;
+				const uint8_t palette = fill_mode_attr_ & 0x03;
 
-				return palette |
-					(palette << 2) |
-					(palette << 4) |
-					(palette << 6);
+				return palette | (palette << 2) | (palette << 4) | (palette << 6);
 			}
 		}
 		break;
@@ -1181,36 +1078,19 @@ Mapper5::read_vram(uint_least16_t address)
 				return exram_[vertical_split_tile_ & 0x03ff];
 			}
 
-			const uint8_t shift =
-				((vertical_split_tile_ >> 4) & 0x04) |
-				(vertical_split_tile_ & 0x02);
+			const uint8_t shift = ((vertical_split_tile_ >> 4) & 0x04) | (vertical_split_tile_ & 0x02);
+			const uint16_t attribute_address = 0x03c0 | ((vertical_split_tile_ & 0x0380) >> 4) |
+											   ((vertical_split_tile_ & 0x001f) >> 2);
+			const uint8_t palette = (exram_[attribute_address] >> shift) & 0x03;
 
-			const uint16_t attribute_address =
-				0x03c0 |
-				((vertical_split_tile_ & 0x0380) >> 4) |
-				((vertical_split_tile_ & 0x001f) >> 2);
-
-			const uint8_t palette =
-				(exram_[attribute_address] >> shift) & 0x03;
-
-			return palette |
-				(palette << 2) |
-				(palette << 4) |
-				(palette << 6);
+			return palette | (palette << 2) | (palette << 4) | (palette << 6);
 		}
 
 
-		if (irq_status_.in_frame &&
-			(exram_mode_ & 0x03) == 0x01 &&
-			offset >= 0x03c0) {
+		if (irq_status_.in_frame && (exram_mode_ & 0x03) == 0x01 && offset >= 0x03c0) {
+			const uint8_t palette = extended_attribute_ >> 6;
 
-			const uint8_t palette =
-				extended_attribute_ >> 6;
-
-			return palette |
-				(palette << 2) |
-				(palette << 4) |
-				(palette << 6);
+			return palette | (palette << 2) | (palette << 4) | (palette << 6);
 		}
 
 
@@ -1222,9 +1102,7 @@ Mapper5::read_vram(uint_least16_t address)
 			return Mapper::read_vram(address);
 
 		case 0x02:
-			return (exram_mode_ & 0x02)
-				? 0x00
-				: exram_[offset];
+			return (exram_mode_ & 0x02) ? 0x00 : exram_[offset];
 
 		case 0x03:
 			if (offset < 0x03c0) {
@@ -1232,13 +1110,9 @@ Mapper5::read_vram(uint_least16_t address)
 			}
 
 			{
-				const uint8_t palette =
-					fill_mode_attr_ & 0x03;
+				const uint8_t palette = fill_mode_attr_ & 0x03;
 
-				return palette |
-					(palette << 2) |
-					(palette << 4) |
-					(palette << 6);
+				return palette | (palette << 2) | (palette << 4) | (palette << 6);
 			}
 		}
 		break;
@@ -1253,36 +1127,19 @@ Mapper5::read_vram(uint_least16_t address)
 				return exram_[vertical_split_tile_ & 0x03ff];
 			}
 
-			const uint8_t shift =
-				((vertical_split_tile_ >> 4) & 0x04) |
-				(vertical_split_tile_ & 0x02);
+			const uint8_t shift = ((vertical_split_tile_ >> 4) & 0x04) | (vertical_split_tile_ & 0x02);
+			const uint16_t attribute_address = 0x03c0 | ((vertical_split_tile_ & 0x0380) >> 4) |
+											   ((vertical_split_tile_ & 0x001f) >> 2);
+			const uint8_t palette = (exram_[attribute_address] >> shift) & 0x03;
 
-			const uint16_t attribute_address =
-				0x03c0 |
-				((vertical_split_tile_ & 0x0380) >> 4) |
-				((vertical_split_tile_ & 0x001f) >> 2);
-
-			const uint8_t palette =
-				(exram_[attribute_address] >> shift) & 0x03;
-
-			return palette |
-				(palette << 2) |
-				(palette << 4) |
-				(palette << 6);
+			return palette | (palette << 2) | (palette << 4) | (palette << 6);
 		}
 
 
-		if (irq_status_.in_frame &&
-			(exram_mode_ & 0x03) == 0x01 &&
-			offset >= 0x03c0) {
+		if (irq_status_.in_frame && (exram_mode_ & 0x03) == 0x01 && offset >= 0x03c0) {
+			const uint8_t palette = extended_attribute_ >> 6;
 
-			const uint8_t palette =
-				extended_attribute_ >> 6;
-
-			return palette |
-				(palette << 2) |
-				(palette << 4) |
-				(palette << 6);
+			return palette | (palette << 2) | (palette << 4) | (palette << 6);
 		}
 
 
@@ -1294,9 +1151,7 @@ Mapper5::read_vram(uint_least16_t address)
 			return Mapper::read_vram(address);
 
 		case 0x02:
-			return (exram_mode_ & 0x02)
-				? 0x00
-				: exram_[offset];
+			return (exram_mode_ & 0x02) ? 0x00 : exram_[offset];
 
 		case 0x03:
 			if (offset < 0x03c0) {
@@ -1304,13 +1159,9 @@ Mapper5::read_vram(uint_least16_t address)
 			}
 
 			{
-				const uint8_t palette =
-					fill_mode_attr_ & 0x03;
+				const uint8_t palette = fill_mode_attr_ & 0x03;
 
-				return palette |
-					(palette << 2) |
-					(palette << 4) |
-					(palette << 6);
+				return palette | (palette << 2) | (palette << 4) | (palette << 6);
 			}
 		}
 		break;
@@ -1327,15 +1178,9 @@ Mapper5::read_vram(uint_least16_t address)
 	{
 		// CHR-ROM ($0000-$1fff).
 
-		const bool sprite_fetch =
-			ppu_fetch_type_ == PPUFetchType::SPRITE;
-
-		const uint8_t *const chr_rom =
-			nes::cart.chr();
-
-		const uint32_t chr_mask =
-			nes::cart.chr_mask();
-
+		const bool sprite_fetch = ppu_fetch_type_ == PPUFetchType::SPRITE;
+		const uint8_t *const chr_rom = nes::cart.chr();
+		const uint32_t chr_mask = nes::cart.chr_mask();
 
 		// Vertical-split background pattern fetches use the independent
 		// 4 KB CHR bank selected by $5202.
@@ -1343,36 +1188,18 @@ Mapper5::read_vram(uint_least16_t address)
 		// The low three CHR address bits come from the MMC5 split-region
 		// vertical position rather than the PPU's normal fine-Y value.
 		if (vertical_split_active_ && !sprite_fetch) {
-			const uint16_t split_pattern_address =
-				(address & 0x0ff8) |
-				(vertical_split_y_ & 0x07);
-
-			const uint32_t chr_address =
-				(static_cast<uint32_t>(vertical_split_bank_) * 0x1000) +
-				split_pattern_address;
+			const uint16_t split_pattern_address = (address & 0x0ff8) | (vertical_split_y_ & 0x07);
+			const uint32_t chr_address = (static_cast<uint32_t>(vertical_split_bank_) * 0x1000) + split_pattern_address;
 
 			return chr_rom[chr_address & chr_mask];
 		}
 
 		// Extended Attribute mode supplies six CHR bank bits from the
 		// currently latched ExRAM byte. $5130 supplies the upper two bits.
-		if (irq_status_.in_frame &&
-			(exram_mode_ & 0x03) == 0x01 &&
-			!sprite_fetch) {
-
-			const uint16_t bank =
-				static_cast<uint16_t>(
-					extended_attribute_ & 0x3f
-				) |
-				(
-					static_cast<uint16_t>(
-						bg_char_upper_ >> 2
-					) & 0x00c0
-				);
-
-			const uint32_t chr_address =
-				(static_cast<uint32_t>(bank) * 0x1000) +
-				(address & 0x0fff);
+		if (irq_status_.in_frame && (exram_mode_ & 0x03) == 0x01 && !sprite_fetch) {
+			const uint16_t bank = static_cast<uint16_t>(extended_attribute_ & 0x3f) |
+								  (static_cast<uint16_t>(bg_char_upper_ >> 2) & 0x00c0);
+			const uint32_t chr_address = (static_cast<uint32_t>(bank) * 0x1000) + (address & 0x0fff);
 
 			return chr_rom[chr_address & chr_mask];
 		}
@@ -1405,201 +1232,53 @@ Mapper5::read_vram(uint_least16_t address)
 		switch (chr_mode_ & 0x03) {
 		case 0x00:
 			// 8 KB mode.
-			chr_rom_banks[0] =
-				chr_rom +
-				(((chr_selector[7] + bg_char_upper_) * 0x2000) &
-					chr_mask) +
-				0x0000;
-
-			chr_rom_banks[1] =
-				chr_rom +
-				(((chr_selector[7] + bg_char_upper_) * 0x2000) &
-					chr_mask) +
-				0x0400;
-
-			chr_rom_banks[2] =
-				chr_rom +
-				(((chr_selector[7] + bg_char_upper_) * 0x2000) &
-					chr_mask) +
-				0x0800;
-
-			chr_rom_banks[3] =
-				chr_rom +
-				(((chr_selector[7] + bg_char_upper_) * 0x2000) &
-					chr_mask) +
-				0x0c00;
-
-			chr_rom_banks[4] =
-				chr_rom +
-				(((chr_selector[7] + bg_char_upper_) * 0x2000) &
-					chr_mask) +
-				0x1000;
-
-			chr_rom_banks[5] =
-				chr_rom +
-				(((chr_selector[7] + bg_char_upper_) * 0x2000) &
-					chr_mask) +
-				0x1400;
-
-			chr_rom_banks[6] =
-				chr_rom +
-				(((chr_selector[7] + bg_char_upper_) * 0x2000) &
-					chr_mask) +
-				0x1800;
-
-			chr_rom_banks[7] =
-				chr_rom +
-				(((chr_selector[7] + bg_char_upper_) * 0x2000) &
-					chr_mask) +
-				0x1c00;
+			chr_rom_banks[0] = chr_rom + (((chr_selector[7] + bg_char_upper_) * 0x2000) & chr_mask) + 0x0000;
+			chr_rom_banks[1] = chr_rom + (((chr_selector[7] + bg_char_upper_) * 0x2000) & chr_mask) + 0x0400;
+			chr_rom_banks[2] = chr_rom + (((chr_selector[7] + bg_char_upper_) * 0x2000) & chr_mask) + 0x0800;
+			chr_rom_banks[3] = chr_rom + (((chr_selector[7] + bg_char_upper_) * 0x2000) & chr_mask) + 0x0c00;
+			chr_rom_banks[4] = chr_rom + (((chr_selector[7] + bg_char_upper_) * 0x2000) & chr_mask) + 0x1000;
+			chr_rom_banks[5] = chr_rom + (((chr_selector[7] + bg_char_upper_) * 0x2000) & chr_mask) + 0x1400;
+			chr_rom_banks[6] = chr_rom + (((chr_selector[7] + bg_char_upper_) * 0x2000) & chr_mask) + 0x1800;
+			chr_rom_banks[7] = chr_rom + (((chr_selector[7] + bg_char_upper_) * 0x2000) & chr_mask) + 0x1c00;
 			break;
 
 
 		case 0x01:
 			// 4 KB mode.
-			chr_rom_banks[0] =
-				chr_rom +
-				(((chr_selector[3] + bg_char_upper_) * 0x1000) &
-					chr_mask) +
-				0x0000;
-
-			chr_rom_banks[1] =
-				chr_rom +
-				(((chr_selector[3] + bg_char_upper_) * 0x1000) &
-					chr_mask) +
-				0x0400;
-
-			chr_rom_banks[2] =
-				chr_rom +
-				(((chr_selector[3] + bg_char_upper_) * 0x1000) &
-					chr_mask) +
-				0x0800;
-
-			chr_rom_banks[3] =
-				chr_rom +
-				(((chr_selector[3] + bg_char_upper_) * 0x1000) &
-					chr_mask) +
-				0x0c00;
-
-			chr_rom_banks[4] =
-				chr_rom +
-				(((chr_selector[7] + bg_char_upper_) * 0x1000) &
-					chr_mask) +
-				0x0000;
-
-			chr_rom_banks[5] =
-				chr_rom +
-				(((chr_selector[7] + bg_char_upper_) * 0x1000) &
-					chr_mask) +
-				0x0400;
-
-			chr_rom_banks[6] =
-				chr_rom +
-				(((chr_selector[7] + bg_char_upper_) * 0x1000) &
-					chr_mask) +
-				0x0800;
-
-			chr_rom_banks[7] =
-				chr_rom +
-				(((chr_selector[7] + bg_char_upper_) * 0x1000) &
-					chr_mask) +
-				0x0c00;
+			chr_rom_banks[0] = chr_rom + (((chr_selector[3] + bg_char_upper_) * 0x1000) & chr_mask) + 0x0000;
+			chr_rom_banks[1] = chr_rom + (((chr_selector[3] + bg_char_upper_) * 0x1000) & chr_mask) + 0x0400;
+			chr_rom_banks[2] = chr_rom + (((chr_selector[3] + bg_char_upper_) * 0x1000) & chr_mask) + 0x0800;
+			chr_rom_banks[3] = chr_rom + (((chr_selector[3] + bg_char_upper_) * 0x1000) & chr_mask) + 0x0c00;
+			chr_rom_banks[4] = chr_rom + (((chr_selector[7] + bg_char_upper_) * 0x1000) & chr_mask) + 0x0000;
+			chr_rom_banks[5] = chr_rom + (((chr_selector[7] + bg_char_upper_) * 0x1000) & chr_mask) + 0x0400;
+			chr_rom_banks[6] = chr_rom + (((chr_selector[7] + bg_char_upper_) * 0x1000) & chr_mask) + 0x0800;
+			chr_rom_banks[7] = chr_rom + (((chr_selector[7] + bg_char_upper_) * 0x1000) & chr_mask) + 0x0c00;
 			break;
 
 
 		case 0x02:
 			// 2 KB mode.
-			chr_rom_banks[0] =
-				chr_rom +
-				(((chr_selector[1] + bg_char_upper_) * 0x0800) &
-					chr_mask) +
-				0x0000;
-
-			chr_rom_banks[1] =
-				chr_rom +
-				(((chr_selector[1] + bg_char_upper_) * 0x0800) &
-					chr_mask) +
-				0x0400;
-
-			chr_rom_banks[2] =
-				chr_rom +
-				(((chr_selector[3] + bg_char_upper_) * 0x0800) &
-					chr_mask) +
-				0x0000;
-
-			chr_rom_banks[3] =
-				chr_rom +
-				(((chr_selector[3] + bg_char_upper_) * 0x0800) &
-					chr_mask) +
-				0x0400;
-
-			chr_rom_banks[4] =
-				chr_rom +
-				(((chr_selector[5] + bg_char_upper_) * 0x0800) &
-					chr_mask) +
-				0x0000;
-
-			chr_rom_banks[5] =
-				chr_rom +
-				(((chr_selector[5] + bg_char_upper_) * 0x0800) &
-					chr_mask) +
-				0x0400;
-
-			chr_rom_banks[6] =
-				chr_rom +
-				(((chr_selector[7] + bg_char_upper_) * 0x0800) &
-					chr_mask) +
-				0x0000;
-
-			chr_rom_banks[7] =
-				chr_rom +
-				(((chr_selector[7] + bg_char_upper_) * 0x0800) &
-					chr_mask) +
-				0x0400;
+			chr_rom_banks[0] = chr_rom + (((chr_selector[1] + bg_char_upper_) * 0x0800) & chr_mask) + 0x0000;
+			chr_rom_banks[1] = chr_rom + (((chr_selector[1] + bg_char_upper_) * 0x0800) & chr_mask) + 0x0400;
+			chr_rom_banks[2] = chr_rom + (((chr_selector[3] + bg_char_upper_) * 0x0800) & chr_mask) + 0x0000;
+			chr_rom_banks[3] = chr_rom + (((chr_selector[3] + bg_char_upper_) * 0x0800) & chr_mask) + 0x0400;
+			chr_rom_banks[4] = chr_rom + (((chr_selector[5] + bg_char_upper_) * 0x0800) & chr_mask) + 0x0000;
+			chr_rom_banks[5] = chr_rom + (((chr_selector[5] + bg_char_upper_) * 0x0800) & chr_mask) + 0x0400;
+			chr_rom_banks[6] = chr_rom + (((chr_selector[7] + bg_char_upper_) * 0x0800) & chr_mask) + 0x0000;
+			chr_rom_banks[7] = chr_rom + (((chr_selector[7] + bg_char_upper_) * 0x0800) & chr_mask) + 0x0400;
 			break;
 
 
 		case 0x03:
 			// 1 KB mode.
-			chr_rom_banks[0] =
-				chr_rom +
-				(((chr_selector[0] + bg_char_upper_) * 0x0400) &
-					chr_mask);
-
-			chr_rom_banks[1] =
-				chr_rom +
-				(((chr_selector[1] + bg_char_upper_) * 0x0400) &
-					chr_mask);
-
-			chr_rom_banks[2] =
-				chr_rom +
-				(((chr_selector[2] + bg_char_upper_) * 0x0400) &
-					chr_mask);
-
-			chr_rom_banks[3] =
-				chr_rom +
-				(((chr_selector[3] + bg_char_upper_) * 0x0400) &
-					chr_mask);
-
-			chr_rom_banks[4] =
-				chr_rom +
-				(((chr_selector[4] + bg_char_upper_) * 0x0400) &
-					chr_mask);
-
-			chr_rom_banks[5] =
-				chr_rom +
-				(((chr_selector[5] + bg_char_upper_) * 0x0400) &
-					chr_mask);
-
-			chr_rom_banks[6] =
-				chr_rom +
-				(((chr_selector[6] + bg_char_upper_) * 0x0400) &
-					chr_mask);
-
-			chr_rom_banks[7] =
-				chr_rom +
-				(((chr_selector[7] + bg_char_upper_) * 0x0400) &
-					chr_mask);
+			chr_rom_banks[0] = chr_rom + (((chr_selector[0] + bg_char_upper_) * 0x0400) & chr_mask);
+			chr_rom_banks[1] = chr_rom + (((chr_selector[1] + bg_char_upper_) * 0x0400) & chr_mask);
+			chr_rom_banks[2] = chr_rom + (((chr_selector[2] + bg_char_upper_) * 0x0400) & chr_mask);
+			chr_rom_banks[3] = chr_rom + (((chr_selector[3] + bg_char_upper_) * 0x0400) & chr_mask);
+			chr_rom_banks[4] = chr_rom + (((chr_selector[4] + bg_char_upper_) * 0x0400) & chr_mask);
+			chr_rom_banks[5] = chr_rom + (((chr_selector[5] + bg_char_upper_) * 0x0400) & chr_mask);
+			chr_rom_banks[6] = chr_rom + (((chr_selector[6] + bg_char_upper_) * 0x0400) & chr_mask);
+			chr_rom_banks[7] = chr_rom + (((chr_selector[7] + bg_char_upper_) * 0x0400) & chr_mask);
 			break;
 		}
 
@@ -1843,10 +1522,7 @@ Mapper5::vram_change_hook (uint_least16_t vram_address)
 
 	// Three consecutive reads of the same nametable address are treated as the
 	// MMC5 scanline clock condition.
-	if (vram_address == prev_vram_address_[0] &&
-		vram_address == prev_vram_address_[1] &&
-		(vram_address & 0x2000)) {
-
+	if (vram_address == prev_vram_address_[0] && vram_address == prev_vram_address_[1] && (vram_address & 0x2000)) {
 		clock_irq();
 		fetch_count_ = 0;
 	}
@@ -2024,24 +1700,24 @@ Mapper5::debug_update_chr_mapping()
 			case 0x00:
 				// 8 KB mode.
 				offset = ((static_cast<uint32_t>(chr_selector[7] + bg_char_upper_) * 0x2000) +
-						   static_cast<uint32_t>(i * 0x0400)) & chr_mask;
+						 static_cast<uint32_t>(i * 0x0400)) & chr_mask;
 				break;
 
 			case 0x01:
 				// 4 KB mode.
 				if (i < 4) {
 					offset = ((static_cast<uint32_t>(chr_selector[3] + bg_char_upper_) * 0x1000) +
-							   static_cast<uint32_t>(i * 0x0400)) & chr_mask;
+							 static_cast<uint32_t>(i * 0x0400)) & chr_mask;
 				} else {
 					offset = ((static_cast<uint32_t>(chr_selector[7] + bg_char_upper_) * 0x1000) +
-							   static_cast<uint32_t>((i - 4) * 0x0400)) & chr_mask;
+							 static_cast<uint32_t>((i - 4) * 0x0400)) & chr_mask;
 				}
 				break;
 
 			case 0x02:
 				// 2 KB mode.
 				offset = ((static_cast<uint32_t>(chr_selector[((i >> 1) << 1) + 1] + bg_char_upper_) * 0x0800) +
-						   static_cast<uint32_t>((i & 0x01) * 0x0400)) & chr_mask;
+						 static_cast<uint32_t>((i & 0x01) * 0x0400)) & chr_mask;
 				break;
 
 			case 0x03:
@@ -2225,8 +1901,7 @@ Mapper5::clock_audio_envelope (mmc5_pulse_channel_t &channel)
 void
 Mapper5::clock_audio_length (mmc5_pulse_channel_t &channel)
 {
-	if (channel.length_counter > 0 &&
-		!channel.length_halt) {
+	if (channel.length_counter > 0 && !channel.length_halt) {
 
 		--channel.length_counter;
 	}
@@ -2503,13 +2178,8 @@ Mapper5::debug_audio_state() const
 		channel.output_maximum = 15;
 		channel.enabled = pulse.enabled;
 		channel.muted = pulse.muted;
-
-		channel.frequency_hz =
-			kMMC5NTSCClock /
-			(16.0 * (static_cast<double>(pulse.period) + 1.0));
-
+		channel.frequency_hz = kMMC5NTSCClock / (16.0 * (static_cast<double>(pulse.period) + 1.0));
 		channel.frequency_valid = true;
-
 		channel.field_count = 8;
 
 		channel.fields[0].label = "Output Level";
@@ -2547,8 +2217,7 @@ Mapper5::debug_audio_state() const
 		channel.fields[3].type = MapperAudioDebugFieldType::Text;
 
 		channel.fields[4].label = "Volume Mode";
-		channel.fields[4].text =
-			pulse.constant_volume ? "Constant" : "Envelope";
+		channel.fields[4].text = pulse.constant_volume ? "Constant" : "Envelope";
 		channel.fields[4].type = MapperAudioDebugFieldType::Text;
 
 		channel.fields[5].label = "Timer";
@@ -2571,7 +2240,6 @@ Mapper5::debug_audio_state() const
 	state.channels[2].output_maximum = 255;
 	state.channels[2].enabled = pcm_.enabled;
 	state.channels[2].muted = pcm_.muted;
-
 	state.channels[2].field_count = 5;
 
 	state.channels[2].fields[0].label = "Output Level";
@@ -2616,11 +2284,8 @@ Mapper5::debug_audio_state() const
 void
 Mapper5::update_irq_line()
 {
-	const bool scanline_irq =
-		irq_enabled_ && irq_status_.pending;
-
-	const bool pcm_irq =
-		pcm_.irq_enabled && pcm_.irq_pending;
+	const bool scanline_irq = irq_enabled_ && irq_status_.pending;
+	const bool pcm_irq = pcm_.irq_enabled && pcm_.irq_pending;
 
 	if (scanline_irq || pcm_irq) {
 		nes::cpu::irq(nes::cpu::MAPPER_IRQ);
@@ -2653,9 +2318,7 @@ Mapper5::update_vertical_split(uint_least16_t address)
 {
 	const uint16_t offset = address & 0x03ff;
 
-	const bool nametable_fetch =
-		(address & 0x2000) &&
-		offset < 0x03c0;
+	const bool nametable_fetch = (address & 0x2000) && offset < 0x03c0;
 
 	if (!nametable_fetch) {
 		return;
@@ -2663,48 +2326,30 @@ Mapper5::update_vertical_split(uint_least16_t address)
 
 	++vertical_split_tile_number_;
 
-	if (!irq_status_.in_frame ||
-		!(vertical_split_mode_ & VSPLIT_ENABLE) ||
-		(exram_mode_ & 0x02)) {
-
+	if (!irq_status_.in_frame || !(vertical_split_mode_ & VSPLIT_ENABLE) || (exram_mode_ & 0x02)) {
 		vertical_split_active_ = false;
+		
 		return;
 	}
 
-	const uint8_t scanline =
-		vertical_split_tile_number_ >= 41 ?
-			static_cast<uint8_t>(irq_counter_ + 1) :
-			irq_counter_;
-
-	vertical_split_y_ =
-		static_cast<uint8_t>(
-			(scanline + vertical_split_scroll_) % 240);
-
-	const uint8_t column =
-		static_cast<uint8_t>(
-			(vertical_split_tile_number_ + 2) % 42);
-
-	const bool right_side =
-		(vertical_split_mode_ & VSPLIT_RIGHT) != 0;
-
-	const uint8_t delimiter =
-		vertical_split_mode_ & VSPLIT_TILE;
+	const uint8_t scanline = vertical_split_tile_number_ >= 41 ? static_cast<uint8_t>(irq_counter_ + 1) : irq_counter_;
+	vertical_split_y_ = static_cast<uint8_t>((scanline + vertical_split_scroll_) % 240);
+	const uint8_t column = static_cast<uint8_t>((vertical_split_tile_number_ + 2) % 42);
+	const bool right_side = (vertical_split_mode_ & VSPLIT_RIGHT) != 0;
+	const uint8_t delimiter = vertical_split_mode_ & VSPLIT_TILE;
 
 	if (column == 0) {
 		vertical_split_active_ = !right_side;
 	}
 
-	if (column == delimiter &&
-		vertical_split_tile_number_ < 42) {
+	if (column == delimiter && vertical_split_tile_number_ < 42) {
 		vertical_split_active_ = !vertical_split_active_;
 	} else if (column > 32) {
 		vertical_split_active_ = false;
 	}
 
 	if (vertical_split_active_) {
-		vertical_split_tile_ =
-			((static_cast<uint16_t>(vertical_split_y_) & 0x00f8) << 2) |
-			column;
+		vertical_split_tile_ = ((static_cast<uint16_t>(vertical_split_y_) & 0x00f8) << 2) | column;
 	}
 }
 

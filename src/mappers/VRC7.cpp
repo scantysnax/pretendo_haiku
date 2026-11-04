@@ -941,8 +941,7 @@ VRC7::update_phase_increments (fm_channel_t &channel)
 void
 VRC7::clock_fm_phase()
 {
-	static constexpr uint32_t kPhaseMask =
-		(1u << 19) - 1u;
+	static constexpr uint32_t kPhaseMask = (1u << 19) - 1u;
 
 	/*
 	 * Advance the shared envelope timing counter.

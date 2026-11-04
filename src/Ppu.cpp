@@ -393,7 +393,7 @@ constexpr uint_least16_t
 sprite_pattern_address (uint8_t index, uint8_t sprite_line, const size_16px_t &) 
 {
 	return (((index & 1) << 12) | ((index & 0xfe) << 4) | Pattern::offset | (sprite_line & 7) |
-	        ((sprite_line & 0x08) << 1)) & 0xffff;
+	       ((sprite_line & 0x08) << 1)) & 0xffff;
 }
 
 
@@ -435,6 +435,7 @@ render_blank_pixel()
 	if (UNLIKELY((vram_address_ & 0x3f00) == 0x3f00)) {
 		return palette_[vram_address_ & 0x1f] & monochrome_mask_;
 	}
+	
 	return palette_[0x00] & monochrome_mask_;
 }
 
@@ -460,8 +461,7 @@ select_bg_pixel (uint_least16_t index)
 		return (((pattern_queue_[0] & mask) >> (15 - tile_offset_)) |
 		        ((pattern_queue_[1] & mask) >> (14 - tile_offset_)) |
 		        ((attribute_queue_[0] & mask) >> (13 - tile_offset_)) |
-		        ((attribute_queue_[1] & mask) >> (12 - tile_offset_))) &
-		       0xff;
+		        ((attribute_queue_[1] & mask) >> (12 - tile_offset_))) & 0xff;
 	}
 
 	return 0x00;
@@ -628,14 +628,9 @@ template <class Pattern>
 void
 read_background_pattern()
 {
-	nes::cart.mapper()->set_ppu_fetch_type(
-		PPUFetchType::BACKGROUND);
-
-	next_pattern_[Pattern::index] =
-		nes::cart.mapper()->read_vram(next_ppu_fetch_address_);
-
-	nes::cart.mapper()->set_ppu_fetch_type(
-		PPUFetchType::NONE);
+	nes::cart.mapper()->set_ppu_fetch_type(PPUFetchType::BACKGROUND);
+	next_pattern_[Pattern::index] = nes::cart.mapper()->read_vram(next_ppu_fetch_address_);
+	nes::cart.mapper()->set_ppu_fetch_type(PPUFetchType::NONE);
 }
 
 
@@ -957,24 +952,18 @@ template <class Size, class Pattern>
 void
 read_sprite_pattern()
 {
-	nes::cart.mapper()->set_ppu_fetch_type(
-		PPUFetchType::SPRITE);
+	nes::cart.mapper()->set_ppu_fetch_type(PPUFetchType::SPRITE);
+	uint8_t pattern = nes::cart.mapper()->read_vram(next_ppu_fetch_address_);
+	
+	nes::cart.mapper()->set_ppu_fetch_type(PPUFetchType::NONE);
 
-	uint8_t pattern =
-		nes::cart.mapper()->read_vram(next_ppu_fetch_address_);
-
-	nes::cart.mapper()->set_ppu_fetch_type(
-		PPUFetchType::NONE);
-
-	sprite_pattern_t &sprite =
-		sprite_patterns_[current_sprite_index_];
+	sprite_pattern_t &sprite = sprite_patterns_[current_sprite_index_];
 
 	if (sprite.attr & kOAMHFlip) {
 		pattern = reverse_bits[pattern];
 	}
 
-	sprite_patterns_[current_sprite_index_]
-		.patterns[Pattern::index] = pattern;
+	sprite_patterns_[current_sprite_index_].patterns[Pattern::index] = pattern;
 }
 
 
@@ -1356,122 +1345,6 @@ clock_ppu (const nes::ppu::scanline_prerender &)
 }
 
 
-#if 0
-// -----------------------------------------------------------------------------
-// clock_ppu
-//
-// Executes one PPU dot for the supplied scanline type, performing the rendering,
-// fetch, scroll, sprite, or vblank work appropriate to that scanline.
-//
-// Parameters:
-//   target - Scanline-type tag or visible rendering target.
-//
-// Returns:
-//   Nothing.
-// -----------------------------------------------------------------------------
-void 
-clock_ppu (const nes::ppu::scanline_render &target) 
-{
-	clock_ppu_mask_delay();
-	
-	if (UNLIKELY(!ppu_mask_.screen_enabled)) {
-
-		if (hpos_ < 1) {
-			// idle
-		} else if (hpos_ < 257) {
-			target.buffer[hpos_ - 1] = render_blank_pixel();
-			target.buffer[hpos_ - 1] |= (ppu_mask_.intensity << 6);
-		} else {
-			// idle
-		}
-	} else {
-
-		if (hpos_ < 1) {
-			if (UNLIKELY(vpos_ == 1 && odd_frame_)) {
-				read_tile_index();
-			}
-		} else if (hpos_ < 257) {
-
-			target.buffer[hpos_ - 1] = render_pixel();
-			target.buffer[hpos_ - 1] |= (ppu_mask_.intensity << 6);
-
-			switch (hpos_ & 0x07) {
-			case 1: evaluate_sprites_odd();  open_tile_index(); break;
-			case 2: evaluate_sprites_even(); read_tile_index(); break;
-			case 3: evaluate_sprites_odd();  open_background_attribute(); break;
-			case 4: evaluate_sprites_even(); read_background_attribute(); break;
-			case 5: evaluate_sprites_odd();  open_background_pattern<pattern_0_t>(); break;
-			case 6: evaluate_sprites_even(); read_background_pattern<pattern_0_t>(); break;
-			case 7: evaluate_sprites_odd();  open_background_pattern<pattern_1_t>(); break;
-			case 0:
-				evaluate_sprites_even();
-				read_background_pattern<pattern_1_t>();
-				update_shift_registers_render();
-				clock_x();
-				break;
-			}
-
-			if (UNLIKELY(hpos_ == 256)) {
-				clock_y();
-			}
-		} else if (hpos_ < 321) {
-
-			if (UNLIKELY(hpos_ == 257)) {
-				update_x_scroll();
-			}
-
-			update_sprite_registers();
-
-			switch (hpos_ & 0x07) {
-			case 1: open_tile_index(); break;
-			case 2: read_tile_index(); break;
-			case 3: open_background_attribute(); break;
-			case 4: read_background_attribute(); break;
-			case 5:
-				if (ppu_control_.large_sprites) open_sprite_pattern<size_16px_t, pattern_0_t>();
-				else                           open_sprite_pattern<size_8px_t,  pattern_0_t>();
-				break;
-			case 6:
-				if (ppu_control_.large_sprites) read_sprite_pattern<size_16px_t, pattern_0_t>();
-				else                           read_sprite_pattern<size_8px_t,  pattern_0_t>();
-				break;
-			case 7:
-				if (ppu_control_.large_sprites) open_sprite_pattern<size_16px_t, pattern_1_t>();
-				else                           open_sprite_pattern<size_8px_t,  pattern_1_t>();
-				break;
-			case 0:
-				if (ppu_control_.large_sprites) read_sprite_pattern<size_16px_t, pattern_1_t>();
-				else                           read_sprite_pattern<size_8px_t,  pattern_1_t>();
-				break;
-			}
-		} else if (hpos_ < 337) {
-
-			switch (hpos_ & 0x07) {
-			case 1: open_tile_index(); break;
-			case 2: read_tile_index(); break;
-			case 3: open_background_attribute(); break;
-			case 4: read_background_attribute(); break;
-			case 5: open_background_pattern<pattern_0_t>(); break;
-			case 6: read_background_pattern<pattern_0_t>(); break;
-			case 7: open_background_pattern<pattern_1_t>(); break;
-			case 0:
-				read_background_pattern<pattern_1_t>();
-				update_shift_registers_idle();
-				clock_x();
-				break;
-			}
-		} else {
-			switch (hpos_) {
-			case 337: open_tile_index(); break;
-			case 338: read_tile_index(); break;
-			case 339: open_tile_index(); break;
-			case 340: read_tile_index(); break;
-			default: abort();
-			}
-		}
-	}
-}
-#endif
 
 // -----------------------------------------------------------------------------
 // clock_ppu
