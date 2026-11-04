@@ -24,7 +24,6 @@ class ExpansionAudioStatusView : public BView
 	private:
 	void CaptureState();
 
-	void RebuildChannelControls();
 	void UpdateChannelControls();
 
 	private:
@@ -37,16 +36,11 @@ class ExpansionAudioStatusView : public BView
 	void DrawTextLine (const char *label, const char *value, float x, float y);
 	void DrawBooleanLine (const char *label, bool value, float x, float y);
 	void DrawColoredTextLine (const char *label, const char *value, rgb_color color, float x, float y);
-
-	void DrawLevelMeter (BRect rect, uint32_t value, uint32_t maximum);
-
 	void DrawDebugField (const mapper_audio_debug_field_t &field, float x, float y);
 
 	private:
 	mapper_audio_debug_state_t fState;
-
-	BCheckBox *fChannelCheckBoxes[3] = {};
-	size_t fControlChannelCount = 0;
+	BCheckBox *fChannelCheckBoxes[8] = {};
 };
 
 

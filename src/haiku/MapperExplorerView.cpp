@@ -1,5 +1,4 @@
 
-
 #include "MapperExplorerView.h"
 #include "PretendoWindow.h"
 
@@ -19,8 +18,7 @@
 MapperExplorerView::MapperExplorerView (BRect frame, PretendoWindow *parent)
 	: BView(frame, "mapper_explorer_view", B_FOLLOW_ALL, B_WILL_DRAW | B_PULSE_NEEDED)
 {
-	fParent = parent;
-
+	(void)parent;
 	SetViewColor(216, 216, 216);
 	SetLowColor(ViewColor());
 }
@@ -81,7 +79,7 @@ MapperExplorerView::AttachedToWindow()
 	CaptureVRC2State();
 	CaptureVRC3State();
 	CaptureVRC1State();
-	
+	CaptureVRC7State();
 	
 	Invalidate();
 }
@@ -123,7 +121,6 @@ MapperExplorerView::Draw (BRect updateRect)
 		DrawNROMPanel();
 	} else if (HaveMapperSpecificPanel()) {
 		DrawMapperSpecificSeparator();
-		
 		DrawMMC1Panel();
 		DrawUxROMPanel();
 		DrawCNROMPanel();
@@ -137,6 +134,7 @@ MapperExplorerView::Draw (BRect updateRect)
 		DrawVRC2Panel();
 		DrawVRC3Panel();
 		DrawVRC1Panel();
+		DrawVRC7Panel();
 	} else if (MapperSpecificPanelExpected()) {
 		DrawMapperSpecificSeparator();
 		DrawUnsupportedMapperPanel();
@@ -216,6 +214,10 @@ MapperExplorerView::Pulse()
 	}
 	
 	if (CaptureVRC1State()) {
+		redraw = true;
+	}
+	
+	if (CaptureVRC7State()) {
 		redraw = true;
 	}
 
@@ -392,7 +394,8 @@ MapperExplorerView::CaptureState()
 //   true if the visible bank state changed; false otherwise.
 // -----------------------------------------------------------------------------
 bool
-MapperExplorerView::BankStateChanged (const mapper_debug_bank_t &oldBank, const mapper_debug_bank_t &newBank) const
+MapperExplorerView::BankStateChanged (const mapper_debug_bank_t &oldBank, 
+									  const mapper_debug_bank_t &newBank) const
 {
 	return
 		oldBank.address  != newBank.address ||
@@ -687,7 +690,8 @@ MapperExplorerView::CaptureMMC3State()
 //   true if any displayed MMC3 state changed; false otherwise.
 // -----------------------------------------------------------------------------
 bool
-MapperExplorerView::MMC3StateChanged (const mmc3_debug_state_t &oldState, const mmc3_debug_state_t &newState) const
+MapperExplorerView::MMC3StateChanged (const mmc3_debug_state_t &oldState,
+									  const mmc3_debug_state_t &newState) const
 {
 	if (
 		oldState.command                  != newState.command ||
@@ -957,7 +961,8 @@ MapperExplorerView::CaptureMMC2State()
 //   true if any displayed MMC2 state changed; false otherwise.
 // -----------------------------------------------------------------------------
 bool
-MapperExplorerView::MMC2StateChanged (const mmc2_debug_state_t &oldState, const mmc2_debug_state_t &newState) const
+MapperExplorerView::MMC2StateChanged (const mmc2_debug_state_t &oldState,
+									  const mmc2_debug_state_t &newState) const
 {
 	return
 		oldState.prg_bank             != newState.prg_bank ||
@@ -1141,11 +1146,9 @@ MapperExplorerView::CaptureVRC4State()
 		return true;
 	}
 
-	const vrc4_debug_state_t state =
-		vrc4->debug_mapper_state();
+	const vrc4_debug_state_t state = vrc4->debug_mapper_state();
 
-	if (fHaveVRC4State &&
-		!VRC4StateChanged(fVRC4State, state)) {
+	if (fHaveVRC4State && !VRC4StateChanged(fVRC4State, state)) {
 
 		return false;
 	}
@@ -1402,6 +1405,131 @@ MapperExplorerView::VRC1StateChanged (const vrc1_debug_state_t &oldState,
 		oldState.chr[1] != newState.chr[1] ||
 		oldState.control != newState.control ||
 		oldState.horizontal_mirroring != newState.horizontal_mirroring;
+}
+
+
+// -----------------------------------------------------------------------------
+// MapperExplorerView::VRC7StateChanged
+//
+// Compares two VRC7 debugger-state snapshots.
+//
+// The comparison includes raw PRG and CHR registers, mapper-control state,
+// selected FM register, decoded FM channel and instrument state, operator
+// phase increments, phase accumulators, raw waveform outputs, envelope state
+// and attenuation levels, composite FM output, IRQ latch/counter/control state,
+// decoded IRQ control bits, prescaler, and persistent IRQ activity counters.
+//
+// Parameters:
+//   oldState - Previously captured VRC7 debugger state.
+//   newState - Newly captured VRC7 debugger state.
+//
+// Returns:
+//   true if any VRC7-specific debugger state changed; false otherwise.
+// -----------------------------------------------------------------------------
+bool
+MapperExplorerView::VRC7StateChanged (const vrc7_debug_state_t &oldState,
+									  const vrc7_debug_state_t &newState) const
+{
+	for (int i = 0; i < 3; ++i) {
+		if (oldState.prg[i] != newState.prg[i]) {
+			return true;
+		}
+	}
+
+	for (int i = 0; i < 8; ++i) {
+		if (oldState.chr[i] != newState.chr[i]) {
+			return true;
+		}
+	}
+
+	for (int i = 0; i < 6; ++i) {
+		const vrc7_fm_channel_debug_t &oldChannel = oldState.fm_channels[i];
+		const vrc7_fm_channel_debug_t &newChannel = newState.fm_channels[i];
+
+		if (oldChannel.f_number != newChannel.f_number
+			|| oldChannel.block != newChannel.block
+			|| oldChannel.instrument != newChannel.instrument
+			|| oldChannel.volume != newChannel.volume
+			|| oldChannel.key_on != newChannel.key_on
+			|| oldChannel.sustain != newChannel.sustain
+			|| oldChannel.modulator_multiplier != newChannel.modulator_multiplier
+			|| oldChannel.carrier_multiplier != newChannel.carrier_multiplier
+			|| oldChannel.feedback != newChannel.feedback
+			|| oldChannel.modulator_output_level != newChannel.modulator_output_level
+			|| oldChannel.modulator_attack != newChannel.modulator_attack
+			|| oldChannel.modulator_decay != newChannel.modulator_decay
+			|| oldChannel.carrier_attack != newChannel.carrier_attack
+			|| oldChannel.carrier_decay != newChannel.carrier_decay
+			|| oldChannel.modulator_phase_increment != newChannel.modulator_phase_increment
+			|| oldChannel.carrier_phase_increment != newChannel.carrier_phase_increment
+			|| oldChannel.modulator_phase != newChannel.modulator_phase
+			|| oldChannel.carrier_phase != newChannel.carrier_phase
+			|| oldChannel.modulator_output != newChannel.modulator_output
+			|| oldChannel.carrier_output != newChannel.carrier_output
+			|| oldChannel.modulator_envelope_state != newChannel.modulator_envelope_state
+			|| oldChannel.carrier_envelope_state != newChannel.carrier_envelope_state
+			|| oldChannel.modulator_envelope_level != newChannel.modulator_envelope_level
+			|| oldChannel.carrier_envelope_level != newChannel.carrier_envelope_level) {
+
+			return true;
+		}
+	}
+
+	return oldState.wram_enabled != newState.wram_enabled
+		|| oldState.audio_silenced != newState.audio_silenced
+		|| oldState.audio_register != newState.audio_register
+		|| oldState.fm_output != newState.fm_output
+		|| oldState.irq_latch != newState.irq_latch
+		|| oldState.irq_counter != newState.irq_counter
+		|| oldState.irq_control != newState.irq_control
+		|| oldState.irq_enable_after_ack != newState.irq_enable_after_ack
+		|| oldState.irq_enabled != newState.irq_enabled
+		|| oldState.irq_cycle_mode != newState.irq_cycle_mode
+		|| oldState.irq_prescaler != newState.irq_prescaler
+		|| oldState.irq_clock_count != newState.irq_clock_count
+		|| oldState.irq_assert_count != newState.irq_assert_count;
+}
+
+
+// -----------------------------------------------------------------------------
+// MapperExplorerView::CaptureVRC7State
+//
+// Captures the current VRC7-specific debugger state from the active mapper.
+//
+// If the current cartridge does not use a VRC7 mapper, any previously cached
+// VRC7 state is cleared.  When VRC7 is active, the latest mapper snapshot is
+// compared with the cached state so callers can determine whether the display
+// needs to be refreshed.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   true if the cached VRC7 state changed; false otherwise.
+// -----------------------------------------------------------------------------
+bool
+MapperExplorerView::CaptureVRC7State()
+{
+	Mapper *mapper = nes::cart.mapper();
+	VRC7 *vrc7 = dynamic_cast<VRC7 *>(mapper);
+
+	if (vrc7 == nullptr) {
+		if (fHaveVRC7State) {
+			fHaveVRC7State = false;
+			fVRC7State = vrc7_debug_state_t();
+			return true;
+		}
+
+		return false;
+	}
+
+	const vrc7_debug_state_t state = vrc7->debug_mapper_state();
+	const bool changed = !fHaveVRC7State || VRC7StateChanged(fVRC7State, state);
+
+	fVRC7State = state;
+	fHaveVRC7State = true;
+
+	return changed;
 }
 
 
@@ -1695,7 +1823,8 @@ MapperExplorerView::HaveMapperSpecificPanel() const
 		fHaveVRC4State ||
 		fHaveVRC2State ||
 		fHaveVRC3State ||
-		fHaveVRC1State;			
+		fHaveVRC1State ||
+		fHaveVRC7State;			
 }
 
 
@@ -1705,15 +1834,14 @@ MapperExplorerView::HaveMapperSpecificPanel() const
 // Returns whether the active mapper would normally require additional
 // mapper-specific diagnostics beyond the generic PRG/CHR mapping display.
 //
-// NROM is intentionally excluded because its useful mapper state is already
-// completely represented by the generic Mapper Explorer tables.
+// NROM is excluded here because it is handled separately by Draw().
 //
 // Parameters:
 //   None.
 //
 // Returns:
-//   true if the active mapper is not NROM and therefore may have additional
-//   mapper-specific state to display.
+//   true if the active mapper may require additional mapper-specific diagnostics,
+//   otherwise false.
 // -----------------------------------------------------------------------------
 bool
 MapperExplorerView::MapperSpecificPanelExpected() const
@@ -1972,9 +2100,9 @@ MapperExplorerView::MMC1RegisterName (uint8 reg) const
 //
 // Draws a short informational note for NROM cartridges.
 //
-// NROM has no mapper-specific banking hardware or runtime control state beyond
-// the fixed PRG/CHR mappings already shown by the generic Mapper Explorer
-// tables.
+// NROM has no mapper-controlled bank switching or other dynamic mapper state,
+// so the generic PRG and CHR mapping tables contain the useful cartridge
+// mapping information.
 //
 // Parameters:
 //   None.
@@ -2149,7 +2277,6 @@ MapperExplorerView::DrawMMC1Panel()
 		DrawText(28.0f, y, "No completed serial transfer captured.", be_plain_font);
 		SetHighColor(25, 25, 25);
 	}
-
 
 	y += 20.0f;
 	x = 28.0f;
@@ -3395,30 +3522,15 @@ MapperExplorerView::DrawVRC1Panel()
 	float x = leftText;
 	x = DrawText(x, chrY, "CHR 0: ", be_plain_font);
 
-	text.SetToFormat(
-		"$%02X",
-		static_cast<unsigned int>(fVRC1State.chr[0]));
-
-	DrawText(
-		x,
-		chrY,
-		text.String(),
-		be_fixed_font);
+	text.SetToFormat("$%02X", static_cast<unsigned int>(fVRC1State.chr[0]));
+	DrawText(x, chrY, text.String(), be_fixed_font);
 
 	chrY += 20.0f;
-
 	x = leftText;
 	x = DrawText(x, chrY, "CHR 1: ", be_plain_font);
 
-	text.SetToFormat(
-		"$%02X",
-		static_cast<unsigned int>(fVRC1State.chr[1]));
-
-	DrawText(
-		x,
-		chrY,
-		text.String(),
-		be_fixed_font);
+	text.SetToFormat("$%02X", static_cast<unsigned int>(fVRC1State.chr[1]));
+	DrawText(x, chrY, text.String(), be_fixed_font);
 
 	// Mapper Control
 	SetFont(be_bold_font);
@@ -3432,29 +3544,15 @@ MapperExplorerView::DrawVRC1Panel()
 	x = middleText;
 	x = DrawText(x, controlY, "Control: ", be_plain_font);
 
-	text.SetToFormat(
-		"$%02X",
-		static_cast<unsigned int>(fVRC1State.control));
-
-	DrawText(
-		x,
-		controlY,
-		text.String(),
-		be_fixed_font);
+	text.SetToFormat("$%02X", static_cast<unsigned int>(fVRC1State.control));
+	DrawText(x, controlY, text.String(), be_fixed_font);
 
 	controlY += 20.0f;
 
 	x = middleText;
 	x = DrawText(x, controlY, "Mirroring: ", be_plain_font);
-
-	DrawText(
-		x,
-		controlY,
-		fVRC1State.horizontal_mirroring
-			? "Horizontal"
-			: "Vertical",
-		be_plain_font);
-
+	DrawText(x, controlY, fVRC1State.horizontal_mirroring ? "Horizontal" : "Vertical", be_plain_font);
+	
 	SetHighColor(25, 25, 25);
 }
 
@@ -3618,45 +3716,24 @@ MapperExplorerView::DrawVRC3Panel()
 	float x = leftText;
 	x = DrawText(x, irqY, "Latch: ", be_plain_font);
 
-	text.SetToFormat(
-		"$%04X",
-		static_cast<unsigned int>(fVRC3State.irq_latch));
-
-	DrawText(
-		x,
-		irqY,
-		text.String(),
-		be_fixed_font);
+	text.SetToFormat("$%04X", static_cast<unsigned int>(fVRC3State.irq_latch));
+	DrawText(x, irqY, text.String(), be_fixed_font);
 
 	irqY += 20.0f;
 
 	x = leftText;
 	x = DrawText(x, irqY, "Counter: ", be_plain_font);
 
-	text.SetToFormat(
-		"$%04X",
-		static_cast<unsigned int>(fVRC3State.irq_counter));
-
-	DrawText(
-		x,
-		irqY,
-		text.String(),
-		be_fixed_font);
+	text.SetToFormat("$%04X", static_cast<unsigned int>(fVRC3State.irq_counter));
+	DrawText(x, irqY, text.String(), be_fixed_font);
 
 	irqY += 20.0f;
 
 	x = leftText;
 	x = DrawText(x, irqY, "Control: ", be_plain_font);
 
-	text.SetToFormat(
-		"$%02X",
-		static_cast<unsigned int>(fVRC3State.irq_control));
-
-	DrawText(
-		x,
-		irqY,
-		text.String(),
-		be_fixed_font);
+	text.SetToFormat("$%02X", static_cast<unsigned int>(fVRC3State.irq_control));
+	DrawText(x, irqY, text.String(), be_fixed_font);
 
 	// IRQ Control
 	SetFont(be_bold_font);
@@ -3665,35 +3742,17 @@ MapperExplorerView::DrawVRC3Panel()
 
 	float controlY = y + 24.0f;
 
-	SetHighColor(
-		fVRC3State.irq_enabled
-			? rgb_color{30, 110, 45, 255}
-			: rgb_color{170, 35, 35, 255});
-
+	SetHighColor(fVRC3State.irq_enabled ? rgb_color{30, 110, 45, 255} : rgb_color{170, 35, 35, 255});
 	x = middleText;
 	x = DrawText(x, controlY, "Enabled: ", be_plain_font);
-
-	DrawText(
-		x,
-		controlY,
-		fVRC3State.irq_enabled ? "Yes" : "No",
-		be_plain_font);
+	DrawText(x, controlY, fVRC3State.irq_enabled ? "Yes" : "No", be_plain_font);
 
 	controlY += 20.0f;
 
-	SetHighColor(
-		fVRC3State.irq_enable_after_ack
-			? rgb_color{30, 110, 45, 255}
-			: rgb_color{170, 35, 35, 255});
-
+	SetHighColor(fVRC3State.irq_enable_after_ack ? rgb_color{30, 110, 45, 255} : rgb_color{170, 35, 35, 255});
 	x = middleText;
 	x = DrawText(x, controlY, "After ACK: ", be_plain_font);
-
-	DrawText(
-		x,
-		controlY,
-		fVRC3State.irq_enable_after_ack ? "Enabled" : "Disabled",
-		be_plain_font);
+	DrawText(x, controlY, fVRC3State.irq_enable_after_ack ? "Enabled" : "Disabled", be_plain_font);
 
 	controlY += 20.0f;
 
@@ -3701,12 +3760,7 @@ MapperExplorerView::DrawVRC3Panel()
 
 	x = middleText;
 	x = DrawText(x, controlY, "Mode: ", be_plain_font);
-
-	DrawText(
-		x,
-		controlY,
-		fVRC3State.irq_8bit_mode ? "8-bit" : "16-bit",
-		be_plain_font);
+	DrawText(x, controlY, fVRC3State.irq_8bit_mode ? "8-bit" : "16-bit", be_plain_font);
 
 	// IRQ Activity
 	SetFont(be_bold_font);
@@ -3720,32 +3774,16 @@ MapperExplorerView::DrawVRC3Panel()
 	x = rightText;
 	x = DrawText(x, activityY, "Clocks: ", be_plain_font);
 
-	text.SetToFormat(
-		"%llu",
-		static_cast<unsigned long long>(
-			fVRC3State.irq_clock_count));
-
-	DrawText(
-		x,
-		activityY,
-		text.String(),
-		be_plain_font);
+	text.SetToFormat("%llu", static_cast<unsigned long long>(fVRC3State.irq_clock_count));
+	DrawText(x, activityY, text.String(), be_plain_font);
 
 	activityY += 20.0f;
 
 	x = rightText;
 	x = DrawText(x, activityY, "Assertions: ", be_plain_font);
 
-	text.SetToFormat(
-		"%llu",
-		static_cast<unsigned long long>(
-			fVRC3State.irq_assert_count));
-
-	DrawText(
-		x,
-		activityY,
-		text.String(),
-		be_plain_font);
+	text.SetToFormat("%llu", static_cast<unsigned long long>(fVRC3State.irq_assert_count));
+	DrawText(x, activityY, text.String(), be_plain_font);
 
 	SetHighColor(25, 25, 25);
 }
@@ -4217,13 +4255,379 @@ MapperExplorerView::DrawVRC6Panel()
 	SetHighColor(25, 25, 25);
 	x = DrawText(x, y, "Clock Scale: ", be_plain_font);
 
-	text.SetToFormat("%ux", static_cast<unsigned int>(fVRC6State.audio_clock_scale));\
+	text.SetToFormat("%ux", static_cast<unsigned int>(fVRC6State.audio_clock_scale));
 	DrawText(x, y, text.String(), be_plain_font);
 
 	SetHighColor(25, 25, 25);
 }
 
 
+// -----------------------------------------------------------------------------
+// MapperExplorerView::DrawVRC7Panel
+//
+// Draws the VRC7-specific mapper state section of Mapper Explorer.
+//
+// The panel displays VRC7 mapper-control state, raw PRG and CHR register
+// contents, selected FM register, composite FM output, decoded FM channel and
+// instrument state, calculated operator phase increments, envelope state and
+// attenuation levels, IRQ counter/control state, and persistent IRQ activity
+// counters.
+//
+// Resolved PRG/CHR mappings and nametable mirroring are shown separately by
+// the generic mapper-state display.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+MapperExplorerView::DrawVRC7Panel()
+{
+	if (!fHaveVRC7State) {
+		return;
+	}
+
+	const float left = 20.0f;
+	const float leftText = 28.0f;
+
+	const float middle = 285.0f;
+	const float middleText = 293.0f;
+
+	const float right = 555.0f;
+	const float rightText = 563.0f;
+
+	float y = 478.0f;
+
+	BString text;
+
+	SetFont(be_bold_font);
+	SetHighColor(45, 75, 115);
+	DrawString("VRC7 Internal State", BPoint(left, y));
+
+	y += 30.0f;
 
 
+	// Mapper Control
+	SetFont(be_bold_font);
+	SetHighColor(45, 75, 115);
+	DrawString("Mapper Control", BPoint(left, y));
+
+	float controlY = y + 24.0f;
+
+	SetHighColor(25, 25, 25);
+
+	float x = leftText;
+	x = DrawText(x, controlY, "PRG RAM: ", be_plain_font);
+
+	if (fVRC7State.wram_enabled) {
+		SetHighColor(30, 110, 45);
+		DrawText(x, controlY, "Enabled", be_plain_font);
+	} else {
+		SetHighColor(120, 120, 120);
+		DrawText(x, controlY, "Disabled", be_plain_font);
+	}
+
+	controlY += 20.0f;
+
+	SetHighColor(25, 25, 25);
+
+	x = leftText;
+	x = DrawText(x, controlY, "Audio: ", be_plain_font);
+
+	if (fVRC7State.audio_silenced) {
+		SetHighColor(170, 35, 35);
+		DrawText(x, controlY, "Silenced", be_plain_font);
+	} else {
+		SetHighColor(30, 110, 45);
+		DrawText(x, controlY, "Enabled", be_plain_font);
+	}
+
+	controlY += 20.0f;
+
+	SetHighColor(25, 25, 25);
+
+	x = leftText;
+	x = DrawText(x, controlY, "FM Register: ", be_plain_font);
+
+	text.SetToFormat("$%02X", static_cast<unsigned int>(fVRC7State.audio_register));
+	DrawText(x, controlY, text.String(), be_fixed_font);
+	controlY += 20.0f;
+
+	SetHighColor(25, 25, 25);
+
+	x = leftText;
+	x = DrawText(x, controlY, "FM Output: ", be_plain_font);
+
+	text.SetToFormat("%ld", static_cast<long>(fVRC7State.fm_output));
+	DrawText(x, controlY, text.String(), be_fixed_font);
+
+	// PRG Registers
+	SetFont(be_bold_font);
+	SetHighColor(45, 75, 115);
+	DrawString("PRG Registers", BPoint(middle, y));
+
+	float prgY = y + 24.0f;
+
+	SetHighColor(25, 25, 25);
+
+	for (int i = 0; i < 3; ++i) {
+		x = middleText;
+
+		text.SetToFormat("PRG %d: ", i);
+		x = DrawText(x, prgY, text.String(), be_plain_font);
+
+		text.SetToFormat("$%02X", static_cast<unsigned int>(fVRC7State.prg[i]));
+		DrawText(x, prgY, text.String(), be_fixed_font);
+
+		prgY += 20.0f;
+	}
+
+	// IRQ Counter
+	SetFont(be_bold_font);
+	SetHighColor(45, 75, 115);
+	DrawString("IRQ Counter", BPoint(right, y));
+
+	float irqY = y + 24.0f;
+
+	SetHighColor(25, 25, 25);
+
+	x = rightText;
+	x = DrawText(x, irqY, "Latch: ", be_plain_font);
+
+	text.SetToFormat("$%02X", static_cast<unsigned int>(fVRC7State.irq_latch));
+	DrawText(x, irqY, text.String(), be_fixed_font);
+	irqY += 20.0f;
+
+	x = rightText;
+	x = DrawText(x, irqY, "Counter: ", be_plain_font);
+
+	text.SetToFormat("$%02X", static_cast<unsigned int>(fVRC7State.irq_counter));
+	DrawText(x, irqY, text.String(), be_fixed_font);
+	irqY += 20.0f;
+
+	x = rightText;
+	x = DrawText(x, irqY, "Prescaler: ", be_plain_font);
+
+	text.SetToFormat("%d", fVRC7State.irq_prescaler);
+	DrawText(x, irqY, text.String(), be_plain_font);
+	irqY += 20.0f;
+
+	x = rightText;
+	x = DrawText(x, irqY, "Control: ", be_plain_font);
+
+	text.SetToFormat("$%02X", static_cast<unsigned int>(fVRC7State.irq_control));
+	DrawText(x, irqY, text.String(), be_fixed_font);
+	y = std::max(controlY, std::max(prgY, irqY)) + 32.0f;
+
+	// CHR Registers
+	SetFont(be_bold_font);
+	SetHighColor(45, 75, 115);
+	DrawString("CHR Registers", BPoint(left, y));
+
+	float chrStartY = y + 24.0f;
+
+	SetHighColor(25, 25, 25);
+
+	for (int i = 0; i < 8; ++i) {
+		const int column = i / 4;
+		const int row = i % 4;
+
+		const float chrX = column == 0 ? leftText : middleText;
+		const float chrY = chrStartY + static_cast<float>(row) * 20.0f;
+		x = chrX;
+
+		text.SetToFormat("CHR %d: ", i);
+		x = DrawText(x, chrY, text.String(), be_plain_font);
+
+		text.SetToFormat("$%02X", static_cast<unsigned int>(fVRC7State.chr[i]));
+		DrawText(x, chrY, text.String(), be_fixed_font);
+	}
+
+	// IRQ Control
+	SetFont(be_bold_font);
+	SetHighColor(45, 75, 115);
+	DrawString("IRQ Control", BPoint(right, y));
+
+	float irqControlY = y + 24.0f;
+
+	SetHighColor(25, 25, 25);
+
+	x = rightText;
+	x = DrawText(x, irqControlY, "Enabled: ", be_plain_font);
+
+	if (fVRC7State.irq_enabled) {
+		SetHighColor(30, 110, 45);
+		DrawText(x, irqControlY, "YES", be_plain_font);
+	} else {
+		SetHighColor(120, 120, 120);
+		DrawText(x, irqControlY, "NO", be_plain_font);
+	}
+
+	irqControlY += 20.0f;
+
+	SetHighColor(25, 25, 25);
+
+	x = rightText;
+	x = DrawText(x, irqControlY, "Enable after ACK: ", be_plain_font);
+
+	if (fVRC7State.irq_enable_after_ack) {
+		SetHighColor(30, 110, 45);
+		DrawText(x, irqControlY, "YES", be_plain_font);
+	} else {
+		SetHighColor(120, 120, 120);
+		DrawText(x, irqControlY, "NO", be_plain_font);
+	}
+
+	irqControlY += 20.0f;
+
+	SetHighColor(25, 25, 25);
+
+	x = rightText;
+	x = DrawText(x, irqControlY, "Mode: ", be_plain_font);
+	DrawText(x, irqControlY, fVRC7State.irq_cycle_mode ? "CPU Cycle" : "Scanline", be_plain_font);
+
+	// FM Channels
+	float fmY = chrStartY + 4.0f * 20.0f + 12.0f;
+
+	SetFont(be_bold_font);
+	SetHighColor(45, 75, 115);
+	DrawString("FM Channels", BPoint(left, fmY));
+
+	fmY += 24.0f;
+
+	for (int i = 0; i < 6; ++i) {
+		const vrc7_fm_channel_debug_t &channel = fVRC7State.fm_channels[i];
+		const int column = i / 3;
+		const int row = i % 3;
+		const float fmX = column == 0 ? leftText : middleText + 60.0f;
+		const float channelY = fmY + static_cast<float>(row) * 54.0f;
+
+		SetHighColor(25, 25, 25);
+
+		x = fmX;
+
+		text.SetToFormat("FM %d  ", i);
+		x = DrawText(x, channelY, text.String(), be_bold_font);
+		x = DrawText(x, channelY, "FNUM: ", be_plain_font);
+
+		text.SetToFormat("$%03X", static_cast<unsigned int>(channel.f_number));
+		x = DrawText(x, channelY, text.String(), be_fixed_font);
+		x = DrawText(x, channelY, "  Block: ", be_plain_font);
+
+		text.SetToFormat("%u", static_cast<unsigned int>(channel.block));
+		DrawText(x, channelY, text.String(), be_plain_font);
+		
+		// Instrument / volume / key state.
+		x = fmX;
+		x = DrawText(x, channelY + 18.0f, "Inst: ", be_plain_font);
+		text.SetToFormat("%u", static_cast<unsigned int>(channel.instrument));
+
+		x = DrawText(x, channelY + 18.0f, text.String(), be_plain_font);
+		x = DrawText(x, channelY + 18.0f, "  Vol: ", be_plain_font);
+		text.SetToFormat("%u", static_cast<unsigned int>(channel.volume));
+
+		x = DrawText(x, channelY + 18.0f, text.String(), be_plain_font);
+		x = DrawText(x, channelY + 18.0f, "  Key: ", be_plain_font);
+
+		if (channel.key_on) {
+			SetHighColor(30, 110, 45);
+			x = DrawText(x, channelY + 18.0f, "ON", be_plain_font);
+		} else {
+			SetHighColor(120, 120, 120);
+			x = DrawText(x, channelY + 18.0f, "OFF", be_plain_font);
+		}
+
+		SetHighColor(25, 25, 25);
+		x = DrawText(x, channelY + 18.0f, "  Sus: ", be_plain_font);
+
+		if (channel.sustain) {
+			SetHighColor(30, 110, 45);
+			DrawText(x, channelY + 18.0f, "YES", be_plain_font);
+		} else {
+			SetHighColor(120, 120, 120);
+			DrawText(x, channelY + 18.0f, "NO", be_plain_font);
+		}
+
+
+		// Multipliers, phase increments, and envelope state.
+		SetHighColor(100, 100, 100);
+
+		x = fmX;
+		x = DrawText(x, channelY + 36.0f, "Mul M/C: ", be_plain_font);
+
+		text.SetToFormat("%u/%u", static_cast<unsigned int>(channel.modulator_multiplier),
+						 static_cast<unsigned int>(channel.carrier_multiplier));
+			
+		x = DrawText(x, channelY + 36.0f, text.String(), be_plain_font);
+		x = DrawText(x, channelY + 36.0f, "  Step: ", be_plain_font);
+
+		text.SetToFormat("%u/%u", static_cast<unsigned int>(channel.modulator_phase_increment),
+						 static_cast<unsigned int>(channel.carrier_phase_increment));
+			
+		x = DrawText(x, channelY + 36.0f, text.String(), be_plain_font);
+		x = DrawText(x, channelY + 36.0f, "  Env: ", be_plain_font);
+
+		auto EnvelopeStateName = [](uint8_t state) -> const char * {
+			switch (state) {
+			case 0:
+				return "I";
+
+			case 1:
+				return "P";
+
+			case 2:
+				return "A";
+
+			case 3:
+				return "D";
+
+			case 4:
+				return "S";
+
+			case 5:
+				return "R";
+
+			default:
+				return "?";
+			}
+		};
+
+		text.SetToFormat("%s/%s", EnvelopeStateName(channel.modulator_envelope_state),
+						 EnvelopeStateName(channel.carrier_envelope_state));
+
+		x = DrawText(x, channelY + 36.0f, text.String(), be_plain_font);
+		x = DrawText(x, channelY + 36.0f, "  Lv: ", be_plain_font);
+
+		text.SetToFormat("%u/%u", static_cast<unsigned int>(channel.modulator_envelope_level),
+						 static_cast<unsigned int>(channel.carrier_envelope_level));
+		DrawText(x, channelY + 36.0f, text.String(), be_plain_font);
+	}
+
+
+	// IRQ Activity
+	irqControlY += 30.0f;
+
+	SetFont(be_bold_font);
+	SetHighColor(45, 75, 115);
+	DrawString("IRQ Activity", BPoint(right, irqControlY));
+
+	irqControlY += 24.0f;
+
+	SetHighColor(100, 100, 100);
+
+	x = rightText;
+	x = DrawText(x, irqControlY, "Clocks: ", be_plain_font);
+	text.SetToFormat("%llu", static_cast<unsigned long long>(fVRC7State.irq_clock_count));
+	DrawText(x, irqControlY, text.String(), be_plain_font);
+	irqControlY += 20.0f;
+
+	x = rightText;
+	x = DrawText(x, irqControlY, "Assertions: ", be_plain_font);
+	text.SetToFormat("%llu", static_cast<unsigned long long>(fVRC7State.irq_assert_count));
+	DrawText(x, irqControlY, text.String(), be_plain_font);
+
+	SetHighColor(25, 25, 25);
+}
 

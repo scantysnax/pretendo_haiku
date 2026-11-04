@@ -16,14 +16,13 @@ constexpr rgb_color kTriggerColor = {105, 35, 135, 255};
 constexpr rgb_color kSoloOnColor = {0, 120, 40, 255};
 constexpr rgb_color kSoloOffColor = {170, 35, 35, 255};
 
-
 constexpr rgb_color kWaveColors[] = {
 	{40, 90, 190, 255},
 	{120, 65, 170, 255},
 	{40, 145, 80, 255},
 	{210, 120, 30, 255},
 	{190, 55, 55, 255},
-	{50, 50, 50, 255},
+	{180, 70, 150, 255},
 	{30, 140, 150, 255},
 	{145, 90, 40, 255}
 };
@@ -107,7 +106,8 @@ ExpansionAudioScopeView::AttachedToWindow()
 //   C           - Clear oscilloscope history.
 //   T           - Cycle trigger source.
 //   S           - Cycle Solo source.
-//   1-4         - Hide/show expansion-audio panels.
+//   1-8         - Hide/show expansion-audio channels.
+//   A           - Restore all channels and Expansion Total.
 //
 // Parameters:
 //   bytes    - Keyboard input bytes.
@@ -136,6 +136,7 @@ ExpansionAudioScopeView::KeyDown (const char *bytes, int32 numBytes)
 		Invalidate();
 		return;
 	}
+
 
 	if (numBytes == 1 && (bytes[0] == 'z' || bytes[0] == 'Z')) {
 		switch (fVisibleSampleCount) {
@@ -170,12 +171,14 @@ ExpansionAudioScopeView::KeyDown (const char *bytes, int32 numBytes)
 		return;
 	}
 
+
 	if (numBytes == 1 && (bytes[0] == 't' || bytes[0] == 'T')) {
 		CycleTriggerMode();
 
 		Invalidate();
 		return;
 	}
+
 
 	if (numBytes == 1 && (bytes[0] == 's' || bytes[0] == 'S')) {
 		CycleSoloMode();
@@ -184,16 +187,30 @@ ExpansionAudioScopeView::KeyDown (const char *bytes, int32 numBytes)
 		return;
 	}
 
-	if (numBytes == 1 && bytes[0] >= '1' && bytes[0] <= '4') {
+
+	/*
+	 * Number keys 1-8 toggle visibility of the corresponding
+	 * mapper-provided expansion-audio channel.
+	 *
+	 * Expansion Total is intentionally not assigned a number key.
+	 */
+	if (numBytes == 1 && bytes[0] >= '1' && bytes[0] <= '8') {
 		const size_t channel = static_cast<size_t>(bytes[0] - '1');
-		fChannelVisible[channel] = !fChannelVisible[channel];
+
+		if (channel < nes::apu::APU_SCOPE_EXPANSION_CHANNEL_CAPACITY) {
+			fChannelVisible[channel] = !fChannelVisible[channel];
+		}
 
 		Invalidate();
 		return;
 	}
-	
+
+
+	/*
+	 * Restore all mapper channels and Expansion Total.
+	 */
 	if (numBytes == 1 && (bytes[0] == 'a' || bytes[0] == 'A')) {
-		for (size_t index = 0; index < 4; ++index) {
+		for (size_t index = 0; index < nes::apu::APU_SCOPE_EXPANSION_CHANNEL_CAPACITY + 1; ++index) {
 			fChannelVisible[index] = true;
 		}
 
@@ -202,6 +219,7 @@ ExpansionAudioScopeView::KeyDown (const char *bytes, int32 numBytes)
 		Invalidate();
 		return;
 	}
+
 
 	if (fFreezeUpdates && fSampleCount != 0 && numBytes == 1) {
 		switch (bytes[0]) {
@@ -240,6 +258,7 @@ ExpansionAudioScopeView::KeyDown (const char *bytes, int32 numBytes)
 				return;
 		}
 	}
+
 
 	BView::KeyDown(bytes, numBytes);
 }
@@ -330,6 +349,10 @@ ExpansionAudioScopeView::Pulse()
 // The expansion channel samples were captured by the APU at the same 48 kHz
 // instants as the native channel data.
 //
+// If the active mapper's expansion-audio channel count changes, mapper-specific
+// Solo and trigger selections are reset so stale channel indices cannot carry
+// across cartridge changes.
+//
 // Parameters:
 //   None.
 //
@@ -341,18 +364,27 @@ ExpansionAudioScopeView::CaptureSamples()
 {
 	fSampleCount = nes::apu::debug_scope_snapshot(fSamples, nes::apu::APU_SCOPE_SAMPLE_CAPACITY);
 
+	const size_t previousChannelCount = fChannelCount;
 	fDebugState = {};
 	fChannelCount = 0;
 
-	if (nes::cart.mapper() == nullptr) {
-		return;
+	if (nes::cart.mapper() != nullptr) {
+		fDebugState = nes::cart.mapper()->debug_audio_state();
+		const mapper_audio_scope_sample_t scopeState = nes::cart.mapper()->debug_audio_scope_sample();
+		fChannelCount = std::min(scopeState.channel_count, nes::apu::APU_SCOPE_EXPANSION_CHANNEL_CAPACITY);
 	}
 
-	fDebugState = nes::cart.mapper()->debug_audio_state();
+	/*
+	 * A change in expansion-audio channel count indicates that the active
+	 * mapper/audio configuration has changed. Reset selections that refer to
+	 * mapper-specific channel indices so they cannot become stale.
+	 */
+	if (fChannelCount != previousChannelCount) {
+		fSoloChannel = -1;
 
-	const mapper_audio_scope_sample_t scopeState = nes::cart.mapper()->debug_audio_scope_sample();
-
-	fChannelCount = std::min(scopeState.channel_count, nes::apu::APU_SCOPE_EXPANSION_CHANNEL_CAPACITY);
+		fTriggerEnabled = false;
+		fTriggerChannel = TRIGGER_CHANNEL_0;
+	}
 }
 
 
@@ -361,12 +393,12 @@ ExpansionAudioScopeView::CaptureSamples()
 //
 // Draws the expansion-audio oscilloscope.
 //
-// In normal mode, only channels currently marked visible are drawn. The
-// remaining panels expand vertically to fill the available waveform area.
+// In normal mode, each currently visible mapper-provided expansion-audio
+// channel is drawn together with the optional Expansion Total panel. Visible
+// panels divide the available waveform area evenly.
 //
-// When Solo is enabled, only the selected Solo channel is drawn and it occupies
-// the complete waveform area. Solo takes precedence over normal visibility
-// settings.
+// When Solo is enabled, only the selected mapper channel or Expansion Total is
+// drawn and it occupies the complete waveform area.
 //
 // Parameters:
 //   updateRect - Invalidated region supplied by the Application Kit.
@@ -386,14 +418,14 @@ ExpansionAudioScopeView::Draw (BRect updateRect)
 
 	if (fChannelCount == 0) {
 		SetHighColor(kTextColor);
-
 		DrawString("No expansion-audio channels are available.", BPoint(16.0f, 122.0f));
-
+		
 		return;
 	}
 
 	const float top = 88.0f;
 	const float bottom = Bounds().bottom - kOuterMargin;
+	const size_t totalIndex = nes::apu::APU_SCOPE_EXPANSION_CHANNEL_CAPACITY;
 
 	/*
 	 * Solo mode.
@@ -409,7 +441,6 @@ ExpansionAudioScopeView::Draw (BRect updateRect)
 		 */
 		if (fSoloChannel < static_cast<int32>(fChannelCount)) {
 			const size_t channel = static_cast<size_t>(fSoloChannel);
-
 			const char *title = nullptr;
 			float maximumValue = 255.0f;
 
@@ -423,9 +454,7 @@ ExpansionAudioScopeView::Draw (BRect updateRect)
 
 			BString fallbackTitle;
 
-			if (title == nullptr ||
-				title[0] == '\0') {
-
+			if (title == nullptr || title[0] == '\0') {
 				fallbackTitle.SetToFormat("Expansion Channel %zu", channel + 1);
 				title = fallbackTitle.String();
 			}
@@ -446,26 +475,22 @@ ExpansionAudioScopeView::Draw (BRect updateRect)
 	}
 
 	/*
-	 * Normal non-Solo layout.
-	 *
-	 * Count the currently visible panels so the remaining panels can expand
-	 * vertically to fill the scope area.
+	 * Count all currently visible panels.
 	 */
 	size_t visiblePanelCount = 0;
 
 	for (size_t channel = 0; channel < fChannelCount; ++channel) {
-		if (channel < 3 && fChannelVisible[channel]) {
+		if (fChannelVisible[channel]) {
 			visiblePanelCount++;
 		}
 	}
 
-	if (fChannelVisible[3]) {
+	if (fChannelVisible[totalIndex]) {
 		visiblePanelCount++;
 	}
 
 	if (visiblePanelCount == 0) {
 		SetHighColor(kTextColor);
-
 		DrawString("All expansion-audio channels are hidden.", BPoint(16.0f, 122.0f));
 
 		return;
@@ -473,24 +498,19 @@ ExpansionAudioScopeView::Draw (BRect updateRect)
 
 	const float availableHeight = bottom - top - (kPanelGap * static_cast<float>(visiblePanelCount - 1));
 	const float panelHeight = availableHeight / static_cast<float>(visiblePanelCount);
-
 	size_t visiblePanelIndex = 0;
 
 	/*
 	 * Mapper-provided individual channels.
 	 */
 	for (size_t channel = 0; channel < fChannelCount; ++channel) {
-		if (channel >= 3 ||
-			!fChannelVisible[channel]) {
-
+		if (!fChannelVisible[channel]) {
 			continue;
 		}
 
-		const float panelTop = top + static_cast<float>(visiblePanelIndex) *(panelHeight + kPanelGap);
+		const float panelTop = top + static_cast<float>(visiblePanelIndex) * (panelHeight + kPanelGap);
 		const float panelBottom = panelTop + panelHeight;
-
 		BRect panel(kOuterMargin, panelTop, Bounds().right - kOuterMargin, panelBottom);
-
 		const char *title = nullptr;
 		float maximumValue = 255.0f;
 
@@ -505,23 +525,20 @@ ExpansionAudioScopeView::Draw (BRect updateRect)
 		BString fallbackTitle;
 
 		if (title == nullptr || title[0] == '\0') {
-
 			fallbackTitle.SetToFormat("Expansion Channel %zu", channel + 1);
 			title = fallbackTitle.String();
 		}
 
 		DrawWaveformPanel(panel, title, channel, maximumValue);
-
 		visiblePanelIndex++;
 	}
 
 	/*
 	 * Expansion Total.
 	 */
-	if (fChannelVisible[3]) {
+	if (fChannelVisible[totalIndex]) {
 		const float totalPanelTop = top + static_cast<float>(visiblePanelIndex) * (panelHeight + kPanelGap);
 		const float totalPanelBottom = totalPanelTop + panelHeight;
-
 		BRect totalPanel(kOuterMargin, totalPanelTop, Bounds().right - kOuterMargin, totalPanelBottom);
 
 		DrawTotalWaveformPanel(totalPanel);
@@ -548,7 +565,6 @@ void
 ExpansionAudioScopeView::DrawHeaderPanel()
 {
 	BRect panel(4.0f, 4.0f, Bounds().right - 4.0f, 82.0f);
-
 	::DrawDebugPanel(this, panel, "Expansion Audio Scope");
 
 	BFont previousFont;
@@ -561,19 +577,21 @@ ExpansionAudioScopeView::DrawHeaderPanel()
 
 	const float line1Y = panel.top + 38.0f;
 	const float line2Y = line1Y + 15.0f;
-
 	const float line3Y = line2Y + 15.0f;
 
 	/*
 	 * First help line.
 	 */
 	SetHighColor(kTextColor);
-	DrawString("Space: Freeze   Arrows: +/-1   PgUp/PgDn: +/-16  Z: Zoom   T: Trigger", BPoint(panel.left + 10.0f, line1Y));
+
+	DrawString("Space: Freeze   Arrows: +/-1   PgUp/PgDn: +/-16  Z: Zoom   T: Trigger", 
+			   BPoint(panel.left + 10.0f, line1Y));
 
 	/*
 	 * Second help line.
 	 */
-	DrawString("Home/End: Oldest/Newest   C: Clear   1-4: Hide/Show   S: Solo   A: All", BPoint(panel.left + 10.0f, line2Y));
+	DrawString("Home/End: Oldest/Newest   C: Clear   1-8: Hide/Show   S: Solo   A: All",
+			   BPoint(panel.left + 10.0f, line2Y));
 
 	/*
 	 * LIVE / FROZEN indicator at the right side of the second line.
@@ -596,13 +614,12 @@ ExpansionAudioScopeView::DrawHeaderPanel()
 	const float windowMilliseconds = static_cast<float>(visibleCount) / 48000.0f * 1000.0f;
 	float drawX = panel.left + 10.0f;
 
-	BString text;
-
 	/*
 	 * Captured samples.
 	 */
+	
+	BString text;
 	SetHighColor(kTextColor);
-
 	text.SetToFormat("Captured: %lu", static_cast<unsigned long>(fSampleCount));
 	DrawString(text.String(), BPoint(drawX, line3Y));
 	drawX += StringWidth(text.String());
@@ -611,7 +628,6 @@ ExpansionAudioScopeView::DrawHeaderPanel()
 	 * Visible samples.
 	 */
 	SetHighColor(kTimingColor);
-
 	text.SetToFormat("  Visible: %lu", static_cast<unsigned long>(visibleCount));
 	DrawString(text.String(), BPoint(drawX, line3Y));
 	drawX += StringWidth(text.String());
@@ -644,8 +660,8 @@ ExpansionAudioScopeView::DrawHeaderPanel()
 	drawX += StringWidth("  Solo: ");
 
 	const bool soloEnabled = fSoloChannel >= 0;
-
 	SetHighColor(soloEnabled ? kSoloOnColor : kSoloOffColor);
+
 	const char *soloText = soloEnabled ? "ON" : "OFF";
 	DrawString(soloText, BPoint(drawX, line3Y));
 
@@ -667,8 +683,9 @@ ExpansionAudioScopeView::DrawHeaderPanel()
 // The upper-right corner reports the minimum and maximum raw sample values
 // contained in the currently visible waveform range.
 //
-// A small display-only gain is applied to make expansion-audio signals easier
-// to inspect. Captured values and Min/Max statistics remain unchanged.
+// A small display-only gain is applied around the mapper's silence midpoint to
+// make expansion-audio signals easier to inspect. Captured values and Min/Max
+// statistics remain unchanged.
 //
 // Parameters:
 //   panel        - Destination panel rectangle.
@@ -690,12 +707,12 @@ ExpansionAudioScopeView::DrawWaveformPanel (BRect panel, const char *title, size
 	if (fSampleCount != 0) {
 		float minimumVisibleValue;
 		float maximumVisibleValue;
-
 		ComputeVisibleMinMax(channel, minimumVisibleValue, maximumVisibleValue);
 
 		BString statistics;
-		statistics.SetToFormat( "Min: %u   Max: %u", static_cast<unsigned>(minimumVisibleValue),
-													 static_cast<unsigned>(maximumVisibleValue));
+		statistics.SetToFormat("Min: %u   Max: %u", static_cast<unsigned>(minimumVisibleValue),
+							   static_cast<unsigned>(maximumVisibleValue));
+
 		BFont previousFont;
 		GetFont(&previousFont);
 
@@ -717,38 +734,29 @@ ExpansionAudioScopeView::DrawWaveformPanel (BRect panel, const char *title, size
 	const float top = panel.top + 32.0f;
 	const float bottom = panel.bottom - 8.0f;
 	const float width = right - left;
-
 	const float height = bottom - top;
 
-	if (width <= 0.0f ||
-		height <= 0.0f) {
+	if (width <= 0.0f || height <= 0.0f) {
 		return;
 	}
 
 	/*
-	* Match the Native APU scope trigger marker.
- 	*
- 	* In live trigger mode, the selected trigger edge is positioned at the
- 	* user-selected horizontal trigger position.
- 	*/
+	 * Horizontal center guide.
+	 */
 	const float centerY = top + (height * 0.5f);
 
 	SetPenSize(1.0f);
 	SetHighColor(155, 155, 155);
-
 	StrokeLine(BPoint(left, centerY), BPoint(right, centerY));
 
 	/*
-	 * Match the Native APU scope trigger marker.
-	 *
-	 * In live trigger mode, the selected trigger edge is positioned
-	 * approximately one quarter of the way across the waveform display.
+	 * Trigger reference marker.
 	 */
 	if (fTriggerEnabled && !fFreezeUpdates) {
-
 		const float triggerX = left + (width * fTriggerPosition);
+
 		SetPenSize(1.0f);
-		SetHighColor(0, 90, 170);
+		SetHighColor(kTriggerColor);
 		StrokeLine(BPoint(triggerX, top), BPoint(triggerX, bottom));
 	}
 
@@ -758,7 +766,6 @@ ExpansionAudioScopeView::DrawWaveformPanel (BRect panel, const char *title, size
 
 	uint32 startIndex;
 	uint32 endIndex;
-
 	ComputeVisibleSampleRange(startIndex, endIndex);
 
 	if (endIndex <= startIndex) {
@@ -767,10 +774,22 @@ ExpansionAudioScopeView::DrawWaveformPanel (BRect panel, const char *title, size
 
 	const uint32 visibleCount = endIndex - startIndex + 1;
 	const rgb_color waveColor = kWaveColors[channel % (sizeof(kWaveColors) / sizeof(kWaveColors[0]))];
-
 	SetHighColor(waveColor);
 	SetPenSize(2.0f);
 
+	/*
+	 * Mapper-provided output bias.
+	 *
+	 * VRC6 expansion channels are unipolar and use zero as silence.
+	 * VRC7 FM scope samples are biased around 128.
+	 */
+	float outputBias = 0.0f;
+
+	if (nes::cart.mapper() != nullptr) {
+		outputBias = static_cast<float>(nes::cart.mapper()->audio_output_bias());
+	}
+
+	const float channelGain = 1.5f;
 	bool havePrevious = false;
 	BPoint previous;
 
@@ -778,26 +797,30 @@ ExpansionAudioScopeView::DrawWaveformPanel (BRect panel, const char *title, size
 		const uint32 sampleIndex = startIndex + visibleIndex;
 
 		if (channel >= fSamples[sampleIndex].expansion_channel_count) {
-
 			havePrevious = false;
 			continue;
 		}
 
 		const float sampleValue = static_cast<float>(fSamples[sampleIndex].expansion[channel]);
-		float normalized = sampleValue / maximumValue;
 
-		const float channelGain = 1.5f;
-
-		normalized *= channelGain;
-
-		if (normalized < 0.0f) {
-			normalized = 0.0f;
+		/*
+		 * Apply display-only gain around the mapper's silence midpoint.
+		 *
+		 * For VRC6 this is equivalent to multiplying the raw signal because
+		 * its bias is zero. For VRC7, 128 remains centered while positive
+		 * and negative waveform excursions are enlarged equally.
+		 */
+		float displayValue = outputBias + ((sampleValue - outputBias) * channelGain);
+		
+		if (displayValue < 0.0f) {
+			displayValue = 0.0f;
 		}
 
-		if (normalized > 1.0f) {
-			normalized = 1.0f;
+		if (displayValue > maximumValue) {
+			displayValue = maximumValue;
 		}
 
+		const float normalized = displayValue / maximumValue;
 		const float sampleX = left + (width * static_cast<float>(visibleIndex) / static_cast<float>(visibleCount - 1));
 		const float sampleY = bottom - (normalized * height);
 		const BPoint currentPoint(sampleX, sampleY);
@@ -810,15 +833,18 @@ ExpansionAudioScopeView::DrawWaveformPanel (BRect panel, const char *title, size
 		havePrevious = true;
 	}
 
-	if (fFreezeUpdates &&fCursorSample >= static_cast<int32>(startIndex) &&
+	/*
+	 * Frozen inspection cursor.
+	 */
+	if (fFreezeUpdates && fCursorSample >= static_cast<int32>(startIndex) && 
 		fCursorSample <= static_cast<int32>(endIndex)) {
 
 		const uint32 cursorVisibleIndex = static_cast<uint32>(fCursorSample) - startIndex;
-		const float cursorX = left + (width * static_cast<float>(cursorVisibleIndex) / static_cast<float>(visibleCount - 1));
+		const float cursorX = left + (width * static_cast<float>(cursorVisibleIndex) /
+			 				  static_cast<float>(visibleCount - 1));
 
 		SetPenSize(1.0f);
 		SetHighColor(185, 35, 35);
-
 		StrokeLine(BPoint(cursorX, top), BPoint(cursorX, bottom));
 	}
 
@@ -971,7 +997,6 @@ ExpansionAudioScopeView::ComputeVisibleSampleRange (uint32 &startIndex, uint32 &
 	 * Display the newest available samples.
 	 */
 	endIndex = fSampleCount - 1;
-
 	startIndex = fSampleCount - visibleCount;
 }
 
@@ -1005,7 +1030,6 @@ ExpansionAudioScopeView::ComputeVisibleMinMax (size_t channel, float &minimumVal
 
 	uint32 startIndex;
 	uint32 endIndex;
-
 	ComputeVisibleSampleRange(startIndex, endIndex);
 
 	if (endIndex < startIndex || endIndex >= fSampleCount) {
@@ -1067,7 +1091,6 @@ ExpansionAudioScopeView::ComputeVisibleTotalMinMax (float &minimumValue, float &
 
 	uint32 startIndex;
 	uint32 endIndex;
-
 	ComputeVisibleSampleRange(startIndex, endIndex);
 
 	if (endIndex < startIndex || endIndex >= fSampleCount) {
@@ -1094,12 +1117,11 @@ ExpansionAudioScopeView::ComputeVisibleTotalMinMax (float &minimumValue, float &
 // -----------------------------------------------------------------------------
 // ExpansionAudioScopeView::CycleTriggerMode
 //
-// Advances the oscilloscope through the available expansion-audio trigger
-// sources.
+// Advances the oscilloscope through the currently available expansion-audio
+// trigger sources.
 //
-// The current VRC6 sequence is:
-//
-//   OFF -> Pulse 1 -> Pulse 2 -> Saw -> Expansion Total -> OFF
+// Mapper-provided channels are visited in their normal channel order, followed
+// by Expansion Total. Cycling past Expansion Total disables triggering.
 //
 // Parameters:
 //   None.
@@ -1110,43 +1132,72 @@ ExpansionAudioScopeView::ComputeVisibleTotalMinMax (float &minimumValue, float &
 void
 ExpansionAudioScopeView::CycleTriggerMode()
 {
-	if (!fTriggerEnabled) {
-		fTriggerEnabled = true;
+	if (fChannelCount == 0) {
+		fTriggerEnabled = false;
 		fTriggerChannel = TRIGGER_CHANNEL_0;
+
 		return;
 	}
 
-	switch (fTriggerChannel) {
-		case TRIGGER_CHANNEL_0:
-			fTriggerChannel = TRIGGER_CHANNEL_1;
-			break;
+	if (!fTriggerEnabled) {
+		fTriggerEnabled = true;
+		fTriggerChannel = TRIGGER_CHANNEL_0;
 
-		case TRIGGER_CHANNEL_1:
-			fTriggerChannel = TRIGGER_CHANNEL_2;
-			break;
-
-		case TRIGGER_CHANNEL_2:
-			fTriggerChannel = TRIGGER_TOTAL;
-			break;
-
-		case TRIGGER_TOTAL:
-			fTriggerEnabled = false;
-			fTriggerChannel = TRIGGER_CHANNEL_0;
-			break;
+		return;
 	}
+
+	const int32 currentChannel = static_cast<int32>(fTriggerChannel);
+
+	/*
+	 * Advance to the next mapper-provided channel.
+	 */
+	if (currentChannel >= 0 && currentChannel < static_cast<int32>(fChannelCount) - 1) {
+		fTriggerChannel = static_cast<trigger_channel>(currentChannel + 1);
+
+		return;
+	}
+
+	/*
+	 * The last individual mapper channel advances to Expansion Total.
+	 */
+	if (currentChannel >= 0 && currentChannel < static_cast<int32>(fChannelCount)) {
+		fTriggerChannel = TRIGGER_TOTAL;
+
+		return;
+	}
+
+	/*
+	 * Cycling past Expansion Total disables triggering.
+	 */
+	if (fTriggerChannel == TRIGGER_TOTAL) {
+		fTriggerEnabled = false;
+		fTriggerChannel = TRIGGER_CHANNEL_0;
+
+		return;
+	}
+
+	/*
+	 * Recover safely from an unexpected trigger value.
+	 */
+	fTriggerEnabled = false;
+	fTriggerChannel = TRIGGER_CHANNEL_0;
 }
 
 
 // -----------------------------------------------------------------------------
 // ExpansionAudioScopeView::TriggerChannelName
 //
-// Returns the display name of the currently selected trigger source.
+// Returns the display name of the currently selected expansion-audio trigger
+// source.
+//
+// Mapper-provided trigger channels use the names supplied by the mapper's audio
+// debugger state. Expansion Total and disabled trigger mode use fixed names.
 //
 // Parameters:
 //   None.
 //
 // Returns:
-//   Human-readable trigger-channel name, or "OFF" when triggering is disabled.
+//   Human-readable trigger-channel name.
 // -----------------------------------------------------------------------------
 const char*
 ExpansionAudioScopeView::TriggerChannelName() const
@@ -1155,18 +1206,36 @@ ExpansionAudioScopeView::TriggerChannelName() const
 		return "OFF";
 	}
 
-	switch (fTriggerChannel) {
-		case TRIGGER_CHANNEL_0:
-			return "Pulse 1";
+	if (fTriggerChannel == TRIGGER_TOTAL) {
+		return "Total";
+	}
 
-		case TRIGGER_CHANNEL_1:
-			return "Pulse 2";
+	const size_t channel = static_cast<size_t>(fTriggerChannel);
 
-		case TRIGGER_CHANNEL_2:
-			return "Saw";
+	if (channel < fDebugState.channel_count && channel < fChannelCount) {
+		const char *name = fDebugState.channels[channel].name.c_str();
 
-		case TRIGGER_TOTAL:
-			return "Total";
+		if (name != nullptr && name[0] != '\0') {
+			return name;
+		}
+	}
+
+	/*
+	 * Fallback names for mapper channels that do not provide a debugger name.
+	 */
+	static const char *kFallbackNames[nes::apu::APU_SCOPE_EXPANSION_CHANNEL_CAPACITY] = {
+		"Channel 1",
+		"Channel 2",
+		"Channel 3",
+		"Channel 4",
+		"Channel 5",
+		"Channel 6",
+		"Channel 7",
+		"Channel 8"
+	};
+
+	if (channel < nes::apu::APU_SCOPE_EXPANSION_CHANNEL_CAPACITY) {
+		return kFallbackNames[channel];
 	}
 
 	return "OFF";
@@ -1176,12 +1245,12 @@ ExpansionAudioScopeView::TriggerChannelName() const
 // -----------------------------------------------------------------------------
 // ExpansionAudioScopeView::TriggerThreshold
 //
-// Returns the default rising-edge trigger threshold for one expansion-audio
+// Returns the rising-edge trigger threshold for the selected expansion-audio
 // trigger source.
 //
-// The individual VRC6 channel thresholds are approximately the midpoint of
-// their normal raw output ranges. Expansion Total uses approximately the
-// midpoint of the current combined VRC6 raw output range.
+// The threshold is derived from the mapper-provided output range so the trigger
+// system works with both unipolar expansion audio such as VRC6 and biased
+// unsigned samples such as VRC7.
 //
 // Parameters:
 //   channel - Trigger source whose threshold is requested.
@@ -1192,19 +1261,28 @@ ExpansionAudioScopeView::TriggerChannelName() const
 float
 ExpansionAudioScopeView::TriggerThreshold (trigger_channel channel) const
 {
-	switch (channel) {
-		case TRIGGER_CHANNEL_0:
-		case TRIGGER_CHANNEL_1:
-			return 7.5f;
+	if (channel == TRIGGER_TOTAL) {
+		if (fDebugState.output_maximum != 0) {
+			return static_cast<float>(fDebugState.output_maximum) * 0.5f;
+		}
 
-		case TRIGGER_CHANNEL_2:
-			return 15.5f;
-
-		case TRIGGER_TOTAL:
-			return 30.5f;
+		return 127.5f;
 	}
 
-	return 0.0f;
+	const size_t channelIndex = static_cast<size_t>(channel);
+
+	if (channelIndex < fDebugState.channel_count && channelIndex < fChannelCount) {
+		const uint32 maximum = fDebugState.channels[channelIndex].output_maximum;
+
+		if (maximum != 0) {
+			return static_cast<float>(maximum) * 0.5f;
+		}
+	}
+
+	/*
+	 * Generic unsigned eight-bit fallback.
+	 */
+	return 127.5f;
 }
 
 
@@ -1216,7 +1294,7 @@ ExpansionAudioScopeView::TriggerThreshold (trigger_channel channel) const
 // supplied latest usable sample index.
 //
 // Limiting the search to latestIndex ensures that enough post-trigger samples
-// remain available to keep the trigger point near the quarter-width marker.
+// remain available to place the trigger edge at the requested trigger position.
 //
 // Parameters:
 //   channel      - Expansion-audio trigger source.
@@ -1243,8 +1321,7 @@ ExpansionAudioScopeView::FindTriggerSample (trigger_channel channel, uint32 late
 
 	const float threshold = TriggerThreshold(channel);
 
-	for (uint32 index = latestIndex; index > 0;   --index) {
-
+	for (uint32 index = latestIndex; index > 0; --index) {
 		float previousValue = 0.0f;
 		float currentValue = 0.0f;
 
@@ -1319,6 +1396,11 @@ ExpansionAudioScopeView::CycleSoloMode()
 // statistics, trigger marker, zoom behavior, and frozen inspection cursor as
 // the individual expansion-audio channel panels.
 //
+// Vertical scaling uses the mapper-provided combined output maximum. A
+// display-only gain is applied around the mapper's silence midpoint so low-level
+// combined expansion-audio signals remain easy to inspect without altering the
+// captured data or audible output.
+//
 // Parameters:
 //   panel - Destination panel rectangle.
 //
@@ -1336,39 +1418,34 @@ ExpansionAudioScopeView::DrawTotalWaveformPanel (BRect panel)
 	if (fSampleCount != 0) {
 		float minimumVisibleValue;
 		float maximumVisibleValue;
-
 		ComputeVisibleTotalMinMax(minimumVisibleValue, maximumVisibleValue);
 
 		BString statistics;
 		statistics.SetToFormat("Min: %u   Max: %u", static_cast<unsigned>(minimumVisibleValue),
-													static_cast<unsigned>(maximumVisibleValue));
-
+							   static_cast<unsigned>(maximumVisibleValue));
 		BFont previousFont;
 		GetFont(&previousFont);
 
 		BFont fixed(be_fixed_font);
 		fixed.SetSize(10.0f);
-
 		SetFont(&fixed);
 		SetHighColor(70, 70, 70);
 
 		const float statisticsWidth = StringWidth(statistics.String());
 		const float statisticsX = panel.right - 10.0f - statisticsWidth;
-
 		DrawString(statistics.String(), BPoint(statisticsX, panel.top + 17.0f));
+
 		SetFont(&previousFont);
 	}
 
 	const float left = panel.left + 8.0f;
 	const float right = panel.right - 8.0f;
 	const float graphTop = panel.top + 32.0f;
-
 	const float graphBottom = panel.bottom - 8.0f;
 	const float width = right - left;
 	const float height = graphBottom - graphTop;
 
 	if (width <= 0.0f || height <= 0.0f) {
-
 		return;
 	}
 
@@ -1379,7 +1456,6 @@ ExpansionAudioScopeView::DrawTotalWaveformPanel (BRect panel)
 
 	SetPenSize(1.0f);
 	SetHighColor(155, 155, 155);
-
 	StrokeLine(BPoint(left, centerY), BPoint(right, centerY));
 
 	/*
@@ -1389,7 +1465,7 @@ ExpansionAudioScopeView::DrawTotalWaveformPanel (BRect panel)
 		const float triggerX = left + (width * fTriggerPosition);
 
 		SetPenSize(1.0f);
-		SetHighColor(0, 90, 170);
+		SetHighColor(kTriggerColor);
 		StrokeLine(BPoint(triggerX, graphTop), BPoint(triggerX, graphBottom));
 	}
 
@@ -1399,7 +1475,6 @@ ExpansionAudioScopeView::DrawTotalWaveformPanel (BRect panel)
 
 	uint32 startIndex;
 	uint32 endIndex;
-
 	ComputeVisibleSampleRange(startIndex, endIndex);
 
 	if (endIndex <= startIndex) {
@@ -1409,59 +1484,79 @@ ExpansionAudioScopeView::DrawTotalWaveformPanel (BRect panel)
 	const uint32 visibleCount = endIndex - startIndex + 1;
 
 	/*
-	 * Current VRC6 combined raw range:
-	 *
-	 * Pulse 1: 0..15
-	 * Pulse 2: 0..15
-	 * Saw:     0..31
-	 *
-	 * Total:   0..61
+	 * Use the mapper-provided combined output range.
 	 */
-	const float maximumValue = 61.0f;
+	float maximumValue = 255.0f;
+
+	if (fDebugState.output_maximum != 0) {
+		maximumValue = static_cast<float>(fDebugState.output_maximum);
+	}
+
+	if (maximumValue <= 0.0f) {
+		return;
+	}
+
+	/*
+	 * Determine the mapper's unsigned silence midpoint.
+	 *
+	 * VRC6 uses zero as silence, while VRC7 uses 128.
+	 */
+	int32_t outputBias = 0;
+
+	if (nes::cart.mapper() != nullptr) {
+		outputBias = nes::cart.mapper()->audio_output_bias();
+	}
+
+	/*
+	 * Display-only waveform gain.
+	 *
+	 * The gain is applied around the mapper's silence midpoint so the waveform
+	 * grows vertically without moving its center. Captured samples and Min/Max
+	 * statistics remain unchanged.
+	 */
+	const float displayGain = 4.0f;
 
 	SetHighColor(25, 25, 25);
 	SetPenSize(2.0f);
 
+	bool havePrevious = false;
 	BPoint previous;
 
 	for (uint32 visibleIndex = 0; visibleIndex < visibleCount; ++visibleIndex) {
 		const uint32 sampleIndex = startIndex + visibleIndex;
 		const float sampleValue = static_cast<float>(fSamples[sampleIndex].expansion_total);
+		float displayValue = static_cast<float>(outputBias) + (sampleValue - static_cast<float>(outputBias)) * displayGain;
 
-		float normalized = sampleValue / maximumValue;
-
-		if (normalized < 0.0f) {
-			normalized = 0.0f;
+		if (displayValue < 0.0f) {
+			displayValue = 0.0f;
 		}
 
-		if (normalized > 1.0f) {
-			normalized = 1.0f;
+		if (displayValue > maximumValue) {
+			displayValue = maximumValue;
 		}
 
-		const float sampleX = left + (width * static_cast<float>(visibleIndex) /static_cast<float>(visibleCount - 1));
+		const float normalized = displayValue / maximumValue;
+		const float sampleX = left + (width * static_cast<float>(visibleIndex) / static_cast<float>(visibleCount - 1));
 		const float sampleY = graphBottom - (normalized * height);
 		const BPoint currentPoint(sampleX, sampleY);
 
-		if (visibleIndex != 0) {
+		if (havePrevious) {
 			StrokeLine(previous, currentPoint);
 		}
 
 		previous = currentPoint;
+		havePrevious = true;
 	}
 
 	/*
 	 * Frozen inspection cursor.
 	 */
-	if (fFreezeUpdates && fCursorSample >= static_cast<int32>(startIndex) &&
-		fCursorSample <= static_cast<int32>(endIndex)) {
-
+	if (fFreezeUpdates && fCursorSample >= static_cast<int32>(startIndex) && fCursorSample <= static_cast<int32>(endIndex)) {
 		const uint32 cursorVisibleIndex = static_cast<uint32>(fCursorSample) - startIndex;
-		const float cursorX = left + (width * static_cast<float>(cursorVisibleIndex) /
-			 				  static_cast<float>(visibleCount - 1));
+		const float cursorX = left + (width * static_cast<float>(cursorVisibleIndex) / static_cast<float>(visibleCount - 1));
 
 		SetPenSize(1.0f);
 		SetHighColor(185, 35, 35);
-
 		StrokeLine(BPoint(cursorX, graphTop), BPoint(cursorX, graphBottom));
 	}
 

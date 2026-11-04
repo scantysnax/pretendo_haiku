@@ -11,6 +11,13 @@ namespace {
 	const rgb_color kTimingColor = { 0, 80, 145, 255 };
 	const rgb_color kTriggerColor = { 105, 35, 135, 255 };
 	const rgb_color kSoloColor = { 150, 75, 0, 255 };
+
+	const rgb_color kSquare1Color = { 40, 90, 190, 255 };
+	const rgb_color kSquare2Color = { 120, 65, 170, 255 };
+	const rgb_color kTriangleColor = { 40, 145, 80, 255 };
+	const rgb_color kNoiseColor = { 210, 120, 30, 255 };
+	const rgb_color kDMCColor = { 190, 55, 55, 255 };
+	const rgb_color kMixedColor = { 25, 25, 25, 255 };
 };
 
 
@@ -595,7 +602,6 @@ APUScopeView::DrawHeaderPanel()
 
 	if (!fFreezeUpdates) {
 		float drawX = x;
-
 		BString text;
 
 		text.SetToFormat("Captured: %lu  ", static_cast<unsigned long>(fSampleCount));
@@ -694,25 +700,25 @@ APUScopeView::CaptureSamples()
 //
 // Draws one oscilloscope panel using the currently selected horizontal zoom.
 //
-// In live mode, the newest visible samples are shown.  While frozen, the
-// visible range follows the cursor and attempts to keep it centered.
+// In live mode, the newest visible samples are shown. While frozen, the visible
+// range follows the cursor and attempts to keep it centered.
 //
 // When trigger mode is active in live mode, a blue vertical marker indicates
 // the trigger position.
 //
 // The panel title reports current effective channel state and timing
-// information.  The right side of the title area reports the minimum and
-// maximum values contained in the currently visible waveform range.
+// information. The right side of the title area reports the minimum and maximum
+// values contained in the currently visible waveform range.
 //
-// Individual APU channels are displayed as unipolar signals.  Square 1,
+// Individual APU channels are displayed as unipolar signals. Square 1,
 // Square 2, and DMC receive a small visual gain so their waveforms are easier
-// to inspect.  Triangle and Noise remain at their natural display scale.
+// to inspect. Triangle and Noise remain at their natural display scale.
 //
 // The mixed PCM trace is displayed as a bipolar waveform centered around
-// unsigned PCM silence at 128.  A separate vertical gain is applied to the
-// mixed trace.
+// unsigned PCM silence at 128. A separate vertical gain is applied to the mixed
+// trace.
 //
-// These gains affect only waveform rendering.  Captured sample values,
+// These gains affect only waveform rendering. Captured sample values,
 // Min/Max statistics, trigger calculations, and frozen cursor values remain
 // unchanged.
 //
@@ -734,10 +740,12 @@ APUScopeView::DrawWaveformPanel (BRect panel, const char *title, scope_channel c
 		case SCOPE_SQUARE1:
 		{
 			if (!fDebugState.square1.enabled) {
-				panelTitle.SetToFormat("%s   OFF", title);
+				panelTitle.SetToFormat(
+					"%s   OFF",
+					title);
 			} else {
-				const double frequency = kNTSCCPUClock /
-										 (16.0 * (static_cast<double>(fDebugState.square1.timer_period) + 1.0));
+				const double frequency =
+					kNTSCCPUClock / (16.0 * (static_cast<double>(fDebugState.square1.timer_period) + 1.0));
 
 				if (fDebugState.square1.muted) {
 					panelTitle.SetToFormat("%s   MUTED   %.1f Hz", title, frequency);
@@ -745,6 +753,7 @@ APUScopeView::DrawWaveformPanel (BRect panel, const char *title, scope_channel c
 					panelTitle.SetToFormat("%s   ON   %.1f Hz", title, frequency);
 				}
 			}
+
 			break;
 		}
 
@@ -753,8 +762,8 @@ APUScopeView::DrawWaveformPanel (BRect panel, const char *title, scope_channel c
 			if (!fDebugState.square2.enabled) {
 				panelTitle.SetToFormat("%s   OFF", title);
 			} else {
-				const double frequency = kNTSCCPUClock /
-										 (16.0 * (static_cast<double>(fDebugState.square2.timer_period) + 1.0));
+				const double frequency =
+					kNTSCCPUClock / (16.0 * (static_cast<double>(fDebugState.square2.timer_period) + 1.0));
 
 				if (fDebugState.square2.muted) {
 					panelTitle.SetToFormat("%s   MUTED   %.1f Hz", title, frequency);
@@ -762,6 +771,7 @@ APUScopeView::DrawWaveformPanel (BRect panel, const char *title, scope_channel c
 					panelTitle.SetToFormat("%s   ON   %.1f Hz", title, frequency);
 				}
 			}
+
 			break;
 		}
 
@@ -770,8 +780,8 @@ APUScopeView::DrawWaveformPanel (BRect panel, const char *title, scope_channel c
 			if (!fDebugState.triangle.enabled) {
 				panelTitle.SetToFormat("%s   OFF", title);
 			} else {
-				const double frequency = kNTSCCPUClock /
-										 (32.0 * (static_cast<double>(fDebugState.triangle.timer_period) + 1.0));
+				const double frequency =
+					kNTSCCPUClock / (32.0 * (static_cast<double>(fDebugState.triangle.timer_period) + 1.0));
 
 				if (fDebugState.triangle.muted) {
 					panelTitle.SetToFormat("%s   MUTED   %.1f Hz", title, frequency);
@@ -779,6 +789,7 @@ APUScopeView::DrawWaveformPanel (BRect panel, const char *title, scope_channel c
 					panelTitle.SetToFormat("%s   ON   %.1f Hz", title, frequency);
 				}
 			}
+
 			break;
 		}
 
@@ -794,19 +805,12 @@ APUScopeView::DrawWaveformPanel (BRect panel, const char *title, scope_channel c
 				}
 
 				if (fDebugState.noise.muted) {
-					if (clockRate > 0.0) {
-						panelTitle.SetToFormat("%s   MUTED   Clock: %.1f Hz", title, clockRate);
-					} else {
-						panelTitle.SetToFormat("%s   MUTED   Clock: -", title);
-					}
+					panelTitle.SetToFormat("%s   MUTED   LFSR: %.1f Hz", title, clockRate);
 				} else {
-					if (clockRate > 0.0) {
-						panelTitle.SetToFormat("%s   ON   Clock: %.1f Hz", title, clockRate);
-					} else {
-						panelTitle.SetToFormat("%s   ON   Clock: -", title);
-					}
+					panelTitle.SetToFormat("%s   ON   LFSR: %.1f Hz", title, clockRate);
 				}
 			}
+
 			break;
 		}
 
@@ -821,49 +825,40 @@ APUScopeView::DrawWaveformPanel (BRect panel, const char *title, scope_channel c
 					bitRate = kNTSCCPUClock / static_cast<double>(fDebugState.dmc.timer_period);
 				}
 
-				const char *stateText;
-
 				if (fDebugState.dmc.muted) {
-					stateText = "MUTED";
-				} else if (fDebugState.dmc.active) {
-					stateText = "ACTIVE";
+					panelTitle.SetToFormat("%s   MUTED   %.1f Hz", title, bitRate);
 				} else {
-					stateText = "ON";
-				}
-
-				if (bitRate > 0.0) {
-					panelTitle.SetToFormat("%s   %s   %.1f bit/s", title, stateText, bitRate);
-				} else {
-					panelTitle.SetToFormat("%s   %s   Bitrate: -", title, stateText);
+					panelTitle.SetToFormat("%s   ON   %.1f Hz", title, bitRate);
 				}
 			}
+
 			break;
 		}
 
 		case SCOPE_MIXED:
-			panelTitle.SetTo(title);
+		{
+			panelTitle.SetToFormat("%s", title);
+
 			break;
+		}
 	}
 
 	::DrawDebugPanel(this, panel, panelTitle.String());
 
+	/*
+	 * Visible Min / Max statistics.
+	 */
 	if (fSampleCount != 0) {
-		float minimumValue;
+		float minimumVisibleValue;
 		float maximumVisibleValue;
 
-		ComputeVisibleMinMax(channel, minimumValue, maximumVisibleValue);
+		ComputeVisibleMinMax(channel, minimumVisibleValue, maximumVisibleValue);
 
 		BString statistics;
+		statistics.SetToFormat("Min: %.0f   Max: %.0f", minimumVisibleValue, maximumVisibleValue);
 
-		if (channel == SCOPE_MIXED) {
-			statistics.SetToFormat("Min: %.0f   Max: %.0f", minimumValue, maximumVisibleValue);
-		} else {
-			statistics.SetToFormat("Min: %u   Max: %u", static_cast<unsigned>(minimumValue),
-								   static_cast<unsigned>(maximumVisibleValue));
-		}
-
-		BFont prevFont;
-		GetFont(&prevFont);
+		BFont previousFont;
+		GetFont(&previousFont);
 
 		BFont fixed(be_fixed_font);
 		fixed.SetSize(10.0f);
@@ -876,13 +871,14 @@ APUScopeView::DrawWaveformPanel (BRect panel, const char *title, scope_channel c
 
 		DrawString(statistics.String(), BPoint(statisticsX, panel.top + 17.0f));
 
-		SetFont(&prevFont);
+		SetFont(&previousFont);
 	}
 
 	const float left = panel.left + 8.0f;
 	const float right = panel.right - 8.0f;
 	const float top = panel.top + 32.0f;
 	const float bottom = panel.bottom - 8.0f;
+
 	const float width = right - left;
 	const float height = bottom - top;
 
@@ -897,11 +893,10 @@ APUScopeView::DrawWaveformPanel (BRect panel, const char *title, scope_channel c
 	StrokeLine(BPoint(left, centerY), BPoint(right, centerY));
 
 	if (fTriggerEnabled && !fFreezeUpdates) {
-
-		const float triggerX = left + (width * 0.25f);
+		const float triggerX = left + (width * fTriggerPosition);
 
 		SetPenSize(1.0f);
-		SetHighColor(0, 90, 170);
+		SetHighColor(kTriggerColor);
 		StrokeLine(BPoint(triggerX, top), BPoint(triggerX, bottom));
 	}
 
@@ -920,61 +915,51 @@ APUScopeView::DrawWaveformPanel (BRect panel, const char *title, scope_channel c
 
 	const uint32 visibleCount = endIndex - startIndex + 1;
 
+	/*
+	 * Select the waveform color for the current native APU channel.
+	 */
+	rgb_color waveformColor = kTextColor;
+
 	switch (channel) {
 		case SCOPE_SQUARE1:
-			SetHighColor(0, 80, 160);
+			waveformColor = kSquare1Color;
 			break;
 
 		case SCOPE_SQUARE2:
-			SetHighColor(100, 40, 150);
+			waveformColor = kSquare2Color;
 			break;
 
 		case SCOPE_TRIANGLE:
-			SetHighColor(0, 120, 55);
+			waveformColor = kTriangleColor;
 			break;
 
 		case SCOPE_NOISE:
-			SetHighColor(150, 75, 0);
+			waveformColor = kNoiseColor;
 			break;
 
 		case SCOPE_DMC:
-			SetHighColor(170, 35, 35);
+			waveformColor = kDMCColor;
 			break;
 
 		case SCOPE_MIXED:
-			SetHighColor(25, 25, 25);
+			waveformColor = kMixedColor;
 			break;
 	}
 
+	SetHighColor(waveformColor);
 	SetPenSize(2.0f);
 
-	BPoint previousPoint;
+	bool havePrevious = false;
+	BPoint previous;
 
-	for (uint32 visibleIndex = 0; visibleIndex < visibleCount; visibleIndex++) {
+	for (uint32 visibleIndex = 0; visibleIndex < visibleCount; ++visibleIndex) {
 		const uint32 sampleIndex = startIndex + visibleIndex;
-		const float sampleValue = SampleValue(fSamples[sampleIndex], channel);
-
-		const float sampleX = left + (width * static_cast<float>(visibleIndex) / 
-							  static_cast<float>(visibleCount - 1));
-		float sampleY;
+		float sampleValue = SampleValue(fSamples[sampleIndex], channel);
 
 		if (channel == SCOPE_MIXED) {
-			float normalized = (sampleValue - 128.0f) / 127.0f;
-			const float mixedGain = 1.75f;
-
-			normalized *= mixedGain;
-
-			if (normalized < -1.0f) {
-				normalized = -1.0f;
-			}
-
-			if (normalized > 1.0f) {
-				normalized = 1.0f;
-			}
-
-			sampleY = centerY - (normalized * (height * 0.5f));
+			const float mixedGain = 4.0f;
+			sampleValue = 128.0f + ((sampleValue - 128.0f) * mixedGain);
 		} else {
-			float normalized = sampleValue / maximumValue;
 			float channelGain = 1.0f;
 
 			switch (channel) {
@@ -984,42 +969,46 @@ APUScopeView::DrawWaveformPanel (BRect panel, const char *title, scope_channel c
 					channelGain = 1.5f;
 					break;
 
-				case SCOPE_TRIANGLE:
-				case SCOPE_NOISE:
-				case SCOPE_MIXED:
+				default:
 					break;
 			}
 
-			normalized *= channelGain;
-
-			if (normalized < 0.0f) {
-				normalized = 0.0f;
-			}
-
-			if (normalized > 1.0f) {
-				normalized = 1.0f;
-			}
-
-			sampleY = bottom - (normalized * height);
+			sampleValue *= channelGain;
 		}
 
+		if (sampleValue < 0.0f) {
+			sampleValue = 0.0f;
+		}
+
+		if (sampleValue > maximumValue) {
+			sampleValue = maximumValue;
+		}
+
+		const float normalized = sampleValue / maximumValue;
+		const float sampleX = left + (width * static_cast<float>(visibleIndex) / 
+							  static_cast<float>(visibleCount - 1));
+		const float sampleY = bottom - (normalized * height);
 		const BPoint currentPoint(sampleX, sampleY);
 
-		if (visibleIndex != 0) {
-			StrokeLine(previousPoint, currentPoint);
+		if (havePrevious) {
+			StrokeLine(previous, currentPoint);
 		}
 
-		previousPoint = currentPoint;
+		previous = currentPoint;
+		havePrevious = true;
 	}
 
+	/*
+	 * Frozen inspection cursor.
+	 */
 	if (fFreezeUpdates && fCursorSample >= static_cast<int32>(startIndex) &&
 		fCursorSample <= static_cast<int32>(endIndex)) {
-		const uint32 cursorVisibleIndex = static_cast<uint32>(fCursorSample) - startIndex;
-		const float cursorX = left + (width * static_cast<float>( cursorVisibleIndex) /
-							  static_cast<float>(visibleCount - 1));
 
+		const uint32 cursorVisibleIndex = static_cast<uint32>(fCursorSample) - startIndex;
+		const float cursorX = left + (width * static_cast<float>(cursorVisibleIndex) /
+			 				  static_cast<float>(visibleCount - 1));
 		SetPenSize(1.0f);
-		SetHighColor(185, 35, 35);
+		SetHighColor(kBadColor);
 		StrokeLine(BPoint(cursorX, top), BPoint(cursorX, bottom));
 	}
 

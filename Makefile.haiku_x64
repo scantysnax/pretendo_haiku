@@ -97,6 +97,7 @@ CPP_FILES := \
 	src/mappers/Mapper075.cpp \
 	src/mappers/Mapper076.cpp \
 	src/mappers/Mapper079.cpp \
+	src/mappers/Mapper085.cpp \
 	src/mappers/Mapper086.cpp \
 	src/mappers/Mapper088.cpp \
 	src/mappers/Mapper090.cpp \

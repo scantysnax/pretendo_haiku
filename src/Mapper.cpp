@@ -5,14 +5,13 @@
 #include "Mapper021.h"
 #include "Mapper023.h"
 #include "Mapper025.h"
+#include "Mapper085.h"
 #include "Nes.h"
 #include "Ppu.h"
 #include "Settings.h"
 
 #include <algorithm>
 #include <cassert>
-#include <cstdlib>
-#include <cstring>
 #include <filesystem>
 #include <iostream>
 #include <string>
@@ -201,8 +200,9 @@ Mapper::debug_set_chr_bank (int slot, uint16_t address, uint32_t bank, MapperDeb
 // accessible to the CPU.
 //
 // Parameters:
-//   enabled - True when PRG RAM is readable/writable.
-//   bank    - Active 8 KB PRG-RAM bank number.
+//   enabled  - True when PRG RAM is readable.
+//   writable - True when enabled PRG RAM is writable.
+//   bank     - Active 8 KB PRG-RAM bank number.
 //
 // Returns:
 //   Nothing.
@@ -224,6 +224,10 @@ Mapper::debug_set_prg_ram (bool enabled, bool writable, uint32_t bank)
 // NES 2.0 submapper information is preferred when available. For legacy iNES
 // mapper 21, 23, and 25 ROMs, cartridge database information is used to
 // distinguish the Konami VRC hardware variants.
+//
+// Mapper 85 uses the NES 2.0 submapper to distinguish VRC7a from VRC7b.
+// Legacy iNES mapper-85 ROMs do not contain submapper information, so VRC7b is
+// used as the compatibility fallback.
 //
 // All other mapper numbers continue to use the normal static mapper registry.
 //
@@ -259,12 +263,10 @@ Mapper::create_mapper (int num, int submapper, const ROMDatabase::Entry *databas
 			 */
 			if (database_entry != nullptr) {
 				if (database_entry->chip_type == "VRC4") {
-					if (database_entry->pin3_function == "PRG A2"
-						&& database_entry->pin4_function == "PRG A1") {
-
+					if (database_entry->pin3_function == "PRG A2" && database_entry->pin4_function == "PRG A1") {
 						mapper = std::make_unique<Mapper21VRC4a>();
-					} else if (database_entry->pin3_function == "PRG A7"
-							   && database_entry->pin4_function == "PRG A6") {
+					} else if (
+						database_entry->pin3_function == "PRG A7" && database_entry->pin4_function == "PRG A6") {
 						mapper = std::make_unique<Mapper21VRC4c>();
 					}
 				}
@@ -281,27 +283,16 @@ Mapper::create_mapper (int num, int submapper, const ROMDatabase::Entry *databas
 			break;
 
 		default:
-			std::cout
-				<< "unsupported mapper hardware - iNES number: "
-				<< num
-				<< ", submapper: "
-				<< submapper
-				<< std::endl;
-
+			std::cout << "unsupported mapper hardware - iNES number: " << num 
+					  << ", submapper: " << submapper << std::endl;
 			return nullptr;
 		}
 
-		std::cout
-			<< "[Mapper::create_mapper] mapper #"
-			<< num
-			<< "."
-			<< submapper
-			<< " loaded, type: "
-			<< mapper->name()
-			<< std::endl;
-
+		std::cout << "[Mapper::create_mapper] mapper #" << num << "."
+				  << submapper << " loaded, type: " << mapper->name() << std::endl;
 		return mapper;
 	}
+
 
 	/*
 	 * Mapper 23 is shared by VRC2b, VRC4e, and VRC4f.
@@ -328,15 +319,14 @@ Mapper::create_mapper (int num, int submapper, const ROMDatabase::Entry *databas
 			 */
 			if (database_entry != nullptr) {
 				if (database_entry->chip_type == "VRC4") {
-					if (database_entry->pin3_function == "PRG A3"
-						&& database_entry->pin4_function == "PRG A2") {
-							mapper = std::make_unique<Mapper23VRC4e>();
+					if (database_entry->pin3_function == "PRG A3" && database_entry->pin4_function == "PRG A2") {
+						mapper = std::make_unique<Mapper23VRC4e>();
 					} else if (
-						database_entry->pin3_function == "PRG A1"
-						&& database_entry->pin4_function == "PRG A0") {
-							mapper = std::make_unique<Mapper23VRC4f>();
+						database_entry->pin3_function == "PRG A1" && database_entry->pin4_function == "PRG A0") {
+						mapper = std::make_unique<Mapper23VRC4f>();
 					}
-				} else if (database_entry->chip_type == "VRC2") {
+				} else if (
+					database_entry->chip_type == "VRC2") {
 					mapper = std::make_unique<Mapper23VRC2b>();
 				}
 			}
@@ -352,27 +342,16 @@ Mapper::create_mapper (int num, int submapper, const ROMDatabase::Entry *databas
 			break;
 
 		default:
-			std::cout
-				<< "unsupported mapper hardware - iNES number: "
-				<< num
-				<< ", submapper: "
-				<< submapper
-				<< std::endl;
-
+			std::cout << "unsupported mapper hardware - iNES number: " << num << ", submapper: "
+					  << submapper << std::endl;
 			return nullptr;
 		}
 
-		std::cout
-			<< "[Mapper::create_mapper] mapper #"
-			<< num
-			<< "."
-			<< submapper
-			<< " loaded, type: "
-			<< mapper->name()
-			<< std::endl;
-
+		std::cout << "[Mapper::create_mapper] mapper #" << num << "." << submapper
+				  << " loaded, type: " << mapper->name() << std::endl;
 		return mapper;
 	}
+
 
 	/*
 	 * Mapper 25 is shared by VRC2c, VRC4b, and VRC4d.
@@ -382,15 +361,18 @@ Mapper::create_mapper (int num, int submapper, const ROMDatabase::Entry *databas
 
 		switch (submapper) {
 		case 1:
-			mapper = std::make_unique<Mapper25VRC4b>();
+			mapper =
+				std::make_unique<Mapper25VRC4b>();
 			break;
 
 		case 2:
-			mapper = std::make_unique<Mapper25VRC4d>();
+			mapper =
+				std::make_unique<Mapper25VRC4d>();
 			break;
 
 		case 3:
-			mapper = std::make_unique<Mapper25VRC2c>();
+			mapper =
+				std::make_unique<Mapper25VRC2c>();
 			break;
 
 		case 0:
@@ -399,12 +381,9 @@ Mapper::create_mapper (int num, int submapper, const ROMDatabase::Entry *databas
 			 */
 			if (database_entry != nullptr) {
 				if (database_entry->chip_type == "VRC4") {
-					if (database_entry->pin3_function == "PRG A0"
-						&& database_entry->pin4_function == "PRG A1") {
+					if (database_entry->pin3_function == "PRG A0" && database_entry->pin4_function == "PRG A1") {
 						mapper = std::make_unique<Mapper25VRC4b>();
-					} else if (
-						database_entry->pin3_function == "PRG A2"
-						&& database_entry->pin4_function == "PRG A3") {
+					} else if (database_entry->pin3_function == "PRG A2" && database_entry->pin4_function == "PRG A3") {
 						mapper = std::make_unique<Mapper25VRC4d>();
 					}
 				} else if (database_entry->chip_type == "VRC2") {
@@ -417,31 +396,59 @@ Mapper::create_mapper (int num, int submapper, const ROMDatabase::Entry *databas
 			 * metadata cannot identify the board.
 			 */
 			if (mapper == nullptr) {
-				mapper = std::make_unique<Mapper25VRC2c>();
+				mapper =  std::make_unique<Mapper25VRC2c>();
 			}
 
 			break;
 
 		default:
-			std::cout
-				<< "unsupported mapper hardware - iNES number: "
-				<< num
-				<< ", submapper: "
-				<< submapper
-				<< std::endl;
-
+			std::cout << "unsupported mapper hardware - iNES number: " << num << ", submapper: "
+					  << submapper << std::endl;
 			return nullptr;
 		}
 
-		std::cout
-			<< "[Mapper::create_mapper] mapper #"
-			<< num
-			<< "."
-			<< submapper
-			<< " loaded, type: "
-			<< mapper->name()
-			<< std::endl;
+		std::cout << "[Mapper::create_mapper] mapper #" << num << "." << submapper
+				  << " loaded, type: " << mapper->name() << std::endl;
+		return mapper;
+	}
 
+
+	/*
+	 * Mapper 85 is shared by VRC7a and VRC7b.
+	 *
+	 * NES 2.0 identifies the wiring explicitly:
+	 *
+	 *   Submapper 1 - VRC7b
+	 *   Submapper 2 - VRC7a
+	 *
+	 * Legacy iNES mapper-85 ROMs have no submapper information. VRC7b is
+	 * used as the compatibility fallback so legacy Tiny Toon Adventures 2
+	 * dumps use the correct A3 register-selection wiring.
+	 */
+	if (num == 85) {
+		std::unique_ptr<Mapper> mapper;
+
+		switch (submapper) {
+		case 1:
+			mapper = std::make_unique<Mapper85VRC7b>();
+			break;
+
+		case 2:
+			mapper = std::make_unique<Mapper85VRC7a>();
+			break;
+
+		case 0:
+			mapper = std::make_unique<Mapper85VRC7b>();
+			break;
+
+		default:
+			std::cout << "unsupported mapper hardware - iNES number: " << num << ", submapper: "
+					  << submapper << std::endl;
+			return nullptr;
+		}
+
+		std::cout << "[Mapper::create_mapper] mapper #" << num << "." << submapper
+				  << " loaded, type: " << mapper->name() << std::endl;
 		return mapper;
 	}
 
@@ -455,30 +462,21 @@ Mapper::create_mapper (int num, int submapper, const ROMDatabase::Entry *databas
 	auto it = mappers.find(num);
 
 	if (it != mappers.end() && (f = it->second)) {
+
 		auto ret = f();
 
-		std::cout
-			<< "[Mapper::create_mapper] mapper #"
-			<< num;
+		std::cout << "[Mapper::create_mapper] mapper #" << num;
 
 		if (submapper != 0) {
-			std::cout
-				<< "."
-				<< submapper;
+			std::cout << "." << submapper;
 		}
 
-		std::cout
-			<< " loaded, type: "
-			<< ret->name()
-			<< std::endl;
+		std::cout << " loaded, type: " << ret->name() << std::endl;
 
 		return ret;
 	}
 
-	std::cout
-		<< "unsupported mapper hardware - iNES number: "
-		<< num
-		<< std::endl;
+	std::cout << "unsupported mapper hardware - iNES number: " << num << std::endl;
 
 	return nullptr;
 }
@@ -2390,8 +2388,7 @@ Mapper::cpu_sync()
 //
 // Provides a mapper hook called at the end of each PPU frame.
 //
-// Temporarily dumps the resolved mapper state after the first completed frame
-// so live bank-switching behavior can be validated without flooding the log.
+// The base mapper implementation performs no work.
 //
 // Parameters:
 //   None.

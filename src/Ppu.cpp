@@ -626,9 +626,16 @@ open_background_pattern()
 // -----------------------------------------------------------------------------
 template <class Pattern>
 void
-read_background_pattern() 
+read_background_pattern()
 {
-	next_pattern_[Pattern::index] = nes::cart.mapper()->read_vram(next_ppu_fetch_address_);
+	nes::cart.mapper()->set_ppu_fetch_type(
+		PPUFetchType::BACKGROUND);
+
+	next_pattern_[Pattern::index] =
+		nes::cart.mapper()->read_vram(next_ppu_fetch_address_);
+
+	nes::cart.mapper()->set_ppu_fetch_type(
+		PPUFetchType::NONE);
 }
 
 
@@ -950,15 +957,24 @@ template <class Size, class Pattern>
 void
 read_sprite_pattern()
 {
-	uint8_t pattern = nes::cart.mapper()->read_vram(next_ppu_fetch_address_);
+	nes::cart.mapper()->set_ppu_fetch_type(
+		PPUFetchType::SPRITE);
 
-	sprite_pattern_t &sprite = sprite_patterns_[current_sprite_index_];
+	uint8_t pattern =
+		nes::cart.mapper()->read_vram(next_ppu_fetch_address_);
+
+	nes::cart.mapper()->set_ppu_fetch_type(
+		PPUFetchType::NONE);
+
+	sprite_pattern_t &sprite =
+		sprite_patterns_[current_sprite_index_];
 
 	if (sprite.attr & kOAMHFlip) {
 		pattern = reverse_bits[pattern];
 	}
 
-	sprite_patterns_[current_sprite_index_].patterns[Pattern::index] = pattern;
+	sprite_patterns_[current_sprite_index_]
+		.patterns[Pattern::index] = pattern;
 }
 
 
@@ -1340,6 +1356,7 @@ clock_ppu (const nes::ppu::scanline_prerender &)
 }
 
 
+#if 0
 // -----------------------------------------------------------------------------
 // clock_ppu
 //
@@ -1454,7 +1471,213 @@ clock_ppu (const nes::ppu::scanline_render &target)
 		}
 	}
 }
+#endif
 
+// -----------------------------------------------------------------------------
+// clock_ppu
+//
+// Executes one PPU dot for a visible rendering scanline.
+//
+// Performs background and sprite rendering, pattern and attribute fetches,
+// horizontal and vertical scrolling updates, and sprite evaluation.
+//
+// Includes temporary diagnostics for examining the final visible background
+// tile during the MMC5 vertical-split sequence.
+//
+// Parameters:
+//   target - Visible scanline rendering target.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+clock_ppu (const nes::ppu::scanline_render &target)
+{
+	clock_ppu_mask_delay();
+
+	if (UNLIKELY(!ppu_mask_.screen_enabled)) {
+
+		if (hpos_ < 1) {
+			// idle
+		} else if (hpos_ < 257) {
+			target.buffer[hpos_ - 1] = render_blank_pixel();
+			target.buffer[hpos_ - 1] |= (ppu_mask_.intensity << 6);
+		} else {
+			// idle
+		}
+	} else {
+
+		if (hpos_ < 1) {
+			if (UNLIKELY(vpos_ == 1 && odd_frame_)) {
+				read_tile_index();
+			}
+		} else if (hpos_ < 257) {
+
+			target.buffer[hpos_ - 1] = render_pixel();
+			target.buffer[hpos_ - 1] |= (ppu_mask_.intensity << 6);
+
+			switch (hpos_ & 0x07) {
+			case 1:
+				evaluate_sprites_odd();
+				open_tile_index();
+				break;
+
+			case 2:
+				evaluate_sprites_even();
+				read_tile_index();
+				break;
+
+			case 3:
+				evaluate_sprites_odd();
+				open_background_attribute();
+				break;
+
+			case 4:
+				evaluate_sprites_even();
+				read_background_attribute();
+				break;
+
+			case 5:
+				evaluate_sprites_odd();
+				open_background_pattern<pattern_0_t>();
+				break;
+
+			case 6:
+				evaluate_sprites_even();
+				read_background_pattern<pattern_0_t>();
+				break;
+
+			case 7:
+				evaluate_sprites_odd();
+				open_background_pattern<pattern_1_t>();
+				break;
+
+			case 0:
+				evaluate_sprites_even();
+				read_background_pattern<pattern_1_t>();
+				update_shift_registers_render();
+				clock_x();
+				break;
+			}
+
+			if (UNLIKELY(hpos_ == 256)) {
+				clock_y();
+			}
+		} else if (hpos_ < 321) {
+
+			if (UNLIKELY(hpos_ == 257)) {
+				update_x_scroll();
+			}
+
+			update_sprite_registers();
+
+			switch (hpos_ & 0x07) {
+			case 1:
+				open_tile_index();
+				break;
+
+			case 2:
+				read_tile_index();
+				break;
+
+			case 3:
+				open_background_attribute();
+				break;
+
+			case 4:
+				read_background_attribute();
+				break;
+
+			case 5:
+				if (ppu_control_.large_sprites)
+					open_sprite_pattern<size_16px_t, pattern_0_t>();
+				else
+					open_sprite_pattern<size_8px_t, pattern_0_t>();
+				break;
+
+			case 6:
+				if (ppu_control_.large_sprites)
+					read_sprite_pattern<size_16px_t, pattern_0_t>();
+				else
+					read_sprite_pattern<size_8px_t, pattern_0_t>();
+				break;
+
+			case 7:
+				if (ppu_control_.large_sprites)
+					open_sprite_pattern<size_16px_t, pattern_1_t>();
+				else
+					open_sprite_pattern<size_8px_t, pattern_1_t>();
+				break;
+
+			case 0:
+				if (ppu_control_.large_sprites)
+					read_sprite_pattern<size_16px_t, pattern_1_t>();
+				else
+					read_sprite_pattern<size_8px_t, pattern_1_t>();
+				break;
+			}
+		} else if (hpos_ < 337) {
+
+			switch (hpos_ & 0x07) {
+			case 1:
+				open_tile_index();
+				break;
+
+			case 2:
+				read_tile_index();
+				break;
+
+			case 3:
+				open_background_attribute();
+				break;
+
+			case 4:
+				read_background_attribute();
+				break;
+
+			case 5:
+				open_background_pattern<pattern_0_t>();
+				break;
+
+			case 6:
+				read_background_pattern<pattern_0_t>();
+				break;
+
+			case 7:
+				open_background_pattern<pattern_1_t>();
+				break;
+
+			case 0:
+				read_background_pattern<pattern_1_t>();
+				update_shift_registers_idle();
+				clock_x();
+				break;
+			}
+		} else {
+
+			switch (hpos_) {
+			case 337:
+				open_tile_index();
+				break;
+
+			case 338:
+				read_tile_index();
+				break;
+
+			case 339:
+				open_tile_index();
+				break;
+
+			case 340:
+				read_tile_index();
+				break;
+
+			default:
+				abort();
+			}
+		}
+	}
+}
 
 // -----------------------------------------------------------------------------
 // clock_ppu

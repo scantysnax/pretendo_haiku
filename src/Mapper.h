@@ -66,7 +66,9 @@ struct mapper_debug_state_t {
 // -----------------------------------------------------------------------------
 enum class ExpansionAudioType {
 	None,
-	VRC6
+	VRC6,
+	VRC7,
+	MMC5
 };
 
 
@@ -79,7 +81,7 @@ enum class ExpansionAudioType {
 // Value represents an ordinary numeric value. Boolean represents a true/false
 // state that may be displayed using semantic state coloring.
 // -----------------------------------------------------------------------------
-enum class mapper_audio_debug_field_type {
+enum class MapperAudioDebugFieldType {
 	Value,
 	Boolean,
 	Hex,
@@ -109,8 +111,9 @@ struct mapper_audio_debug_field_t {
 
 	const char *text = nullptr;
 
-	mapper_audio_debug_field_type type = mapper_audio_debug_field_type::Value;
+	MapperAudioDebugFieldType type = MapperAudioDebugFieldType::Value;
 };
+
 
 // -----------------------------------------------------------------------------
 // mapper_audio_channel_debug_t
@@ -187,6 +190,21 @@ struct mapper_audio_scope_sample_t {
 };
 
 
+// -----------------------------------------------------------------------------
+// PPUFetchType
+//
+// Identifies the source of a PPU pattern-table read.
+//
+// NONE is used for accesses that are not part of an active background or
+// sprite pattern fetch, including CPU $2007 accesses.
+// -----------------------------------------------------------------------------
+enum class PPUFetchType : uint8_t {
+	NONE,
+	BACKGROUND,
+	SPRITE
+};
+
+
 class Mapper;
 
 using create_func = std::function<std::unique_ptr<Mapper>()>;
@@ -255,14 +273,35 @@ class Mapper
 	virtual void write_vram(uint_least16_t address, uint8_t value);
 	virtual uint8_t read_vram(uint_least16_t address);
 
-	virtual void cpu_sync();
-	virtual void ppu_end_frame();
-	virtual void vram_change_hook(uint_least16_t vram_address);
+// -----------------------------------------------------------------------------
+// Mapper::set_ppu_fetch_type
+//
+// Notifies a mapper about the type of PPU pattern fetch currently being
+// performed.
+//
+// Most mappers do not need this information, so the default implementation is
+// intentionally empty.
+//
+// Parameters:
+//   type - Current PPU fetch type.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+virtual void set_ppu_fetch_type(PPUFetchType type)
+{
+	(void)type;
+}
 
-	// mapper lifecycle reset hook
-	virtual void reset()
-	{
-	}
+
+virtual void cpu_sync();
+virtual void ppu_end_frame();
+virtual void vram_change_hook(uint_least16_t vram_address);
+
+// mapper lifecycle reset hook
+virtual void reset()
+{
+}
 
 
 // -----------------------------------------------------------------------------
@@ -276,10 +315,19 @@ class Mapper
 // Returns:
 //   Current unsigned expansion-audio level.
 // -----------------------------------------------------------------------------
-virtual uint8_t audio_output() const
+virtual uint8_t 
+audio_output() const
 {
 	return 0;
 }
+
+
+virtual int32_t 
+audio_output_bias() const
+{
+	return 0;
+}
+
 
 // -----------------------------------------------------------------------------
 // audio_channel_count
@@ -289,7 +337,8 @@ virtual uint8_t audio_output() const
 //
 // Mappers without expansion audio return zero.
 // -----------------------------------------------------------------------------
-virtual size_t audio_channel_count() const
+virtual size_t 
+audio_channel_count() const
 {
 	return 0;
 }
@@ -302,7 +351,8 @@ virtual size_t audio_channel_count() const
 //
 // Mappers without expansion audio return nullptr.
 // -----------------------------------------------------------------------------
-virtual const char *audio_channel_name (size_t channel) const
+virtual const char*
+audio_channel_name (size_t channel) const
 {
 	(void)channel;
 
@@ -318,7 +368,8 @@ virtual const char *audio_channel_name (size_t channel) const
 // Muting affects audible output only and must not stop or disable the emulated
 // channel itself.
 // -----------------------------------------------------------------------------
-virtual bool audio_channel_muted (size_t channel) const
+virtual bool
+audio_channel_muted (size_t channel) const
 {
 	(void)channel;
 
@@ -333,7 +384,8 @@ virtual bool audio_channel_muted (size_t channel) const
 //
 // Mappers without expansion audio ignore the request.
 // -----------------------------------------------------------------------------
-virtual void set_audio_channel_muted (size_t channel, bool muted)
+virtual void
+set_audio_channel_muted (size_t channel, bool muted)
 {
 	(void)channel;
 	(void)muted;
@@ -353,7 +405,8 @@ virtual void set_audio_channel_muted (size_t channel, bool muted)
 // Returns:
 //   Current mapper expansion-audio debug state.
 // -----------------------------------------------------------------------------
-virtual mapper_audio_debug_state_t debug_audio_state() const
+virtual mapper_audio_debug_state_t 
+debug_audio_state() const
 {
 	return {};
 }
@@ -372,7 +425,8 @@ virtual mapper_audio_debug_state_t debug_audio_state() const
 // Returns:
 //   Current mapper expansion-audio oscilloscope sample.
 // -----------------------------------------------------------------------------
-virtual mapper_audio_scope_sample_t debug_audio_scope_sample() const
+virtual mapper_audio_scope_sample_t 
+debug_audio_scope_sample() const
 {
 	return {};
 }

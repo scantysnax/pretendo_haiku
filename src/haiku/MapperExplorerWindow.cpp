@@ -17,7 +17,7 @@
 // -----------------------------------------------------------------------------
 MapperExplorerWindow::MapperExplorerWindow (PretendoWindow *parent)
 	: BWindow(
-		BRect(180.0f, 40.0f, 1020.0f, 820.0f),
+		BRect(180.0f, 40.0f, 1020.0f, 960.0f),
 		"Mapper Explorer",
 		B_FLOATING_WINDOW_LOOK,
 		B_NORMAL_WINDOW_FEEL,

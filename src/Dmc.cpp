@@ -10,7 +10,7 @@ namespace nes::apu {
 namespace {
 
 // NTSC period table
-const uint16_t frequency_table[16] = {
+const uint16_t kFrequencyTable[16] = {
 	0x1ac, 0x17c, 0x154, 0x140,
 	0x11e, 0x0fe, 0x0e2, 0x0d6,
 	0x0be, 0x0a0, 0x08e, 0x080,
@@ -176,7 +176,7 @@ DMC::write_reg0 (uint8_t value)
 {
 	control_.value = value;
 
-	timer_.frequency = frequency_table[control_.frequency];
+	timer_.frequency = kFrequencyTable[control_.frequency];
 
 	if (!irq_enabled()) {
 		nes::apu::status.dmc_irq = false;

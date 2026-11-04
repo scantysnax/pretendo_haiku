@@ -1,3 +1,4 @@
+
 #ifndef _EXPANSION_AUDIO_SCOPE_VIEW_H_
 #define _EXPANSION_AUDIO_SCOPE_VIEW_H_
 
@@ -25,8 +26,13 @@ class ExpansionAudioScopeView : public BView
 		TRIGGER_CHANNEL_0 = 0,
 		TRIGGER_CHANNEL_1,
 		TRIGGER_CHANNEL_2,
+		TRIGGER_CHANNEL_3,
+		TRIGGER_CHANNEL_4,
+		TRIGGER_CHANNEL_5,
+		TRIGGER_CHANNEL_6,
+		TRIGGER_CHANNEL_7,
 		TRIGGER_TOTAL
-	};
+};
 
 	public:
 			ExpansionAudioScopeView (BRect frame);
@@ -70,11 +76,9 @@ class ExpansionAudioScopeView : public BView
 	trigger_channel fTriggerChannel = TRIGGER_CHANNEL_0;
 	float fTriggerPosition = 0.25f;
 	int32 fSoloChannel = -1;
-	bool fChannelVisible[4] = {
-		true,
-		true,
-		true,
-		true
+	bool fChannelVisible[
+	nes::apu::APU_SCOPE_EXPANSION_CHANNEL_CAPACITY + 1] = {
+		true, true, true, true, true, true, true, true, true
 	};
 };
 

@@ -170,50 +170,44 @@ log_write (uint16_t address, uint8_t value, write_log_source_t source, uint16_t 
 	if (source == write_log_source_t::NATIVE_APU) {
 		switch (address) {
 			case 0x4002:
-				entry.timer_period = (square_0.debug_timer_period() & 0x0700) |
-								 static_cast<uint16_t>(value);
-
+				entry.timer_period = (square_0.debug_timer_period() & 0x0700) | 
+									 static_cast<uint16_t>(value);
 				entry.has_timer_period = true;
 				break;
 
 			case 0x4003:
-				entry.timer_period = (square_0.debug_timer_period() & 0x00ff) |
-								 (static_cast<uint16_t>(value & 0x07) << 8);
-
+				entry.timer_period = (square_0.debug_timer_period() & 0x00ff) | 
+									 (static_cast<uint16_t>(value & 0x07) << 8);
 				entry.has_timer_period = true;
 				break;
 
 			case 0x4006:
 				entry.timer_period = (square_1.debug_timer_period() & 0x0700) |
-								 static_cast<uint16_t>(value);
-
+									 static_cast<uint16_t>(value);
 				entry.has_timer_period = true;
 				break;
 
 			case 0x4007:
 				entry.timer_period = (square_1.debug_timer_period() & 0x00ff) |
-								 (static_cast<uint16_t>(value & 0x07) << 8);
-
+								 	 (static_cast<uint16_t>(value & 0x07) << 8);
 				entry.has_timer_period = true;
 				break;
 
 			case 0x400a:
 				entry.timer_period = (triangle.debug_timer_period() & 0x0700) |
-								 static_cast<uint16_t>(value);
-
+									 static_cast<uint16_t>(value);
 				entry.has_timer_period = true;
 				break;
 
 			case 0x400b:
 				entry.timer_period = (triangle.debug_timer_period() & 0x00ff) |
-								 (static_cast<uint16_t>(value & 0x07) << 8);
-
+								 	 (static_cast<uint16_t>(value & 0x07) << 8);
 				entry.has_timer_period = true;
 				break;
 
 			case 0x4015:
 			{
-				uint8_t previousMask = 0;
+				uint8_t previousMask = 0x00;
 
 				if (square_0.enabled()) {
 					previousMask |= 0x01;
@@ -292,11 +286,12 @@ log_external_audio_write (uint16_t address, uint8_t value, uint16_t timerPeriod,
 // capture_scope_sample
 //
 // Captures one debugger oscilloscope sample containing the instantaneous output
-// level of each APU channel together with the already-generated mixed PCM
-// sample.
+// level of each native APU channel, mapper-provided expansion-audio channels,
+// the mapper's combined expansion-audio output, and the already-generated mixed
+// PCM sample.
 //
 // The mixed sample is supplied by the normal APU audio-generation path rather
-// than generated here.  This is important because mix_channels() contains a
+// than generated here. This is important because mix_channels() contains a
 // stateful DC-blocking filter and must only be called once for each output
 // sample.
 //
@@ -317,6 +312,7 @@ capture_scope_sample (uint8_t mixedSample)
 	sample.noise = noise.debug_output();
 	sample.dmc = dmc.output();
 
+
 	/*
 	 * Clear mapper-provided channel data before capturing the current sample.
 	 *
@@ -328,12 +324,11 @@ capture_scope_sample (uint8_t mixedSample)
 	}
 
 	sample.expansion_channel_count = 0;
+	sample.expansion_total = 0;
 
 	if (nes::cart.mapper() != nullptr) {
 		const mapper_audio_scope_sample_t expansionSample = nes::cart.mapper()->debug_audio_scope_sample();
-
-		size_t channelCount =
-			expansionSample.channel_count;
+		size_t channelCount = expansionSample.channel_count;
 
 		if (channelCount > APU_SCOPE_EXPANSION_CHANNEL_CAPACITY) {
 			channelCount = APU_SCOPE_EXPANSION_CHANNEL_CAPACITY;
@@ -344,7 +339,14 @@ capture_scope_sample (uint8_t mixedSample)
 		}
 
 		sample.expansion_channel_count = channelCount;
+
+		/*
+		 * Capture the mapper's current combined audible expansion-audio
+		 * output at the same sampling instant as the individual channels.
+		 */
+		sample.expansion_total = nes::cart.mapper()->audio_output();
 	}
+
 
 	sample.mixed = static_cast<float>(mixedSample);
 
@@ -354,6 +356,7 @@ capture_scope_sample (uint8_t mixedSample)
 		scope_sample_count_++;
 	}
 }
+
 
 // -----------------------------------------------------------------------------
 // nes::apu::debug_scope_snapshot
@@ -398,7 +401,6 @@ debug_scope_snapshot (scope_sample_t *samples, uint32_t capacity)
 
 	for (uint32_t index = 0; index < count; index++) {
 		const uint32_t physicalIndex = (start + index) % APU_SCOPE_SAMPLE_CAPACITY;
-
 		samples[index] = scope_samples_[physicalIndex];
 	}
 
@@ -464,7 +466,6 @@ debug_frame_event_snapshot (frame_event_t *events, uint32_t capacity)
 
 	for (uint32_t index = 0; index < count; index++) {
 		const uint32_t physicalIndex = (start + index) % APU_FRAME_EVENT_CAPACITY;
-
 		events[index] = frame_events_[physicalIndex];
 	}
 
@@ -683,10 +684,109 @@ clock_frame_mode_1()
 }
 
 
+
+ // -----------------------------------------------------------------------------
+ // mix_channels_raw
+ //
+ // Returns the instantaneous, unfiltered output of the native APU and mapper
+ // expansion audio.
+ //
+ // This function does not modify filter state, quantize the sample, or write
+ // to the host audio buffer.
+ //
+ // Parameters:
+ //   None.
+ //
+ // Returns:
+ //   Raw mixed audio amplitude.
+ // -----------------------------------------------------------------------------
+static double
+mix_channels_raw()
+{
+    const int32_t square1Out = square_0.output();
+    const int32_t square2Out = square_1.output();
+    const int32_t triangleOut = triangle.output();
+    const int32_t noiseOut = noise.output();
+    const int32_t dmcOut = dmc.output();
+
+    const double squareOut =
+        0.00752 * (square1Out + square2Out);
+
+    const double tndOut =
+        0.00851 * triangleOut +
+        0.00494 * noiseOut +
+        0.00335 * dmcOut;
+
+    double expansionOut = 0.0;
+
+    if (nes::cart.mapper() != nullptr) {
+        const int32_t mapperOutput =
+            static_cast<int32_t>(
+                nes::cart.mapper()->audio_output());
+
+        const int32_t mapperBias =
+            nes::cart.mapper()->audio_output_bias();
+
+        expansionOut = 0.00752 *
+            static_cast<double>(mapperOutput - mapperBias);
+    }
+
+    return (squareOut + tndOut - expansionOut) * 255.0;
+}
+
+
+
+ // -----------------------------------------------------------------------------
+ // mix_channels
+ //
+ // Produces one unsigned 8-bit host PCM sample from the instantaneous
+ // mixed channel output.
+ //
+ // This remains the legacy sampling path until the shared band-limited
+ // resampler is introduced.
+ //
+ // Parameters:
+ //   None.
+ //
+ // Returns:
+ //   Mixed unsigned 8-bit PCM sample.
+ // -----------------------------------------------------------------------------
+uint8_t
+mix_channels()
+{
+    const double input = mix_channels_raw();
+
+    constexpr double R = 0.995;
+
+    const double output =
+        input -
+        sDCBlockPreviousInput +
+        R * sDCBlockPreviousOutput;
+
+    sDCBlockPreviousInput = input;
+    sDCBlockPreviousOutput = output;
+
+    const int32_t sample =
+        static_cast<int32_t>(output + 128.0);
+
+    return static_cast<uint8_t>(
+        std::clamp(sample, 0, 255));
+}
+
+
+
+
+
+#if 0
 // -----------------------------------------------------------------------------
 // mix_channels
 //
 // Mixes the native NES APU channels together with mapper expansion audio.
+//
+// Mapper expansion-audio output is converted into a zero-centered signal before
+// mixing.  This allows unsigned mapper outputs such as VRC7, which are centered
+// around a non-zero midpoint, to coexist with expansion-audio devices such as
+// VRC6 where zero already represents silence.
 //
 // The mixed signal is passed through a one-pole DC-blocking high-pass filter
 // and then centered around unsigned 8-bit PCM silence.
@@ -711,18 +811,21 @@ mix_channels()
 	double expansionOut = 0.0;
 
 	if (nes::cart.mapper() != nullptr) {
-		expansionOut = 0.00752 * static_cast<double>(nes::cart.mapper()->audio_output());
+		const int32_t mapperOutput = static_cast<int32_t>(nes::cart.mapper()->audio_output());
+		const int32_t mapperBias = nes::cart.mapper()->audio_output_bias();
+
+		expansionOut = 0.00752 * static_cast<double>(mapperOutput - mapperBias);
 	}
 
 	/*
- 	* One-pole DC-blocking high-pass filter.
- 	*
- 	* Removes the steady DC component from the mixed signal while preserving
- 	* audible changes. The previous input and output samples are retained so the
- 	* filter can distinguish a constant offset from actual waveform movement.
- 	*
- 	*     y[n] = x[n] - x[n - 1] + R * y[n - 1]
- 	*/
+	 * One-pole DC-blocking high-pass filter.
+	 *
+	 * Removes the steady DC component from the mixed signal while preserving
+	 * audible changes. The previous input and output samples are retained so the
+	 * filter can distinguish a constant offset from actual waveform movement.
+	 *
+	 *     y[n] = x[n] - x[n - 1] + R * y[n - 1]
+	 */
 
 	const double input = (squareOut + tndOut - expansionOut) * 255.0;
 	constexpr double R = 0.995;
@@ -735,7 +838,7 @@ mix_channels()
 
 	return static_cast<uint8_t>(std::clamp(sample, 0, 255));
 }
-
+#endif
 
 // -----------------------------------------------------------------------------
 // nes::apu::reset
@@ -2022,5 +2125,5 @@ clear_write_log()
 }
 
 
-}
+} // end namespace nes::apu
 

@@ -14,7 +14,7 @@ namespace {
 
 constexpr bigtime_t kPulseRate = 100000;
 
-constexpr uint32 kMessageToggleExpansionChannel = 'EAMU';
+constexpr uint32 kMessageExpansionChannelEnable = 'EXCE';
 
 constexpr float kTopMargin = 14.0f;
 
@@ -89,8 +89,9 @@ PanelContentY (BRect panel)
 //
 // Creates the expansion-audio status debugger view.
 //
-// The expansion page intentionally follows the same visual language as the
-// native APU Status view so both tabs appear to belong to one debugger.
+// One reusable Enabled checkbox is created for each possible mapper expansion
+// audio channel.  Only controls corresponding to channels exposed by the active
+// mapper are shown.
 //
 // Parameters:
 //   frame - Initial bounds of the view.
@@ -103,6 +104,21 @@ ExpansionAudioStatusView::ExpansionAudioStatusView (BRect frame)
 {
 	SetViewColor(B_TRANSPARENT_COLOR);
 	SetLowColor(B_TRANSPARENT_COLOR);
+
+	for (size_t i = 0; i < 8; ++i) {
+		BMessage *message = new BMessage(kMessageExpansionChannelEnable);
+		message->AddInt32("channel", static_cast<int32>(i));
+
+		BString name;
+		name.SetToFormat("expansion_channel_%zu_enable", i);
+
+		fChannelCheckBoxes[i] = new BCheckBox(BRect(0.0f, 0.0f, 0.0f, 0.0f), name.String(), "Enabled", message);
+		fChannelCheckBoxes[i]->ResizeToPreferred();
+		fChannelCheckBoxes[i]->SetViewColor(kHeaderColor);
+		
+		AddChild(fChannelCheckBoxes[i]);
+		fChannelCheckBoxes[i]->Hide();
+	}
 }
 
 
@@ -127,8 +143,8 @@ ExpansionAudioStatusView::~ExpansionAudioStatusView()
 //
 // Completes initialization after the view is attached to its window.
 //
-// The view enables periodic refreshes and captures the initial mapper-provided
-// expansion-audio debugger state.
+// The expansion-channel checkboxes target this view directly. Their positions
+// and checked states are then synchronized with the active mapper.
 //
 // Parameters:
 //   None.
@@ -145,8 +161,13 @@ ExpansionAudioStatusView::AttachedToWindow()
 		Window()->SetPulseRate(kPulseRate);
 	}
 
+	for (size_t i = 0; i < 8; ++i) {
+		if (fChannelCheckBoxes[i] != nullptr) {
+			fChannelCheckBoxes[i]->SetTarget(this);
+		}
+	}
+
 	CaptureState();
-	RebuildChannelControls();
 	UpdateChannelControls();
 }
 
@@ -176,75 +197,18 @@ ExpansionAudioStatusView::CaptureState()
 	}
 }
 
-// -----------------------------------------------------------------------------
-// ExpansionAudioStatusView::RebuildChannelControls
-//
-// Rebuilds the debugger mute controls for the currently loaded mapper.
-//
-// The current Expansion Status layout displays up to three channels. Each
-// checkbox corresponds to the mapper channel at the same index.
-//
-// A checked checkbox means the channel is audible. An unchecked checkbox means
-// the channel is muted.
-//
-// Parameters:
-//   None.
-//
-// Returns:
-//   Nothing.
-// -----------------------------------------------------------------------------
-void
-ExpansionAudioStatusView::RebuildChannelControls()
-{
-	for (size_t channel = 0; channel < 3; ++channel) {
-		if (fChannelCheckBoxes[channel] != nullptr) {
-			fChannelCheckBoxes[channel]->RemoveSelf();
-			delete fChannelCheckBoxes[channel];
-			fChannelCheckBoxes[channel] = nullptr;
-		}
-	}
-
-	fControlChannelCount = 0;
-
-	Mapper *mapper = nes::cart.mapper();
-
-	if (mapper == nullptr) {
-		return;
-	}
-
-	fControlChannelCount = mapper->audio_channel_count();
-
-	if (fControlChannelCount > 3) {
-		fControlChannelCount = 3;
-	}
-
-	for (size_t channel = 0; channel < fControlChannelCount; ++channel) {
-		BMessage *message = new BMessage(kMessageToggleExpansionChannel);
-			message->AddInt32("channel", static_cast<int32>(channel));
-
-		BCheckBox *checkBox = new BCheckBox(BRect(0.0f, 0.0f, 0.0f, 0.0f),
-										    "expansion_audio_enable",
-											"Enabled", message);
-		checkBox->ResizeToPreferred();
-		checkBox->SetViewColor(kHeaderColor);
-		checkBox->SetTarget(this);
-
-		AddChild(checkBox);
-
-		fChannelCheckBoxes[channel] = checkBox;
-	}
-}
-
 
 // -----------------------------------------------------------------------------
 // ExpansionAudioStatusView::UpdateChannelControls
 //
-// Synchronizes the expansion-audio checkboxes with the mapper-owned mute state.
+// Positions and synchronizes the mapper expansion-audio channel checkboxes.
 //
-// Checked means audible. Unchecked means muted.
+// For devices with more than three channels, controls are positioned at the
+// right side of the two three-channel panel rows. For one-to-three-channel
+// devices, the original expansion-audio panel geometry is preserved.
 //
-// The mapper remains the source of truth so changes made through the main Audio
-// menu automatically appear here on the next debugger pulse.
+// A checked control means the channel is audible. An unchecked control means
+// the debugger has muted that mapper channel.
 //
 // Parameters:
 //   None.
@@ -255,28 +219,115 @@ ExpansionAudioStatusView::RebuildChannelControls()
 void
 ExpansionAudioStatusView::UpdateChannelControls()
 {
-	Mapper *mapper = nes::cart.mapper();
-
-	if (mapper == nullptr) {
-		return;
-	}
-
-	size_t channelCount = mapper->audio_channel_count();
-
-	if (channelCount > 3) {
-		channelCount = 3;
-	}
-
-	if (channelCount != fControlChannelCount) {
-		RebuildChannelControls();
-	}
-
-	for (size_t channel = 0; channel < fControlChannelCount; ++channel) {
-		if (fChannelCheckBoxes[channel] == nullptr) {
+	for (size_t i = 0; i < 8; ++i) {
+		if (fChannelCheckBoxes[i] == nullptr) {
 			continue;
 		}
 
-		fChannelCheckBoxes[channel]->SetValue(mapper->audio_channel_muted(channel) ? B_CONTROL_OFF : B_CONTROL_ON);
+		if (i >= fState.channel_count) {
+			fChannelCheckBoxes[i]->Hide();
+			continue;
+		}
+
+		fChannelCheckBoxes[i]->SetValue(fState.channels[i].muted ? B_CONTROL_OFF : B_CONTROL_ON);
+
+		if (fChannelCheckBoxes[i]->IsHidden()) {
+			fChannelCheckBoxes[i]->Show();
+		}
+	}
+
+	if (fState.channel_count > 3) {
+		const float globalHeight = PanelHeightForLines(fState.field_count);
+		size_t maximumChannelLines = 0;
+		const size_t channelCount = std::min<size_t>(fState.channel_count, 6);
+
+		for (size_t i = 0; i < channelCount; ++i) {
+			const size_t lines = 4 + fState.channels[i].field_count;
+
+			if (lines > maximumChannelLines) {
+				maximumChannelLines = lines;
+			}
+		}
+
+		const float channelHeight = PanelHeightForLines(maximumChannelLines);
+		const float row1Y = kTopMargin + globalHeight + kSectionGap;
+		const float row2Y = row1Y + channelHeight + kSectionGap;
+		const float columnX[3] = {
+			kColumn1X,
+			kColumn2X,
+			kColumn3X
+		};
+
+		const float panelWidth[3] = {
+			kGlobalPanelWidth,
+			kChannelPanelWidth,
+			kChannelPanelWidth
+		};
+
+		for (size_t i = 0; i < channelCount; ++i) {
+			const size_t column = i % 3;
+			const size_t row = i / 3;
+
+			BCheckBox *checkBox = fChannelCheckBoxes[i];
+
+			if (checkBox == nullptr) {
+				continue;
+			}
+
+			const float x = columnX[column] + panelWidth[column] - checkBox->Bounds().Width() - kPanelPadding;
+			const float y = (row == 0 ? row1Y : row2Y) + 1.0f;
+
+			checkBox->MoveTo(x, y);
+		}
+
+		return;
+	}
+
+	/*
+	 * Original VRC6-style layout.
+	 */
+	const size_t globalLines = fState.field_count;
+	size_t channel1Lines = 0;
+	size_t channel2Lines = 0;
+
+	if (fState.channel_count > 0) {
+		channel1Lines = 4 + fState.channels[0].field_count;
+	}
+
+	if (fState.channel_count > 1) {
+		channel2Lines = 4 + fState.channels[1].field_count;
+	}
+
+	float topPanelHeight = PanelHeightForLines(globalLines);
+	const float channel1Height = PanelHeightForLines(channel1Lines);
+	const float channel2Height = PanelHeightForLines(channel2Lines);
+
+	if (channel1Height > topPanelHeight) {
+		topPanelHeight = channel1Height;
+	}
+
+	if (channel2Height > topPanelHeight) {
+		topPanelHeight = channel2Height;
+	}
+
+	const float bottomY = kTopMargin + topPanelHeight + kSectionGap;
+
+	if (fState.channel_count > 0) {
+		BCheckBox *checkBox = fChannelCheckBoxes[0];
+		checkBox->MoveTo(kColumn2X + kChannelPanelWidth - checkBox->Bounds().Width() - kPanelPadding,
+						 kTopMargin + 1.0f);
+	}
+
+	if (fState.channel_count > 1) {
+		BCheckBox *checkBox = fChannelCheckBoxes[1];
+		checkBox->MoveTo(kColumn3X + kChannelPanelWidth - checkBox->Bounds().Width() - kPanelPadding,
+						 kTopMargin + 1.0f);
+	}
+
+	if (fState.channel_count > 2) {
+		BCheckBox *checkBox = fChannelCheckBoxes[2];
+		checkBox->MoveTo(kColumn1X + kGlobalPanelWidth - checkBox->Bounds().Width() - kPanelPadding,
+						 bottomY + 1.0f);
 	}
 }
 
@@ -297,7 +348,6 @@ ExpansionAudioStatusView::Pulse()
 {
 	CaptureState();
 	UpdateChannelControls();
-
 	Invalidate();
 }
 
@@ -305,15 +355,17 @@ ExpansionAudioStatusView::Pulse()
 // -----------------------------------------------------------------------------
 // ExpansionAudioStatusView::MessageReceived
 //
-// Handles debugger mute controls for mapper-provided expansion-audio channels.
+// Handles expansion-audio channel Enabled controls.
 //
-// The checkbox does not modify the emulated channel enable state. It changes
-// only the debugger/UI mute state exposed by the mapper.
+// The UI presents the generic mapper mute state as an Enabled checkbox:
+// checked means audible and unchecked means muted.
 //
-// Checked means audible. Unchecked means muted.
+// Channel indices are validated against both the debugger control capacity and
+// the currently active mapper so stale UI messages cannot target channels that
+// do not exist after a cartridge change.
 //
 // Parameters:
-//   message - Message received by the view.
+//   message - Incoming Application Kit message.
 //
 // Returns:
 //   Nothing.
@@ -321,51 +373,43 @@ ExpansionAudioStatusView::Pulse()
 void
 ExpansionAudioStatusView::MessageReceived (BMessage *message)
 {
-	if (message == nullptr) {
+	if (message->what == kMessageExpansionChannelEnable) {
+		int32 channel = -1;
+
+		if (message->FindInt32("channel", &channel) != B_OK) {
+			return;
+		}
+
+		if (channel < 0 || channel >= 8) {
+			return;
+		}
+
+		Mapper *mapper = nes::cart.mapper();
+
+		if (mapper == nullptr) {
+			return;
+		}
+
+		if (static_cast<size_t>(channel) >= mapper->audio_channel_count()) {
+			return;
+		}
+
+		BCheckBox *checkBox = fChannelCheckBoxes[channel];
+
+		if (checkBox == nullptr) {
+			return;
+		}
+
+		mapper->set_audio_channel_muted(static_cast<size_t>(channel), checkBox->Value() == B_CONTROL_OFF);
+
+		CaptureState();
+		UpdateChannelControls();
+		Invalidate();
+
 		return;
 	}
 
-	switch (message->what) {
-		case kMessageToggleExpansionChannel:
-		{
-			int32 channel = -1;
-
-			if (message->FindInt32("channel", &channel) != B_OK) {
-				break;
-			}
-
-			if (channel < 0 || channel >= static_cast<int32>(fControlChannelCount)) {
-				break;
-			}
-
-			Mapper *mapper = nes::cart.mapper();
-
-			if (mapper == nullptr) {
-				break;
-			}
-
-			const size_t channelIndex = static_cast<size_t>(channel);
-
-			if (channelIndex >= mapper->audio_channel_count()) {
-				break;
-			}
-
-			BCheckBox *checkBox = fChannelCheckBoxes[channelIndex];
-
-			if (checkBox == nullptr) {
-				break;
-			}
-
-			mapper->set_audio_channel_muted(channelIndex, checkBox->Value() != B_CONTROL_ON);
-
-			UpdateChannelControls();
-			break;
-		}
-
-		default:
-			BView::MessageReceived(message);
-			break;
-	}
+	BView::MessageReceived(message);
 }
 
 
@@ -374,8 +418,8 @@ ExpansionAudioStatusView::MessageReceived (BMessage *message)
 //
 // Draws the expansion-audio status page.
 //
-// Panel positions, widths, margins, row spacing, and header geometry mirror the
-// native APU Status view:
+// Expansion-audio devices with up to three channels use the original layout
+// shared with the native APU Status page:
 //
 //   Top:
 //     Device      Channel 1      Channel 2
@@ -383,8 +427,11 @@ ExpansionAudioStatusView::MessageReceived (BMessage *message)
 //   Bottom:
 //     Channel 3
 //
-// Additional expansion-audio channel types can later extend this arrangement
-// without changing the mapper-facing debugger interface.
+// Devices with more than three channels use a compact multi-channel layout.
+// The mapper-wide device panel spans the full width at the top, followed by
+// two rows of three channel panels. This allows six-channel devices such as
+// VRC7 to fit within the existing APU Status window without increasing its
+// size.
 //
 // Parameters:
 //   updateRect - Region requiring redraw.
@@ -406,14 +453,70 @@ ExpansionAudioStatusView::Draw (BRect updateRect)
 		const char *message = "No expansion audio available.";
 		const float width = StringWidth(message);
 		DrawString(message, BPoint((Bounds().Width() - width) * 0.5f, Bounds().Height() * 0.5f));
+
 		return;
 	}
 
-	/*
-	 * Match the native APU Status page's three-column geometry.
-	 */
-	const size_t globalLines = fState.field_count;
 
+	// -------------------------------------------------------------------------
+	// Six-channel layout
+	// -------------------------------------------------------------------------
+
+	if (fState.channel_count > 3) {
+		const size_t globalLines = fState.field_count;
+		const float globalHeight = PanelHeightForLines(globalLines);
+		const float topY = kTopMargin;
+		const float rightEdge = kColumn3X + kChannelPanelWidth;
+		const BRect globalPanel(kColumn1X, topY, rightEdge, topY + globalHeight);
+
+		DrawPanelBackground(globalPanel, fState.name.empty() ? "Expansion Audio" : fState.name.c_str());
+		DrawGlobalPanel(globalPanel);
+
+		/*
+		 * Determine a common channel-panel height so all six
+		 * panels remain aligned.
+		 */
+		size_t maximumChannelLines = 0;
+		const size_t visibleChannelCount = std::min<size_t>(fState.channel_count, 6);
+
+		for (size_t i = 0; i < visibleChannelCount; ++i) {
+			const size_t lines = 4 + fState.channels[i].field_count;
+
+			if (lines > maximumChannelLines) {
+				maximumChannelLines = lines;
+			}
+		}
+
+		const float channelHeight = PanelHeightForLines(maximumChannelLines);
+		const float row1Y = globalPanel.bottom + kSectionGap;
+		const float row2Y = row1Y + channelHeight + kSectionGap;
+		const float columnX[3] = {
+			kColumn1X,
+			kColumn2X,
+			kColumn3X
+		};
+
+		for (size_t i = 0; i < visibleChannelCount; ++i) {
+			const size_t column = i % 3;
+			const size_t row = i / 3;
+			const float panelY = row == 0 ? row1Y : row2Y;
+			const float panelWidth = column == 0 ? kGlobalPanelWidth : kChannelPanelWidth;
+			const BRect channelPanel(columnX[column], panelY, columnX[column] + panelWidth, 
+									 panelY + channelHeight);
+
+			DrawPanelBackground(channelPanel, fState.channels[i].name.c_str());
+			DrawChannelPanel(channelPanel, fState.channels[i]);
+		}
+
+		return;
+	}
+
+
+	// -------------------------------------------------------------------------
+	// Original one-to-three-channel layout
+	// -------------------------------------------------------------------------
+
+	const size_t globalLines = fState.field_count;
 	size_t channel1Lines = 0;
 	size_t channel2Lines = 0;
 	size_t channel3Lines = 0;
@@ -445,50 +548,14 @@ ExpansionAudioStatusView::Draw (BRect updateRect)
 
 	const float topY = kTopMargin;
 	const float bottomY = topY + topPanelHeight + kSectionGap;
-	
-	// -------------------------------------------------------------------------
-	// Position expansion-audio mute controls in the channel-panel headers.
-	//
-	// These offsets mirror the native APU Status controls.
-	// -------------------------------------------------------------------------
-
-	if (fChannelCheckBoxes[0] != nullptr) {
-		fChannelCheckBoxes[0]->MoveTo(kColumn2X + 158.0f, topY + 1.0f);
-	}
-
-	if (fChannelCheckBoxes[1] != nullptr) {
-		fChannelCheckBoxes[1]->MoveTo(kColumn3X + 158.0f, topY + 1.0f);
-	}
-
-	if (fChannelCheckBoxes[2] != nullptr) {
-		fChannelCheckBoxes[2]->MoveTo(kColumn1X + 178.0f, bottomY + 1.0f);
-	}
-	
-	// -------------------------------------------------------------------------
-	// Position expansion-audio mute controls in the channel-panel headers.
-	//
-	// These offsets mirror the native APU Status controls.
-	// -------------------------------------------------------------------------
-
-	if (fChannelCheckBoxes[0] != nullptr) {
-		fChannelCheckBoxes[0]->MoveTo(kColumn2X + 158.0f, topY + 1.0f);
-	}
-
-	if (fChannelCheckBoxes[1] != nullptr) {
-		fChannelCheckBoxes[1]->MoveTo(kColumn3X + 158.0f, topY + 1.0f);
-	}
-
-	if (fChannelCheckBoxes[2] != nullptr) {
-		fChannelCheckBoxes[2]->MoveTo(kColumn1X + 178.0f, bottomY + 1.0f);
-	}
-
 	const BRect globalPanel(kColumn1X, topY, kColumn1X + kGlobalPanelWidth, topY + topPanelHeight);
+
 	DrawPanelBackground(globalPanel, fState.name.empty() ? "Expansion Audio" : fState.name.c_str());
 	DrawGlobalPanel(globalPanel);
 
 	if (fState.channel_count > 0) {
 		const BRect channel1Panel(kColumn2X, topY, kColumn2X + kChannelPanelWidth, topY + topPanelHeight);
-		
+
 		DrawPanelBackground(channel1Panel, fState.channels[0].name.c_str());
 		DrawChannelPanel(channel1Panel, fState.channels[0]);
 	}
@@ -497,7 +564,7 @@ ExpansionAudioStatusView::Draw (BRect updateRect)
 		const BRect channel2Panel(kColumn3X, topY, kColumn3X + kChannelPanelWidth, topY + topPanelHeight);
 
 		DrawPanelBackground(channel2Panel, fState.channels[1].name.c_str());
-		DrawChannelPanel(channel2Panel,fState.channels[1]);
+		DrawChannelPanel(channel2Panel, fState.channels[1]);
 	}
 
 	if (fState.channel_count > 2) {
@@ -677,31 +744,6 @@ ExpansionAudioStatusView::DrawColoredTextLine (const char *label, const char *va
 
 
 // -----------------------------------------------------------------------------
-// ExpansionAudioStatusView::DrawLevelMeter
-//
-// Retained for compatibility with the current view interface.
-//
-// APU Status does not use graphical level meters, so the expansion page likewise
-// leaves level visualization to the Explorer and Oscilloscope tools.
-//
-// Parameters:
-//   rect    - Unused.
-//   value   - Unused.
-//   maximum - Unused.
-//
-// Returns:
-//   Nothing.
-// -----------------------------------------------------------------------------
-void
-ExpansionAudioStatusView::DrawLevelMeter (BRect rect, uint32_t value, uint32_t maximum)
-{
-	(void)rect;
-	(void)value;
-	(void)maximum;
-}
-
-
-// -----------------------------------------------------------------------------
 // ExpansionAudioStatusView::DrawDebugField
 //
 // Draws one mapper-defined debugger field using native APU Status conventions.
@@ -728,11 +770,11 @@ ExpansionAudioStatusView::DrawDebugField (const mapper_audio_debug_field_t &fiel
 	BString value;
 
 	switch (field.type) {
-		case mapper_audio_debug_field_type::Boolean:
+		case MapperAudioDebugFieldType::Boolean:
 			DrawBooleanLine(field.label, field.value != 0, x, y);
 			break;
 
-		case mapper_audio_debug_field_type::Hex:
+		case MapperAudioDebugFieldType::Hex:
 		{
 			value.SetToFormat("$%02lX", static_cast<unsigned long>(field.value));
 
@@ -750,16 +792,16 @@ ExpansionAudioStatusView::DrawDebugField (const mapper_audio_debug_field_t &fiel
 		}
 		break;
 
-		case mapper_audio_debug_field_type::Text:
+		case MapperAudioDebugFieldType::Text:
 			DrawTextLine(field.label, field.text != nullptr ? field.text : "", x, y);
 			break;
 
-		case mapper_audio_debug_field_type::Output:
+		case MapperAudioDebugFieldType::Output:
 			value.SetToFormat("%lu", static_cast<unsigned long>(field.value));
 			DrawTextLine(field.label, value.String(), x, y);
 			break;
 
-		case mapper_audio_debug_field_type::Percent:
+		case MapperAudioDebugFieldType::Percent:
 		{
 			double percent = 0.0;
 
@@ -772,11 +814,11 @@ ExpansionAudioStatusView::DrawDebugField (const mapper_audio_debug_field_t &fiel
 		}
 		break;
 
-		case mapper_audio_debug_field_type::Timing:
+		case MapperAudioDebugFieldType::Timing:
 			DrawBooleanLine(field.label, field.value != 0, x, y);
 			break;
 
-		case mapper_audio_debug_field_type::Value:
+		case MapperAudioDebugFieldType::Value:
 		default:
 			value.SetToFormat("%lu", static_cast<unsigned long>(field.value));
 			DrawTextLine(field.label, value.String(), x, y);
@@ -819,8 +861,8 @@ ExpansionAudioStatusView::DrawGlobalPanel (BRect panel)
 // Draws status for one mapper-provided expansion-audio channel.
 //
 // Common channel state is shown first, followed immediately by mapper-specific
-// fields. The presentation follows the same compact label/value arrangement as
-// the native APU channel panels.
+// fields. The header checkbox controls whether the channel is audible, while
+// the Key On row reflects the mapper channel's current synthesis/key state.
 //
 // Parameters:
 //   panel   - Bounds of the channel panel.
@@ -834,7 +876,8 @@ ExpansionAudioStatusView::DrawChannelPanel (BRect panel, const mapper_audio_chan
 {
 	const float x = panel.left + kPanelPadding;
 	float y = PanelContentY(panel);
-	DrawBooleanLine("Enabled", channel.enabled, x, y);
+
+	DrawBooleanLine("Key On", channel.enabled, x, y);
 	y += kLineHeight;
 
 	BString value;
@@ -849,6 +892,7 @@ ExpansionAudioStatusView::DrawChannelPanel (BRect panel, const mapper_audio_chan
 	SetFont(be_fixed_font);
 	SetHighColor(kValueColor);
 	DrawString(value.String(), BPoint(x + kValueOffset, y));
+
 	SetFont(&prevFont);
 	y += kLineHeight;
 
@@ -867,8 +911,9 @@ ExpansionAudioStatusView::DrawChannelPanel (BRect panel, const mapper_audio_chan
 	DrawTextLine("Output", value.String(), x, y);
 	y += kLineHeight;
 
-	for (size_t i = 0; i < channel.field_count; i++) {
+	for (size_t i = 0; i < channel.field_count; ++i) {
 		DrawDebugField(channel.fields[i], x, y);
 		y += kLineHeight;
 	}
 }
+

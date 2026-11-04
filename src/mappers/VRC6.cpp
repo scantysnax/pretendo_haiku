@@ -1044,9 +1044,7 @@ VRC6::debug_audio_state() const
 
 	state.type = ExpansionAudioType::VRC6;
 	state.name = "VRC6";
-
 	state.output = audio_output();
-
 	state.output_maximum = 61;
 
 
@@ -1058,28 +1056,28 @@ VRC6::debug_audio_state() const
 
 	state.fields[0].label = "Frequency Control";
 	state.fields[0].value = frequency_control_;
-	state.fields[0].type = mapper_audio_debug_field_type::Hex;
+	state.fields[0].type = MapperAudioDebugFieldType::Hex;
 
 	state.fields[1].label = "Halt";
 	state.fields[1].value = (frequency_control_ & 0x01) != 0;
-	state.fields[1].type = mapper_audio_debug_field_type::Boolean;
+	state.fields[1].type = MapperAudioDebugFieldType::Boolean;
 
 	state.fields[2].label = "16x Frequency";
 	state.fields[2].value = (frequency_control_ & 0x02) != 0;
-	state.fields[2].type = mapper_audio_debug_field_type::Timing;
+	state.fields[2].type = MapperAudioDebugFieldType::Timing;
 
 	state.fields[3].label = "256x Frequency";
 	state.fields[3].value = (frequency_control_ & 0x04) != 0;
-	state.fields[3].type = mapper_audio_debug_field_type::Timing;
+	state.fields[3].type = MapperAudioDebugFieldType::Timing;
 
 	state.fields[4].label = "Combined Output";
 	state.fields[4].value = state.output;
-	state.fields[4].type = mapper_audio_debug_field_type::Output;
+	state.fields[4].type = MapperAudioDebugFieldType::Output;
 
 	state.fields[5].label = "Output Level";
 	state.fields[5].value = state.output;
 	state.fields[5].maximum = state.output_maximum;
-	state.fields[5].type = mapper_audio_debug_field_type::Percent;
+	state.fields[5].type = MapperAudioDebugFieldType::Percent;
 
 
 	// -------------------------------------------------------------------------
@@ -1120,7 +1118,6 @@ VRC6::debug_audio_state() const
 
 		state.channels[0].frequency_hz = kVRC6NTSCClock / 
 										 (16.0 * (static_cast<double>(period) + 1.0));
-
 		state.channels[0].frequency_valid = true;
 	}
 
@@ -1129,7 +1126,7 @@ VRC6::debug_audio_state() const
 	state.channels[0].fields[0].label = "Output Level";
 	state.channels[0].fields[0].value = pulse1_.output();
 	state.channels[0].fields[0].maximum = 15;
-	state.channels[0].fields[0].type = mapper_audio_debug_field_type::Percent;
+	state.channels[0].fields[0].type = MapperAudioDebugFieldType::Percent;
 
 	state.channels[0].fields[1].label = "Volume";
 	state.channels[0].fields[1].value = pulse1_.volume;
@@ -1173,10 +1170,10 @@ VRC6::debug_audio_state() const
 			break;
 	}
 
-	state.channels[0].fields[3].type = mapper_audio_debug_field_type::Text;
+	state.channels[0].fields[3].type = MapperAudioDebugFieldType::Text;
 	state.channels[0].fields[4].label = "Mode";
 	state.channels[0].fields[4].text = pulse1_.mode ? "Constant" : "Duty";
-	state.channels[0].fields[4].type = mapper_audio_debug_field_type::Text;
+	state.channels[0].fields[4].type = MapperAudioDebugFieldType::Text;
 
 	state.channels[0].fields[5].label = "Timer";
 	state.channels[0].fields[5].value = pulse1_.timer;
@@ -1210,7 +1207,7 @@ VRC6::debug_audio_state() const
 	state.channels[1].fields[0].label = "Output Level";
 	state.channels[1].fields[0].value = pulse2_.output();
 	state.channels[1].fields[0].maximum = 15;
-	state.channels[1].fields[0].type = mapper_audio_debug_field_type::Percent;
+	state.channels[1].fields[0].type = MapperAudioDebugFieldType::Percent;
 
 	state.channels[1].fields[1].label = "Volume";
 	state.channels[1].fields[1].value = pulse2_.volume;
@@ -1254,10 +1251,10 @@ VRC6::debug_audio_state() const
 			break;
 	}
 
-	state.channels[1].fields[3].type = mapper_audio_debug_field_type::Text;
+	state.channels[1].fields[3].type = MapperAudioDebugFieldType::Text;
 	state.channels[1].fields[4].label = "Mode";
 	state.channels[1].fields[4].text = pulse2_.mode ? "Constant" : "Duty";
-	state.channels[1].fields[4].type = mapper_audio_debug_field_type::Text;
+	state.channels[1].fields[4].type = MapperAudioDebugFieldType::Text;
 
 	state.channels[1].fields[5].label = "Timer";
 	state.channels[1].fields[5].value = pulse2_.timer;
@@ -1290,7 +1287,7 @@ VRC6::debug_audio_state() const
 	state.channels[2].fields[0].label = "Output Level";
 	state.channels[2].fields[0].value = saw_.output();
 	state.channels[2].fields[0].maximum = 31;
-	state.channels[2].fields[0].type = mapper_audio_debug_field_type::Percent;
+	state.channels[2].fields[0].type = MapperAudioDebugFieldType::Percent;
 
 	state.channels[2].fields[1].label = "Rate";
 	state.channels[2].fields[1].value = saw_.rate;

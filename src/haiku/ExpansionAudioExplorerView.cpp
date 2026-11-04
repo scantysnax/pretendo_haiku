@@ -264,17 +264,17 @@ ExpansionAudioExplorerView::DrawGlobalPanel (BRect panel)
 			continue;
 		}
 
-		if (field.type == mapper_audio_debug_field_type::Boolean) {
+		if (field.type == MapperAudioDebugFieldType::Boolean) {
 			DrawStateLine(field.label, field.value != 0, x, y);
-		} else if (field.type == mapper_audio_debug_field_type::Hex) {
+		} else if (field.type == MapperAudioDebugFieldType::Hex) {
 			value.SetToFormat("$%02X", static_cast<unsigned>(field.value));
 			DrawFixedLine(field.label, value.String(), x, y);
-		} else if (field.type == mapper_audio_debug_field_type::Text) {
+		} else if (field.type == MapperAudioDebugFieldType::Text) {
 			DrawFixedLine(field.label, field.text != nullptr ? field.text : "", x, y);
-		} else if (field.type == mapper_audio_debug_field_type::Output) {
+		} else if (field.type == MapperAudioDebugFieldType::Output) {
 			value.SetToFormat("%u", static_cast<unsigned>(field.value));
 			DrawColoredFixedLine(field.label, value.String(), kOutputColor, x, y);
-		} else if (field.type == mapper_audio_debug_field_type::Percent) {
+		} else if (field.type == MapperAudioDebugFieldType::Percent) {
 			double percent = 0.0;
 
 			if (field.maximum != 0) {
@@ -283,7 +283,7 @@ ExpansionAudioExplorerView::DrawGlobalPanel (BRect panel)
 
 			value.SetToFormat("%.1f%%", percent);
 			DrawColoredFixedLine(field.label, value.String(), kOutputColor, x, y);
-		} else if (field.type == mapper_audio_debug_field_type::Timing) {
+		} else if (field.type == MapperAudioDebugFieldType::Timing) {
 			value.SetToFormat("%s", field.value != 0 ? "On" : "Off");
 			DrawColoredFixedLine(field.label, value.String(), kTimingColor, x, y);
 		} else {
@@ -391,17 +391,17 @@ ExpansionAudioExplorerView::DrawChannelPanel (BRect panel, const mapper_audio_ch
 			continue;
 		}
 
-		if (field.type == mapper_audio_debug_field_type::Boolean) {
+		if (field.type == MapperAudioDebugFieldType::Boolean) {
 			DrawStateLine(field.label, field.value != 0, x, y);
-		} else if (field.type == mapper_audio_debug_field_type::Hex) {
+		} else if (field.type == MapperAudioDebugFieldType::Hex) {
 			value.SetToFormat("$%02X", static_cast<unsigned>(field.value));
 			DrawFixedLine(field.label, value.String(), x, y);
-		} else if (field.type == mapper_audio_debug_field_type::Text) {
+		} else if (field.type == MapperAudioDebugFieldType::Text) {
 			DrawFixedLine(field.label, field.text != nullptr ? field.text : "", x, y);
-		} else if (field.type == mapper_audio_debug_field_type::Output) {
+		} else if (field.type == MapperAudioDebugFieldType::Output) {
 			value.SetToFormat("%u", static_cast<unsigned>(field.value));
 			DrawColoredFixedLine(field.label, value.String(), kOutputColor, x, y);
-		} else if (field.type == mapper_audio_debug_field_type::Percent) {
+		} else if (field.type == MapperAudioDebugFieldType::Percent) {
 			double percent = 0.0;
 
 			if (field.maximum != 0) {
