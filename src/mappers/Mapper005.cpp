@@ -2150,40 +2150,35 @@ Mapper5::set_audio_channel_muted (size_t index, bool muted)
 // -----------------------------------------------------------------------------
 // Mapper5::audio_output
 //
-// Returns the current composite MMC5 expansion-audio output.
+// Returns the combined MMC5 expansion-audio output without prematurely
+// limiting the result to the unsigned eight-bit range.
 //
-// The two pulse channels contribute their current 0-15 output levels.  The PCM
-// channel contributes its direct eight-bit output value.  Muted channels are
-// omitted from the audible mix while their internal state continues running.
+// Each pulse channel contributes 0-15, while the PCM channel contributes
+// its current eight-bit DAC level.
 //
-// Parameters:
-//   None.
+// Muted channels are excluded from the audible mix but continue running.
 //
 // Returns:
-//   Current MMC5 expansion-audio sample.
+//   Combined expansion-audio level, nominally 0-285.
 // -----------------------------------------------------------------------------
-uint8_t
+int32_t
 Mapper5::audio_output() const
 {
-	uint32_t output = 0;
+    int32_t output = 0;
 
-	if (!pulse_[0].muted) {
-		output += audio_pulse_output(pulse_[0]);
-	}
+    if (!pulse_[0].muted) {
+        output += audio_pulse_output(pulse_[0]);
+    }
 
-	if (!pulse_[1].muted) {
-		output += audio_pulse_output(pulse_[1]);
-	}
+    if (!pulse_[1].muted) {
+        output += audio_pulse_output(pulse_[1]);
+    }
 
-	if (!pcm_.muted) {
-		output += pcm_.value;
-	}
+    if (!pcm_.muted) {
+        output += pcm_.value;
+    }
 
-	if (output > 255) {
-		output = 255;
-	}
-
-	return static_cast<uint8_t>(output);
+    return output;
 }
 
 
@@ -2241,7 +2236,7 @@ Mapper5::debug_audio_state() const
 	state.type = ExpansionAudioType::MMC5;
 	state.name = "MMC5";
 	state.output = audio_output();
-	state.output_maximum = 255;
+	state.output_maximum = 285;
 
 
 	// -------------------------------------------------------------------------

@@ -315,7 +315,7 @@ virtual void reset()
 // Returns:
 //   Current unsigned expansion-audio level.
 // -----------------------------------------------------------------------------
-virtual uint8_t 
+virtual int32_t
 audio_output() const
 {
 	return 0;

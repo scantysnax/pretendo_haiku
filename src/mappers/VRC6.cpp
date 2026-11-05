@@ -802,33 +802,39 @@ VRC6::clock_irq()
 // -----------------------------------------------------------------------------
 // VRC6::audio_output
 //
-// Returns the current combined VRC6 expansion-audio output level.
+// Returns the current combined VRC6 expansion-audio output.
 //
 // The two pulse channels and sawtooth channel feed a common linear output.
 // Each pulse contributes a level from 0-15 and the sawtooth contributes a
 // level from 0-31, giving a combined raw range of 0-61.
 //
+// Muted channels are excluded from the audible mix while their internal
+// state continues advancing.
+//
+// Parameters:
+//   None.
+//
 // Returns:
 //   Current combined VRC6 expansion-audio level in the range 0-61.
 // -----------------------------------------------------------------------------
-uint8_t
+int32_t
 VRC6::audio_output() const
 {
-	uint8_t output = 0;
+    int32_t output = 0;
 
-	if (!audio_channel_muted_[0]) {
-		output += pulse1_.output();
-	}
+    if (!audio_channel_muted_[0]) {
+        output += pulse1_.output();
+    }
 
-	if (!audio_channel_muted_[1]) {
-		output += pulse2_.output();
-	}
+    if (!audio_channel_muted_[1]) {
+        output += pulse2_.output();
+    }
 
-	if (!audio_channel_muted_[2]) {
-		output += saw_.output();
-	}
+    if (!audio_channel_muted_[2]) {
+        output += saw_.output();
+    }
 
-	return output;
+    return output;
 }
 
 

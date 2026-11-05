@@ -720,7 +720,7 @@ mix_channels_raw()
     double expansionOut = 0.0;
 
     if (nes::cart.mapper() != nullptr) {
-        const int32_t mapperOutput = static_cast<int32_t>(nes::cart.mapper()->audio_output());
+        const int32_t mapperOutput = nes::cart.mapper()->audio_output();
         const int32_t mapperBias = nes::cart.mapper()->audio_output_bias();
 
         expansionOut = 0.00752 * static_cast<double>(mapperOutput - mapperBias);

@@ -1640,36 +1640,34 @@ VRC7::update_fm_output()
 // -----------------------------------------------------------------------------
 // VRC7::audio_output
 //
-// Returns the current composite VRC7 FM output through the generic mapper
-// expansion-audio interface.
+// Returns the current VRC7 FM expansion-audio output.
 //
-// The internal VRC7 FM mix is signed.  It is normalized by the established
-// VRC7 output scaling and biased around 128 for the generic unsigned
-// mapper-audio interface.
+// The internal FM signal is signed. It is scaled and converted to an
+// unsigned representation centered around 128.
 //
-// Parameters:
-//   None.
+// The generic APU mixer subtracts audio_output_bias() (128) to restore
+// a zero-centered signal.
 //
 // Returns:
-//   Current VRC7 expansion-audio sample.
+//   Current VRC7 expansion-audio sample in the range 0-255.
 // -----------------------------------------------------------------------------
-uint8_t
+int32_t
 VRC7::audio_output() const
 {
-	if (audio_silenced_) {
-		return 128;
-	}
+    if (audio_silenced_) {
+        return 128;
+    }
 
-	int32_t output = fm_output_ / 192;
-	output += 128;
+    int32_t output = fm_output_ / 192;
+    output += 128;
 
-	if (output < 0) {
-		output = 0;
-	} else if (output > 255) {
-		output = 255;
-	}
+    if (output < 0) {
+        output = 0;
+    } else if (output > 255) {
+        output = 255;
+    }
 
-	return static_cast<uint8_t>(output);
+    return output;
 }
 
 

@@ -566,26 +566,29 @@ constexpr size_t APU_SCOPE_EXPANSION_CHANNEL_CAPACITY = 8;
 // -----------------------------------------------------------------------------
 // scope_sample_t
 //
-// Describes one captured APU oscilloscope sample.
+// Stores one instantaneous APU oscilloscope sample.
 //
-// Native APU channel outputs and mapper-provided expansion-audio outputs are
-// captured at the same host-audio sampling instant.  expansion_channel_count
-// identifies how many entries in expansion[] are valid for this sample.
+// Native APU channels and individual expansion-audio channels retain their
+// existing unsigned eight-bit output representations.
 //
-// mixed contains the final mixed PCM sample produced by the normal audio path.
+// The combined expansion-audio output uses a signed 32-bit value to
+// accommodate the wider mapper audio interface without truncation.
+//
+// The mixed sample represents the final unsigned eight-bit host PCM output.
 // -----------------------------------------------------------------------------
 struct scope_sample_t {
-	uint8_t square1 = 0;
-	uint8_t square2 = 0;
-	uint8_t triangle = 0;
-	uint8_t noise = 0;
-	uint8_t dmc = 0;
+    uint8_t square1 = 0;
+    uint8_t square2 = 0;
+    uint8_t triangle = 0;
+    uint8_t noise = 0;
+    uint8_t dmc = 0;
 
-	uint8_t expansion[APU_SCOPE_EXPANSION_CHANNEL_CAPACITY] = {};
-	size_t expansion_channel_count = 0;
-	uint8_t expansion_total = 0;
+    uint8_t expansion[APU_SCOPE_EXPANSION_CHANNEL_CAPACITY] = {};
+    size_t expansion_channel_count = 0;
 
-	float mixed = 0.0f;
+    int32_t expansion_total = 0;
+
+    float mixed = 0.0f;
 };
 
 

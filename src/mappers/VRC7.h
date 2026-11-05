@@ -254,7 +254,7 @@ class VRC7 : public Mapper
 	void update_fm_output();
 	
 	private:
-	uint8_t audio_output() const override;
+	int32_t audio_output() const override;
 	size_t audio_channel_count() const override;
 	const char *audio_channel_name (size_t index) const override;
 	bool audio_channel_muted(size_t index) const override;

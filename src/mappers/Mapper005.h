@@ -175,7 +175,7 @@ class Mapper5 final : public Mapper
 	const char *audio_channel_name (size_t index) const override;
 	bool audio_channel_muted (size_t index) const override;
 	void set_audio_channel_muted (size_t index, bool muted) override;
-	uint8_t audio_output() const override;
+	int32_t audio_output() const override;
 	
 	mapper_audio_scope_sample_t debug_audio_scope_sample() const override;
 	mapper_audio_debug_state_t debug_audio_state() const override;
