@@ -1581,8 +1581,9 @@ debug_remove_execute_breakpoint (uint16_t address)
 	sExecuteBreakpointAddress[address] = false;
 	sExecuteBreakpointHitCount[address] = 0;
 
-	if ((sDebugBreakpointHit && sDebugBreakpointHitAddress) == address) {
-		debug_clear_breakpoint_hit();
+	if (sDebugBreakpointHit && sDebugBreakReason == DEBUG_BREAK_EXECUTE && 
+		sDebugBreakpointHitAddress == address) {
+    	debug_clear_breakpoint_hit();
 	}
 }
 

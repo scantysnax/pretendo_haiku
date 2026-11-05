@@ -27,6 +27,7 @@ CPP_FILES := \
 	libines2/lib/Rom.cpp	\
 	\
 	src/Apu.cpp \
+	src/AudioResampler.cpp \
 	src/Bus.cpp \
 	src/Cart.cpp \
 	src/Controller.cpp \

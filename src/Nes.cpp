@@ -57,78 +57,118 @@ frame_scanline_buffer()
 }
 
 
+
 // -----------------------------------------------------------------------------
 // nes::run_frame
 //
-// Executes or resumes one NES frame.
+// Executes or resumes one NES frame from the PPU's current scanline.
 //
-// Frame execution is derived directly from the PPU's persistent vpos/hpos state.
-// If a debugger BreakPoint interrupts a scanline, the function returns without
-// losing the current PPU position. The next call resumes that same scanline.
+// The PPU maintains its own scanline (vpos_) and dot (hpos_) positions.
+// Therefore, the frame dispatcher must not assume that every invocation begins
+// at the prerender scanline.
 //
-// Visible-scanline pixel storage is persistent so an interrupted visible line can
-// continue rendering into the same 256-pixel buffer after debugger resume.
+// A debugger breakpoint may interrupt execution anywhere in a frame. On resume,
+// this function selects the correct scanline handler for the saved PPU position.
+//
+// The PPU's execute_scanline() implementation is responsible for preserving
+// the dot position and any pending CPU/APU timing slot.
+//
+// The persistent visible-scanline buffer allows an interrupted rendering line
+// to continue writing into the same pixel storage.
 //
 // Parameters:
-//   output - Host video-output interface receiving completed scanlines and the
-//            frame-latched scroll position.
+//   output - Host video-output interface.
 //
 // Returns:
-//   true  - A complete NES frame finished.
-//   false - Execution stopped before the frame finished.
+//   true  - The remainder of the current NES frame completed.
+//   false - Execution was interrupted before the frame completed.
 // -----------------------------------------------------------------------------
 bool
 run_frame(FrameOutput *output)
 {
-	if (!output) {
-		return false;
-	}
+    if (!output) {
+        return false;
+    }
 
-	/*
-	 * Scanline 0 is the pre-render scanline in Pretendo's
-	 * current PPU numbering.
-	 */
-	if (!nes::ppu::execute_scanline(nes::ppu::scanline_prerender{})) {
-		return false;
-	}
+    /*
+     * Continue from the PPU's current scanline instead of always
+     * restarting at the prerender scanline.
+     */
+    while (true) {
+        const uint16_t scanline = nes::ppu::scanline();
 
-	/*
-	 * Visible scanlines 1..240 correspond to output rows 0..239.
-	 *
-	 * Use the persistent scanline buffer so normal execution and
-	 * debugger stepping operate on the same rendering storage.
-	 */
-	for (int y = 0; y < 240; ++y) {
-		uint32_t *buffer = frame_scanline_buffer();
+        /*
+         * Scanline 262 is the frame-transition position.
+         *
+         * The PPU's prerender handler calls start_frame() at this
+         * boundary, resetting vpos_ to zero. Scanline zero is also
+         * used for prerender immediately after a PPU reset.
+         */
+        if (scanline == 0 || scanline == 262) {
+            if (!nes::ppu::execute_scanline(
+                    nes::ppu::scanline_prerender{})) {
+                return false;
+            }
 
-		if (!nes::ppu::execute_scanline(nes::ppu::scanline_render(buffer))) {
-			return false;
-		}
+            continue;
+        }
 
-		output->SubmitScanline(y, buffer);
-	}
+        /*
+         * Visible scanlines 1..240 correspond to output rows 0..239.
+         *
+         * Keep using the persistent buffer so partial scanlines
+         * survive debugger interruptions.
+         */
+        if (scanline >= 1 && scanline <= 240) {
+            uint32_t *buffer = frame_scanline_buffer();
 
-	/*
-	 * Scanline 241 is the post-render scanline.
-	 */
-	if (!nes::ppu::execute_scanline(nes::ppu::scanline_postrender{})) {
-		return false;
-	}
+            if (!nes::ppu::execute_scanline(
+                    nes::ppu::scanline_render(buffer))) {
+                return false;
+            }
 
-	/*
-	 * Scanlines 242..261 are vblank.
-	 */
-	for (int scanline = 242; scanline <= 261; ++scanline) {
-		if (!nes::ppu::execute_scanline(nes::ppu::scanline_vblank{})) {
-			return false;
-		}
-	}
+            output->SubmitScanline(scanline - 1, buffer);
+            continue;
+        }
 
-	/*
-	 * Scanline 262 is handled by the PPU's frame-transition
-	 * logic when execution reaches the next frame.
-	 */
-	return true;
+        /*
+         * Scanline 241 is post-render.
+         */
+        if (scanline == 241) {
+            if (!nes::ppu::execute_scanline(
+                    nes::ppu::scanline_postrender{})) {
+                return false;
+            }
+
+            continue;
+        }
+
+        /*
+         * Scanlines 242..261 are the vblank period.
+         */
+        if (scanline >= 242 && scanline <= 261) {
+            if (!nes::ppu::execute_scanline(
+                    nes::ppu::scanline_vblank{})) {
+                return false;
+            }
+
+            /*
+             * Completing scanline 261 advances the PPU to 262,
+             * marking the end of this frame.
+             */
+            if (scanline == 261) {
+                return true;
+            }
+
+            continue;
+        }
+
+        /*
+         * An unexpected scanline value indicates inconsistent
+         * PPU timing state. Do not spin indefinitely.
+         */
+        return false;
+    }
 }
 
 

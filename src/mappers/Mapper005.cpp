@@ -101,6 +101,131 @@ Mapper5::name() const
 }
 
 
+
+// -----------------------------------------------------------------------------
+// Mapper5::update_prg_mapping
+//
+// Rebuilds the MMC5 CPU PRG-ROM and PRG-RAM mappings from the current operating
+// mode and the stored $5113-$5117 bank registers.
+//
+// PRG-RAM is selected by a clear bit 7 in the appropriate bank register.
+// The $E000-$FFFF region is always PRG-ROM.
+//
+// RAM mappings use 4 KB page pointers, while the base Mapper maintains
+// the underlying PRG-ROM page table.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+Mapper5::update_prg_mapping()
+{
+    const bool writable =
+        prg_ram_protect1_ == 0x02 && prg_ram_protect2_ == 0x01;
+
+    /*
+     * Map one 8 KB RAM bank into the specified CPU address.
+     *
+     * The current storage contains eight 8 KB banks (64 KB total).
+     * Each bank occupies two entries in the 4 KB RAM page table.
+     */
+    const auto map_ram_8k = [&](uint16_t address, uint8_t bank) {
+        const uint8_t selected = bank & 0x07;
+        const uint8_t page = address >> 12;
+
+        uint8_t *base = prg_ram_[selected >> 2] + ((selected & 0x03) * 0x2000);
+        prg_ram_banks_[page] = base;
+        prg_ram_banks_[page + 1] = base + 0x1000;
+
+        debug_set_prg_bank((address - 0x6000) / 0x2000, address, selected, 
+        				  MapperDebugMemoryType::PRGRAM, true, writable);
+    };
+
+    /*
+     * Select one 8 KB region as ROM or RAM.
+     *
+     * Even when RAM is selected, keep the underlying ROM mapping current.
+     * The RAM page pointers determine which memory the CPU actually sees.
+     */
+    const auto map_8k = [&](uint16_t address, uint8_t value) {
+        const uint8_t bank = value & 0x7f;
+
+        switch (address) {
+        case 0x8000: set_prg_89(bank); break;
+        case 0xa000: set_prg_ab(bank); break;
+        case 0xc000: set_prg_cd(bank); break;
+        case 0xe000: set_prg_ef(bank); break;
+        }
+
+        if (!(value & 0x80) && address != 0xe000) {
+            map_ram_8k(address, value);
+        }
+    };
+
+    /*
+     * Select one 16 KB region as ROM or two consecutive RAM banks.
+     */
+    const auto map_16k = [&](uint16_t address, uint8_t value) {
+        const uint8_t first = (value & 0x7f) & 0x7e;
+
+        if (address == 0x8000) {
+            set_prg_89ab(first >> 1);
+        } else {
+            set_prg_cdef(first >> 1);
+        }
+
+        if (!(value & 0x80) && address == 0x8000) {
+            map_ram_8k(0x8000, first);
+            map_ram_8k(0xa000, first + 1);
+        }
+    };
+
+    /*
+     * Clear all switchable RAM pointers before rebuilding mappings.
+     */
+    for (int page = 0x06; page <= 0x0d; ++page) {
+        prg_ram_banks_[page] = nullptr;
+    }
+
+    /*
+     * $6000-$7FFF always selects PRG-RAM independently of PRG mode.
+     */
+    map_ram_8k(0x6000, prg_bank_[0]);
+
+    switch (prg_mode_ & 0x03) {
+    case 0x00:
+        // One 32 KB ROM bank controlled by $5117.
+        set_prg_89abcdef((prg_bank_[4] & 0x7f) >> 2);
+        break;
+
+    case 0x01:
+        // 16 KB RAM/ROM at $8000 and 16 KB ROM at $C000.
+        map_16k(0x8000, prg_bank_[2]);
+        set_prg_cdef((prg_bank_[4] & 0x7f) >> 1);
+        break;
+
+    case 0x02:
+        // 16 KB RAM/ROM, followed by two 8 KB regions.
+        map_16k(0x8000, prg_bank_[2]);
+        map_8k(0xc000, prg_bank_[3]);
+        set_prg_ef(prg_bank_[4] & 0x7f);
+        break;
+
+    case 0x03:
+        // Four independent 8 KB regions, with uppermost always ROM.
+        map_8k(0x8000, prg_bank_[1]);
+        map_8k(0xa000, prg_bank_[2]);
+        map_8k(0xc000, prg_bank_[3]);
+        set_prg_ef(prg_bank_[4] & 0x7f);
+        break;
+    }
+}
+
+
+
 // -----------------------------------------------------------------------------
 // Mapper5::write_5
 //
@@ -109,6 +234,11 @@ Mapper5::name() const
 // This range contains the MMC5 expansion-audio registers, PRG/CHR banking,
 // PRG-RAM protection, ExRAM, nametable mapping, fill mode, vertical split,
 // scanline IRQs, and hardware multiplier registers.
+//
+// PRG mapping changes are centralized in update_prg_mapping(). This ensures
+// that the currently selected PRG mode and all five stored PRG bank registers
+// are applied together, preventing stale PRG-RAM mappings when switching
+// between banking modes.
 //
 // Parameters:
 //   address - CPU address being written.
@@ -120,340 +250,316 @@ Mapper5::name() const
 void
 Mapper5::write_5(uint_least16_t address, uint8_t value)
 {
-	switch (address) {
-	// MMC5 pulse 1.
-	case 0x5000:
-		pulse_[0].duty = (value >> 6) & 0x03;
-		pulse_[0].length_halt = (value & 0x20) != 0;
-		pulse_[0].constant_volume = (value & 0x10) != 0;
-		pulse_[0].volume = value & 0x0f;
-		break;
-
-	case 0x5002:
-		pulse_[0].period = (pulse_[0].period & 0x0700) | value;
-		break;
-
-	case 0x5003:
-		pulse_[0].period = (pulse_[0].period & 0x00ff) | ((static_cast<uint16_t>(value & 0x07)) << 8);
-
-		if (pulse_[0].enabled) {
-			pulse_[0].length_counter = kMMC5LengthTable[(value >> 3) & 0x1f];
-		}
-
-		pulse_[0].sequence_step = 0;
-		pulse_[0].envelope_start = true;
-		break;
-
-
-	// MMC5 pulse 2.
-	case 0x5004:
-		pulse_[1].duty = (value >> 6) & 0x03;
-		pulse_[1].length_halt = (value & 0x20) != 0;
-		pulse_[1].constant_volume = (value & 0x10) != 0;
-		pulse_[1].volume = value & 0x0f;
-		break;
+    switch (address) {
 
-	case 0x5006:
-		pulse_[1].period = (pulse_[1].period & 0x0700) | value;
-		break;
+    // -------------------------------------------------------------------------
+    // MMC5 pulse channel 1
+    // -------------------------------------------------------------------------
 
-	case 0x5007:
-		pulse_[1].period = (pulse_[1].period & 0x00ff) | ((static_cast<uint16_t>(value & 0x07)) << 8);
+    case 0x5000:
+        pulse_[0].duty = (value >> 6) & 0x03;
+        pulse_[0].length_halt = (value & 0x20) != 0;
+        pulse_[0].constant_volume = (value & 0x10) != 0;
+        pulse_[0].volume = value & 0x0f;
+        break;
 
-		if (pulse_[1].enabled) {
-			pulse_[1].length_counter = kMMC5LengthTable[(value >> 3) & 0x1f];
-		}
-
-		pulse_[1].sequence_step = 0;
-		pulse_[1].envelope_start = true;
-		break;
-
-
-	// MMC5 PCM.
-	case 0x5010:
-		pcm_.read_mode = (value & 0x01) != 0;
-		pcm_.irq_enabled = (value & 0x80) != 0;
-
-		if (!pcm_.irq_enabled) {
-			pcm_.irq_pending = false;
-		}
-
-		update_irq_line();
-		break;
-
-	case 0x5011:
-    	if (!pcm_.read_mode && value != 0) {
-        	pcm_.value = value;
-    	}
-    	break;
-
-	case 0x5015:
-		pulse_[0].enabled = (value & 0x01) != 0;
-		pulse_[1].enabled = (value & 0x02) != 0;
-
-		if (!pulse_[0].enabled) {
-			pulse_[0].length_counter = 0;
-		}
-
-		if (!pulse_[1].enabled) {
-			pulse_[1].length_counter = 0;
-		}
-		break;
-
-
-	// MMC5 operating modes and memory-control registers.
-	case 0x5100:
-		prg_mode_ = value & 0x03;
-		break;
-
-	case 0x5101:
-		chr_mode_ = value & 0x03;
-		debug_update_chr_mapping();
-		break;
-
-	case 0x5102:
-		prg_ram_protect1_ = value & 0x03;
-		break;
-
-	case 0x5103:
-		prg_ram_protect2_ = value & 0x03;
-		break;
-
-	case 0x5104:
-		exram_mode_ = value & 0x03;
-		break;
-
-	case 0x5105:
-		mirroring_mode_ = value;
-		set_mirroring(value);
-		break;
-
-	case 0x5106:
-		fill_mode_tile_ = value;
-		break;
-
-	case 0x5107:
-		fill_mode_attr_ = value & 0x03;
-		break;
-
-
-	// PRG-RAM bank at $6000-$7FFF.
-	case 0x5113:
-		prg_bank_[0] = value;
-
-		prg_ram_banks_[0x06] = prg_ram_[(value >> 2) & 0x01] + (((value & 0x03) * 0x2000) & 0x7fff) + 0x0000;
-		prg_ram_banks_[0x07] = prg_ram_[(value >> 2) & 0x01] + (((value & 0x03) * 0x2000) & 0x7fff) + 0x1000;
-		break;
-
-
-	case 0x5114:
-		prg_bank_[1] = value;
-
-		switch (prg_mode_) {
-		case 0x00:
-		case 0x01:
-		case 0x02:
-			break;
-
-		case 0x03:
-			if (value & 0x80) {
-				set_prg_89(value & 0x7f);
-
-				prg_ram_banks_[0x08] = nullptr;
-				prg_ram_banks_[0x09] = nullptr;
-			} else {
-				prg_ram_banks_[0x08] = prg_ram_[(value >> 2) & 0x01] + (((value & 0x03) * 0x2000) & 0x7fff) + 0x0000;
-				prg_ram_banks_[0x09] = prg_ram_[(value >> 2) & 0x01] + (((value & 0x03) * 0x2000) & 0x7fff) + 0x1000;
-			}
-			break;
-		}
-		break;
-
-
-	case 0x5115:
-		prg_bank_[2] = value;
-
-		switch (prg_mode_) {
-		case 0x00:
-			break;
-
-		case 0x01:
-			if (value & 0x80) {
-				set_prg_89ab((value & 0x7f) >> 1);
-
-				prg_ram_banks_[0x08] = nullptr;
-				prg_ram_banks_[0x09] = nullptr;
-				prg_ram_banks_[0x0a] = nullptr;
-				prg_ram_banks_[0x0b] = nullptr;
-			} else {
-				prg_ram_banks_[0x08] = prg_ram_[(value >> 2) & 0x01] + (((value & 0x03) * 0x2000) & 0x7fff) + 0x0000;
-				prg_ram_banks_[0x09] = prg_ram_[(value >> 2) & 0x01] + (((value & 0x03) * 0x2000) & 0x7fff) + 0x1000;
-				prg_ram_banks_[0x0a] = prg_ram_[(value >> 2) & 0x01] + (((value & 0x03) * 0x2000) & 0x7fff) + 0x0000;
-				prg_ram_banks_[0x0b] = prg_ram_[(value >> 2) & 0x01] + (((value & 0x03) * 0x2000) & 0x7fff) + 0x1000;
-			}
-			break;
-
-		case 0x02:
-		case 0x03:
-			if (value & 0x80) {
-				set_prg_ab(value & 0x7f);
-
-				prg_ram_banks_[0x0a] = nullptr;
-				prg_ram_banks_[0x0b] = nullptr;
-			} else {
-				prg_ram_banks_[0x0a] = prg_ram_[(value >> 2) & 0x01] + (((value & 0x03) * 0x2000) & 0x7fff) + 0x0000;
-				prg_ram_banks_[0x0b] = prg_ram_[(value >> 2) & 0x01] + (((value & 0x03) * 0x2000) & 0x7fff) + 0x1000;
-			}
-			break;
-		}
-		break;
-
-
-	case 0x5116:
-		prg_bank_[3] = value;
-
-		switch (prg_mode_) {
-		case 0x00:
-		case 0x01:
-			break;
-
-		case 0x02:
-		case 0x03:
-			if (value & 0x80) {
-				set_prg_cd(value & 0x7f);
-
-				prg_ram_banks_[0x0c] = nullptr;
-				prg_ram_banks_[0x0d] = nullptr;
-			} else {
-				prg_ram_banks_[0x0c] = prg_ram_[(value >> 2) & 0x01] + (((value & 0x03) * 0x2000) & 0x7fff) + 0x0000;
-				prg_ram_banks_[0x0d] = prg_ram_[(value >> 2) & 0x01] + (((value & 0x03) * 0x2000) & 0x7fff) + 0x1000;
-			}
-			break;
-		}
-		break;
-
-
-	case 0x5117:
-		prg_bank_[4] = value;
-
-		switch (prg_mode_) {
-		case 0x00:
-			set_prg_89abcdef((value & 0x7f) >> 2);
-
-			prg_ram_banks_[0x08] = nullptr;
-			prg_ram_banks_[0x09] = nullptr;
-			prg_ram_banks_[0x0a] = nullptr;
-			prg_ram_banks_[0x0b] = nullptr;
-			prg_ram_banks_[0x0c] = nullptr;
-			prg_ram_banks_[0x0d] = nullptr;
-			break;
-
-		case 0x01:
-			set_prg_cdef((value & 0x7f) >> 1);
-
-			prg_ram_banks_[0x0c] = nullptr;
-			prg_ram_banks_[0x0d] = nullptr;
-			break;
-
-		case 0x02:
-		case 0x03:
-			set_prg_ef(value & 0x7f);
-			break;
-		}
-		break;
-
-
-	// Sprite CHR bank registers.
-	case 0x5120:
-	case 0x5121:
-	case 0x5122:
-	case 0x5123:
-	case 0x5124:
-	case 0x5125:
-	case 0x5126:
-	case 0x5127:
-		last_chr_write_ = CHR_BANK_A;
-		sp_chr_banks_[address & 0x07] = value;
-
-		debug_update_chr_mapping();
-		break;
-
-
-	// Background CHR bank registers.
-	case 0x5128:
-	case 0x5129:
-	case 0x512a:
-	case 0x512b:
-	case 0x512c:
-	case 0x512d:
-	case 0x512e:
-	case 0x512f:
-		last_chr_write_ = CHR_BANK_B;
-
-		bg_chr_banks_[(address & 0x07) ^ 0x00] = value;
-		bg_chr_banks_[(address & 0x07) ^ 0x04] = value;
-
-		debug_update_chr_mapping();
-		break;
-
-
-	case 0x5130:
-		bg_char_upper_ = value << 8;
-		debug_update_chr_mapping();
-		break;
-
-
-	// Vertical split.
-	case 0x5200:
-		vertical_split_mode_ = value;
-		break;
-
-	case 0x5201:
-		vertical_split_scroll_ = value;
-		break;
-
-	case 0x5202:
-		vertical_split_bank_ = value;
-		break;
-
-
-	// Scanline IRQ.
-	case 0x5203:
-		irq_target_ = value;
-		break;
-
-	case 0x5204:
-		irq_enabled_ = (value & 0x80) != 0;
-		update_irq_line();
-		break;
-
-
-	// Hardware multiplier.
-	case 0x5205:
-		multiplier_1_ = value;
-		break;
-
-	case 0x5206:
-		multiplier_2_ = value;
-		break;
-
-
-	default:
-		if (address >= 0x5c00) {
-			switch (exram_mode_ & 0x03) {
-			case 0x00:
-			case 0x01:
-			case 0x02:
-				exram_[address & 0x03ff] = value;
-				break;
-
-			case 0x03:
-				break;
-			}
-		}
-		break;
-	}
+    case 0x5002:
+        pulse_[0].period = (pulse_[0].period & 0x0700) | value;
+        break;
+
+    case 0x5003:
+        pulse_[0].period = (pulse_[0].period & 0x00ff) | (static_cast<uint16_t>(value & 0x07) << 8);
+
+        if (pulse_[0].enabled) {
+            pulse_[0].length_counter = kMMC5LengthTable[(value >> 3) & 0x1f];
+        }
+
+        pulse_[0].sequence_step = 0;
+        pulse_[0].envelope_start = true;
+        break;
+
+
+    // -------------------------------------------------------------------------
+    // MMC5 pulse channel 2
+    // -------------------------------------------------------------------------
+
+    case 0x5004:
+        pulse_[1].duty = (value >> 6) & 0x03;
+        pulse_[1].length_halt = (value & 0x20) != 0;
+        pulse_[1].constant_volume = (value & 0x10) != 0;
+        pulse_[1].volume = value & 0x0f;
+        break;
+
+    case 0x5006:
+        pulse_[1].period = (pulse_[1].period & 0x0700) | value;
+        break;
+
+    case 0x5007:
+        pulse_[1].period = (pulse_[1].period & 0x00ff) | (static_cast<uint16_t>(value & 0x07) << 8);
+
+        if (pulse_[1].enabled) {
+            pulse_[1].length_counter = kMMC5LengthTable[(value >> 3) & 0x1f];
+        }
+
+        pulse_[1].sequence_step = 0;
+        pulse_[1].envelope_start = true;
+        break;
+
+
+    // -------------------------------------------------------------------------
+    // MMC5 PCM channel
+    // -------------------------------------------------------------------------
+
+    case 0x5010:
+        pcm_.read_mode = (value & 0x01) != 0;
+        pcm_.irq_enabled = (value & 0x80) != 0;
+
+        if (!pcm_.irq_enabled) {
+            pcm_.irq_pending = false;
+        }
+
+        update_irq_line();
+        break;
+
+    case 0x5011:
+        if (!pcm_.read_mode && value != 0) {
+            pcm_.value = value;
+        }
+        break;
+
+
+    // -------------------------------------------------------------------------
+    // MMC5 pulse channel enables
+    // -------------------------------------------------------------------------
+
+    case 0x5015:
+        pulse_[0].enabled = (value & 0x01) != 0;
+        pulse_[1].enabled = (value & 0x02) != 0;
+
+        if (!pulse_[0].enabled) {
+            pulse_[0].length_counter = 0;
+        }
+
+        if (!pulse_[1].enabled) {
+            pulse_[1].length_counter = 0;
+        }
+        break;
+
+
+    // -------------------------------------------------------------------------
+    // MMC5 operating modes and memory-control registers
+    // -------------------------------------------------------------------------
+
+    // PRG banking mode: 32 KB, 16 KB, mixed, or 8 KB.
+    case 0x5100:
+        prg_mode_ = value & 0x03;
+        update_prg_mapping();
+        break;
+
+    // CHR banking mode.
+    case 0x5101:
+        chr_mode_ = value & 0x03;
+        debug_update_chr_mapping();
+        break;
+
+    // PRG-RAM write protection, first register.
+    case 0x5102:
+        prg_ram_protect1_ = value & 0x03;
+        update_prg_mapping();
+        break;
+
+    // PRG-RAM write protection, second register.
+    case 0x5103:
+        prg_ram_protect2_ = value & 0x03;
+        update_prg_mapping();
+        break;
+
+    // ExRAM operating mode.
+    case 0x5104:
+        exram_mode_ = value & 0x03;
+        break;
+
+    // Nametable mapping.
+    case 0x5105:
+        mirroring_mode_ = value;
+        set_mirroring(value);
+        break;
+
+    // Fill-mode tile.
+    case 0x5106:
+        fill_mode_tile_ = value;
+        break;
+
+    // Fill-mode attribute.
+    case 0x5107:
+        fill_mode_attr_ = value & 0x03;
+        break;
+
+
+    // -------------------------------------------------------------------------
+    // MMC5 PRG bank registers
+    //
+    // $5113 selects PRG-RAM at $6000-$7FFF.
+    //
+    // $5114-$5117 select the remaining PRG banks according to the operating
+    // mode in $5100.
+    //
+    // Store the raw bank-register value and rebuild all active mappings.
+    // This prevents stale RAM pointers and ensures that previously written
+    // registers take effect when the banking mode changes.
+    // -------------------------------------------------------------------------
+
+    // PRG-RAM bank at $6000-$7FFF.
+    case 0x5113:
+        prg_bank_[0] = value;
+        update_prg_mapping();
+        break;
+
+    // PRG bank register for $8000 in 8 KB mode.
+    case 0x5114:
+        prg_bank_[1] = value;
+        update_prg_mapping();
+        break;
+
+    // PRG bank register for $A000 in 8 KB mode,
+    // or $8000-$BFFF in 16 KB and mixed modes.
+    case 0x5115:
+        prg_bank_[2] = value;
+        update_prg_mapping();
+        break;
+
+    // PRG bank register for $C000-$DFFF in 8 KB and mixed modes.
+    case 0x5116:
+        prg_bank_[3] = value;
+        update_prg_mapping();
+        break;
+
+    // Final PRG bank register.
+    // The uppermost CPU region is always mapped to PRG-ROM.
+    case 0x5117:
+        prg_bank_[4] = value;
+        update_prg_mapping();
+        break;
+
+
+    // -------------------------------------------------------------------------
+    // MMC5 sprite CHR bank registers
+    // -------------------------------------------------------------------------
+
+    case 0x5120:
+    case 0x5121:
+    case 0x5122:
+    case 0x5123:
+    case 0x5124:
+    case 0x5125:
+    case 0x5126:
+    case 0x5127:
+        last_chr_write_ = CHR_BANK_A;
+
+        sp_chr_banks_[address & 0x07] = value;
+
+        debug_update_chr_mapping();
+        break;
+
+
+    // -------------------------------------------------------------------------
+    // MMC5 background CHR bank registers
+    // -------------------------------------------------------------------------
+
+    case 0x5128:
+    case 0x5129:
+    case 0x512a:
+    case 0x512b:
+    case 0x512c:
+    case 0x512d:
+    case 0x512e:
+    case 0x512f:
+        last_chr_write_ = CHR_BANK_B;
+
+        bg_chr_banks_[(address & 0x07) ^ 0x00] = value;
+        bg_chr_banks_[(address & 0x07) ^ 0x04] = value;
+
+        debug_update_chr_mapping();
+        break;
+
+
+    // -------------------------------------------------------------------------
+    // MMC5 upper CHR bank bits
+    // -------------------------------------------------------------------------
+
+    case 0x5130:
+        bg_char_upper_ = value << 8;
+        debug_update_chr_mapping();
+        break;
+
+
+    // -------------------------------------------------------------------------
+    // MMC5 vertical split registers
+    // -------------------------------------------------------------------------
+
+    case 0x5200:
+        vertical_split_mode_ = value;
+        break;
+
+    case 0x5201:
+        vertical_split_scroll_ = value;
+        break;
+
+    case 0x5202:
+        vertical_split_bank_ = value;
+        break;
+
+
+    // -------------------------------------------------------------------------
+    // MMC5 scanline IRQ registers
+    // -------------------------------------------------------------------------
+
+    case 0x5203:
+        irq_target_ = value;
+        break;
+
+    case 0x5204:
+        irq_enabled_ = (value & 0x80) != 0;
+        update_irq_line();
+        break;
+
+
+    // -------------------------------------------------------------------------
+    // MMC5 hardware multiplier
+    // -------------------------------------------------------------------------
+
+    case 0x5205:
+        multiplier_1_ = value;
+        break;
+
+    case 0x5206:
+        multiplier_2_ = value;
+        break;
+
+
+    // -------------------------------------------------------------------------
+    // MMC5 ExRAM ($5C00-$5FFF)
+    // -------------------------------------------------------------------------
+
+    default:
+        if (address >= 0x5c00) {
+            switch (exram_mode_ & 0x03) {
+
+            case 0x00:
+            case 0x01:
+            case 0x02:
+                exram_[address & 0x03ff] = value;
+                break;
+
+            case 0x03:
+                // Writes are disabled in ExRAM mode 3.
+                break;
+            }
+        }
+        break;
+    }
 }
+
 
 // -----------------------------------------------------------------------------
 // Mapper5::write_6

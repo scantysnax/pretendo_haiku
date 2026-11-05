@@ -156,6 +156,7 @@ class Mapper5 final : public Mapper
 	void clock_irq();
 	void write_handler (uint_least16_t address, uint8_t value);
 	uint8_t read_handler (uint_least16_t address);
+	void update_prg_mapping();
 	void update_irq_line();
 	uint8_t read_pcm_memory (uint_least16_t address);
 	
@@ -227,7 +228,20 @@ class Mapper5 final : public Mapper
 	mmc5_debug_state_t debug_state() const;
 	
 	private:
-	uint8_t prg_bank_[5] = {};
+	// Initial PRG bank selections.
+	//
+	// $5113 selects PRG-RAM at $6000-$7FFF.
+	// $5114-$5117 default to ROM selections until programmed by the game.
+	//
+	// Bit 7 selects PRG-ROM for the switchable banks.
+	// Bank $7F resolves through the cartridge's PRG-ROM mask.
+	uint8_t prg_bank_[5] = {
+    	0x00,
+    	0xff,
+    	0xff,
+    	0xff,
+    	0xff
+	};
 
 	mmc5_pulse_channel_t pulse_[2];
 	mmc5_pcm_channel_t pcm_;

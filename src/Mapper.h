@@ -288,7 +288,7 @@ class Mapper
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-virtual void set_ppu_fetch_type(PPUFetchType type)
+virtual void set_ppu_fetch_type (PPUFetchType type)
 {
 	(void)type;
 }
@@ -430,7 +430,6 @@ debug_audio_scope_sample() const
 {
 	return {};
 }
-
 
 	protected:
 	uint8_t read_memory (uint_least16_t address);

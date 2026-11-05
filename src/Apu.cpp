@@ -8,6 +8,8 @@
 
 #include "Nes.h"
 
+#include "AudioResampler.h"
+
 #include <algorithm>
 #include <iostream>
 
@@ -44,15 +46,16 @@ union apu_frame_counter_t {
 
 constexpr double kCPUFrequency = 1789772.7272; // 1.7897727272MHz
 
-// Fractional host-audio sample scheduler.
+// -----------------------------------------------------------------------------
+// Shared band-limited audio resampler.
 //
-// One kOutputFrequency increment is accumulated for every CPU/APU clock.
-// Whenever the accumulator reaches one CPU clock-rate's worth of phase,
-// one output sample is generated.
+// Receives the combined native APU and expansion-audio output once per
+// emulated CPU cycle.
 //
-// This avoids truncating 37.2869... CPU clocks/sample to 37 clocks/sample
-// when running at 48 kHz.
-double sample_phase_ = 0.0;
+// Generates filtered host audio at kOutputFrequency without changing the
+// timing or state of the underlying audio channels.
+// -----------------------------------------------------------------------------
+AudioResampler audio_resampler(kCPUFrequency, static_cast<double>(kOutputFrequency), 20000.0);
 
 
 // Global APU frame-sequencer timing state.
@@ -728,25 +731,28 @@ mix_channels_raw()
 
 
 
+
  // -----------------------------------------------------------------------------
  // mix_channels
  //
- // Produces one unsigned 8-bit host PCM sample from the instantaneous
- // mixed channel output.
+ // Converts one band-limited mixed-audio sample into unsigned 8-bit host PCM.
  //
- // This remains the legacy sampling path until the shared band-limited
- // resampler is introduced.
+ // The input has already been filtered and resampled to the host audio rate.
+ //
+ // A one-pole high-pass filter removes DC offset before the sample is
+ // centered around unsigned 8-bit PCM silence.
+ //
+ // The filter state is advanced exactly once per generated host sample.
  //
  // Parameters:
- //   None.
+ //   input - Band-limited mixed-audio amplitude.
  //
  // Returns:
  //   Mixed unsigned 8-bit PCM sample.
  // -----------------------------------------------------------------------------
 uint8_t
-mix_channels()
+mix_channels (double input)
 {
-    const double input = mix_channels_raw();
     constexpr double R = 0.995;
     const double output = input - sDCBlockPreviousInput + R * sDCBlockPreviousOutput;
 
@@ -858,6 +864,7 @@ reset (reset_type type)
 
 	sDCBlockPreviousInput  = 0.0;
 	sDCBlockPreviousOutput = 0.0;
+	
 
 	debug_clear_scope();
 	debug_clear_frame_events();
@@ -911,14 +918,26 @@ reset (reset_type type)
 	//       nop
 	//     reset:
 	if (type == reset_type::hard) {
-	exec<2>();
-}
+		exec<2>();
+	}
 
 	/*
- 	* Seed the DC blocker with the triangle DAC level that already exists after
- 	* reset.  The held triangle DAC is not a newly generated signal transition.
- 	*/
-	sDCBlockPreviousInput = 0.00851 * static_cast<double>(triangle.output()) * 255.0;
+ 	 * Initialize the resampler history from the current mixed signal.
+ 	 *
+ 	 * This prevents an existing, held DAC level from appearing as a
+ 	 * sudden transition when audio generation begins.
+ 	 */
+	const double initialAudioLevel = mix_channels_raw();
+
+	audio_resampler.reset(initialAudioLevel);
+
+	/*
+	 * Initialize the DC blocker at the same signal level.
+ 	 *
+ 	 * The resampler has unity DC gain, so a constant signal should
+ 	 * initially produce silence after DC blocking.
+ 	 */
+	sDCBlockPreviousInput = initialAudioLevel;
 	sDCBlockPreviousOutput = 0.0;
 
 	std::cout << "APU Reset complete" << std::endl;
@@ -1415,70 +1434,90 @@ write4017 (uint8_t value)
 }
 
 
-// -----------------------------------------------------------------------------
-// tick
-//
-// Advances the APU by one APU cycle.
-//
-// This handles frame-counter timing, IRQ generation, audio sample generation,
-// debugger oscilloscope capture, and channel clocking.
-//
-// The mixed audio sample is generated exactly once per host output sample.  The
-// debugger scope captures that already-generated sample so the stateful
-// DC-blocking filter inside mix_channels() is not advanced more than once.
-//
-// Parameters:
-//   None.
-//
-// Returns:
-//   Nothing.
-// -----------------------------------------------------------------------------
+
+ // -----------------------------------------------------------------------------
+ // tick
+ //
+ // Advances the APU by one CPU cycle.
+ //
+ // Handles frame-counter timing, IRQ generation, band-limited audio sample
+ // generation, debugger oscilloscope capture, and native channel clocking.
+ //
+ // The shared resampler receives one raw mixed-audio level per emulated CPU
+ // cycle. This includes both native APU and cartridge expansion audio.
+ //
+ // When the resampler produces a host-rate sample, the DC blocker and PCM
+ // conversion are applied exactly once.
+ //
+ // Parameters:
+ //   None.
+ //
+ // Returns:
+ //   Nothing.
+ // -----------------------------------------------------------------------------
 void
 tick()
 {
-	if (!(frame_counter_.inhibit_frame_irq) && status.frame_irq) {
-		cpu::irq(cpu::APU_IRQ);
-	}
+    if (!(frame_counter_.inhibit_frame_irq) && status.frame_irq) {
+        cpu::irq(cpu::APU_IRQ);
+    }
 
-	if (apu_cycles_ == next_clock_) {
-		if (frame_counter_.mode) {
-			clock_frame_mode_1();
-		} else {
-			clock_frame_mode_0();
-		}
-	}
+    if (apu_cycles_ == next_clock_) {
+        if (frame_counter_.mode) {
+            clock_frame_mode_1();
+        } else {
+            clock_frame_mode_0();
+        }
+    }
 
-	/*
-	 * Generate host PCM at the exact requested average output rate.
-	 *
-	 * At 48 kHz the NTSC CPU rate gives approximately
-	 * 37.2869 CPU clocks per host sample, so an integer modulo period
-	 * cannot represent the rate accurately.
-	 */
-	sample_phase_ += static_cast<double>(kOutputFrequency);
+    /*
+     * Feed the current mixed audio level into the shared resampler.
+     *
+     * The mapper has already advanced through CPU synchronization.
+     * The native APU state is sampled at the same position relative
+     * to its channel clocks as in the original implementation.
+     *
+     * The FIR filter removes ultrasonic components before producing
+     * samples at the host output frequency.
+     */
+    double filteredSample = 0.0;
 
-	if (sample_phase_ >= kCPUFrequency) {
-		sample_phase_ -= kCPUFrequency;
+    if (audio_resampler.clock(mix_channels_raw(), filteredSample)) {
+        /*
+         * Apply DC blocking and convert the filtered signal to
+         * unsigned 8-bit host PCM.
+         */
+        const uint8_t mixedSample = mix_channels(filteredSample);
 
-		const uint8_t mixedSample = mix_channels();
-		capture_scope_sample(mixedSample);
+        /*
+         * Capture the already-generated mixed sample.
+         *
+         * This avoids advancing the stateful DC blocker more than
+         * once for each host sample.
+         */
+        capture_scope_sample(mixedSample);
 
-		if (debug_audio_is_muted()) {
-			sample_buffer_[sample_buffer_end] = kSilence;
-		} else {
-			sample_buffer_[sample_buffer_end] = mixedSample;
-		}
+        if (debug_audio_is_muted()) {
+            sample_buffer_[sample_buffer_end] = kSilence;
+        } else {
+            sample_buffer_[sample_buffer_end] = mixedSample;
+        }
 
-		sample_buffer_end = (sample_buffer_end + 1) % sizeof(sample_buffer_);
-	}
+        sample_buffer_end = (sample_buffer_end + 1) % sizeof(sample_buffer_);
+    }
 
-	dmc.tick();
-	noise.tick();
-	triangle.tick();
-	square_0.tick();
-	square_1.tick();
+    /*
+     * Advance the native APU channels.
+     *
+     * Preserve the existing clock order.
+     */
+    dmc.tick();
+    noise.tick();
+    triangle.tick();
+    square_0.tick();
+    square_1.tick();
 
-	++apu_cycles_;
+    ++apu_cycles_;
 }
 
 

@@ -4101,74 +4101,106 @@ PretendoWindow::end_frame()
 // -----------------------------------------------------------------------------
 // PretendoWindow::emulator_thread
 //
-// Main emulator thread. In windowed mode, controller input is handled by
-// PretendoView key events. In fullscreen mode, global key polling is used
-// because normal BView keyboard focus may not be reliable.
+// Main emulator worker thread.
 //
-// The thread waits while emulation is stopped instead of continuously
-// reacquiring the emulator mutex. This allows the UI thread to acquire the
-// mutex reliably when stopping or unloading a ROM.
+// Executes NES frames while normal emulation is running. When a CPU debugger
+// breakpoint interrupts a frame, the incomplete frame is not presented, and
+// normal execution is suspended until the debugger explicitly resumes it.
 //
-// Global polling is disabled while debugger input is active or while the
-// emulator is debugger-paused, preventing debugger shortcuts from leaking into
-// NES controller input.
+// The emulator mutex is released before waiting in the debugger-paused state,
+// allowing debugger windows to inspect CPU, PPU, APU, and mapper state.
 //
 // Parameters:
-//   data - PretendoWindow pointer.
+//   data - Pointer to the owning PretendoWindow.
 //
 // Returns:
-//   B_OK when the thread exits.
+//   B_OK when the worker thread exits.
 // -----------------------------------------------------------------------------
 status_t
 PretendoWindow::emulator_thread (void *data)
 {
-	PretendoWindow* window = reinterpret_cast<PretendoWindow*>(data);
+    PretendoWindow *window = reinterpret_cast<PretendoWindow *>(data);
 
-	while (1) {
-		/*
-		 * When emulation has been stopped, do not compete with the UI thread
-		 * for the emulator mutex. OnRun() will set fRunning and release the
-		 * mutex when execution should resume.
-		 */
-		if (!window->fRunning) {
-			snooze(1000);
+    while (true) {
 
-			/*
-			 * LockMutex() returning false is also how the existing shutdown
-			 * path tells this thread that the mutex no longer exists.
-			 */
-			if (!window->fMutex) {
-				break;
-			}
+        /*
+         * When emulation is stopped, do not compete with the main window
+         * for the emulator mutex.
+         */
+        if (!window->fRunning) {
+            snooze(1000);
 
-			continue;
-		}
+            if (!window->fMutex) {
+                break;
+            }
 
-		if (window->LockMutex() == false) {
-			break;
-		}
+            continue;
+        }
 
-		if (!nes::ppu::system_paused) {
-			window->start_frame();
-			nes::run_frame(window);
-			window->end_frame();
+        /*
+         * Acquire exclusive access to the emulation core before executing
+         * the next portion of the NES frame.
+         */
+        if (!window->LockMutex()) {
+            break;
+        }
 
-			if (window->ShouldPollGlobalInput()) {
-				window->ReadKeyStates();
-			}
-		}
+        if (!nes::ppu::system_paused) {
 
-		window->UnlockMutex();
+            window->start_frame();
 
-		if (nes::ppu::system_paused) {
-			snooze(10000);
-		}
-	}
+            /*
+             * run_frame() returns false if an execution breakpoint,
+             * memory watchpoint, or other debugger stop interrupts
+             * execution before the frame finishes.
+             */
+            const bool frameCompleted = nes::run_frame(window);
 
-	return B_OK;
+            if (frameCompleted) {
+
+                /*
+                 * Only present video and transfer audio after an
+                 * entire frame has completed.
+                 */
+                window->end_frame();
+
+                if (window->ShouldPollGlobalInput()) {
+                    window->ReadKeyStates();
+                }
+
+            } else if (nes::cpu::debug_breakpoint_hit()) {
+
+                /*
+                 * The CPU has stopped at a debugger condition.
+                 *
+                 * Suspend normal PPU execution so the worker does not
+                 * repeatedly attempt the same interrupted CPU cycle.
+                 *
+                 * Leave the CPU breakpoint latch intact. It will be
+                 * cleared by DebugResumeExecution().
+                 */
+                window->fDebuggerPausedEmulation = true;
+                nes::ppu::system_paused = true;
+            }
+        }
+
+        /*
+         * Always release the mutex, including when a debugger
+         * breakpoint has interrupted execution.
+         */
+        window->UnlockMutex();
+
+        /*
+         * Avoid spinning while the debugger owns the paused state.
+         * The GUI remains free to receive keyboard and mouse events.
+         */
+        if (nes::ppu::system_paused) {
+            snooze(10000);
+        }
+    }
+
+    return B_OK;
 }
-
-
 
 
 // -----------------------------------------------------------------------------
@@ -5223,9 +5255,15 @@ PretendoWindow::LoadROMPath (const char* path)
 // -----------------------------------------------------------------------------
 // PretendoWindow::DebugResumeExecution
 //
-// Leaves debugger step mode, clears controller input, restores audio, releases
-// the debugger-owned pause state, resumes normal PPU execution, and refreshes
-// debugger windows.
+// Resumes normal emulator execution after a debugger-controlled stop.
+//
+// The CPU breakpoint latch must be released before allowing the PPU to run
+// again.  debug_resume_past_breakpoint() handles execute and stack breakpoints
+// at instruction boundaries, as well as memory watchpoints encountered during
+// an instruction.
+//
+// Controller input is cleared, debugger audio muting is disabled, and the
+// debugger-owned pause state is released.
 //
 // Parameters:
 //   None.
@@ -5236,19 +5274,24 @@ PretendoWindow::LoadROMPath (const char* path)
 void
 PretendoWindow::DebugResumeExecution()
 {
-	ClearControllerInput();
+    // Release the CPU breakpoint latch and prepare the next instruction
+    // boundary appropriately for the type of breakpoint that was hit.
+    nes::cpu::debug_resume_past_breakpoint();
 
-	nes::apu::debug_set_audio_muted(false);
+    ClearControllerInput();
 
-	if (fAudioStream) {
-		fAudioStream->ClearBuffer();
-		fAudioStream->SetMuted(false);
+    nes::apu::debug_set_audio_muted(false);
+
+    if (fAudioStream) {
+    	fAudioStream->ClearBuffer();
+    	fAudioStream->ResetPacing();
+    	fAudioStream->SetMuted(false);
 	}
 
-	fDebuggerPausedEmulation = false;
-	nes::ppu::system_paused = false;
+    fDebuggerPausedEmulation = false;
+    nes::ppu::system_paused = false;
 
-	InvalidateDebugViews();
+    InvalidateDebugViews();
 }
 
 
