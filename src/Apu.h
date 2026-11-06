@@ -54,7 +54,8 @@ class DMC;
 union apu_status_t {
 	uint8_t raw;
 
-	// Channel status bits.
+	// Channel activity/status bit positions for $4015.
+	// read4015() reconstructs the effective status from channel state.
 	BitField<uint8_t, 0> square1_enabled;
 	BitField<uint8_t, 1> square2_enabled;
 	BitField<uint8_t, 2> triangle_enabled;
@@ -217,68 +218,73 @@ struct dmc_debug_state_t {
 // -----------------------------------------------------------------------------
 // debug_state_t
 //
-// Side-effect-free debugger snapshot of the complete NES APU state.
+// Side-effect-free debugger snapshot of the native NES APU state.
 //
-// The structure captures global APU timing and frame-counter state, interrupt
-// status, debugger audio-mute state, and the current effective state of all
-// five audio channels.
+// Contains global APU timing, frame-counter and interrupt state,
+// debugger-controlled host audio-mute state, individual channel state,
+// and the instantaneous native APU mixed output.
 //
-// This is intended for debugger/UI inspection and does not itself modify APU
-// behavior.
+// The mixed output uses the nonlinear NES pulse and triangle/noise/DMC
+// mixing equations. Cartridge expansion audio is not included.
+//
+// This structure is intended for debugger/UI inspection and does not
+// itself modify APU behavior or advance audio-processing state.
 // -----------------------------------------------------------------------------
 struct debug_state_t {
-	// Current global APU cycle count.
-	uint64_t cycle = 0;
+    // Current global APU cycle count.
+    uint64_t cycle = 0;
 
-	// Frame-counter state.
-	bool five_step_mode = false;
-	bool frame_irq_inhibit = false;
-	uint8_t frame_step = 0;
+    // Frame-counter state.
+    bool five_step_mode = false;
+    bool frame_irq_inhibit = false;
+    uint8_t frame_step = 0;
 
-	// APU cycle at which the next frame-counter event is scheduled.
-	uint64_t next_frame_cycle = 0;
+    // APU cycle at which the next frame-counter event is scheduled.
+    uint64_t next_frame_cycle = 0;
 
-	// Reconstructed $4015-style APU status value.
-	uint8_t status = 0;
+    // Reconstructed $4015-style APU status value.
+    uint8_t status = 0;
 
-	// Current interrupt flags.
-	bool frame_irq = false;
-	bool dmc_irq = false;
+    // Current interrupt flags.
+    bool frame_irq = false;
+    bool dmc_irq = false;
 
-	// Debugger-controlled host audio mute state.
-	bool audio_muted = false;
+    // Debugger-controlled host audio mute state.
+    bool audio_muted = false;
 
-	// Current native APU mixed output level before mapper expansion audio and
-	// before the DC-blocking filter.
-	uint8_t output = 0;
+    // Instantaneous native APU output, calculated using the nonlinear
+    // pulse and triangle/noise/DMC mixing equations.
+    //
+    // This is a raw mixer level, scaled to the nominal 0-255 range.
+    // It excludes cartridge expansion audio and is measured before
+    // FIR resampling, DC blocking, and final PCM conversion.
+    //
+    // A nonzero value does not necessarily indicate audible sound:
+    // the triangle and DMC DACs can retain nonzero output levels
+    // even when their channels are no longer actively playing.
+    uint8_t output = 0;
 
-	/* 
-	Full-scale value used by debugger output meters.
-	The 217 comes from the maximum possible level of the exact native weighting already used by this emulator:
-	
-	Square 1 + Square 2: 0.00752 *× 30
-	Triangle:            0.00851 ×* 15
-	Noise:               0.00494 *× 15
-	DMC:                 0.00335 ×* 127
-	----------------------------------
-                        		0.8528
-	0.8528 ×* 255 = ~217
-	*/
-	uint8_t output_maximum = 217;
+    // Nominal full-scale reference for the nonlinear native APU mixer.
+    //
+    // Used to normalize the Global APU output meter in the debugger.
+    // This is a display reference, not an exact hardware maximum.
+    //
+    // Cartridge expansion audio is excluded.
+    uint8_t output_maximum = 255;
 
-	// Square-channel debugger state.
-	square_debug_state_t square1;
-	square_debug_state_t square2;
+    // Square-channel debugger state.
+    square_debug_state_t square1;
+    square_debug_state_t square2;
 
-	// Remaining APU channel debugger state.
-	triangle_debug_state_t triangle;
-	noise_debug_state_t noise;
-	dmc_debug_state_t dmc;
+    // Remaining native APU channel debugger state.
+    triangle_debug_state_t triangle;
+    noise_debug_state_t noise;
+    dmc_debug_state_t dmc;
 };
+
 
 // Returns a side-effect-free snapshot of the current APU and channel state.
 debug_state_t debug_state();
-
 
 
 // -----------------------------------------------------------------------------
@@ -299,42 +305,38 @@ debug_state_t debug_state();
 // -----------------------------------------------------------------------------
 struct frame_sequencer_debug_state_t {
 	// Current global APU cycle count.
-	uint64_t apu_cycle;
+	uint64_t apu_cycle = {};
 
 	// Cycle at which the next frame-sequencer event will occur.
-	uint64_t next_event_cycle;
+	uint64_t next_event_cycle = {};
 
 	// Number of APU cycles remaining until the next scheduled event.
-	uint64_t cycles_until_next_event;
+	uint64_t cycles_until_next_event = {};
 
 	// Next internal sequencer step and total number of internal steps.
-	uint8_t next_step;
-	uint8_t step_count;
+	uint8_t next_step = {};
+	uint8_t step_count = {};
 
 	// true when the frame counter is operating in 5-step mode.
-	bool five_step_mode;
+	bool five_step_mode = {};
 
 	// Frame-IRQ control and current frame-IRQ state.
-	bool irq_inhibit;
-	bool frame_irq;
+	bool irq_inhibit = {};
+	bool frame_irq = {};
 
 	// Operations performed by the next scheduled sequencer event.
-	bool next_event_quarter_frame;
-	bool next_event_half_frame;
-	bool next_event_irq_point;
+	bool next_event_quarter_frame = {};
+	bool next_event_half_frame = {};
+	bool next_event_irq_point = {};
 
 	// Most recently programmed $4017 frame-counter register value.
-	uint8_t frame_counter_register;
+	uint8_t frame_counter_register = {};
 };
 
 
 // Returns a side-effect-free snapshot of the current APU frame sequencer.
 frame_sequencer_debug_state_t debug_frame_sequencer_state();
 
-
-// -----------------------------------------------------------------------------
-// APU frame-sequencer event history
-// -----------------------------------------------------------------------------
 
 // -----------------------------------------------------------------------------
 // APU frame-sequencer event history
@@ -375,19 +377,19 @@ enum apu_frame_event_type {
 // -----------------------------------------------------------------------------
 struct frame_event_t {
 	// APU cycle on which the event occurred.
-	uint64_t cycle;
+	uint64_t cycle = {};
 
 	// Type of frame-sequencer event.
-	apu_frame_event_type type;
+	apu_frame_event_type type = {};
 
 	// Internal frame-sequencer step that generated the event.
-	uint8_t step;
+	uint8_t step = {};
 
 	// true when the event occurred while using the 5-step sequence.
-	bool five_step_mode;
+	bool five_step_mode = {};
 
 	// Frame-IRQ inhibit state when the event occurred.
-	bool irq_inhibit;
+	bool irq_inhibit = {};
 };
 
 
@@ -428,10 +430,7 @@ bool debug_audio_is_muted();
 constexpr uint32_t APU_WRITE_LOG_CAPACITY = 256;
 
 
-// -----------------------------------------------------------------------------
-// APU register-write history
-// -----------------------------------------------------------------------------
-
+// Identifies whether a log entry came from the native APU or a mapper.
 enum class write_log_source_t : uint8_t
 {
 	NATIVE_APU,
@@ -472,16 +471,9 @@ struct write_log_entry_t
 	bool has_external_frequency_control;
 };
 
-uint32_t write_log_count();
-
-uint32_t
-write_log_snapshot (write_log_entry_t *entries, uint32_t capacity);
-
-void clear_write_log();
-
-void
-log_external_audio_write (uint16_t address, uint8_t value, uint16_t timerPeriod, bool hasTimerPeriod, 
-						  uint8_t frequencyControl);
+// -----------------------------------------------------------------------------
+// APU register-write history interface
+// -----------------------------------------------------------------------------
 
 // Returns the number of valid entries currently stored in the write log.
 uint32_t write_log_count();
@@ -492,9 +484,13 @@ uint32_t write_log_snapshot(write_log_entry_t *entries, uint32_t capacity);
 // Clears the debugger APU register-write history.
 void clear_write_log();
 
-void
-log_external_audio_write (uint16_t address, uint8_t value, uint16_t timerPeriod, bool hasTimerPeriod,
-						  uint8_t frequencyControl);
+// Records a mapper expansion-audio register write.
+void log_external_audio_write(
+    uint16_t address,
+    uint8_t value,
+    uint16_t timerPeriod,
+    bool hasTimerPeriod,
+    uint8_t frequencyControl);
 
 
 // -----------------------------------------------------------------------------
@@ -503,7 +499,7 @@ log_external_audio_write (uint16_t address, uint8_t value, uint16_t timerPeriod,
 // Side-effect-free debugger snapshot of the most recently programmed raw APU
 // register values.
 //
-// Unlike apu_debug_state_t, which reports effective channel state, this
+// Unlike debug_state_t, which reports effective channel state, this
 // structure preserves the raw values most recently written by the CPU so the
 // APU Explorer can show exactly how each channel was programmed.
 //
@@ -544,8 +540,10 @@ explorer_state_t explorer_state();
 //
 // Defines the rolling debugger sample history used by the APU Scope.
 //
-// Each sample captures the instantaneous output level of the five individual
-// APU channels together with the already-generated final mixed PCM sample.
+// Each sample captures raw instantaneous levels of the five native APU
+// channels and the mapper expansion channels, plus the already-generated
+// final mixed PCM sample. The latter has passed through resampling and
+// DC blocking; the raw channel levels have not.
 //
 // This history is intended for debugger/UI inspection and does not affect APU
 // timing, mixing, or host audio output.
@@ -574,7 +572,8 @@ constexpr size_t APU_SCOPE_EXPANSION_CHANNEL_CAPACITY = 8;
 // The combined expansion-audio output uses a signed 32-bit value to
 // accommodate the wider mapper audio interface without truncation.
 //
-// The mixed sample represents the final unsigned eight-bit host PCM output.
+// The mixed sample stores the already-generated unsigned eight-bit host PCM
+// output (as a float for debugger display), unlike the raw channel values.
 // -----------------------------------------------------------------------------
 struct scope_sample_t {
     uint8_t square1 = 0;
@@ -655,7 +654,25 @@ void mute_channel(int const channel);
 void unmute_channel(int const channel);
 
 
-// Copies mixed APU samples into the host buffer, repeating the last sample if needed.
+// -----------------------------------------------------------------------------
+// read_samples
+//
+// Copies available mixed APU samples into the caller's host-audio buffer.
+//
+// Normally, only samples actually generated by the APU are returned. When
+// fewer samples are available than requested, the function returns the number
+// copied without padding the remainder of the destination buffer.
+//
+// When debugger audio mute is active, the requested buffer is filled with
+// unsigned eight-bit PCM silence instead.
+//
+// Parameters:
+//   buffer - Destination PCM buffer.
+//   size   - Maximum number of samples to copy.
+//
+// Returns:
+//   Number of samples written to the destination buffer.
+// -----------------------------------------------------------------------------
 size_t read_samples(uint8_t *buffer, size_t size);
 
 

@@ -149,7 +149,7 @@ AudioResampler::filtered_sample(std::size_t phase) const
 {
     const auto &filter = coefficients_[phase];
 
-    std::size_t index = (write_index_ == 0) ? kTapCount - 1 : write_index_ - 1;\
+    std::size_t index = (write_index_ == 0) ? kTapCount - 1 : write_index_ - 1;
     double output = 0.0;
 
     for (std::size_t tap = 0; tap < kTapCount; ++tap) {

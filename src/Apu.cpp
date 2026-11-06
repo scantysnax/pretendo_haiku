@@ -113,10 +113,6 @@ uint8_t sample_buffer_[kBufferSize];
 size_t sample_buffer_start = 0;
 size_t sample_buffer_end   = 0;
 
-// Most recently emitted host PCM sample, used when the buffer runs short.
-static uint8_t sLastOutputSample = kSilence;
-
-
 // Rolling APU register-write log and ring-buffer bookkeeping.
 static nes::apu::write_log_entry_t write_log_[nes::apu::APU_WRITE_LOG_CAPACITY];
 static uint32_t write_log_next_ = 0;
@@ -688,68 +684,133 @@ clock_frame_mode_1()
 
 
 
- // -----------------------------------------------------------------------------
- // mix_channels_raw
- //
- // Returns the instantaneous, unfiltered output of the native APU and mapper
- // expansion audio.
- //
- // This function does not modify filter state, quantize the sample, or write
- // to the host audio buffer.
- //
- // Parameters:
- //   None.
- //
- // Returns:
- //   Raw mixed audio amplitude.
- // -----------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// mix_native_channels_raw
+//
+// Computes the instantaneous native NES APU output using the nonlinear
+// pulse and triangle/noise/DMC mixing equations.
+//
+// These equations approximate the nonlinear DAC mixing characteristics
+// of the original NES hardware.
+//
+// This function excludes cartridge expansion audio and does not modify
+// the FIR resampler, DC-blocking filter, or host PCM buffer.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Native APU output on the nominal 0-255 scale.
+// -----------------------------------------------------------------------------
 static double
-mix_channels_raw()
+mix_native_channels_raw()
 {
+    // Read the instantaneous native APU channel outputs.
     const int32_t square1Out = square_0.output();
     const int32_t square2Out = square_1.output();
     const int32_t triangleOut = triangle.output();
     const int32_t noiseOut = noise.output();
     const int32_t dmcOut = dmc.output();
 
-    const double squareOut =
-        0.00752 * (square1Out + square2Out);
+    // -------------------------------------------------------------------------
+    // Nonlinear pulse-channel mixing.
+    //
+    // The two pulse channels share a nonlinear DAC mixing circuit.
+    // -------------------------------------------------------------------------
 
-    const double tndOut = 0.00851 * triangleOut + 0.00494 * noiseOut + 0.00335 * dmcOut;
+    double squareOut = 0.0;
 
-    double expansionOut = 0.0;
+    const int32_t pulseSum = square1Out + square2Out;
 
-    if (nes::cart.mapper() != nullptr) {
-        const int32_t mapperOutput = nes::cart.mapper()->audio_output();
-        const int32_t mapperBias = nes::cart.mapper()->audio_output_bias();
-
-        expansionOut = 0.00752 * static_cast<double>(mapperOutput - mapperBias);
+    if (pulseSum > 0) {
+        squareOut = 95.88 / (8128.0 / static_cast<double>(pulseSum) + 100.0);
     }
 
-    return (squareOut + tndOut - expansionOut) * 255.0;
+    // -------------------------------------------------------------------------
+    // Nonlinear triangle/noise/DMC mixing.
+    //
+    // These three channels share a separate nonlinear mixing circuit.
+    // -------------------------------------------------------------------------
+
+    const double tndInput = static_cast<double>(triangleOut) / 8227.0 + 
+    						static_cast<double>(noiseOut) / 12241.0 + 
+    						static_cast<double>(dmcOut) / 22638.0;
+
+    double tndOut = 0.0;
+
+    if (tndInput > 0.0) {
+        tndOut = 159.79 / (1.0 / tndInput + 100.0);
+    }
+
+    // Convert the normalized native APU output to the existing
+    // nominal 0-255 mixer scale.
+    return (squareOut + tndOut) * 255.0;
 }
 
 
+// -----------------------------------------------------------------------------
+// mix_channels_raw
+//
+// Returns the instantaneous, unfiltered output of the native NES APU
+// and cartridge expansion audio.
+//
+// Native APU mixing is calculated by mix_native_channels_raw().
+//
+// Expansion audio is adjusted for the mapper's output bias and combined
+// using the emulator's existing polarity and scaling conventions.
+//
+// This function does not advance filter state, quantize the sample,
+// or write to the host audio buffer.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Combined native APU and expansion-audio amplitude.
+// -----------------------------------------------------------------------------
+static double
+mix_channels_raw()
+{
+    // Calculate the native APU output.
+    const double nativeOutput = mix_native_channels_raw();
+
+    double expansionOutput = 0.0;
+
+    if (nes::cart.mapper() != nullptr) {
+        const int32_t mapperOutput =
+            nes::cart.mapper()->audio_output();
+
+        const int32_t mapperBias =
+            nes::cart.mapper()->audio_output_bias();
+
+        expansionOutput =
+            0.00752 * static_cast<double>(mapperOutput - mapperBias);
+    }
+
+    // Preserve the existing expansion-audio polarity and gain.
+    return nativeOutput - (expansionOutput * 255.0);
+}
 
 
- // -----------------------------------------------------------------------------
- // mix_channels
- //
- // Converts one band-limited mixed-audio sample into unsigned 8-bit host PCM.
- //
- // The input has already been filtered and resampled to the host audio rate.
- //
- // A one-pole high-pass filter removes DC offset before the sample is
- // centered around unsigned 8-bit PCM silence.
- //
- // The filter state is advanced exactly once per generated host sample.
- //
- // Parameters:
- //   input - Band-limited mixed-audio amplitude.
- //
- // Returns:
- //   Mixed unsigned 8-bit PCM sample.
- // -----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// mix_channels
+//
+// Converts one band-limited mixed-audio sample into unsigned 8-bit host PCM.
+//
+// The input has already been filtered and resampled to the host audio rate.
+//
+// A one-pole high-pass filter removes DC offset before the sample is
+// centered around unsigned 8-bit PCM silence.
+//
+// The filter state is advanced exactly once per generated host sample.
+//
+// Parameters:
+//   input - Band-limited mixed-audio amplitude.
+//
+// Returns:
+//   Mixed unsigned 8-bit PCM sample.
+// -----------------------------------------------------------------------------
 uint8_t
 mix_channels (double input)
 {
@@ -859,8 +920,6 @@ reset (reset_type type)
 	 */
 	sample_buffer_start = 0;
 	sample_buffer_end   = 0;
-
-	sLastOutputSample = kSilence;
 
 	sDCBlockPreviousInput  = 0.0;
 	sDCBlockPreviousOutput = 0.0;
@@ -1434,33 +1493,45 @@ write4017 (uint8_t value)
 }
 
 
-
- // -----------------------------------------------------------------------------
- // tick
- //
- // Advances the APU by one CPU cycle.
- //
- // Handles frame-counter timing, IRQ generation, band-limited audio sample
- // generation, debugger oscilloscope capture, and native channel clocking.
- //
- // The shared resampler receives one raw mixed-audio level per emulated CPU
- // cycle. This includes both native APU and cartridge expansion audio.
- //
- // When the resampler produces a host-rate sample, the DC blocker and PCM
- // conversion are applied exactly once.
- //
- // Parameters:
- //   None.
- //
- // Returns:
- //   Nothing.
- // -----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// nes::apu::tick
+//
+// Advances the APU by one emulated CPU cycle.
+//
+// Handles frame-counter timing, interrupt generation, FIR audio resampling,
+// debugger oscilloscope capture, host PCM buffering, and channel clocking.
+//
+// The shared FIR resampler receives one raw mixed-audio value per CPU cycle.
+// When a host-rate sample becomes available, the DC blocker and unsigned
+// eight-bit PCM conversion are applied exactly once.
+//
+// The circular PCM buffer uses equal read/write positions to indicate an
+// empty buffer. One slot is therefore reserved to distinguish a full buffer
+// from an empty one.
+//
+// If the buffer becomes full, the oldest unread PCM sample is discarded
+// before the newly generated sample is queued.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 tick()
 {
+    // -------------------------------------------------------------------------
+    // Handle pending frame-counter interrupts.
+    // -------------------------------------------------------------------------
+
     if (!(frame_counter_.inhibit_frame_irq) && status.frame_irq) {
         cpu::irq(cpu::APU_IRQ);
     }
+
+    // -------------------------------------------------------------------------
+    // Advance the APU frame sequencer when its next event is due.
+    // -------------------------------------------------------------------------
 
     if (apu_cycles_ == next_clock_) {
         if (frame_counter_.mode) {
@@ -1470,53 +1541,77 @@ tick()
         }
     }
 
-    /*
-     * Feed the current mixed audio level into the shared resampler.
-     *
-     * The mapper has already advanced through CPU synchronization.
-     * The native APU state is sampled at the same position relative
-     * to its channel clocks as in the original implementation.
-     *
-     * The FIR filter removes ultrasonic components before producing
-     * samples at the host output frequency.
-     */
+    // -------------------------------------------------------------------------
+    // Feed the instantaneous mixed output into the FIR resampler.
+    //
+    // The mapper has already advanced through CPU synchronization.
+    // Native channel state is sampled before the channel clocks below,
+    // preserving the existing timing relationship.
+    // -------------------------------------------------------------------------
+
     double filteredSample = 0.0;
 
     if (audio_resampler.clock(mix_channels_raw(), filteredSample)) {
-        /*
-         * Apply DC blocking and convert the filtered signal to
-         * unsigned 8-bit host PCM.
-         */
+
+        // ---------------------------------------------------------------------
+        // Apply DC blocking and convert to unsigned 8-bit host PCM.
+        //
+        // This must occur exactly once per generated host sample.
+        // ---------------------------------------------------------------------
+
         const uint8_t mixedSample = mix_channels(filteredSample);
 
-        /*
-         * Capture the already-generated mixed sample.
-         *
-         * This avoids advancing the stateful DC blocker more than
-         * once for each host sample.
-         */
+        // ---------------------------------------------------------------------
+        // Capture the generated audio sample for the debugger oscilloscope.
+        //
+        // Capturing the existing PCM sample avoids advancing the
+        // stateful DC-blocking filter a second time.
+        // ---------------------------------------------------------------------
+
         capture_scope_sample(mixedSample);
 
-        if (debug_audio_is_muted()) {
-            sample_buffer_[sample_buffer_end] = kSilence;
-        } else {
-            sample_buffer_[sample_buffer_end] = mixedSample;
+        // ---------------------------------------------------------------------
+        // Apply debugger-controlled host audio muting.
+        //
+        // Muting affects the queued PCM output, not the underlying APU
+        // channel clocks or FIR resampler.
+        // ---------------------------------------------------------------------
+
+        const uint8_t outputSample = debug_audio_is_muted() ? kSilence : mixedSample;
+
+        // ---------------------------------------------------------------------
+        // Queue the PCM sample with circular-buffer overflow protection.
+        //
+        // The read and write indices must not become equal after writing,
+        // since equal positions represent an empty buffer.
+        //
+        // When full, advance the read index to discard the oldest
+        // unread sample and make room for the new one.
+        // ---------------------------------------------------------------------
+
+        const size_t nextWrite = (sample_buffer_end + 1) % kBufferSize;
+
+        if (nextWrite == sample_buffer_start) {
+            sample_buffer_start = (sample_buffer_start + 1) % kBufferSize;
         }
 
-        sample_buffer_end = (sample_buffer_end + 1) % sizeof(sample_buffer_);
+        sample_buffer_[sample_buffer_end] = outputSample;
+        sample_buffer_end = nextWrite;
     }
 
-    /*
-     * Advance the native APU channels.
-     *
-     * Preserve the existing clock order.
-     */
+    // -------------------------------------------------------------------------
+    // Advance the individual native APU channels.
+    //
+    // Preserve the original clock order.
+    // -------------------------------------------------------------------------
+
     dmc.tick();
     noise.tick();
     triangle.tick();
     square_0.tick();
     square_1.tick();
 
+    // Advance the global APU cycle counter.
     ++apu_cycles_;
 }
 
@@ -1574,8 +1669,6 @@ read_samples (uint8_t *buffer, size_t size)
 		}
 
 		sample_buffer_start = sample_buffer_end;
-		sLastOutputSample = kSilence;
-
 		return size;
 	}
 
@@ -1592,7 +1685,6 @@ read_samples (uint8_t *buffer, size_t size)
 		const uint8_t sample = sample_buffer_[sample_buffer_start];
 
 		buffer[i] = sample;
-		sLastOutputSample = sample;
 
 		sample_buffer_start = (sample_buffer_start + 1) % kBufferSize;
 		++i;
@@ -1712,132 +1804,204 @@ unmute_channel (int const channel)
 // -----------------------------------------------------------------------------
 // nes::apu::debug_state
 //
-// Returns a side-effect-free snapshot of the current APU state for debugger
-// views.
+// Returns a side-effect-free snapshot of the current native APU state for
+// the debugger views.
 //
-// This function intentionally avoids read4015(), because reading $4015 has
-// emulation-visible side effects, including clearing the frame IRQ flag.
+// Captures global frame-sequencer timing, interrupt status, channel enable
+// and mute states, timer settings, counters, and instantaneous output levels.
+//
+// The Global APU output is calculated using mix_native_channels_raw(),
+// which applies the existing linear native APU mixing approximation.
+//
+// This output excludes cartridge expansion audio and does not advance the
+// resampler, DC-blocking filter, or host PCM buffer.
+//
+// This function intentionally avoids read4015(), because reading $4015
+// has emulation-visible side effects, including clearing the frame IRQ.
 //
 // Parameters:
 //   None.
 //
 // Returns:
-//   Snapshot of the current APU and channel state.
+//   Side-effect-free snapshot of the current native APU state.
 // -----------------------------------------------------------------------------
 debug_state_t
 debug_state()
 {
-	debug_state_t state;
+    debug_state_t state;
 
-	state.cycle = apu_cycles_;
-	state.five_step_mode = frame_counter_.mode;
-	state.frame_irq_inhibit = frame_counter_.inhibit_frame_irq;
-	state.frame_step = clock_step_;
-	state.next_frame_cycle = next_clock_;
-	state.frame_irq = status.frame_irq;
-	state.dmc_irq = status.dmc_irq;
+    // -------------------------------------------------------------------------
+    // Global APU state
+    // -------------------------------------------------------------------------
 
-	state.audio_muted = debug_audio_is_muted();
+    state.cycle = apu_cycles_;
 
-	// square 1
-	state.square1.enabled = square_0.enabled();
-	state.square1.muted = square_0.debug_muted();
-	state.square1.timer_period = square_0.debug_timer_period();
-	state.square1.timer_frequency = square_0.debug_timer_frequency();
-	state.square1.duty = square_0.debug_duty();
-	state.square1.sequence_index = square_0.debug_sequence_index();
-	state.square1.length_counter = square_0.length_counter.debug_value();
-	state.square1.envelope_volume = square_0.envelope.debug_volume();
-	state.square1.sweep_enabled = square_0.sweep.debug_enabled();
-	state.square1.sweep_period = square_0.sweep.debug_period();
-	state.square1.sweep_negate = square_0.sweep.debug_negate();
-	state.square1.sweep_shift = square_0.sweep.debug_shift();
-	state.square1.sweep_silenced = square_0.sweep.debug_silenced();
-	state.square1.output = square_0.debug_output();
+    state.five_step_mode = frame_counter_.mode;
+    state.frame_irq_inhibit = frame_counter_.inhibit_frame_irq;
+    state.frame_step = clock_step_;
+    state.next_frame_cycle = next_clock_;
 
-	// square 2
-	state.square2.enabled = square_1.enabled();
-	state.square2.muted = square_1.debug_muted();
-	state.square2.timer_period = square_1.debug_timer_period();
-	state.square2.timer_frequency = square_1.debug_timer_frequency();
-	state.square2.duty = square_1.debug_duty();
-	state.square2.sequence_index = square_1.debug_sequence_index();
-	state.square2.length_counter = square_1.length_counter.debug_value();
-	state.square2.envelope_volume = square_1.envelope.debug_volume();
-	state.square2.sweep_enabled = square_1.sweep.debug_enabled();
-	state.square2.sweep_period = square_1.sweep.debug_period();
-	state.square2.sweep_negate = square_1.sweep.debug_negate();
-	state.square2.sweep_shift = square_1.sweep.debug_shift();
-	state.square2.sweep_silenced = square_1.sweep.debug_silenced();
-	state.square2.output = square_1.debug_output();
+    state.frame_irq = status.frame_irq;
+    state.dmc_irq = status.dmc_irq;
 
-	// triangle
-	state.triangle.enabled = triangle.enabled();
-	state.triangle.muted = triangle.debug_muted();
-	state.triangle.timer_period = triangle.debug_timer_period();
-	state.triangle.timer_frequency = triangle.debug_timer_frequency();
-	state.triangle.length_counter = triangle.length_counter.debug_value();
-	state.triangle.linear_counter = triangle.linear_counter.value();
-	state.triangle.sequence_index = triangle.debug_sequence_index();
-	state.triangle.output = triangle.output();
+    state.audio_muted = debug_audio_is_muted();
 
-	// noise
-	state.noise.enabled = noise.enabled();
-	state.noise.muted = noise.debug_muted();
-	state.noise.timer_period = noise.debug_timer_period();
-	state.noise.length_counter = noise.length_counter.debug_value();
-	state.noise.envelope_volume = noise.envelope.debug_volume();
-	state.noise.output = noise.debug_output();
+    // Capture the instantaneous native APU output for the Global APU meter.
+    // Do not include mapper expansion audio or advance the audio filters.
+    const double nativeOutput = mix_native_channels_raw();
 
-	// dmc
-	state.dmc.enabled = dmc.debug_enabled();
-	state.dmc.active = dmc.debug_active();
-	state.dmc.muted = dmc.debug_muted();
-	state.dmc.timer_period = dmc.debug_timer_period();
-	state.dmc.irq_enabled = dmc.debug_irq_enabled();
-	state.dmc.loop = dmc.debug_loop();
-	state.dmc.output = dmc.output();
-	state.dmc.sample_address = dmc.debug_sample_address();
-	state.dmc.current_address = dmc.debug_current_address();
-	state.dmc.sample_length = dmc.debug_sample_length();
-	state.dmc.bytes_remaining = dmc.bytes_remaining();
-	state.dmc.bits_remaining = dmc.debug_bits_remaining();
-	state.dmc.sample_buffer_empty = dmc.debug_sample_buffer_empty();
-	
-	// apu status (rebuilt from $4015 without reading it)
-	uint8_t status = 0x0;
+    state.output = static_cast<uint8_t>(std::clamp(nativeOutput, 0.0, 255.0));
 
-	if (state.square1.length_counter != 0) {
-		status |= 0x1;
-	}
 
-	if (state.square2.length_counter != 0) {
-		status |= 0x2;
-	}
+    // -------------------------------------------------------------------------
+    // Square 1
+    // -------------------------------------------------------------------------
 
-	if (state.triangle.length_counter != 0) {
-		status |= 0x4;
-	}
+    state.square1.enabled = square_0.enabled();
+    state.square1.muted = square_0.debug_muted();
 
-	if (state.noise.length_counter != 0) {
-		status |= 0x8;
-	}
+    state.square1.timer_period = square_0.debug_timer_period();
+    state.square1.timer_frequency = square_0.debug_timer_frequency();
 
-	if (state.dmc.bytes_remaining != 0) {
-		status |= 0x10;
-	}
+    state.square1.duty = square_0.debug_duty();
+    state.square1.sequence_index = square_0.debug_sequence_index();
 
-	if (state.frame_irq) {
-		status |= 0x40;
-	}
+    state.square1.length_counter = square_0.length_counter.debug_value();
+    state.square1.envelope_volume = square_0.envelope.debug_volume();
 
-	if (state.dmc_irq) {
-		status |= 0x80;
-	}
+    state.square1.sweep_enabled = square_0.sweep.debug_enabled();
+    state.square1.sweep_period = square_0.sweep.debug_period();
+    state.square1.sweep_negate = square_0.sweep.debug_negate();
+    state.square1.sweep_shift = square_0.sweep.debug_shift();
+    state.square1.sweep_silenced = square_0.sweep.debug_silenced();
 
-	state.status = status;
+    state.square1.output = square_0.debug_output();
 
-	return state;
+
+    // -------------------------------------------------------------------------
+    // Square 2
+    // -------------------------------------------------------------------------
+
+    state.square2.enabled = square_1.enabled();
+    state.square2.muted = square_1.debug_muted();
+
+    state.square2.timer_period = square_1.debug_timer_period();
+    state.square2.timer_frequency = square_1.debug_timer_frequency();
+
+    state.square2.duty = square_1.debug_duty();
+    state.square2.sequence_index = square_1.debug_sequence_index();
+
+    state.square2.length_counter = square_1.length_counter.debug_value();
+    state.square2.envelope_volume = square_1.envelope.debug_volume();
+
+    state.square2.sweep_enabled = square_1.sweep.debug_enabled();
+    state.square2.sweep_period = square_1.sweep.debug_period();
+    state.square2.sweep_negate = square_1.sweep.debug_negate();
+    state.square2.sweep_shift = square_1.sweep.debug_shift();
+    state.square2.sweep_silenced = square_1.sweep.debug_silenced();
+
+    state.square2.output = square_1.debug_output();
+
+
+    // -------------------------------------------------------------------------
+    // Triangle
+    // -------------------------------------------------------------------------
+
+    state.triangle.enabled = triangle.enabled();
+    state.triangle.muted = triangle.debug_muted();
+
+    state.triangle.timer_period = triangle.debug_timer_period();
+    state.triangle.timer_frequency = triangle.debug_timer_frequency();
+
+    state.triangle.length_counter = triangle.length_counter.debug_value();
+
+    state.triangle.linear_counter = triangle.linear_counter.value();
+    state.triangle.sequence_index = triangle.debug_sequence_index();
+
+    state.triangle.output = triangle.output();
+
+
+    // -------------------------------------------------------------------------
+    // Noise
+    // -------------------------------------------------------------------------
+
+    state.noise.enabled = noise.enabled();
+    state.noise.muted = noise.debug_muted();
+
+    state.noise.timer_period = noise.debug_timer_period();
+
+    state.noise.length_counter = noise.length_counter.debug_value();
+
+    state.noise.envelope_volume = noise.envelope.debug_volume();
+
+    state.noise.output = noise.debug_output();
+
+
+    // -------------------------------------------------------------------------
+    // DMC / DPCM
+    // -------------------------------------------------------------------------
+
+    state.dmc.enabled = dmc.debug_enabled();
+    state.dmc.active = dmc.debug_active();
+    state.dmc.muted = dmc.debug_muted();
+
+    state.dmc.timer_period = dmc.debug_timer_period();
+
+    state.dmc.irq_enabled = dmc.debug_irq_enabled();
+    state.dmc.loop = dmc.debug_loop();
+
+    state.dmc.output = dmc.output();
+
+    state.dmc.sample_address = dmc.debug_sample_address();
+    state.dmc.current_address = dmc.debug_current_address();
+    state.dmc.sample_length = dmc.debug_sample_length();
+
+    state.dmc.bytes_remaining = dmc.bytes_remaining();
+    state.dmc.bits_remaining = dmc.debug_bits_remaining();
+
+    state.dmc.sample_buffer_empty = dmc.debug_sample_buffer_empty();
+
+
+    // -------------------------------------------------------------------------
+    // Reconstruct $4015 status without reading the hardware register.
+    //
+    // The native channel bits indicate remaining length-counter or DMC
+    // sample activity, rather than simply reflecting channel enable flags.
+    // -------------------------------------------------------------------------
+
+    uint8_t statusValue = 0x00;
+
+    if (state.square1.length_counter != 0) {
+        statusValue |= 0x01;
+    }
+
+    if (state.square2.length_counter != 0) {
+        statusValue |= 0x02;
+    }
+
+    if (state.triangle.length_counter != 0) {
+        statusValue |= 0x04;
+    }
+
+    if (state.noise.length_counter != 0) {
+        statusValue |= 0x08;
+    }
+
+    if (state.dmc.bytes_remaining != 0) {
+        statusValue |= 0x10;
+    }
+
+    if (state.frame_irq) {
+        statusValue |= 0x40;
+    }
+
+    if (state.dmc_irq) {
+        statusValue |= 0x80;
+    }
+
+    state.status = statusValue;
+
+    return state;
 }
 
 
