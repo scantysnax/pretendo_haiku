@@ -378,7 +378,7 @@ AudioStream::PlayBuffer (void *buffer, size_t const size)
 			fPlayPosition = 0;
 		}
 	}
-
+		
 	fMutex->Unlock();
 }
 

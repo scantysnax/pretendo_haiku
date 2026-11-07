@@ -1905,23 +1905,30 @@ Mapper5::cpu_sync()
 // -----------------------------------------------------------------------------
 // Mapper5::audio_pulse_output
 //
-// Returns the current raw output level of one MMC5 pulse channel.
+// Returns the current instantaneous output level of one MMC5 pulse channel.
 //
-// A channel is silent when disabled, when its length counter has expired, or
-// when the active duty-sequence step is low.
+// A channel produces no output when disabled, when its length counter has
+// expired, or when the current duty-sequence step is low.
 //
-// MMC5 pulse channels do not have the native APU's minimum-period silence rule,
-// so timer periods below 8 are allowed to produce output.
+// Unlike native NES APU pulse channels, MMC5 pulse channels do not have
+// the minimum timer-period silence restriction. Timer periods below 8
+// are therefore permitted to produce output.
 //
-// Envelope timing has not yet been added, so constant-volume mode currently
-// uses the programmed volume directly.  Envelope mode will use envelope_decay
-// once the envelope clock is implemented.
+// In constant-volume mode, the channel uses its programmed four-bit
+// volume level.
+//
+// In envelope mode, the channel uses its current envelope decay level,
+// which is maintained by the MMC5 audio envelope clock.
+//
+// Debugger-controlled channel muting is handled by Mapper5::audio_output(),
+// rather than by this function. This allows the debugger to inspect the
+// underlying pulse waveform even when the channel is muted.
 //
 // Parameters:
 //   channel - MMC5 pulse channel whose output is requested.
 //
 // Returns:
-//   Current raw pulse output in the range 0-15.
+//   Current raw pulse output level in the range 0-15.
 // -----------------------------------------------------------------------------
 uint8_t
 Mapper5::audio_pulse_output (const mmc5_pulse_channel_t &channel) const

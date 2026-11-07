@@ -1,3 +1,4 @@
+
 #include "VRC6.h"
 #include "Apu.h"
 #include "Cpu.h"
@@ -8,6 +9,7 @@ namespace {
 constexpr double kVRC6NTSCClock = 1789773.0;
 
 }
+
 
 // -----------------------------------------------------------------------------
 // VRC6::PulseChannel::write_control
@@ -999,7 +1001,7 @@ VRC6::debug_audio_scope_sample() const
 vrc6_debug_state_t
 VRC6::debug_mapper_state() const
 {
-	vrc6_debug_state_t state;
+	vrc6_debug_state_t state {};
 
 	state.wram_enabled = wram_enabled_;
 
@@ -1119,12 +1121,15 @@ VRC6::debug_audio_state() const
 	state.channels[0].muted = audio_channel_muted_[0];
 	state.channels[0].halted = halted;
 
-	if (!halted) {
-		const uint16_t period = effective_period(pulse1_.period);
+	state.channels[0].frequency_valid = false;
 
-		state.channels[0].frequency_hz = kVRC6NTSCClock / 
-										 (16.0 * (static_cast<double>(period) + 1.0));
-		state.channels[0].frequency_valid = true;
+	if (!halted && pulse1_.enabled) {
+    	const uint16_t period = effective_period(pulse1_.period);
+		
+		state.channels[0].frequency_hz = kVRC6NTSCClock /
+        								 (16.0 * (static_cast<double>(period) + 1.0));
+
+    	state.channels[0].frequency_valid = true;
 	}
 
 	state.channels[0].field_count = 7;
@@ -1200,12 +1205,14 @@ VRC6::debug_audio_state() const
 	state.channels[1].muted = audio_channel_muted_[1];
 	state.channels[1].halted = halted;
 
-	if (!halted) {
-		const uint16_t period = effective_period(pulse2_.period);
+	state.channels[1].frequency_valid = false;
 
-		state.channels[1].frequency_hz = kVRC6NTSCClock / 
-									     (16.0 *(static_cast<double>(period) + 1.0));
-		state.channels[1].frequency_valid = true;
+	if (!halted && pulse2_.enabled) {
+    	const uint16_t period = effective_period(pulse2_.period);
+
+    	state.channels[1].frequency_hz = kVRC6NTSCClock / 
+    									 (16.0 * (static_cast<double>(period) + 1.0));
+    	state.channels[1].frequency_valid = true;
 	}
 
 	state.channels[1].field_count = 7;
@@ -1281,12 +1288,13 @@ VRC6::debug_audio_state() const
 	state.channels[2].muted = audio_channel_muted_[2];
 	state.channels[2].halted = halted;
 
-	if (!halted) {
-		const uint16_t period = effective_period(saw_.period);
+	state.channels[2].frequency_valid = false;
 
-		state.channels[2].frequency_hz = kVRC6NTSCClock / 
-										 (14.0 * (static_cast<double>(period) + 1.0));
-		state.channels[2].frequency_valid = true;
+	if (!halted && saw_.enabled) {
+    	const uint16_t period = effective_period(saw_.period);
+    	state.channels[2].frequency_hz = kVRC6NTSCClock / 
+    									 (14.0 * (static_cast<double>(period) + 1.0));
+    	state.channels[2].frequency_valid = true;
 	}
 
 	state.channels[2].field_count = 7;
