@@ -119,19 +119,31 @@ ExpansionAudioExplorerView::Pulse()
 }
 
 
+
 // -----------------------------------------------------------------------------
 // ExpansionAudioExplorerView::Draw
 //
-// Draws the expansion-audio header, mapper-wide state, and currently exposed
+// Draws the expansion-audio header, mapper-wide state, and all available
 // mapper audio channels.
 //
-// The panel layout mirrors the Native APU Explorer:
+// For expansion devices with one to three channels, the original Native
+// APU Explorer-style layout is preserved:
 //
 //   Global / Channel 1 / Channel 2
-//   Channel 3 / empty / empty
+//   Channel 3 / empty     / empty
 //
-// This keeps the Native and Expansion tabs visually consistent while retaining
-// mapper-provided debugger state.
+// For devices with four to six channels, including the VRC7, a compact
+// six-channel layout is used:
+//
+//   Global expansion-audio panel (full width)
+//   Channel 1 / Channel 2 / Channel 3
+//   Channel 4 / Channel 5 / Channel 6
+//
+// Channel-panel heights are calculated from the available view area so the
+// additional channels remain visible without changing the Explorer window
+// dimensions.
+//
+// Existing panel drawing, state formatting, and output meters are retained.
 //
 // Parameters:
 //   updateRect - Area of the view requiring redraw.
@@ -142,54 +154,154 @@ ExpansionAudioExplorerView::Pulse()
 void
 ExpansionAudioExplorerView::Draw (BRect updateRect)
 {
-	(void)updateRect;
+    (void)updateRect;
 
-	SetHighColor(216, 216, 216);
-	FillRect(Bounds());
+    SetHighColor(216, 216, 216);
+    FillRect(Bounds());
 
-	DrawHeaderPanel();
+    DrawHeaderPanel();
 
-	if (fState.channel_count == 0) {
-		return;
-	}
+    if (fState.channel_count == 0) {
+        return;
+    }
 
-	const float margin = 4.0f;
-	const float gap = 6.0f;
-	const float top = 70.0f;
+    const float margin = 4.0f;
+    const float gap = 6.0f;
+    const float top = 70.0f;
 
-	const float availableWidth = Bounds().Width() - (margin * 2.0f) - (gap * 2.0f);
-	const float columnWidth = availableWidth / 3.0f;
-	
-	const float col1X = margin;
-	const float col2X = col1X + columnWidth + gap;
-	const float col3X = col2X + columnWidth + gap;
+    const float availableWidth =
+        Bounds().Width() - (margin * 2.0f) - (gap * 2.0f);
 
-	const float topRowHeight = 300.0f;
-	const float bottomRowHeight = 350.0f;
+    const float columnWidth = availableWidth / 3.0f;
 
-	const float row1Top = top;
-	const float row1Bottom = row1Top + topRowHeight;
+    const float col1X = margin;
+    const float col2X = col1X + columnWidth + gap;
+    const float col3X = col2X + columnWidth + gap;
 
-	const float row2Top = row1Bottom + gap;
-	const float row2Bottom = row2Top + bottomRowHeight;
 
-	BRect globalPanel(col1X, row1Top, col1X + columnWidth, row1Bottom);
-	BRect channel1Panel(col2X, row1Top, col2X + columnWidth, row1Bottom);
-	BRect channel2Panel(col3X, row1Top, Bounds().right - margin, row1Bottom);
-	BRect channel3Panel(col1X, row2Top, col1X + columnWidth, row2Bottom);
-	DrawGlobalPanel(globalPanel);
+    // -------------------------------------------------------------------------
+    // Four-to-six-channel expansion-audio layout.
+    //
+    // Devices such as VRC7 expose six independent audio channels.
+    // The global panel occupies the full width, followed by two rows
+    // of three channel panels.
+    // -------------------------------------------------------------------------
 
-	if (fState.channel_count > 0) {
-		DrawChannelPanel(channel1Panel, fState.channels[0]);
-	}
+    if (fState.channel_count > 3) {
+        const float globalHeight = 145.0f;
 
-	if (fState.channel_count > 1) {
-		DrawChannelPanel(channel2Panel, fState.channels[1]);
-	}
+        const BRect globalPanel(
+            col1X,
+            top,
+            Bounds().right - margin,
+            top + globalHeight
+        );
 
-	if (fState.channel_count > 2) {
-		DrawChannelPanel(channel3Panel, fState.channels[2]);
-	}
+        DrawGlobalPanel(globalPanel);
+
+        const float channelTop = globalPanel.bottom + gap;
+        const float channelBottom = Bounds().bottom - margin;
+
+        const float channelHeight =
+            (channelBottom - channelTop - gap) / 2.0f;
+
+        const float row1Top = channelTop;
+        const float row2Top = row1Top + channelHeight + gap;
+
+        const float columnX[3] = {
+            col1X,
+            col2X,
+            col3X
+        };
+
+        const size_t visibleChannelCount =
+            fState.channel_count < 6 ? fState.channel_count : 6;
+
+        for (size_t i = 0; i < visibleChannelCount; ++i) {
+            const size_t column = i % 3;
+            const size_t row = i / 3;
+
+            const float panelX = columnX[column];
+
+            const float panelY =
+                row == 0 ? row1Top : row2Top;
+
+            const float panelRight =
+                column == 2
+                    ? Bounds().right - margin
+                    : panelX + columnWidth;
+
+            const BRect channelPanel(
+                panelX,
+                panelY,
+                panelRight,
+                panelY + channelHeight
+            );
+
+            DrawChannelPanel(channelPanel, fState.channels[i]);
+        }
+
+        return;
+    }
+
+
+    // -------------------------------------------------------------------------
+    // Original one-to-three-channel layout.
+    //
+    // Preserve the existing Native APU Explorer-style panel arrangement
+    // for expansion devices such as VRC6 and MMC5.
+    // -------------------------------------------------------------------------
+
+    const float topRowHeight = 300.0f;
+    const float bottomRowHeight = 350.0f;
+
+    const float row1Top = top;
+    const float row1Bottom = row1Top + topRowHeight;
+
+    const float row2Top = row1Bottom + gap;
+    const float row2Bottom = row2Top + bottomRowHeight;
+
+    const BRect globalPanel(
+        col1X,
+        row1Top,
+        col1X + columnWidth,
+        row1Bottom
+    );
+
+    const BRect channel1Panel(
+        col2X,
+        row1Top,
+        col2X + columnWidth,
+        row1Bottom
+    );
+
+    const BRect channel2Panel(
+        col3X,
+        row1Top,
+        Bounds().right - margin,
+        row1Bottom
+    );
+
+    const BRect channel3Panel(
+        col1X,
+        row2Top,
+        col1X + columnWidth,
+        row2Bottom
+    );
+
+    DrawGlobalPanel(globalPanel);
+
+    if (fState.channel_count > 0) {
+        DrawChannelPanel(channel1Panel, fState.channels[0]);
+    }
+
+    if (fState.channel_count > 1) {
+        DrawChannelPanel(channel2Panel, fState.channels[1]);
+    }
+
+    if (fState.channel_count > 2) {
+        DrawChannelPanel(channel3Panel, fState.channels[2]);
+    }
 }
 
 
@@ -214,7 +326,7 @@ ExpansionAudioExplorerView::DrawHeaderPanel()
 	SetHighColor(35, 35, 35);
 
 	BString text;
-	text.SetToFormat("%s mapper-provided audio state", ExpansionTypeName());
+	text.SetToFormat("%s mapper-provided audio state", fState.name.empty() ? "Unknown" : fState.name.c_str());
 	DrawString(text.String(), BPoint(panel.left + 8.0f, panel.top + 42.0f));
 }
 
@@ -302,7 +414,7 @@ ExpansionAudioExplorerView::DrawGlobalPanel (BRect panel)
 
 	BRect meterRect(panel.left + 155.0f, y - 8.0f, panel.right - 10.0f, y);
 	DrawLevelMeter(meterRect, fState.output,  fState.output_maximum);
-	
+
 	SetFont(&previousFont);
 }
 
@@ -406,7 +518,7 @@ ExpansionAudioExplorerView::DrawChannelPanel (BRect panel, const mapper_audio_ch
 
 			if (field.maximum != 0) {
 				percent = (static_cast<double>(field.value) /
-					 	   static_cast<double>(field.maximum)) * 100.0;
+						   static_cast<double>(field.maximum)) * 100.0;
 			}
 
 			value.SetToFormat("%.1f%%", percent);

@@ -16,35 +16,35 @@ namespace {
 // kVRC7InstrumentTable
 //
 // Contains the 15 fixed eight-byte instrument patches stored internally by
-// the VRC7.
+// the Konami VRC7.
 //
-// Instrument 0 is not included here because it is the programmable custom
-// instrument supplied through FM registers $00-$07.  Entries 0-14 therefore
-// correspond to VRC7 instruments 1-15.
+// These values correspond to the instrument ROM extracted from actual VRC7
+// hardware.
 //
-// Each eight-byte patch encodes the modulator and carrier operator parameters,
-// including multiplier, tremolo, vibrato, sustain behavior, key scaling,
-// output level, waveform selection, feedback, attack, decay, sustain level,
-// and release.
+// Instrument 0 is programmable through FM registers $00-$07 and is therefore
+// not included in this table.
+//
+// Entries 0-14 correspond to VRC7 instruments 1-15.
 //
 // -----------------------------------------------------------------------------
 const uint8_t kVRC7InstrumentTable[15][8] = {
-	{ 0x03, 0x21, 0x04, 0x06, 0x8d, 0xf2, 0x42, 0x17 },
-	{ 0x13, 0x41, 0x16, 0x0e, 0xfd, 0xf4, 0x23, 0x23 },
-	{ 0x31, 0x11, 0x10, 0x0a, 0xf0, 0x9c, 0x32, 0x02 },
-	{ 0x61, 0x61, 0x1b, 0x07, 0xaf, 0x63, 0x20, 0x28 },
-	{ 0x22, 0x21, 0x1e, 0x06, 0xf0, 0x76, 0x08, 0x28 },
-	{ 0x66, 0x21, 0x15, 0x00, 0x93, 0x94, 0x20, 0xf8 },
-	{ 0x21, 0x61, 0x1c, 0x07, 0x82, 0x81, 0x16, 0x07 },
-	{ 0x23, 0x21, 0x1a, 0x17, 0xef, 0x82, 0x25, 0x15 },
-	{ 0x25, 0x11, 0x1f, 0x00, 0x54, 0x41, 0x20, 0x11 },
-	{ 0x85, 0x01, 0x1f, 0x0f, 0xe4, 0xa2, 0x11, 0x12 },
-	{ 0x07, 0x81, 0x2b, 0x05, 0xc1, 0xf4, 0x14, 0xf4 },
-	{ 0x61, 0x23, 0x11, 0x06, 0x98, 0x96, 0x13, 0x16 },
-	{ 0x11, 0x02, 0xd4, 0x05, 0xf2, 0xf2, 0x41, 0x51 },
-	{ 0x61, 0x22, 0x0a, 0x01, 0x94, 0xa0, 0x44, 0x15 },
-	{ 0x21, 0x61, 0x0b, 0x00, 0xa1, 0xa3, 0x44, 0x47 }
+    { 0x03, 0x21, 0x05, 0x06, 0xe8, 0x81, 0x42, 0x27 }, // 1 - Buzzy Bell
+    { 0x13, 0x41, 0x14, 0x0d, 0xd8, 0xf6, 0x23, 0x12 }, // 2 - Guitar
+    { 0x11, 0x11, 0x08, 0x08, 0xfa, 0xb2, 0x20, 0x12 }, // 3 - Wurly
+    { 0x31, 0x61, 0x0c, 0x07, 0xa8, 0x64, 0x61, 0x27 }, // 4 - Flute
+    { 0x32, 0x21, 0x1e, 0x06, 0xe1, 0x76, 0x01, 0x28 }, // 5 - Clarinet
+    { 0x02, 0x01, 0x06, 0x00, 0xa3, 0xe2, 0xf4, 0xf4 }, // 6 - Synth
+    { 0x21, 0x61, 0x1d, 0x07, 0x82, 0x81, 0x11, 0x07 }, // 7 - Trumpet
+    { 0x23, 0x21, 0x22, 0x17, 0xa2, 0x72, 0x01, 0x17 }, // 8 - Organ
+    { 0x35, 0x11, 0x25, 0x00, 0x40, 0x73, 0x72, 0x01 }, // 9 - Bells
+    { 0xb5, 0x01, 0x0f, 0x0f, 0xa8, 0xa5, 0x51, 0x02 }, // A - Vibes
+    { 0x17, 0xc1, 0x24, 0x07, 0xf8, 0xf8, 0x22, 0x12 }, // B - Vibraphone
+    { 0x71, 0x23, 0x11, 0x06, 0x65, 0x74, 0x18, 0x16 }, // C - Tutti
+    { 0x01, 0x02, 0xd3, 0x05, 0xc9, 0x95, 0x03, 0x02 }, // D - Fretless
+    { 0x61, 0x63, 0x0c, 0x00, 0x94, 0xc0, 0x33, 0xf6 }, // E - Synth Bass
+    { 0x21, 0x72, 0x0d, 0x00, 0xc1, 0xd5, 0x56, 0x06 }  // F - Sweep
 };
+
 
 
 // -----------------------------------------------------------------------------
@@ -92,6 +92,139 @@ const uint8_t kVRC7EnvelopeStepTable[4][8] = {
 	{0, 1, 1, 1, 1, 1, 1, 1}
 };
 
+
+// -----------------------------------------------------------------------------
+// vrc7_key_level_attenuation
+//
+// Calculates the VRC7/OPLL key-level scaling attenuation.
+//
+// The upper four F-number bits select a base attenuation from the
+// hardware-derived key-level table. The octave reduces this value
+// by 3 dB for each block below 7.
+//
+// The KSL setting determines the attenuation slope:
+//
+//   0 - No key-level attenuation.
+//   1 - 1.5 dB per octave.
+//   2 - 3.0 dB per octave.
+//   3 - 6.0 dB per octave.
+//
+// Table entries use units of 1/8 dB. The final result is converted
+// to the 0.375 dB attenuation steps used by Pretendo's FM envelopes.
+//
+// Parameters:
+//   fNumber - Channel's nine-bit F-number.
+//   block   - Channel octave block, 0-7.
+//   ksl     - Operator's two-bit key-level scaling setting.
+//
+// Returns:
+//   Additional attenuation in 0.375 dB steps.
+// -----------------------------------------------------------------------------
+static uint8_t
+vrc7_key_level_attenuation (uint16_t fNumber, uint8_t block, uint8_t ksl)
+{
+    static constexpr int kKeyLevelTable[16] = {
+          0,  72,  96, 111,
+        120, 129, 135, 141,
+        144, 150, 153, 156,
+        159, 162, 165, 168
+    };
+
+    ksl &= 0x03;
+
+    if (ksl == 0) {
+        return 0;
+    }
+
+    const uint8_t index = static_cast<uint8_t>((fNumber >> 5) & 0x0f);
+    const int octave = static_cast<int>(block & 0x07);
+    const int base = kKeyLevelTable[index] - 24 * (7 - octave);
+
+    if (base <= 0) {
+        return 0;
+    }
+
+    switch (ksl) {
+        case 1:
+            return static_cast<uint8_t>(base / 6);
+
+        case 2:
+            return static_cast<uint8_t>(base / 3);
+
+        case 3:
+            return static_cast<uint8_t>((base * 2) / 3);
+
+        default:
+            return 0;
+    }
+}
+
+
+// -----------------------------------------------------------------------------
+// kVRC7VibratoTable
+//
+// Contains the eight-step VRC7/OPLL pitch-modulation pattern.
+//
+// The upper three F-number bits select the modulation depth.
+// The shared vibrato oscillator selects one of eight waveform steps.
+//
+// Values represent signed offsets in the OPLL's doubled F-number units.
+// Operators without vibrato enabled do not use this table.
+// -----------------------------------------------------------------------------
+const int8_t kVRC7VibratoTable[8][8] = {
+    { 0, 0, 0, 0, 0,  0,  0,  0 },
+    { 0, 0, 1, 0, 0,  0, -1,  0 },
+    { 0, 1, 2, 1, 0, -1, -2, -1 },
+    { 0, 1, 3, 1, 0, -1, -3, -1 },
+    { 0, 2, 4, 2, 0, -2, -4, -2 },
+    { 0, 2, 5, 2, 0, -2, -5, -2 },
+    { 0, 3, 6, 3, 0, -3, -6, -3 },
+    { 0, 3, 7, 3, 0, -3, -7, -3 }
+};
+
+
+// -----------------------------------------------------------------------------
+// vrc7_tremolo_attenuation
+//
+// Calculates the current VRC7/OPLL amplitude-modulation attenuation.
+//
+// The tremolo oscillator uses a 210-step pattern. Each step lasts 64
+// FM synthesis updates.
+//
+// The waveform rises from attenuation level 0 to 13, holds its maximum
+// briefly, and then falls back to zero.
+//
+// Each attenuation level corresponds to one 0.375 dB envelope step.
+//
+// Parameters:
+//   phase - Current shared tremolo oscillator phase, 0-13439.
+//
+// Returns:
+//   Additional attenuation in the range 0-13.
+// -----------------------------------------------------------------------------
+static uint8_t
+vrc7_tremolo_attenuation (uint32_t phase)
+{
+    constexpr uint32_t kStepCount = 210;
+    constexpr uint32_t kSamplesPerStep = 64;
+
+    const uint32_t step = (phase / kSamplesPerStep) % kStepCount;
+
+    // Rising portion: 0 through 12, eight steps per level.
+    if (step < 104) {
+        return static_cast<uint8_t>(step / 8);
+    }
+
+    // Short hold at maximum attenuation.
+    if (step < 107) {
+        return 13;
+    }
+
+    // Falling portion: 12 through 0.
+    return static_cast<uint8_t>((210 - step) / 8);
+}
+
+
 }
 
 
@@ -136,7 +269,7 @@ VRC7::VRC7()
 	} else {
 		set_chr_0000_1fff_ram(chr_ram_, 0);
 	}
-	
+
 	debug_set_prg_ram(false, false, 0);
 }
 
@@ -281,18 +414,18 @@ VRC7::write_8 (uint_least16_t address, uint8_t value)
 }
 
 
+
 // -----------------------------------------------------------------------------
 // VRC7::write_9
 //
-// Handles the third VRC7 PRG register and expansion-audio ports.
+// Handles VRC7 PRG banking and FM audio-register access.
 //
-// $9000 selects the 8 KB PRG bank mapped at $C000-$DFFF.
-// $9010 selects an internal VRC7 FM register.
-// $9030 writes data to the selected FM register.
+// The FM address and data ports are disabled while the audio-reset bit
+// in $E000 is asserted. PRG banking continues to function normally.
 //
 // Parameters:
-//   address - CPU address selecting the register.
-//   value   - Register value.
+//   address - CPU address within the $9000-$9FFF range.
+//   value   - Value written by the CPU.
 //
 // Returns:
 //   Nothing.
@@ -300,21 +433,26 @@ VRC7::write_8 (uint_least16_t address, uint8_t value)
 void
 VRC7::write_9 (uint_least16_t address, uint8_t value)
 {
-	switch (address & 0xf030) {
-	case 0x9000:
-		prg_[2] = value & 0x3f;
-		set_prg_cd(prg_[2]);
-		break;
+    switch (address & 0xf030) {
+        case 0x9000:
+            prg_[2] = value & 0x3f;
+            set_prg_cd(prg_[2]);
+            break;
 
-	case 0x9010:
-		audio_register_ = value;
-		break;
+        case 0x9010:
+            if (!audio_silenced_) {
+                audio_register_ = value;
+            }
+            break;
 
-	case 0x9030:
-		write_audio_register(audio_register_, value);
-		break;
-	}
+        case 0x9030:
+            if (!audio_silenced_) {
+                write_audio_register(audio_register_, value);
+            }
+            break;
+    }
 }
+
 
 
 // -----------------------------------------------------------------------------
@@ -485,20 +623,30 @@ VRC7::write_d (uint_least16_t address, uint8_t value)
 }
 
 
+
 // -----------------------------------------------------------------------------
 // VRC7::write_e
 //
-// Handles the VRC7 mapper-control and IRQ-latch registers.
+// Handles VRC7 mirroring, WRAM control, audio reset, and IRQ latch writes.
 //
-// $E000 controls nametable mirroring, expansion-audio silence state, and
-// PRG-RAM access.  $E010 programs the IRQ latch.
+// $E000 bit 6 resets the VRC7 FM audio system.
 //
-// The generic mapper debugger state is updated whenever PRG-RAM access changes
-// so the resolved $6000-$7FFF mapping remains accurate in Mapper Explorer.
+// On assertion of audio reset:
+//   - The internal FM register contents are cleared.
+//   - The programmable instrument is cleared.
+//   - All six FM channel states are reset.
+//   - The combined FM output is cleared.
+//   - The shared envelope counter is reset.
+//   - The tremolo oscillator is reset.
+//   - The vibrato oscillator retains its phase.
+//
+// Debugger channel-mute selections are preserved across hardware reset.
+//
+// The mirroring and WRAM control bits operate independently of audio reset.
 //
 // Parameters:
-//   address - CPU address selecting the register.
-//   value   - Register value.
+//   address - CPU address within the $E000-$EFFF range.
+//   value   - Value written by the CPU.
 //
 // Returns:
 //   Nothing.
@@ -506,36 +654,77 @@ VRC7::write_d (uint_least16_t address, uint8_t value)
 void
 VRC7::write_e (uint_least16_t address, uint8_t value)
 {
-	switch (address & 0xf030) {
-	case 0xe000:
-		switch (value & 0x03) {
-		case 0:
-			set_mirroring(mirror_vertical);
-			break;
+    switch (address & 0xf030) {
+        case 0xe000:
+        {
+            switch (value & 0x03) {
+                case 0:
+                    set_mirroring(mirror_vertical);
+                    break;
 
-		case 1:
-			set_mirroring(mirror_horizontal);
-			break;
+                case 1:
+                    set_mirroring(mirror_horizontal);
+                    break;
 
-		case 2:
-			set_mirroring(mirror_single_low);
-			break;
+                case 2:
+                    set_mirroring(mirror_single_low);
+                    break;
 
-		case 3:
-			set_mirroring(mirror_single_high);
-			break;
-		}
+                case 3:
+                    set_mirroring(mirror_single_high);
+                    break;
+            }
 
-		audio_silenced_ = (value & 0x40) != 0;
-		wram_enabled_ = (value & 0x80) != 0;
+            // -------------------------------------------------------------
+            // Handle the FM audio-reset transition.
+            // -------------------------------------------------------------
 
-		debug_set_prg_ram(wram_enabled_, wram_enabled_,0);
-		break;
+            const bool audioReset = (value & 0x40) != 0;
 
-	case 0xe010:
-		irq_latch_ = value;
-		break;
-	}
+            if (audioReset && !audio_silenced_) {
+
+                // Clear internal FM register data.
+                std::fill_n(fm_registers_, 0x40, uint8_t{0});
+                std::fill_n(custom_instrument_, 8, uint8_t{0});
+
+                // Reset the selected internal FM register.
+                audio_register_ = 0;
+
+                // Reset synthesis state while preserving debugger muting.
+                for (int i = 0; i < 6; ++i) {
+                    const bool wasMuted = fm_channels_[i].muted;
+
+                    fm_channels_[i] = {};
+
+                    fm_channels_[i].muted = wasMuted;
+                }
+
+                // Clear the current composite FM output.
+                fm_output_ = 0;
+
+                // Reset envelope timing.
+                envelope_counter_ = 0;
+
+                // Reset tremolo, but preserve vibrato phase.
+                tremolo_phase_ = 0;
+            }
+
+            audio_silenced_ = audioReset;
+
+            // -------------------------------------------------------------
+            // WRAM control remains independent of audio reset.
+            // -------------------------------------------------------------
+
+            wram_enabled_ = (value & 0x80) != 0;
+
+            debug_set_prg_ram(wram_enabled_, wram_enabled_, 0);
+            break;
+        }
+
+        case 0xe010:
+            irq_latch_ = value;
+            break;
+    }
 }
 
 
@@ -720,7 +909,7 @@ VRC7::debug_mapper_state() const
 
 	state.irq_clock_count = irq_clock_count_;
 	state.irq_assert_count = irq_assert_count_;
-	
+
 	state.fm_output = fm_output_;
 
 	return state;
@@ -790,7 +979,7 @@ VRC7::write_audio_register (uint8_t reg, uint8_t value)
 	if (reg >= 0x20 && reg <= 0x25) {
 		const int channel = reg - 0x20;
 
-		fm_channels_[channel].f_number = (fm_channels_[channel].f_number & 0x00ff) | 
+		fm_channels_[channel].f_number = (fm_channels_[channel].f_number & 0x00ff) |
 										 ((static_cast<uint16_t>(value) & 0x01) << 8);
 		fm_channels_[channel].block = (value >> 1) & 0x07;
 		const bool keyOn = (value & 0x10) != 0;
@@ -918,18 +1107,23 @@ VRC7::update_phase_increments (fm_channel_t &channel)
 }
 
 
+
 // -----------------------------------------------------------------------------
 // VRC7::clock_fm_phase
 //
 // Advances the VRC7 FM synthesis state for all six channels.
 //
-// Each FM update advances the shared envelope timing counter, clocks the
-// modulator and carrier envelope generators, advances both 19-bit operator
-// phase accumulators, applies modulator feedback, generates and attenuates the
-// modulator, uses the modulator output to phase-modulate the carrier, then
-// generates and attenuates the carrier.
+// Each FM update advances the shared envelope and vibrato timing counters,
+// clocks both operator envelopes, and advances their phase accumulators.
 //
-// After all six channels have been processed, their carrier outputs are summed
+// Operators with vibrato enabled receive a pitch-dependent modulation
+// adjustment derived from the shared VRC7 pitch-modulation oscillator.
+//
+// The stored base phase increments remain unchanged. Vibrato is applied
+// only to the current phase advance.
+//
+// The modulator generates the phase modulation applied to the carrier.
+// After all channels are processed, their carrier outputs are combined
 // into the current composite VRC7 FM output.
 //
 // Parameters:
@@ -941,85 +1135,142 @@ VRC7::update_phase_increments (fm_channel_t &channel)
 void
 VRC7::clock_fm_phase()
 {
-	static constexpr uint32_t kPhaseMask = (1u << 19) - 1u;
+    static constexpr uint32_t kPhaseMask = (1u << 19) - 1u;
 
-	/*
-	 * Advance the shared envelope timing counter.
-	 */
-	++envelope_counter_;
+    // -------------------------------------------------------------------------
+    // Advance shared FM timing.
+    // -------------------------------------------------------------------------
 
-	for (int i = 0; i < 6; ++i) {
-		fm_channel_t &channel = fm_channels_[i];
+    ++envelope_counter_;
+    ++vibrato_phase_;
 
-		/*
-		 * Advance the operator envelope generators.
-		 */
-		clock_envelope(channel, channel.modulator, false);
-		clock_envelope(channel, channel.carrier, true);
+    // The hardware audio-reset signal holds the tremolo LFO at zero.
+    // Vibrato continues independently and retains its phase.
+    if (audio_silenced_) {
+        tremolo_phase_ = 0;
+    } else {
+        ++tremolo_phase_;
 
-		/*
-		 * Calculate modulator self-feedback from the previous two
-		 * modulator output samples.
-		 */
-		const int32_t feedbackOffset = feedback_phase_offset(channel);
+        if (tremolo_phase_ >= 210u * 64u) {
+            tremolo_phase_ = 0;
+        }
+    }
 
-		/*
-		 * Advance the base operator phase accumulators.
-		 */
-		channel.modulator.phase = (channel.modulator.phase + channel.modulator.phase_increment) & kPhaseMask;
-		channel.carrier.phase = (channel.carrier.phase + channel.carrier.phase_increment) & kPhaseMask;
+	const uint8_t vibratoStep = static_cast<uint8_t>((vibrato_phase_ >> 10) & 0x07);
 
-		/*
-		 * Apply feedback to the modulator phase.
-		 */
-		const int64_t modulatorPhaseWithFeedback = static_cast<int64_t>( channel.modulator.phase) + 
-												   static_cast<int64_t>(feedbackOffset) * 256;
+    // -------------------------------------------------------------------------
+    // Process all six VRC7 FM channels.
+    // -------------------------------------------------------------------------
+
+    for (int i = 0; i < 6; ++i) {
+        fm_channel_t &channel = fm_channels_[i];
+
+        // ---------------------------------------------------------------------
+        // Advance the operator envelope generators.
+        // ---------------------------------------------------------------------
+
+        clock_envelope(channel, channel.modulator, false);
+        clock_envelope(channel, channel.carrier, true);
+
+        // ---------------------------------------------------------------------
+        // Calculate modulator feedback from previous outputs.
+        // ---------------------------------------------------------------------
+
+        const int32_t feedbackOffset = feedback_phase_offset(channel);
+
+        // ---------------------------------------------------------------------
+        // Start with the stored base phase increments.
+        // ---------------------------------------------------------------------
+
+        uint32_t modulatorIncrement = channel.modulator.phase_increment;
+        uint32_t carrierIncrement = channel.carrier.phase_increment;
+
+        // ---------------------------------------------------------------------
+        // Apply VRC7 pitch modulation.
+        //
+        // Vibrato modifies the doubled F-number before operator multiplier
+        // and octave scaling are applied.
+        //
+        // The modulation may be enabled independently for each operator.
+        // ---------------------------------------------------------------------
+
+        if (channel.patch.modulator_vibrato || channel.patch.carrier_vibrato) {
+	const uint8_t depthIndex = static_cast<uint8_t>((channel.f_number >> 6) & 0x07);
+	const int32_t pitchOffset = kVRC7VibratoTable[depthIndex][vibratoStep];
+	const uint32_t modMultiplier = kVRC7MultiplierTable[channel.patch.modulator_multiplier & 0x0f];
+	const uint32_t carrierMultiplier = kVRC7MultiplierTable[channel.patch.carrier_multiplier & 0x0f];
+	const int32_t doubledFNumber = static_cast<int32_t>(channel.f_number) * 2;
+	const uint8_t block = channel.block & 0x07;
+
+            if (channel.patch.modulator_vibrato) {
+                const int32_t adjustedFNumber = doubledFNumber + pitchOffset;
+                modulatorIncrement = static_cast<uint32_t>((adjustedFNumber * modMultiplier) << block) >> 2;
+            }
+
+            if (channel.patch.carrier_vibrato) {
+                const int32_t adjustedFNumber = doubledFNumber + pitchOffset;
+
+                carrierIncrement = static_cast<uint32_t>((adjustedFNumber * carrierMultiplier) << block) >> 2;
+            }
+        }
+
+        // ---------------------------------------------------------------------
+        // Advance operator phase accumulators.
+        // ---------------------------------------------------------------------
+
+        channel.modulator.phase = (channel.modulator.phase + modulatorIncrement) & kPhaseMask;
+        channel.carrier.phase = (channel.carrier.phase + carrierIncrement) & kPhaseMask;
+
+        // ---------------------------------------------------------------------
+        // Apply feedback to the modulator phase.
+        // ---------------------------------------------------------------------
+
+        const int64_t modulatorPhaseWithFeedback = static_cast<int64_t>(channel.modulator.phase) +
+										   static_cast<int64_t>(feedbackOffset) * 256;
 		const uint32_t modulatorPhase = static_cast<uint32_t>(modulatorPhaseWithFeedback) & kPhaseMask;
 
-		/*
-		 * Generate the modulator waveform.
-		 */
-		const int16_t modulatorWaveform = waveform_sample(modulatorPhase, channel.patch.modulator_waveform);
+        // ---------------------------------------------------------------------
+        // Generate and attenuate the modulator waveform.
+        // ---------------------------------------------------------------------
 
-		/*
-		 * Apply the modulator envelope and instrument total level.
-		 */
-		channel.modulator.output = apply_envelope(modulatorWaveform, combined_attenuation(channel,
-												  channel.modulator, false));
-		/*
-		 * Rotate the modulator feedback history after calculating
-		 * the current output.
-		 */
-		channel.modulator.feedback_output_1 = channel.modulator.feedback_output_0;
-		channel.modulator.feedback_output_0 = channel.modulator.output;
+        const int16_t modulatorWaveform = waveform_sample(modulatorPhase, channel.patch.modulator_waveform);
 
-		/*
-		 * Use the current modulator output to phase-modulate the
-		 * carrier.
-		 */
-		const int32_t carrierOffset = carrier_phase_offset(channel);
-		const int64_t carrierPhaseWithModulation = static_cast<int64_t>(channel.carrier.phase) + 
-												   static_cast<int64_t>(carrierOffset) * 256;
-		const uint32_t carrierPhase = static_cast<uint32_t>(carrierPhaseWithModulation) & kPhaseMask;
+        channel.modulator.output = apply_envelope(modulatorWaveform,
+						   combined_attenuation(channel, channel.modulator, false));
 
-		/*
-		 * Generate the carrier waveform.
-		 */
-		const int16_t carrierWaveform = waveform_sample(carrierPhase,channel.patch.carrier_waveform);
+        // ---------------------------------------------------------------------
+        // Update modulator feedback history.
+        // ---------------------------------------------------------------------
 
-		/*
-		 * Apply the carrier envelope and channel volume.
-		 */
-		channel.carrier.output = apply_envelope(carrierWaveform, combined_attenuation(channel,
-												channel.carrier, true));
-	}
+        channel.modulator.feedback_output_1 = channel.modulator.feedback_output_0;
+        channel.modulator.feedback_output_0 = channel.modulator.output;
 
-	/*
-	 * All six FM channels have now completed this synthesis update.
-	 * Sum their carrier outputs into the composite VRC7 output.
-	 */
-	update_fm_output();
+        // ---------------------------------------------------------------------
+        // Apply the modulator output to the carrier phase.
+        // ---------------------------------------------------------------------
+
+        const int32_t carrierOffset = carrier_phase_offset(channel);
+        const int64_t carrierPhaseWithModulation = static_cast<int64_t>(channel.carrier.phase) +
+									   static_cast<int64_t>(carrierOffset) * 256;
+         const uint32_t carrierPhase = static_cast<uint32_t>(carrierPhaseWithModulation) & kPhaseMask;
+
+        // ---------------------------------------------------------------------
+        // Generate and attenuate the carrier waveform.
+        // ---------------------------------------------------------------------
+
+        const int16_t carrierWaveform = waveform_sample(carrierPhase, channel.patch.carrier_waveform);
+
+        channel.carrier.output = apply_envelope(carrierWaveform,
+						 combined_attenuation(channel, channel.carrier, true));
+    }
+
+    // -------------------------------------------------------------------------
+    // Combine the six FM carrier outputs.
+    // -------------------------------------------------------------------------
+
+    update_fm_output();
 }
+
 
 
 // -----------------------------------------------------------------------------
@@ -1282,7 +1533,7 @@ VRC7::clock_envelope (fm_channel_t &channel, fm_operator_t &op, bool carrier)
 			const uint8_t attackRate = carrier ? patch.carrier_attack : patch.modulator_attack;
 			const uint8_t keyScale = envelope_key_scale(channel, carrier);
 			const uint8_t effectiveAttack = std::min<uint8_t>(15, static_cast<uint8_t>(attackRate+ (keyScale >> 2)));
-			
+
 			op.phase = 0;
 			op.envelope_counter = 0;
 
@@ -1513,19 +1764,24 @@ VRC7::apply_envelope (int16_t sample, uint8_t envelopeLevel) const
 }
 
 
+
 // -----------------------------------------------------------------------------
 // VRC7::combined_attenuation
 //
-// Combines the current envelope attenuation with the operator's static level
-// control.
+// Combines the operator's envelope attenuation, static level control,
+// key-level scaling, and optional tremolo attenuation.
 //
-// The modulator uses the instrument's six-bit total-level field, where each
-// unit corresponds to two envelope attenuation steps.
+// The modulator uses the instrument's six-bit total-level field.
+// The carrier uses the channel's four-bit volume field.
 //
-// The carrier uses the channel's four-bit volume field, where each unit
-// corresponds to eight envelope attenuation steps.
+// Key-level scaling applies additional attenuation according to the
+// channel F-number, octave, and operator KSL setting.
 //
-// The result is saturated to the seven-bit envelope attenuation range.
+// When enabled by the instrument patch, tremolo adds attenuation from
+// the shared VRC7 amplitude-modulation oscillator.
+//
+// All contributions use 0.375 dB attenuation units. The combined
+// value is saturated to the seven-bit envelope attenuation range.
 //
 // Parameters:
 //   channel - FM channel containing the operator.
@@ -1533,20 +1789,53 @@ VRC7::apply_envelope (int16_t sample, uint8_t envelopeLevel) const
 //   carrier - true for the carrier, false for the modulator.
 //
 // Returns:
-//   Combined attenuation level in the range 0-127.
+//   Combined attenuation in the range 0-127.
 // -----------------------------------------------------------------------------
 uint8_t
 VRC7::combined_attenuation (const fm_channel_t &channel, const fm_operator_t &op, bool carrier) const
 {
-	unsigned int attenuation = static_cast<unsigned int>(op.envelope_level);
+    // -------------------------------------------------------------------------
+    // Begin with the operator's current envelope attenuation.
+    // -------------------------------------------------------------------------
 
-	if (carrier) {
-		attenuation += static_cast<unsigned int>(channel.volume) << 3;
-	} else {
-		attenuation += static_cast<unsigned int>(channel.patch.modulator_output_level) << 1;
-	}
+    unsigned int attenuation = static_cast<unsigned int>(op.envelope_level);
 
-	return static_cast<uint8_t>(std::min<unsigned int>(127, attenuation));
+    // -------------------------------------------------------------------------
+    // Apply the operator's static level control.
+    // -------------------------------------------------------------------------
+
+    if (carrier) {
+        attenuation += static_cast<unsigned int>(channel.volume) << 3;
+    } else {
+        attenuation += static_cast<unsigned int>(channel.patch.modulator_output_level) << 1;
+    }
+
+    // -------------------------------------------------------------------------
+    // Apply key-level scaling.
+    // -------------------------------------------------------------------------
+
+    const uint8_t ksl = carrier ? channel.patch.carrier_key_scale_level : channel.patch.modulator_key_scale_level;
+
+    attenuation += vrc7_key_level_attenuation(channel.f_number, channel.block, ksl);
+
+    // -------------------------------------------------------------------------
+    // Apply tremolo when enabled by the instrument patch.
+    //
+    // Modulator and carrier independently select whether the shared
+    // amplitude-modulation oscillator affects their output.
+    // -------------------------------------------------------------------------
+
+    const bool tremoloEnabled = carrier ? channel.patch.carrier_tremolo : channel.patch.modulator_tremolo;
+
+    if (tremoloEnabled) {
+        attenuation += vrc7_tremolo_attenuation(tremolo_phase_);
+    }
+
+    // -------------------------------------------------------------------------
+    // Saturate the combined attenuation to the seven-bit range.
+    // -------------------------------------------------------------------------
+
+    return static_cast<uint8_t>(std::min<unsigned int>(127, attenuation));
 }
 
 
@@ -1875,7 +2164,7 @@ VRC7::debug_audio_state() const
 		if (!audio_silenced_ && channel.f_number != 0) {
 			const uint32_t divisor = 1u << (19 - channel.block);
 
-			debugChannel.frequency_hz = kVRC7ChannelClock * static_cast<double>(channel.f_number) / 
+			debugChannel.frequency_hz = kVRC7ChannelClock * static_cast<double>(channel.f_number) /
 										static_cast<double>(divisor);
 			debugChannel.frequency_valid = true;
 		}
