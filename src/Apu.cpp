@@ -47,6 +47,43 @@ union apu_frame_counter_t {
 
 constexpr double kCPUFrequency = 1789772.7272; // 1.7897727272MHz
 
+
+// -----------------------------------------------------------------------------
+// Triangle debugger mute smoothing.
+//
+// The gain applies only to the Triangle contribution entering the native
+// TND mixer. It does not alter the emulated Triangle DAC or waveform state.
+//
+// Five milliseconds provides a short, click-reducing transition.
+// -----------------------------------------------------------------------------
+constexpr double kTriangleMuteFadeSeconds = 0.020;
+constexpr double kTriangleMuteGainStep = 1.0 / (kCPUFrequency * kTriangleMuteFadeSeconds);
+double sTriangleMuteGain = 1.0;
+
+// DAC level held while the Triangle debugger mute is active.
+double sTriangleMuteHeldDAC = 15.0;
+
+// Previous debugger mute state, used to detect mute transitions.
+bool sTriangleWasMuted = false;
+
+
+// -----------------------------------------------------------------------------
+// DMC debugger mute smoothing.
+//
+// Muting holds the DMC's current DAC contribution rather than forcing it
+// to zero. This prevents an artificial DC transition when a sample is not
+// playing.
+//
+// The actual DMC hardware state continues updating independently.
+// -----------------------------------------------------------------------------
+
+constexpr double kDmcMuteFadeSeconds = 0.020;
+constexpr double kDmcMuteGainStep = 1.0 / (kCPUFrequency * kDmcMuteFadeSeconds);
+double sDmcMuteGain = 1.0;
+double sDmcMuteHeldDAC = 0.0;
+bool sDmcWasMuted = false;
+
+
 // -----------------------------------------------------------------------------
 // Shared band-limited audio resampler.
 //
@@ -720,9 +757,12 @@ mix_native_channels_raw()
     // Read the instantaneous native APU channel outputs.
     const int32_t square1Out = square_0.output();
     const int32_t square2Out = square_1.output();
-    const int32_t triangleOut = triangle.output();
+    const double triangleOut = sTriangleMuteHeldDAC + sTriangleMuteGain *
+							   (static_cast<double>(triangle.raw_output()) - sTriangleMuteHeldDAC);
     const int32_t noiseOut = noise.output();
-    const int32_t dmcOut = dmc.output();
+
+    // Blend between the live DMC DAC and the debugger-held DAC level.
+	const double dmcOut = sDmcMuteHeldDAC + sDmcMuteGain * (static_cast<double>(dmc.raw_output()) - sDmcMuteHeldDAC);
 
     // -------------------------------------------------------------------------
     // Nonlinear pulse-channel mixing.
@@ -731,7 +771,6 @@ mix_native_channels_raw()
     // -------------------------------------------------------------------------
 
     double squareOut = 0.0;
-
     const int32_t pulseSum = square1Out + square2Out;
 
     if (pulseSum > 0) {
@@ -744,10 +783,8 @@ mix_native_channels_raw()
     // These three channels share a separate nonlinear mixing circuit.
     // -------------------------------------------------------------------------
 
-    const double tndInput = static_cast<double>(triangleOut) / 8227.0 + 
-    						static_cast<double>(noiseOut) / 12241.0 + 
+    const double tndInput = triangleOut / 8227.0 + static_cast<double>(noiseOut) / 12241.0 +
     						static_cast<double>(dmcOut) / 22638.0;
-
     double tndOut = 0.0;
 
     if (tndInput > 0.0) {
@@ -787,18 +824,13 @@ mix_channels_raw()
 {
     // Calculate the native APU output.
     const double nativeOutput = mix_native_channels_raw();
-
     double expansionOutput = 0.0;
 
     if (nes::cart.mapper() != nullptr) {
-        const int32_t mapperOutput =
-            nes::cart.mapper()->audio_output();
+        const int32_t mapperOutput = nes::cart.mapper()->audio_output();
+        const int32_t mapperBias = nes::cart.mapper()->audio_output_bias();
 
-        const int32_t mapperBias =
-            nes::cart.mapper()->audio_output_bias();
-
-        expansionOutput =
-            0.00752 * static_cast<double>(mapperOutput - mapperBias);
+        expansionOutput = 0.00752 * static_cast<double>(mapperOutput - mapperBias);
     }
 
     // Preserve the existing expansion-audio polarity and gain.
@@ -807,16 +839,17 @@ mix_channels_raw()
 
 
 // -----------------------------------------------------------------------------
-// mix_channels
+// nes::apu::mix_channels
 //
-// Converts one band-limited mixed-audio sample into unsigned 8-bit host PCM.
-//
-// The input has already been filtered and resampled to the host audio rate.
+// Converts the FIR-resampled mixed APU output into unsigned 8-bit PCM.
 //
 // A one-pole high-pass filter removes DC offset before the sample is
 // centered around unsigned 8-bit PCM silence.
 //
 // The filter state is advanced exactly once per generated host sample.
+//
+// The final PCM conversion uses rounding rather than truncation to prevent
+// tiny floating-point variations from becoming audible quantization tones.
 //
 // Parameters:
 //   input - Band-limited mixed-audio amplitude.
@@ -825,7 +858,7 @@ mix_channels_raw()
 //   Mixed unsigned 8-bit PCM sample.
 // -----------------------------------------------------------------------------
 uint8_t
-mix_channels (double input)
+mix_channels(double input)
 {
     constexpr double R = 0.995;
 
@@ -834,10 +867,12 @@ mix_channels (double input)
     sDCBlockPreviousInput = input;
     sDCBlockPreviousOutput = output;
 
-    const int32_t sample = static_cast<int32_t>(output + 128.0);
+    const int32_t sample = static_cast<int32_t>(std::lround(output + 128.0));
 
     return static_cast<uint8_t>(std::clamp(sample, 0, 255));
 }
+
+
 
 
 // -----------------------------------------------------------------------------
@@ -880,6 +915,14 @@ reset (reset_type type)
 	}
 	
 	triangle.reset();
+	sTriangleWasMuted = triangle.debug_muted();
+	sTriangleMuteHeldDAC = static_cast<double>(triangle.raw_output());
+	sTriangleMuteGain = sTriangleWasMuted ? 0.0 : 1.0;
+
+   // Initialize DMC debugger mute state.
+	sDmcWasMuted = dmc.debug_muted();
+	sDmcMuteHeldDAC = static_cast<double>(dmc.raw_output());
+	sDmcMuteGain = sDmcWasMuted ? 0.0 : 1.0;
 
 	write4017(last_frame_counter_);
 	write4015(0x00);
@@ -1452,6 +1495,13 @@ write4017 (uint8_t value)
 // When a host-rate sample becomes available, the DC blocker and unsigned
 // eight-bit PCM conversion are applied exactly once.
 //
+// Triangle debugger muting is smoothed over approximately five milliseconds.
+// The smoothing gain is advanced once per emulated CPU cycle, independently
+// of debugger refreshes and host audio sample generation.
+//
+// This does not modify the Triangle's internal timer, waveform sequencer,
+// length counter, linear counter, or hardware DAC state.
+//
 // The circular PCM buffer uses equal read/write positions to indicate an
 // empty buffer. One slot is therefore reserved to distinguish a full buffer
 // from an empty one.
@@ -1489,6 +1539,70 @@ tick()
     }
 
     // -------------------------------------------------------------------------
+	// Advance Triangle debugger mute smoothing.
+	//
+	// On a new mute request, capture the current effective Triangle DAC level.
+	// This becomes the constant output held while debugger-muted.
+	//
+	// Holding the DAC level prevents artificial DC steps while removing the
+	// Triangle waveform's time-varying contribution.
+	//
+	// The mute gain transitions smoothly between:
+	//   1.0 - Live Triangle waveform.
+	//   0.0 - Held Triangle DAC level.
+	//
+	// The actual Triangle sequencer continues running independently.
+	// -------------------------------------------------------------------------
+
+	const bool triangleMuted = triangle.debug_muted();
+
+	if (triangleMuted && !sTriangleWasMuted) {
+		const double rawDAC = static_cast<double>(triangle.raw_output());
+
+		// Capture the current effective DAC level to maintain continuity,
+		// even if a previous fade was interrupted.
+		sTriangleMuteHeldDAC += sTriangleMuteGain * (rawDAC - sTriangleMuteHeldDAC);
+	}
+
+	sTriangleWasMuted = triangleMuted;
+
+	if (triangleMuted) {
+		sTriangleMuteGain = std::max(0.0, sTriangleMuteGain - kTriangleMuteGainStep);
+	} else {
+		sTriangleMuteGain = std::min(1.0, sTriangleMuteGain + kTriangleMuteGainStep);
+	}
+
+	// -------------------------------------------------------------------------
+	// Advance DMC debugger mute smoothing.
+	//
+	// Capture the effective DAC level when debugger muting begins.
+	//
+	// As the gain approaches zero, the mixer transitions from the live
+	// DMC DAC to a held constant level.
+	//
+	// This prevents abrupt removal of the DMC's retained DAC voltage.
+	//
+	// DMC sample decoding, DMA, timers, and interrupts are unaffected.
+	// -------------------------------------------------------------------------
+
+	const bool dmcMuted = dmc.debug_muted();
+
+	if (dmcMuted && !sDmcWasMuted) {
+		const double rawDAC = static_cast<double>(dmc.raw_output());
+
+		// Capture the current effective output, including any incomplete fade.
+		sDmcMuteHeldDAC += sDmcMuteGain * (rawDAC - sDmcMuteHeldDAC);
+	}
+
+	sDmcWasMuted = dmcMuted;
+
+	if (dmcMuted) {
+		sDmcMuteGain = std::max(0.0, sDmcMuteGain - kDmcMuteGainStep);
+	} else {
+		sDmcMuteGain = std::min(1.0, sDmcMuteGain + kDmcMuteGainStep);
+	}
+
+    // -------------------------------------------------------------------------
     // Feed the instantaneous mixed output into the FIR resampler.
     //
     // The mapper has already advanced through CPU synchronization.
@@ -1507,7 +1621,7 @@ tick()
         // ---------------------------------------------------------------------
 
         const uint8_t mixedSample = mix_channels(filteredSample);
-        
+
         // ---------------------------------------------------------------------
         // Capture the generated audio sample for the debugger oscilloscope.
         //
@@ -1897,7 +2011,8 @@ debug_state()
     state.dmc.irq_enabled = dmc.debug_irq_enabled();
     state.dmc.loop = dmc.debug_loop();
 
-    state.dmc.output = dmc.output();
+    // display the hardware DAC level, regardless of debugger muting.
+	state.dmc.output = dmc.raw_output();
 
     state.dmc.sample_address = dmc.debug_sample_address();
     state.dmc.current_address = dmc.debug_current_address();

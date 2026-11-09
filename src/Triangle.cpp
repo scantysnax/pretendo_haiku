@@ -275,4 +275,30 @@ Triangle::output() const
 	return sequence[sequence_index_];
 }
 
+
+// -----------------------------------------------------------------------------
+// Triangle::raw_output
+//
+// Returns the current hardware Triangle DAC level without applying the
+// debugger-controlled channel mute.
+//
+// The Triangle DAC retains its current waveform value when the sequencer
+// is stopped. Debugger muting must not alter that internal hardware state.
+//
+// This accessor allows the APU mixer to apply a smooth debugger mute
+// transition without changing Triangle emulation.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Current raw Triangle DAC output, in the range 0-15.
+// -----------------------------------------------------------------------------
+uint8_t
+Triangle::raw_output() const
+{
+    return sequence[sequence_index_];
+}
+
+
 }

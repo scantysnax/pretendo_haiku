@@ -53,6 +53,7 @@ class Triangle
 	// Advance the channel timer and return the current waveform output level.
 	void tick();
 	uint8_t output() const;
+	uint8_t raw_output() const;
 
 	void mute() {
 		channel_muted_ = true;

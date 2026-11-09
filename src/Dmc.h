@@ -91,6 +91,12 @@ class DMC
 	// Advance the DMC and return its current 7-bit DAC output level.
 	void tick();
 	uint8_t output() const;
+
+	// Returns the underlying DMC DAC level, ignoring debugger muting.
+	uint8_t raw_output() const {
+		return output_ & 0x7f;
+	}
+
 	void mute() { 
 		channel_muted_ = true;
 	}
