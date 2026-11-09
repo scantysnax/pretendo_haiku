@@ -2,6 +2,7 @@
 #define _SWEEP_H_
 
 
+#include <algorithm>
 #include <cstdint>
 
 
@@ -53,7 +54,7 @@ class Sweep
 	//   Nothing.
 	// -------------------------------------------------------------------------
 	void clock() {
-		// If the reload flag flag is set, the divider's counter is set to the
+		// If the reload flag is set, the divider's counter is set to the
 		// period P. If the divider's counter was zero before the reload, the
 		// pulse's period is also adjusted.
 		if (reload_) {
@@ -125,19 +126,29 @@ class Sweep
 		pulse_period_ = value;
 	}
 
+	
+	
 	// -------------------------------------------------------------------------
 	// Sweep::silenced
 	//
-	// Reports whether the sweep unit currently silences the square channel.
+	// Determines whether the pulse channel is silenced by its timer
+	// period or the sweep target-period overflow condition.
+	//
+	// The NES silences pulse output when:
+	//
+	//   - The current timer period is less than 8.
+	//   - The sweep target period exceeds the 11-bit limit ($7FF).
+	//
+	// These conditions apply even when sweep updating is disabled.
 	//
 	// Parameters:
 	//   None.
 	//
 	// Returns:
-	//   true if the sweep unit is silencing the channel.
+	//   true if the pulse channel must produce silence.
 	// -------------------------------------------------------------------------
 	bool silenced() const {
-		return silenced_;
+		return pulse_period_ < 8 || target_period() > 0x07ff;
 	}
 	
 	public:
@@ -158,7 +169,7 @@ class Sweep
 	}
 
 	bool debug_silenced() const {
-		return silenced_;
+		return silenced();
 	}
 
 	uint16_t debug_pulse_period() const {
@@ -206,14 +217,19 @@ class Sweep
 		return control_ & 0x08;
 	}
 
+	
 	// -------------------------------------------------------------------------
 	// Sweep::target_period
 	//
-	// Calculates the target timer period produced by the current sweep settings.
+	// Calculates the target pulse timer period from the current period,
+	// sweep shift count, and negate setting.
 	//
-	// The current period is shifted to form the sweep delta.  Positive sweeps add
-	// that delta, while negative sweeps subtract it.  Pulse channel 1 applies the
-	// NES one's-complement correction by subtracting one additional count.
+	// Pulse 1 uses one's-complement subtraction (subtracts an additional 1),
+	// while Pulse 2 uses two's-complement subtraction.
+	//
+	// Negative results are clamped to zero, matching NES sweep behavior.
+	// Positive overflow is preserved so silenced() can detect a target
+	// exceeding the 11-bit timer range.
 	//
 	// Parameters:
 	//   None.
@@ -222,20 +238,22 @@ class Sweep
 	//   Calculated target pulse timer period.
 	// -------------------------------------------------------------------------
 	uint16_t target_period() const {
-		// The channel's 11-bit raw timer period is shifted right by the shift count
-		// (using a barrel shifter), then either added to or subtracted from the
-		// channel's raw period, yielding the target period.
-		const uint16_t delta = pulse_period_ >> shift();
+		const int32_t period = static_cast<int32_t>(pulse_period_);
+		const int32_t delta = period >> shift();
+
+		int32_t target;
 
 		if (negate()) {
 			if constexpr (Channel == 0) {
-				return pulse_period_ - delta - 1;
+				target = period - delta - 1;
 			} else {
-				return pulse_period_ - delta;
+				target = period - delta;
 			}
 		} else {
-			return pulse_period_ + delta;
+			target = period + delta;
 		}
+
+		return static_cast<uint16_t>(std::max<int32_t>(0, target));
 	}
 
 	// -------------------------------------------------------------------------
@@ -274,7 +292,6 @@ class Sweep
 	uint8_t counter_       = 0;
 	uint8_t control_       = 0;
 	bool reload_           = false;
-	bool silenced_         = false;
 };
 
 }

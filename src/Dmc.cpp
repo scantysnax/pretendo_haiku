@@ -211,10 +211,11 @@ DMC::write_reg1 (uint8_t value)
 // -----------------------------------------------------------------------------
 // DMC::write_reg2
 //
-// Writes the DMC sample-address register.
+// Programs the starting address for DMC sample playback.
 //
-// The register value is converted into the corresponding CPU sample address,
-// and the current sample pointer is reset to that address.
+// The new address takes effect when sample playback starts or loops.
+// An active sample reader retains its current address, so writing $4012
+// does not redirect an already-running sample.
 //
 // Parameters:
 //   value - Value written to DMC register $4012.
@@ -223,10 +224,9 @@ DMC::write_reg1 (uint8_t value)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-DMC::write_reg2 (uint8_t value)
+DMC::write_reg2(uint8_t value)
 {
-	sample_address_ = 0xc000 | (value << 6);
-	sample_pointer_ = sample_address_;
+    sample_address_ = 0xc000 | (static_cast<uint16_t>(value) << 6);
 }
 
 

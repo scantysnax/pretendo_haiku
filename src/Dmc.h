@@ -104,6 +104,25 @@ class DMC
 	void unmute() {
 		channel_muted_ = false;
 	}
+	
+	public:
+	// -----------------------------------------------------------------------------
+	// DMC::cancel_pending_dma
+	//
+	// Clears the DMC's outstanding DMA-request bookkeeping after the CPU
+	// has canceled its pending DMA during a hard reset.
+	//
+	// This does not modify the DMC DAC, output shift register, or timer.
+	//
+	// Parameters:
+	//   None.
+	//
+	// Returns:
+	//   Nothing.
+	// -----------------------------------------------------------------------------
+	void cancel_pending_dma() {
+    	sample_dma_pending_ = false;
+	}
 
 	private:
 	// Control-register helpers and sample/output-unit clocks.

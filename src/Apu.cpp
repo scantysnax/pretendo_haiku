@@ -910,6 +910,7 @@ reset (reset_type type)
 
 	if (type == reset_type::hard) {
 		last_frame_counter_ = 0;
+		dmc.cancel_pending_dma();
 	}
 	
 	triangle.reset();

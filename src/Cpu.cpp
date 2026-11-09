@@ -1283,7 +1283,10 @@ stop()
 	S = 0;
 	P = Z_MASK | I_MASK | R_MASK;
 
+	// Begin a fresh CPU session without interrupt requests retained
+	// from the previously loaded cartridge or APU state.
 	executed_cycles_ = 1;
+	irq_sources_     = 0;
 	irq_asserted_    = false;
 	nmi_asserted_    = false;
 	rst_asserted_    = false;

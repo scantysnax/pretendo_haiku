@@ -53,22 +53,31 @@ LengthCounter::load (uint8_t index)
 }
 
 
-// -----------------------------------------------------------------------------
+
+// -------------------------------------------------------------------------
 // LengthCounter::clear
 //
-// Schedules the length counter to be cleared.
+// Immediately clears the length counter when its channel is disabled
+// through APU register $4015.
+//
+// NES hardware forces the length counter to zero as soon as the
+// corresponding channel-enable bit is cleared. A pending length reload
+// must also be discarded so that it cannot restore the previous value
+// after the channel has been disabled.
 //
 // Parameters:
 //   None.
 //
 // Returns:
 //   Nothing.
-// -----------------------------------------------------------------------------
+// -------------------------------------------------------------------------
 void
 LengthCounter::clear()
 {
+	value_ = 0;
 	reload_value_ = 0;
-	reload_       = true;
+	reload_ = false;
+	reload_cycle_ = static_cast<uint64_t>(-1);
 }
 
 

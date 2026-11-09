@@ -251,8 +251,11 @@ public:
 			return 0;
 		}
 
-		if ((timer_.frequency - 1) < 8) {
-			return 0;
+		// The NES pulse output is silenced for timer periods below 8.
+		// Test the hardware timer reload value, not the CPU-cycle-scaled
+		// frequency used by the emulator's Timer implementation.
+		if (timer_reload_ < 8) {
+    		return 0;
 		} else if (sequence[duty_][sequence_index_] == 0) {
 			return 0;
 		} else if (sweep.silenced()) {
@@ -298,8 +301,11 @@ public:
 			return 0;
 		}
 
-		if ((timer_.frequency - 1) < 8) {
-			return 0;
+		// The NES pulse output is silenced for timer periods below 8.
+		// Test the hardware timer reload value, not the CPU-cycle-scaled
+		// frequency used by the emulator's Timer implementation.
+		if (timer_reload_ < 8) {
+    		return 0;
 		}
 
 		if (sequence[duty_][sequence_index_] == 0) {
