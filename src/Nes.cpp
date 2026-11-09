@@ -12,7 +12,6 @@ Cart cart;
 alignas(512) static uint32_t sFrameScanlineBuffer[256] = {};
 
 
-
 // -------------------------------------------------------------------------
 // nes::reset
 //
