@@ -601,6 +601,11 @@ void debug_clear_scope();
 // Resets APU timing, channel state, and debugger-visible APU state.
 void reset(reset_type type);
 
+// Initializes the audio filters from the current native and expansion
+// audio levels after all sound-producing subsystems have been reset.
+void finalize_audio_reset();
+
+
 // Square 1 register writes ($4000-$4003).
 void write4000(uint8_t value);
 void write4001(uint8_t value);

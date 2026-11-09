@@ -11,31 +11,41 @@ Cart cart;
 
 alignas(512) static uint32_t sFrameScanlineBuffer[256] = {};
 
-// -----------------------------------------------------------------------------
-// reset
+
+
+// -------------------------------------------------------------------------
+// nes::reset
 //
 // Resets the major NES subsystems using the requested reset type.
 //
-// The CPU, APU, and PPU are reset in sequence so each subsystem returns to its
-// appropriate startup state.
+// The CPU and APU are reset first, followed by the cartridge mapper.
+// Once all audio-producing subsystems have been initialized, the APU
+// resampler and DC-blocking filter are initialized from the final
+// post-reset audio output.
+//
+// The PPU is reset last, preserving the existing subsystem reset order.
 //
 // Parameters:
-//   reset_type - Type of reset to perform.
+//   type - Type of reset to perform.
 //
 // Returns:
 //   Nothing.
-// -----------------------------------------------------------------------------
+// -------------------------------------------------------------------------
 void
 reset(reset_type type)
 {
 	cpu::reset(type);
-    apu::reset(type);
+	apu::reset(type);
+		
+	if (cart.mapper()) {
+		cart.mapper()->reset();
+	}
+	
+	// Initialize audio filters after both the native APU and
+	// cartridge expansion-audio hardware have been reset.
+	apu::finalize_audio_reset();
 
-    if (cart.mapper()) {
-        cart.mapper()->reset();
-    }
-
-    ppu::reset(type);
+	ppu::reset(type);
 }
 
 

@@ -873,18 +873,63 @@ mix_channels(double input)
 }
 
 
-// -----------------------------------------------------------------------------
-// nes::apu::reset
+
+// -------------------------------------------------------------------------
+// nes::apu::finalize_audio_reset
 //
-// Resets APU timing, channel state, sample-output state, queued host samples,
-// and the DC-blocking filter.
+// Initializes the FIR resampler and DC-blocking filter from the final
+// combined native APU and cartridge expansion-audio output.
+//
+// Called after both the APU and cartridge mapper have completed reset.
 //
 // Parameters:
-//   reset_type - Hard or soft reset mode.
+//   None.
 //
 // Returns:
 //   Nothing.
-// -----------------------------------------------------------------------------
+// -------------------------------------------------------------------------
+void
+finalize_audio_reset()
+{
+	const double initialAudioLevel = mix_channels_raw();
+	/*
+	 * Initialize the FIR history from the current mixed level,
+	 * avoiding an artificial step when sample generation begins.
+	 */
+	audio_resampler.reset(initialAudioLevel);
+
+	/*
+	 * Initialize the DC blocker at the same level.
+	 *
+	 * A constant input should initially produce silence
+	 * after DC blocking.
+	 */
+	sDCBlockPreviousInput = initialAudioLevel;
+	sDCBlockPreviousOutput = 0.0;
+}
+
+
+
+// -------------------------------------------------------------------------
+// nes::apu::reset
+//
+// Resets APU timing, channel state, sample-output state, queued host
+// samples, and debugger state.
+//
+// A hard reset also discards outstanding DMC DMA bookkeeping and resets
+// the Triangle linear counter.
+//
+// The FIR resampler and DC-blocking filter are initialized separately by
+// finalize_audio_reset(), after the cartridge mapper has been reset.
+// This ensures their initial state reflects the final combined native
+// APU and expansion-audio output.
+//
+// Parameters:
+//   type - Hard or soft reset mode.
+//
+// Returns:
+//   Nothing.
+// -------------------------------------------------------------------------
 void
 reset (reset_type type)
 {
@@ -895,98 +940,117 @@ reset (reset_type type)
 	clock_step_    = 0;
 
 	/*
-	 * Discard any PCM generated before the reset.  Otherwise the next host
-	 * audio block can begin with stale pre-reset samples followed immediately
-	 * by newly generated post-reset samples, creating an audible discontinuity.
+	 * Discard any PCM generated before the reset. Otherwise the next
+	 * host audio block could contain stale pre-reset samples followed
+	 * by newly generated post-reset samples.
 	 */
 	sample_buffer_start = 0;
 	sample_buffer_end   = 0;
 
 	sDCBlockPreviousInput  = 0.0;
 	sDCBlockPreviousOutput = 0.0;
-	
+
 	debug_clear_scope();
 	debug_clear_frame_events();
 
 	if (type == reset_type::hard) {
 		last_frame_counter_ = 0;
-		dmc.cancel_pending_dma();
+			/*
+			 * The CPU has already canceled its outstanding DMC DMA.
+			 * Clear the corresponding DMC request bookkeeping.
+			 */
+			dmc.cancel_pending_dma();
 	}
-	
+
+	/*
+	 * Reset the Triangle timer and waveform state.
+	 */
 	triangle.reset();
+
+	if (type == reset_type::hard) {
+		triangle.linear_counter.reset();
+	}
+
+	/*
+	 * Initialize Triangle debugger mute state from the channel's
+	 * current hardware DAC level.
+	 */
 	sTriangleWasMuted = triangle.debug_muted();
 	sTriangleMuteHeldDAC = static_cast<double>(triangle.raw_output());
 	sTriangleMuteGain = sTriangleWasMuted ? 0.0 : 1.0;
 
-   // Initialize DMC debugger mute state.
+	/*
+	 * Initialize DMC debugger mute state from the channel's
+	 * current hardware DAC level.
+	 */
 	sDmcWasMuted = dmc.debug_muted();
-	sDmcMuteHeldDAC = static_cast<double>(dmc.raw_output());
+	sDmcMuteHeldDAC =
+		static_cast<double>(dmc.raw_output());
 	sDmcMuteGain = sDmcWasMuted ? 0.0 : 1.0;
 
+	/*
+	 * Initialize the APU frame counter and disable all channels.
+	 */
 	write4017(last_frame_counter_);
 	write4015(0x00);
 
-	// square 1
+	/*
+	 * Pulse channel 1.
+	 */
 	write4000(10);
 	write4001(00);
 	write4002(00);
 	write4003(00);
 
-	// square 2
+	/*
+	 * Pulse channel 2.
+	 */
 	write4004(10);
 	write4005(00);
 	write4006(00);
 	write4007(00);
 
-	// triangle
-	//write4008(10); // triangle is unaffected..
+	/*
+	 * Triangle channel.
+	 *
+	 * Preserve the existing handling of $4008.
+	 */
+
+	// write4008(10); // Triangle is unaffected.
 	write400A(00);
 	write400B(00);
 
-	// noise
+	/*
+	 * Noise channel.
+	 */
 	write400C(10);
 	write400E(00);
 	write400F(00);
 
-	// dmc
+	/*
+	 * DMC channel.
+	 */
 	write4010(10);
 
-	// OK, the APU is supposed to act as if it has run for approximately 9
-	// cycles by the time the reset is complete. I believe that the first 7
-	// of these cycles are the 7 cycles of the reset itself. So we run the
-	// APU manually for an extra 2 ticks.
-	//
-	// Blargg says it is as if this happens
-	//
-	//       lda   #$00
-	//       sta   $4017       ; 1
-	//       lda   <0          ; 9 delay
-	//       nop
-	//       nop
-	//       nop
-	//     reset:
+	/*
+	 * Preserve the existing startup timing adjustment.
+	 *
+	 * The original implementation accounts for approximately
+	 * nine APU cycles during reset, seven of which correspond
+	 * to the CPU reset sequence.
+	 *
+	 * Execute two additional APU cycles for a hard reset.
+	 */
 	if (type == reset_type::hard) {
 		exec<2>();
 	}
 
 	/*
- 	 * Initialize the resampler history from the current mixed signal.
- 	 *
- 	 * This prevents an existing, held DAC level from appearing as a
- 	 * sudden transition when audio generation begins.
- 	 */
-	const double initialAudioLevel = mix_channels_raw();
-
-	audio_resampler.reset(initialAudioLevel);
-
-	/*
-	 * Initialize the DC blocker at the same signal level.
- 	 *
- 	 * The resampler has unity DC gain, so a constant signal should
- 	 * initially produce silence after DC blocking.
- 	 */
-	sDCBlockPreviousInput = initialAudioLevel;
-	sDCBlockPreviousOutput = 0.0;
+	 * Do not initialize the audio resampler or DC blocker here.
+	 *
+	 * nes::reset() calls apu::finalize_audio_reset() after the
+	 * cartridge mapper has finished resetting.
+	 */
 }
 
 
