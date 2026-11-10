@@ -72,6 +72,29 @@ class LFSR {
 	uint16_t value() const {
 		return value_ & 0x7fff;
 	}
+	
+	
+	// -------------------------------------------------------------------------
+	// LFSR::reset
+	//
+	// Initializes the noise shift register to Pretendo's deterministic
+	// power-on state.
+	//
+	// This is intended for fresh emulator initialization, not ordinary
+	// APU register writes or hardware-style soft resets.
+	//
+	// Parameters:
+	//   None.
+	//
+	// Returns:
+	//   Nothing.
+	// -------------------------------------------------------------------------
+	void reset()
+	{
+		value_ = 1;
+		mode_ = 0;
+	}
+
 
 	private:
 	// -------------------------------------------------------------------------

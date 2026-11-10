@@ -61,6 +61,25 @@ class Noise
 	}
 	
 	
+	// -------------------------------------------------------------------------
+	// Noise::reset_lfsr
+	//
+	// Resets the noise generator's shift register to its deterministic
+	// initial state.
+	//
+	// The envelope, length counter, and timer are not modified.
+	//
+	// Parameters:
+	//   None.
+	//
+	// Returns:
+	//   Nothing.
+	// -------------------------------------------------------------------------
+	void reset_lfsr()
+	{
+		lfsr_.reset();
+	}
+
 	public:
 	LengthCounter length_counter;
 	Envelope envelope;

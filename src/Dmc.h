@@ -27,7 +27,10 @@ class DMC
 	void enable();
 	void disable();
 	void set_enabled(bool value);
-
+	// Initializes the DMC for a fresh emulated machine.
+	// Does not change the debugger-controlled mute setting.
+	void reset_for_power_on();
+	
 	public:
 	// DMC register writes ($4010-$4013).
 	void write_reg0(uint8_t value);
@@ -148,6 +151,7 @@ class DMC
 	ShiftRegister<uint8_t> shift_register_{0};
 	DMCControl control_{0};
 	Timer timer_;
+	
 
 	// Debugger/user-controlled audio mute; does not stop DMC emulation.
 	bool channel_muted_ = false;

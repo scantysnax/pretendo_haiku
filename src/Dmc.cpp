@@ -107,6 +107,78 @@ DMC::set_enabled (bool value)
 }
 
 
+// -------------------------------------------------------------------------
+// DMC::reset_for_power_on
+//
+// Initializes the DMC memory reader, output unit, and timer to a
+// deterministic fresh-machine state.
+//
+// This routine is intended only for a hard emulator reset, after
+// the CPU has canceled any outstanding DMC DMA transfer.
+//
+// Unlike an ordinary $4015 disable, a fresh-machine reset clears
+// buffered sample data, output-unit state, and the DAC level.
+//
+// The debugger-controlled channel mute is preserved.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -------------------------------------------------------------------------
+void
+DMC::reset_for_power_on()
+{
+	/*
+	 * Disable the sample reader and discard any canceled
+	 * DMA-request bookkeeping.
+	 */
+	enabled_ = false;
+	cancel_pending_dma();
+	
+	/*
+	 * Reset the programmed sample registers and active
+	 * memory-reader state.
+	 */
+	sample_address_  = 0xc000;
+	sample_pointer_  = 0xc000;
+	sample_length_   = 0;
+	bytes_remaining_ = 0;
+
+	/*
+	 * Start with an empty sample buffer.
+	 */
+	sample_buffer_       = 0;
+	sample_buffer_empty_ = true;
+
+	/*
+	 * Reset the DMC output unit.
+	 */
+	shift_register_.load(0);
+	bits_remaining_ = 0;
+	muted_ = true;
+
+	/*
+	 * The DMC DAC starts at zero on fresh initialization.
+	 */
+	output_ = 0;
+
+	/*
+	 * Initialize the control register and timer.
+	 */
+	control_.value = 0;
+	timer_.frequency = kFrequencyTable[0];
+	timer_.reset();
+
+	/*
+	 * Preserve channel_muted_: debugger settings belong
+	 * to the user interface, not the emulated DMC hardware.
+	 */
+}
+
+
+
 // -----------------------------------------------------------------------------
 // DMC::enable
 //

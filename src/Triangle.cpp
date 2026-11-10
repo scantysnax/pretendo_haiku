@@ -193,32 +193,36 @@ Triangle::enabled() const
 	return enabled_;
 }
 
-// -----------------------------------------------------------------------------
+
+// -------------------------------------------------------------------------
 // Triangle::reset
 //
-// Resets the triangle channel's internal timer and waveform state.
+// Resets the Triangle channel's timer, waveform sequencer, length
+// counter, and active linear-counter state.
 //
-// This clears state retained from the previously running program before APU
-// reset register writes are applied.
+// The Triangle waveform position and linear counter are reset by
+// the NES reset signal, so this routine applies to both hard and
+// soft emulator resets.
+//
+// The linear counter's programmed control value is preserved by
+// LinearCounter::reset().
 //
 // Parameters:
 //   None.
 //
 // Returns:
 //   Nothing.
-// -----------------------------------------------------------------------------
+// -------------------------------------------------------------------------
 void
 Triangle::reset()
 {
 	enabled_ = false;
-
 	timer_load_ = 0;
 	sequence_index_ = 0;
-
 	timer_.frequency = 1;
 	timer_.reset();
-
 	length_counter.clear();
+	linear_counter.reset();
 }
 
 

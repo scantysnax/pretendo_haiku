@@ -954,22 +954,19 @@ reset (reset_type type)
 	debug_clear_frame_events();
 
 	if (type == reset_type::hard) {
-		last_frame_counter_ = 0;
-			/*
-			 * The CPU has already canceled its outstanding DMC DMA.
-			 * Clear the corresponding DMC request bookkeeping.
-			 */
-			dmc.cancel_pending_dma();
+    	last_frame_counter_ = 0;
+
+    	// Initialize the DMC after CPU DMA cancellation.
+    	dmc.reset_for_power_on();
+
+    	// Initialize the Noise LFSR for a fresh emulation session.
+    	noise.reset_lfsr();
 	}
 
 	/*
 	 * Reset the Triangle timer and waveform state.
 	 */
-	triangle.reset();
-
-	if (type == reset_type::hard) {
-		triangle.linear_counter.reset();
-	}
+	 triangle.reset();
 
 	/*
 	 * Initialize Triangle debugger mute state from the channel's
