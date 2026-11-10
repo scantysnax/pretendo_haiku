@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <cmath>
 #include <iostream>
+#include <cstdio>
 
 // note: DMC and DPCM may be used interchangeably
 
@@ -104,6 +105,11 @@ auto next_clock_ = static_cast<uint64_t>(-1);
 
 // Next internal frame-sequencer step to execute.
 uint8_t clock_step_ = 0;
+
+// Pending $4017 frame-counter restart.
+bool frame_restart_pending_ = false;
+uint64_t frame_restart_cycle_ = 0;
+bool frame_pending_mode_ = false;
 
 // Current $4017 frame-counter control state.
 apu_frame_counter_t frame_counter_ = {0};
@@ -616,7 +622,7 @@ clock_frame_mode_0()
 			log_frame_event(APU_FRAME_EVENT_QUARTER);
 
 			clock_linear();
-			next_clock_ += 7456;
+			next_clock_ += 7455;
 			break;
 
 		case 1:
@@ -624,14 +630,14 @@ clock_frame_mode_0()
 
 			clock_linear();
 			clock_length();
-			next_clock_ += 7458;
+			next_clock_ += 7459;
 			break;
 
 		case 2:
 			log_frame_event(APU_FRAME_EVENT_QUARTER);
 
 			clock_linear();
-			next_clock_ += 7457;
+			next_clock_ += 7456;
 			break;
 
 		case 3:
@@ -664,7 +670,8 @@ clock_frame_mode_0()
 				status.frame_irq = true;
 			}
 
-			next_clock_ += 7457;
+			// Preserve the full sequence repetition period.
+			next_clock_ += 7458;
 			break;
 	}
 
@@ -672,14 +679,19 @@ clock_frame_mode_0()
 }
 
 
+
 // -----------------------------------------------------------------------------
 // clock_frame_mode_1
 //
-// Advances the APU frame counter through its 5-step sequence.
+// Advances the APU frame counter through its five-step sequence.
 //
-// Quarter-frame events clock envelopes and the triangle linear counter.
-// Half-frame events additionally clock length counters and square-channel
-// sweeps.  Unlike mode 0, this sequence does not generate a frame IRQ.
+// Quarter-frame events clock the envelopes and Triangle linear counter.
+// Half-frame events additionally clock length counters and pulse sweeps.
+//
+// Five-step mode does not generate frame IRQs.
+//
+// Temporary Phase 3.1 diagnostics capture the first periodic half-frame
+// clock and the pulse 0 length-counter value before and after that clock.
 //
 // Parameters:
 //   None.
@@ -687,50 +699,108 @@ clock_frame_mode_0()
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void 
+void
 clock_frame_mode_1()
 {
-	// 5 step sequence
 	switch (clock_step_) {
-	case 0:
-		log_frame_event(APU_FRAME_EVENT_QUARTER_HALF);
-		
-		clock_linear();
-		clock_length();
-		next_clock_ += 7458;
-		break;
+		case 0:
+			log_frame_event(APU_FRAME_EVENT_QUARTER_HALF);
 
-	case 1:
-		log_frame_event(APU_FRAME_EVENT_QUARTER);
+			clock_linear();
+			clock_length();
+			next_clock_ += 7460;
+			break;
 
-		clock_linear();
-		next_clock_ += 7456;
-		break;
+		case 1:
+			log_frame_event(APU_FRAME_EVENT_QUARTER);
 
-	case 2:
-		log_frame_event(APU_FRAME_EVENT_QUARTER_HALF);
+			clock_linear();
 
-		clock_linear();
-		clock_length();
-		next_clock_ += 7458;
-		break;
+			// Restore the previous experimental timing.
+			next_clock_ += 7454;
+			break;
 
-	case 3:
-		log_frame_event(APU_FRAME_EVENT_QUARTER);
+			case 2:
+				log_frame_event(APU_FRAME_EVENT_QUARTER_HALF);
 
-		clock_linear();
-		next_clock_ += 7456;
-		break;
+				clock_linear();
+				clock_length();
 
-	case 4:
-		next_clock_ += 7454;
-		break;
+				// Compensating interval from the previous experiment.
+				next_clock_ += 7460;
+				break;
+
+			case 3:
+				log_frame_event(APU_FRAME_EVENT_QUARTER);
+
+				clock_linear();
+				next_clock_ += 7456;
+				break;
+
+			case 4:
+				/*
+				 * The fifth step generates no quarter-frame
+				 * or half-frame clocks.
+				 */
+				next_clock_ += 7452;
+				break;
+		}
+
+		clock_step_ = (clock_step_ + 1) % 5;
 	}
-	
-	clock_step_ = (clock_step_ + 1) % 5;
+
+
+
+
+
+
+ // -----------------------------------------------------------------------------
+ // apply_frame_restart
+ //
+ // Applies a pending APU frame-counter restart after the three- or four-cycle
+ // delay following a write to $4017.
+ //
+ // The requested frame-counter mode becomes active while the IRQ inhibition
+ // flag is preserved.
+ //
+ // In five-step mode, the restart immediately clocks both quarter-frame and
+ // half-frame units, then schedules the next periodic quarter-frame event.
+ //
+ // In four-step mode, no channel units are clocked at restart. The first
+ // quarter-frame event is scheduled for the next sequence interval.
+ //
+ // Parameters:
+ //   None.
+ //
+ // Returns:
+ //   Nothing.
+ // -----------------------------------------------------------------------------
+static void
+apply_frame_restart()
+{
+	frame_restart_pending_ = false;
+
+	// Apply the requested mode while preserving IRQ inhibition.
+	frame_counter_.raw = (frame_counter_.raw & 0x40) | (frame_pending_mode_ ? 0x80 : 0x00);
+
+	clock_step_ = 0;
+
+	if (frame_counter_.mode) {
+		// Five-step mode clocks quarter- and half-frame units at restart.
+		log_frame_event(APU_FRAME_EVENT_QUARTER_HALF);
+
+		clock_linear();
+		clock_length();
+
+		// The restart clock has occurred; schedule the next quarter clock.
+		clock_step_ = 1;
+		next_clock_ = apu_cycles_ + 7458;
+	} else {
+		// Four-step mode begins without an immediate channel clock.
+		clock_step_ = 0;
+		next_clock_ = apu_cycles_ + 7457;
+	}
 }
-
-
 
 
 // -----------------------------------------------------------------------------
@@ -795,8 +865,6 @@ mix_native_channels_raw()
     // nominal 0-255 mixer scale.
     return (squareOut + tndOut) * 255.0;
 }
-
-
 
 
 // -----------------------------------------------------------------------------
@@ -873,7 +941,6 @@ mix_channels(double input)
 }
 
 
-
 // -------------------------------------------------------------------------
 // nes::apu::finalize_audio_reset
 //
@@ -936,8 +1003,15 @@ reset (reset_type type)
 	status.raw     = 0;
 	frame_counter_ = {0};
 	apu_cycles_    = 0;
-	next_clock_    = 0;
+
+	// No ordinary frame event is scheduled until the delayed restart.
+	next_clock_    = static_cast<uint64_t>(-1);
+
 	clock_step_    = 0;
+
+	frame_restart_pending_ = false;
+	frame_restart_cycle_ = 0;
+	frame_pending_mode_ = false;
 
 	/*
 	 * Discard any PCM generated before the reset. Otherwise the next
@@ -981,8 +1055,7 @@ reset (reset_type type)
 	 * current hardware DAC level.
 	 */
 	sDmcWasMuted = dmc.debug_muted();
-	sDmcMuteHeldDAC =
-		static_cast<double>(dmc.raw_output());
+	sDmcMuteHeldDAC = static_cast<double>(dmc.raw_output());
 	sDmcMuteGain = sDmcWasMuted ? 0.0 : 1.0;
 
 	/*
@@ -1066,6 +1139,7 @@ void
 write4000 (uint8_t value)
 {
 	log_write(0x4000, value);
+
 	explorer_square1_[0] = value;
 	square_0.write_reg0(value);
 }
@@ -1086,6 +1160,7 @@ void
 write4001 (uint8_t value)
 {
 	log_write(0x4001, value);
+
 	explorer_square1_[1] = value;
 	square_0.write_reg1(value);
 }
@@ -1106,6 +1181,7 @@ void
 write4002 (uint8_t value)
 {
 	log_write(0x4002, value);
+
 	explorer_square1_[2] = value;
 	square_0.write_reg2(value);
 }
@@ -1127,6 +1203,7 @@ void
 write4003 (uint8_t value)
 {
 	log_write(0x4003, value);
+
 	explorer_square1_[3] = value;
 	square_0.write_reg3(value);
 }
@@ -1147,6 +1224,7 @@ void
 write4004 (uint8_t value)
 {
 	log_write(0x4004, value);
+
 	explorer_square2_[0] = value;
 	square_1.write_reg0(value);
 }
@@ -1167,6 +1245,7 @@ void
 write4005(uint8_t value)
 {
 	log_write(0x4005, value);
+
 	explorer_square2_[1] = value;
 	square_1.write_reg1(value);
 }
@@ -1186,6 +1265,7 @@ write4005(uint8_t value)
 void write4006 (uint8_t value)
 {
 	log_write(0x4006, value);
+
 	explorer_square2_[2] = value;
 	square_1.write_reg2(value);
 }
@@ -1207,6 +1287,7 @@ void
 write4007 (uint8_t value)
 {
 	log_write(0x4007, value);
+
 	explorer_square2_[3] = value;
 	square_1.write_reg3(value);
 }
@@ -1227,6 +1308,7 @@ void
 write4008 (uint8_t value)
 {
 	log_write(0x4008, value);
+
 	explorer_triangle0_ = value;
 	triangle.write_reg0(value);
 }
@@ -1247,6 +1329,7 @@ void
 write400A (uint8_t value)
 {
 	log_write(0x400a, value);
+
 	explorer_triangle2_ = value;
 	triangle.write_reg2(value);
 }
@@ -1268,6 +1351,7 @@ void
 write400B (uint8_t value)
 {
 	log_write(0x400b, value);
+
 	explorer_triangle3_ = value;
 	triangle.write_reg3(value);
 }
@@ -1288,6 +1372,7 @@ void
 write400C (uint8_t value)
 {
 	log_write(0x400c, value);
+
 	explorer_noise0_ = value;
 	noise.write_reg0(value);
 }
@@ -1308,6 +1393,7 @@ void
 write400E (uint8_t value)
 {
 	log_write(0x400e, value);
+
 	explorer_noise2_ = value;
 	noise.write_reg2(value);
 }
@@ -1328,6 +1414,7 @@ void
 write400F (uint8_t value)
 {
 	log_write(0x400f, value);
+
 	explorer_noise3_ = value;
 	noise.write_reg3(value);
 }
@@ -1348,6 +1435,7 @@ void
 write4010 (uint8_t value)
 {
 	log_write(0x4010, value);
+
 	explorer_dmc_[0] = value;
 	dmc.write_reg0(value);
 }
@@ -1368,6 +1456,7 @@ void
 write4011 (uint8_t value)
 {
 	log_write(0x4011, value);
+
 	explorer_dmc_[1] = value;
 	dmc.write_reg1(value);
 }
@@ -1388,6 +1477,7 @@ void
 write4012 (uint8_t value)
 {
 	log_write(0x4012, value);
+
 	explorer_dmc_[2] = value;
 	dmc.write_reg2(value);
 }
@@ -1408,6 +1498,7 @@ void
 write4013 (uint8_t value)
 {
 	log_write(0x4013, value);
+
 	explorer_dmc_[3] = value;
 	dmc.write_reg3(value);
 }
@@ -1450,14 +1541,20 @@ write4015 (uint8_t value)
 }
 
 
+
 // -----------------------------------------------------------------------------
 // read4015
 //
 // Reads the APU status register.
 //
-// The returned value reports active channel length/sample state together with
-// the DMC and frame interrupt flags.  Reading this register clears the frame IRQ
-// flag and clears the CPU APU IRQ source when no APU interrupt remains active.
+// The returned value reports active channel length/sample state together
+// with the DMC and frame interrupt flags.
+//
+// Reading this register clears the frame IRQ flag and clears the CPU APU
+// IRQ source when no APU interrupt remains active.
+//
+// Temporary Phase 3.1 diagnostics capture the CPU-visible Pulse 0 status
+// near the first and second five-step length-counter timing boundaries.
 //
 // Parameters:
 //   None.
@@ -1465,12 +1562,12 @@ write4015 (uint8_t value)
 // Returns:
 //   Current APU status-register value.
 // -----------------------------------------------------------------------------
-uint8_t 
+uint8_t
 read4015()
 {
 	uint8_t ret = status.raw & (apu_status::DMC_IRQ | apu_status::FRAME_IRQ);
 
-	// reading this register clears the Frame interrupt flag.
+	// Reading $4015 clears the frame interrupt flag.
 	status.frame_irq = false;
 
 	if (square_0.length_counter.value() > 0) {
@@ -1500,14 +1597,18 @@ read4015()
 	return ret;
 }
 
+
 // -----------------------------------------------------------------------------
 // write4017
 //
 // Writes the APU frame-counter control register.
 //
-// This selects the frame-counter sequence mode, controls frame IRQ inhibition,
-// resets the frame-sequence step, and schedules the next frame-counter event
-// according to the current APU-cycle parity.
+// Frame IRQ inhibition takes effect immediately. The requested sequence
+// mode and frame-counter restart take effect after a delayed CPU-cycle
+// interval.
+//
+// Until that restart, the currently active frame sequence continues.
+// A subsequent $4017 write replaces any pending restart request.
 //
 // Parameters:
 //   value - Value written to APU register $4017.
@@ -1516,12 +1617,16 @@ read4015()
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-write4017 (uint8_t value)
+write4017(uint8_t value)
 {
 	log_write(0x4017, value);
-	
-	frame_counter_.raw  = value;
+
 	last_frame_counter_ = value;
+	/*
+	 * IRQ inhibition takes effect immediately, but the active
+	 * sequence mode must remain unchanged until the restart.
+	 */
+	frame_counter_.raw = (frame_counter_.raw & 0x80) | (value & 0x40);
 
 	if (frame_counter_.inhibit_frame_irq) {
 		status.frame_irq = false;
@@ -1531,13 +1636,24 @@ write4017 (uint8_t value)
 		}
 	}
 
-	next_clock_ = apu_cycles_ + (apu_cycles_ & 1) + 1;
+	/*
+	 * Save the requested mode for the delayed restart.
+	 */
+	frame_pending_mode_ = (value & 0x80) != 0;
+	frame_restart_pending_ = true;
 
-	clock_step_ = 0;
-
-	if (!frame_counter_.mode) {
-		next_clock_ += 7458;
-	}
+	/*
+	 * Working phase assumption:
+	 *
+	 * Align restarts to even-numbered APU cycle positions.
+	 * This gives a three- or four-position delay depending
+	 * on the parity of the write.
+	 *
+	 * The absolute GET/PUT phase must still be validated
+	 * against a hardware timing test.
+	 */
+	const uint64_t delay = (apu_cycles_ & 1) ? 3 : 4;
+	frame_restart_cycle_ = apu_cycles_ + delay;
 }
 
 
@@ -1591,13 +1707,16 @@ tick()
     // Advance the APU frame sequencer when its next event is due.
     // -------------------------------------------------------------------------
 
-    if (apu_cycles_ == next_clock_) {
-        if (frame_counter_.mode) {
-            clock_frame_mode_1();
-        } else {
-            clock_frame_mode_0();
-        }
-    }
+	if (frame_restart_pending_
+		&& apu_cycles_ == frame_restart_cycle_) {
+		apply_frame_restart();
+	} else if (apu_cycles_ == next_clock_) {
+		if (frame_counter_.mode) {
+			clock_frame_mode_1();
+		} else {
+			clock_frame_mode_0();
+		}
+	}
 
     // -------------------------------------------------------------------------
 	// Advance Triangle debugger mute smoothing.
