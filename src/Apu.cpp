@@ -690,8 +690,6 @@ clock_frame_mode_0()
 //
 // Five-step mode does not generate frame IRQs.
 //
-// Temporary Phase 3.1 diagnostics capture the first periodic half-frame
-// clock and the pulse 0 length-counter value before and after that clock.
 //
 // Parameters:
 //   None.
@@ -716,7 +714,6 @@ clock_frame_mode_1()
 
 			clock_linear();
 
-			// Restore the previous experimental timing.
 			next_clock_ += 7454;
 			break;
 
@@ -726,7 +723,6 @@ clock_frame_mode_1()
 				clock_linear();
 				clock_length();
 
-				// Compensating interval from the previous experiment.
 				next_clock_ += 7460;
 				break;
 
@@ -754,27 +750,27 @@ clock_frame_mode_1()
 
 
 
- // -----------------------------------------------------------------------------
- // apply_frame_restart
- //
- // Applies a pending APU frame-counter restart after the three- or four-cycle
- // delay following a write to $4017.
- //
- // The requested frame-counter mode becomes active while the IRQ inhibition
- // flag is preserved.
- //
- // In five-step mode, the restart immediately clocks both quarter-frame and
- // half-frame units, then schedules the next periodic quarter-frame event.
- //
- // In four-step mode, no channel units are clocked at restart. The first
- // quarter-frame event is scheduled for the next sequence interval.
- //
- // Parameters:
- //   None.
- //
- // Returns:
- //   Nothing.
- // -----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// apply_frame_restart
+//
+// Applies a pending APU frame-counter restart after the three- or four-cycle
+// delay following a write to $4017.
+//
+// The requested frame-counter mode becomes active while the IRQ inhibition
+// flag is preserved.
+//
+// In five-step mode, the restart immediately clocks both quarter-frame and
+// half-frame units, then schedules the next periodic quarter-frame event.
+//
+// In four-step mode, no channel units are clocked at restart. The first
+// quarter-frame event is scheduled for the next sequence interval.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 static void
 apply_frame_restart()
 {
@@ -976,7 +972,6 @@ finalize_audio_reset()
 }
 
 
-
 // -------------------------------------------------------------------------
 // nes::apu::reset
 //
@@ -1058,10 +1053,25 @@ reset (reset_type type)
 	sDmcMuteHeldDAC = static_cast<double>(dmc.raw_output());
 	sDmcMuteGain = sDmcWasMuted ? 0.0 : 1.0;
 
-	/*
-	 * Initialize the APU frame counter and disable all channels.
-	 */
 	write4017(last_frame_counter_);
+
+	/*
+	 * Establish the initial frame-sequencer phase during hard reset.
+	 *
+	 * The CPU's seven-cycle reset sequence executes after APU
+	 * initialization. On power-up, the frame sequencer is already
+	 * running before the CPU begins executing the first ROM instruction.
+	 *
+	 * Apply the initial restart immediately rather than waiting for
+	 * the normal $4017 write delay. This preserves the expected
+	 * power-on frame-sequencer timing.
+	 *
+	 * Soft resets retain the normal delayed-restart behavior.
+	 */
+	if (type == reset_type::hard) {
+		apply_frame_restart();
+	}
+
 	write4015(0x00);
 
 	/*
@@ -1541,7 +1551,6 @@ write4015 (uint8_t value)
 }
 
 
-
 // -----------------------------------------------------------------------------
 // read4015
 //
@@ -1553,8 +1562,6 @@ write4015 (uint8_t value)
 // Reading this register clears the frame IRQ flag and clears the CPU APU
 // IRQ source when no APU interrupt remains active.
 //
-// Temporary Phase 3.1 diagnostics capture the CPU-visible Pulse 0 status
-// near the first and second five-step length-counter timing boundaries.
 //
 // Parameters:
 //   None.
@@ -1621,6 +1628,16 @@ write4017(uint8_t value)
 {
 	log_write(0x4017, value);
 
+	// Complete a frame restart that is due on this CPU cycle
+	// before a new $4017 write can replace it.
+	//
+	// The CPU executes before the APU tick, so back-to-back
+	// writes can otherwise overwrite a restart scheduled for
+	// the current cycle.
+	if (frame_restart_pending_ && frame_restart_cycle_ == apu_cycles_) {
+		apply_frame_restart();
+	}
+
 	last_frame_counter_ = value;
 	/*
 	 * IRQ inhibition takes effect immediately, but the active
@@ -1652,7 +1669,7 @@ write4017(uint8_t value)
 	 * The absolute GET/PUT phase must still be validated
 	 * against a hardware timing test.
 	 */
-	const uint64_t delay = (apu_cycles_ & 1) ? 3 : 4;
+	const uint64_t delay = (apu_cycles_ & 0x1) ? 3 : 4;
 	frame_restart_cycle_ = apu_cycles_ + delay;
 }
 

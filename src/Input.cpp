@@ -9,6 +9,11 @@ namespace {
 
 uint8_t strobe_ = 0;
 
+bool dma_controller_read_repeat_ = false;
+
+uint8_t last_controller1_read_ = 0x40;
+uint8_t last_controller2_read_ = 0x40;
+
 }
 
 Controller controller1;
@@ -34,6 +39,29 @@ Controller controller4;
 
 
 // -----------------------------------------------------------------------------
+// set_dma_controller_read_repeat
+//
+// Indicates whether the current CPU bus read repeats a controller read
+// already performed during the same DMC DMA transaction.
+//
+// Repeated reads still reach the input subsystem, but do not clock the
+// controller shift register again.
+//
+// Parameters:
+//   repeat - true to preserve the previous controller sample.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+void
+set_dma_controller_read_repeat (bool repeat)
+{
+	dma_controller_read_repeat_ = repeat;
+}
+
+
+
+// -----------------------------------------------------------------------------
 // reset
 //
 // Resets the controller input strobe state.
@@ -44,8 +72,13 @@ Controller controller4;
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void reset() {
+void reset()
+{
 	strobe_ = 0;
+
+	dma_controller_read_repeat_ = false;
+	last_controller1_read_ = 0x40;
+	last_controller2_read_ = 0x40;
 }
 
 
@@ -92,28 +125,32 @@ void write4016(uint8_t value) {
 }
 
 
-// -----------------------------------------------------------------------------
-// read4016
-//
-// Reads serial controller data from the first controller port.
-//
-// The controller data bit is returned in bit 0 together with the fixed upper
-// bits used by the NES controller port read behavior.
-//
-// Parameters:
-//   None.
-//
-// Returns:
-//   Current value of controller register $4016.
-// -----------------------------------------------------------------------------
-uint8_t read4016() {
-	// The ouput looks like this for NES:
-	// OOOxxxxD
-	// Where:
-	// O = open bus
-	// x = zero
-	// D = data
-	return (controller1.read() & 0x1f) | 0x40;
+
+ // -----------------------------------------------------------------------------
+ // read4016
+ //
+ // Reads serial controller data from the first controller port.
+ //
+ // Consecutive DMC DMA reads belonging to one uninterrupted controller
+ // read-clock assertion return the previously sampled value without
+ // advancing the controller shift register.
+ //
+ // Parameters:
+ //   None.
+ //
+ // Returns:
+ //   Current controller-port value.
+ // -----------------------------------------------------------------------------
+uint8_t
+read4016()
+{
+	if (dma_controller_read_repeat_) {
+		return last_controller1_read_;
+	}
+
+	last_controller1_read_ = (controller1.read() & 0x1f) | 0x40;
+
+	return last_controller1_read_;
 }
 
 
@@ -122,23 +159,25 @@ uint8_t read4016() {
 //
 // Reads serial controller data from the second controller port.
 //
-// The controller data bit is returned in bit 0 together with the fixed upper
-// bits used by the NES controller port read behavior.
+// Repeated DMA reads preserve the previously sampled controller value
+// without advancing its serial shift register.
 //
 // Parameters:
 //   None.
 //
 // Returns:
-//   Current value of controller register $4017.
+//   Current controller-port value.
 // -----------------------------------------------------------------------------
-uint8_t read4017() {
-	// The ouput looks like this for NES:
-	// OOOxxxxD
-	// Where:
-	// O = open bus
-	// x = zero
-	// D = data
-	return (controller2.read() & 0x1f) | 0x40;
+uint8_t
+read4017()
+{
+	if (dma_controller_read_repeat_) {
+		return last_controller2_read_;
+	}
+
+	last_controller2_read_ = (controller2.read() & 0x1f) | 0x40;
+
+	return last_controller2_read_;
 }
 
 

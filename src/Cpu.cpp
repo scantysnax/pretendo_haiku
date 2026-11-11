@@ -6,6 +6,7 @@
 #include "Bus.h"
 #include "Compiler.h"
 #include "Cpu.h"
+#include "Input.h"
 #include "Nes.h"
 
 #include <algorithm>
@@ -950,15 +951,27 @@ dmc_dma_initial_phase()
 }
 
 
+
+
+
 // -----------------------------------------------------------------------------
-// clock
+// nes::cpu::clock
 //
 // Advances the CPU emulation by one clock cycle.
 //
-// DMA activity has priority over normal instruction execution.  DMC DMA and
+// DMA activity has priority over normal instruction execution. DMC DMA and
 // sprite DMA perform their required delay, alignment, read, and write cycles
-// before normal CPU execution resumes.  When no DMA is active, cycle zero
-// fetches the next opcode and subsequent cycles execute the current instruction.
+// before normal CPU execution resumes.
+//
+// During DMC DMA, the halted CPU bus address is repeatedly accessed on
+// dummy and optional alignment cycles.
+//
+// When these consecutive accesses target a controller port ($4016/$4017),
+// the bus reads are preserved, but additional controller shift-register
+// clocks are suppressed. This models the controller's behavior during
+// an uninterrupted read-clock assertion.
+//
+// All other bus accesses and DMA timing remain unchanged.
 //
 // Parameters:
 //   None.
@@ -969,75 +982,160 @@ dmc_dma_initial_phase()
 void
 clock()
 {
+	// -------------------------------------------------------------------------
+	// DMC DMA handling.
+	// -------------------------------------------------------------------------
 	if (UNLIKELY(dmc_dma_state_ != dmc_dma_state::idle)) {
 		switch (dmc_dma_state_) {
-		case dmc_dma_state::pending:
-			if (dmc_dma_delay_ != 0) {
-				--dmc_dma_delay_;
-				break;
-			}
-
-			if (!dmc_dma_halt_attempted_) {
-				if (!dmc_dma_initial_phase()) {
+			case dmc_dma_state::pending:
+				/*
+				 * Wait for the DMC DMA startup delay to expire.
+				 */
+				if (dmc_dma_delay_ != 0) {
+					--dmc_dma_delay_;
 					break;
 				}
 
-				dmc_dma_halt_attempted_ = true;
+				/*
+				 * Wait for the required initial DMA phase.
+				 *
+				 * Load DMA initially targets a get cycle, while
+				 * reload DMA initially targets a put cycle.
+				 */
+				if (!dmc_dma_halt_attempted_) {
+					if (!dmc_dma_initial_phase()) {
+						break;
+					}
+
+					dmc_dma_halt_attempted_ = true;
+				}
+
+				/*
+				 * The CPU can only be halted on a read cycle.
+				 * If the next CPU cycle is a write, allow it to
+				 * execute and retry the halt afterward.
+				 */
+				if (current_bus_cycle() == bus_cycle_type::write) {
+					break;
+				}
+
+				/*
+				 * Capture the halted CPU bus address and perform
+				 * the initial DMA halt read normally.
+				 *
+				 * This read establishes the controller sample if
+				 * the halted address is $4016 or $4017.
+				 */
+				dmc_dma_cpu_address_ = current_bus_address();
+
+				read_byte(dmc_dma_cpu_address_);
+
+				dmc_dma_state_ = dmc_dma_state::dummy;
+				return;
+
+			case dmc_dma_state::dummy:
+				/*
+				 * The dummy cycle repeats the halted CPU bus
+				 * address.
+				 *
+				 * Preserve the memory-mapped bus read, but do not
+				 * advance the controller shift register again
+				 * when this is a repeated controller-port read.
+				 */
+				nes::input::set_dma_controller_read_repeat(true);
+
+				read_byte(dmc_dma_cpu_address_);
+
+				nes::input::set_dma_controller_read_repeat(false);
+
+				/*
+				 * Insert an alignment cycle when required so the
+				 * DMC sample fetch occurs on a get cycle.
+				 */
+				dmc_dma_state_ =
+					dmc_dma_get_cycle()
+						? dmc_dma_state::align
+						: dmc_dma_state::get;
+
+				return;
+
+			case dmc_dma_state::align:
+				/*
+				 * The optional alignment cycle also repeats the
+				 * halted CPU bus address.
+				 *
+				 * Preserve the read while preventing another
+				 * controller serial shift.
+				 */
+				nes::input::set_dma_controller_read_repeat(true);
+
+				read_byte(dmc_dma_cpu_address_);
+
+				nes::input::set_dma_controller_read_repeat(false);
+
+				dmc_dma_state_ = dmc_dma_state::get;
+				return;
+
+			case dmc_dma_state::get:
+			{
+				/*
+				 * The DMC fetch must occur on a get cycle.
+				 */
+				assert(dmc_dma_get_cycle());
+
+				/*
+				 * Fetch the requested sample byte and deliver
+				 * it to the DMC.
+				 */
+				const uint8_t value =
+					read_byte(dmc_dma_source_address_);
+
+				(*dmc_dma_handler_)(value);
+
+				/*
+				 * Finish the DMA transaction.
+				 */
+				dmc_dma_handler_ = nullptr;
+				dmc_dma_state_ = dmc_dma_state::idle;
+				dmc_dma_halt_attempted_ = false;
+
+				return;
 			}
 
-			if (current_bus_cycle() == bus_cycle_type::write) {
+			case dmc_dma_state::idle:
 				break;
-			}
-
-			dmc_dma_cpu_address_ = current_bus_address();
-			read_byte(dmc_dma_cpu_address_);
-
-			dmc_dma_state_ = dmc_dma_state::dummy;
-			return;
-
-		case dmc_dma_state::dummy:
-			read_byte(dmc_dma_cpu_address_);
-			dmc_dma_state_ = dmc_dma_get_cycle() ? dmc_dma_state::align : dmc_dma_state::get;
-			return;
-
-		case dmc_dma_state::align:
-			read_byte(dmc_dma_cpu_address_);
-			dmc_dma_state_ = dmc_dma_state::get;
-			return;
-
-		case dmc_dma_state::get:
-		{
-			assert(dmc_dma_get_cycle());
-				
-			const uint8_t value = read_byte(dmc_dma_source_address_);
-
-			(*dmc_dma_handler_)(value);
-
-			dmc_dma_handler_ = nullptr;
-			dmc_dma_state_ = dmc_dma_state::idle;
-			dmc_dma_halt_attempted_ = false;
-
-			return;
-		}
-
-		case dmc_dma_state::idle:
-			break;
 		}
 	}
 
+	// -------------------------------------------------------------------------
+	// Sprite DMA handling.
+	//
+	// Preserve the existing startup delay, alignment, and alternating
+	// read/write transfer behavior.
+	// -------------------------------------------------------------------------
 	if (UNLIKELY(spr_dma_count_)) {
-
+		/*
+		 * Wait for the initial sprite DMA delay.
+		 */
 		if (spr_dma_delay_ != 0) {
 			read_byte(spr_dma_source_address_);
 			--spr_dma_delay_;
 			return;
 		}
 
+		/*
+		 * Align the sprite DMA transfer with the required CPU
+		 * cycle parity.
+		 */
 		if ((spr_dma_count_ & 1) != (executed_cycles_ & 1)) {
 			read_byte(spr_dma_source_address_);
 			return;
 		}
 
+		/*
+		 * Alternate between reading the next source byte
+		 * and delivering it to the sprite DMA handler.
+		 */
 		if ((executed_cycles_ & 1) == 0) {
 			spr_dma_byte_ =
 				read_byte(spr_dma_source_address_++);
@@ -1048,18 +1146,31 @@ clock()
 		--spr_dma_count_;
 
 	} else {
+		// ---------------------------------------------------------------------
+		// Normal CPU instruction execution.
+		// ---------------------------------------------------------------------
 		assert(cycle_ < 10);
 
 		if (cycle_ == 0) {
-			const uint8_t next_op = read_byte(PC.raw);
+			/*
+			 * Fetch the next opcode and initialize its
+			 * execution state.
+			 */
+			const uint8_t next_op =
+				read_byte(PC.raw);
+
 			cycle_0(next_op);
 		} else {
+			/*
+			 * Execute the current instruction microcycle.
+			 */
 			execute_opcode();
 		}
 
 		++cycle_;
 	}
 }
+
 
 
 }

@@ -1,3 +1,4 @@
+
 #ifndef _SQUARE_H_
 #define _SQUARE_H_
 
@@ -16,6 +17,28 @@ class Square
 	static_assert(Channel >= 0 && Channel < 2, "only channels 0 and 1 are valid");
 
 	public:
+	// -------------------------------------------------------------------------
+	// Square::Square
+	//
+	// Initializes the pulse timer with the minimum divider period.
+	//
+	// This avoids starting with the generic Timer class's $FFFF countdown,
+	// which could delay the first pulse sequencer advancement even after
+	// the timer period registers have been programmed.
+	//
+	// Subsequent register writes preserve the active timer countdown.
+	//
+	// Parameters:
+	//   None.
+	//
+	// Returns:
+	//   Nothing.
+	// -------------------------------------------------------------------------
+	Square() {
+		timer_.frequency = 2;
+		timer_.reset();
+	}
+
 	// -------------------------------------------------------------------------
 	// Square::enable
 	//
@@ -73,7 +96,7 @@ class Square
 	// Writes the square channel's duty-cycle, envelope, and length-counter
 	// control register.
 	//
-	// The high two bits select the duty sequence.  Bit 5 controls the length
+	// The high two bits select the duty sequence. Bit 5 controls the length
 	// counter halt state, and the complete value is passed to the envelope.
 	//
 	// Parameters:
@@ -124,7 +147,7 @@ class Square
 	//   Nothing.
 	// -------------------------------------------------------------------------
 	void write_reg2 (uint8_t value) {
-		timer_reload_    = (timer_reload_ & 0xff00) | value;
+		timer_reload_ = (timer_reload_ & 0xff00) | value;
 		timer_.frequency = (timer_reload_ + 1) * 2;
 		sweep.set_pulse_period(timer_reload_);
 	}
@@ -144,7 +167,7 @@ class Square
 	//   Nothing.
 	// -------------------------------------------------------------------------
 	void write_reg3 (uint8_t value) {
-		timer_reload_    = (timer_reload_ & 0x00ff) | ((value & 0x07) << 8);
+		timer_reload_ = (timer_reload_ & 0x00ff) | ((value & 0x07) << 8);
 		timer_.frequency = (timer_reload_ + 1) * 2;
 		sweep.set_pulse_period(timer_reload_);
 
@@ -171,11 +194,12 @@ class Square
 	bool enabled() const {
 		return enabled_;
 	}
-	
+
 	// -------------------------------------------------------------------------
 	// Square::mute
 	//
-	// Mutes this square-wave channel without changing its emulation state.
+	// Mutes this square-wave channel without changing its enabled state
+	// or internal timing.
 	//
 	// Parameters:
 	//   None.
@@ -186,7 +210,7 @@ class Square
 	void mute() {
 		channel_muted_ = true;
 	}
-	
+
 	// -------------------------------------------------------------------------
 	// Square::unmute
 	//
@@ -202,7 +226,7 @@ class Square
 		channel_muted_ = false;
 	}
 
-public:
+	public:
 	// -------------------------------------------------------------------------
 	// Square::tick
 	//
@@ -230,7 +254,7 @@ public:
 	//
 	// Output is suppressed when the channel is muted, the timer period is too
 	// small, the current duty-sequence position is low, the sweep unit silences
-	// the channel, or the length counter has expired.  Otherwise the envelope
+	// the channel, or the length counter has expired. Otherwise the envelope
 	// volume is returned.
 	//
 	// Parameters:
@@ -246,7 +270,7 @@ public:
 			{0, 1, 1, 1, 1, 0, 0, 0},
 			{1, 0, 0, 1, 1, 1, 1, 1},
 		};
-		
+
 		if (channel_muted_) {
 			return 0;
 		}
@@ -255,7 +279,7 @@ public:
 		// Test the hardware timer reload value, not the CPU-cycle-scaled
 		// frequency used by the emulator's Timer implementation.
 		if (timer_reload_ < 8) {
-    		return 0;
+			return 0;
 		} else if (sequence[duty_][sequence_index_] == 0) {
 			return 0;
 		} else if (sweep.silenced()) {
@@ -267,7 +291,9 @@ public:
 		}
 	}
 
-// debug things...	
+	// -------------------------------------------------------------------------
+	// Debugger accessors.
+	// -------------------------------------------------------------------------
 	public:
 	uint16_t debug_timer_period() const {
 		return timer_reload_;
@@ -301,11 +327,8 @@ public:
 			return 0;
 		}
 
-		// The NES pulse output is silenced for timer periods below 8.
-		// Test the hardware timer reload value, not the CPU-cycle-scaled
-		// frequency used by the emulator's Timer implementation.
 		if (timer_reload_ < 8) {
-    		return 0;
+			return 0;
 		}
 
 		if (sequence[duty_][sequence_index_] == 0) {
@@ -330,11 +353,11 @@ public:
 
 	private:
 	Timer timer_;
-	uint16_t timer_reload_  = 0;
-	uint8_t duty_           = 0;
+	uint16_t timer_reload_ = 0;
+	uint8_t duty_ = 0;
 	uint8_t sequence_index_ = 0;
-	bool enabled_           = false;
-	bool channel_muted_		= false;
+	bool enabled_ = false;
+	bool channel_muted_ = false;
 };
 
 }
