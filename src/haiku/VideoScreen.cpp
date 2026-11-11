@@ -140,7 +140,7 @@ VideoScreen::ScreenConnected (bool connected)
 		
 		fBits = reinterpret_cast<uint8 *>(CardInfo()->frame_buffer);
 		fRowBytes = CardInfo()->bytes_per_row;
-		fPixelWidth = CardInfo()->bits_per_pixel;
+		fBytesPerPixel = CardInfo()->bits_per_pixel / 8;
 	}
 		
 	BWindowScreen::ScreenConnected (fConnected);

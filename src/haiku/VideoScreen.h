@@ -32,8 +32,8 @@ class VideoScreen : public BWindowScreen
 		return fRowBytes;
 	}
 	
-	int32 PixelWidth() const { 
-		return fPixelWidth;
+	int32 BytesPerPixel() const {
+		return fBytesPerPixel;
 	}
 	
 	private:
@@ -41,7 +41,7 @@ class VideoScreen : public BWindowScreen
 	volatile bool fConnected = false;
 	uint8 *fBits = nullptr;
 	int32 fRowBytes = 0;
-	int32 fPixelWidth = 0;
+	int32 fBytesPerPixel = 0;
 };
 
 #endif // _VIDEO_SCREEN_H_

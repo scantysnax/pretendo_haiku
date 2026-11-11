@@ -3631,8 +3631,7 @@ PretendoWindow::ChangeFramework (video_framework fw)
 
 			snooze(1000000);
 
-			SetFrontBuffer(fVideoScreen->Bits(), B_CMAP8, fVideoScreen->PixelWidth() / 2, 
-						   fVideoScreen->RowBytes());
+			SetFrontBuffer(fVideoScreen->Bits(), B_CMAP8, fVideoScreen->BytesPerPixel(), fVideoScreen->RowBytes());
 
 			fFullScreen = true;
 			ClearControllerInput();
@@ -3647,13 +3646,15 @@ PretendoWindow::ChangeFramework (video_framework fw)
 }
 
 
+
 // -----------------------------------------------------------------------------
 // PretendoWindow::DrawBitmap
 //
-// Copies the emulator back buffer into the windowed bitmap.  Normally this uses
-// the dirty buffer to update only changed pixels.  After fullscreen/display-mode
-// transitions, a one-shot full copy is used so stale windowed pixels are
-// completely overwritten.
+// Copies the completed NES frame into the windowed display bitmap.
+//
+// Normally, only changed 16-byte blocks are copied by the dirty blitter.
+// A forced redraw copies the entire frame and synchronizes the dirty buffer
+// so subsequent comparisons reflect the pixels actually displayed.
 //
 // Parameters:
 //   None.
@@ -3667,18 +3668,22 @@ PretendoWindow::DrawBitmap()
 	uint8 *dest = fBitmapBits;
 	uint8 *source = fBackBuffer.bits;
 	uint8 *dirty = fDirtyBuffer.bits;
-	
-	size_t const size = screen_size::WIDTH;
+
+	const size_t size = screen_size::WIDTH;
 	size_t height = screen_size::HEIGHT;
 
 	if (fForceFullBitmapRedraw) {
 		while (height--) {
-			// fBitmap is B_CMAP8, so copy one byte per visible pixel.
-			// Do not multiply by fPixelWidth here.
+			// Copy the complete scanline into the displayed bitmap.
 			mmx_copy(dest, source, size);
+
+			// Keep the dirty-buffer reference synchronized with
+			// the frame that was actually copied to the bitmap.
+			mmx_copy(dirty, source, size);
 
 			dest += fFrontBuffer.row_bytes;
 			source += fBackBuffer.row_bytes;
+			dirty += fBackBuffer.row_bytes;
 		}
 
 		fForceFullBitmapRedraw = false;
@@ -3686,7 +3691,7 @@ PretendoWindow::DrawBitmap()
 		PostMessage(messages::DRAW_BITMAP);
 		return;
 	}
-	
+
 	while (height--) {
 		blit_windowed_dirty_mmx(source, dirty, dest, size, fPixelWidth);
 
@@ -3695,7 +3700,7 @@ PretendoWindow::DrawBitmap()
 		dirty += fBackBuffer.row_bytes;
 	}
 
-	PostMessage(messages::DRAW_BITMAP);	
+	PostMessage(messages::DRAW_BITMAP);
 }
 
 
@@ -4027,6 +4032,8 @@ PretendoWindow::start_frame()
 	fPixelWidth = fFrontBuffer.pixel_width;
 	fBackBuffer.row_bytes = screen_size::WIDTH * fPixelWidth;
 }
+
+
 
 
 // -----------------------------------------------------------------------------
@@ -5196,6 +5203,18 @@ PretendoWindow::LoadROMPath (const char* path)
 	}
 
 	nes::reset(nes::reset_type::hard);
+
+	if (nes::cart.load(path) == false) {
+		(new BAlert("Error", "Error.  Couldn't load ROM Image.", "Okay", nullptr,
+			nullptr, B_WIDTH_AS_USUAL, B_STOP_ALERT))->Go();
+
+		return;
+	}
+
+	nes::reset(nes::reset_type::hard);
+
+	// Force the first frame of the new ROM to refresh the complete bitmap.
+	ForceFullBitmapRedraw();
 
 	ClearControllerInput();
 
