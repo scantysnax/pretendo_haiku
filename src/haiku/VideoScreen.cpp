@@ -107,43 +107,71 @@ VideoScreen::QuitRequested()
 }
 
 
+
 // -----------------------------------------------------------------------------
 // VideoScreen::ScreenConnected
 //
-// Handles connection and disconnection of the fullscreen display.
+// Handles fullscreen display connection and disconnection.
 //
-// When connected, the screen is configured for 640x480 8-bit video and the
-// framebuffer address, row-byte count, and pixel width are cached for direct
-// fullscreen rendering.  If the requested display mode cannot be established,
-// the fullscreen window is asked to quit.
+// When connected, configures the 640x480 8-bit display and retrieves the
+// framebuffer address, row stride, and pixel size. The owning PretendoWindow
+// is notified only after framebuffer initialization succeeds.
 //
-// The final connection state is also forwarded to BWindowScreen.
+// Connection failures are reported to the parent window so the fullscreen
+// transition can be canceled without relying on a fixed startup delay.
 //
 // Parameters:
-//   connected - true when the fullscreen display has been connected.
+//   connected - true when the fullscreen display has connected.
 //
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-VideoScreen::ScreenConnected (bool connected)
+VideoScreen::ScreenConnected(bool connected)
 {
 	fConnected = connected;
-	
-	if (fConnected == true) {
-		status_t error;
-		error = SetSpace (B_8_BIT_640x480);
-		
-		if (error != B_OK) {
-			PostMessage (B_QUIT_REQUESTED, this);
+
+	if (connected) {
+		const status_t status = SetSpace(B_8_BIT_640x480);
+
+		if (status == B_OK && CardInfo() != nullptr) {
+			fBits = reinterpret_cast<uint8 *>(CardInfo()->frame_buffer);
+
+			fRowBytes = CardInfo()->bytes_per_row;
+			fBytesPerPixel = CardInfo()->bits_per_pixel / 8;
+
+			if (fBits != nullptr && fRowBytes > 0 && CardInfo()->bits_per_pixel == 8) {
+				BMessage ready(PretendoWindow::messages::FULLSCREEN_READY);
+				ready.AddPointer("screen", this);
+				
+				fParent->PostMessage(&ready);
+			} else {
+				fConnected = false;
+
+				BMessage failed(PretendoWindow::messages::FULLSCREEN_FAILED);
+
+				failed.AddPointer("screen", this);
+				fParent->PostMessage(&failed);
+			}
+		} else {
+			fConnected = false;
+
+			BMessage failed(PretendoWindow::messages::FULLSCREEN_FAILED);
+
+			failed.AddPointer("screen", this);
+			fParent->PostMessage(&failed);
 		}
-		
-		fBits = reinterpret_cast<uint8 *>(CardInfo()->frame_buffer);
-		fRowBytes = CardInfo()->bytes_per_row;
-		fBytesPerPixel = CardInfo()->bits_per_pixel / 8;
+	} else {
+		/*
+		 * Invalidate cached framebuffer information.
+		 *
+		 * A normal fullscreen exit also produces a disconnection,
+		 * so do not send FULLSCREEN_FAILED here.
+		 */
+		fBits = nullptr;
+		fRowBytes = 0;
+		fBytesPerPixel = 0;
 	}
-		
-	BWindowScreen::ScreenConnected (fConnected);
+
+	BWindowScreen::ScreenConnected(connected);
 }
-
-

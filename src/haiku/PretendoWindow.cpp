@@ -1,7 +1,6 @@
 
 #include "PretendoWindow.h"
 
-#include <iostream>
 // -----------------------------------------------------------------------------
 // InvalidateWindowContents
 //
@@ -256,7 +255,7 @@ PretendoWindow::PretendoWindow()
 	
 	int32 const index = (rand() % 11);
 	fThread = spawn_thread(emulator_thread, threadNames[index], B_DISPLAY_PRIORITY, 
-							reinterpret_cast<void *>(this));
+						   reinterpret_cast<void *>(this));
 	if (fThread < B_OK) {
 		// we couldn't spawn the main thread, party over.  everyone go home
 		(new BAlert("Error", "Couldn't spawn main thread.  Quitting.", "Sorry",
@@ -601,7 +600,135 @@ PretendoWindow::MessageReceived (BMessage *message)
 		case messages::LEAVE_FULLSCREEN:
 			ChangeFramework(fPrevFramework);
 		 	break;
-			
+
+		case messages::FULLSCREEN_READY:
+		{
+			void *screen = nullptr;
+
+		   /*
+	 		* Identify the VideoScreen that generated this notification.
+	 		*/
+			if (message->FindPointer("screen", &screen) != B_OK) {
+				break;
+			}
+
+			/*
+	 		 * Ignore stale notifications from an earlier fullscreen
+	 		 * instance or a transition that is no longer pending.
+	 		 */
+			if (screen != fVideoScreen || fFramework != video_framework::FULLSCREEN 
+				|| !fFrameworkChanging) {
+				break;
+			}
+
+			/*
+	 		 * Validate the framebuffer before handing it to the renderer.
+	 		 *
+	 		 * The existing fullscreen MMX blitter requires an 8-bit
+	 		 * framebuffer and one byte per source pixel.
+	 		 */
+			if (fVideoScreen->Bits() == nullptr || fVideoScreen->RowBytes() <= 0 ||
+				fVideoScreen->BytesPerPixel() != 1) {
+
+				/*
+		 		 * Convert the invalid-ready notification into the normal
+		 		 * fullscreen failure path.
+		 		 */
+				BMessage failed(messages::FULLSCREEN_FAILED);
+				failed.AddPointer("screen", fVideoScreen);
+				PostMessage(&failed);
+				break;
+			}
+
+			/*
+	 		 * Ensure the emulator thread cannot render while the
+	 		 * framebuffer configuration is being changed.
+	 		 */
+			if (!LockMutex(500000)) {
+				BMessage failed(messages::FULLSCREEN_FAILED);
+				failed.AddPointer("screen", fVideoScreen);
+				PostMessage(&failed);
+				break;
+			}
+	
+			/*
+	 		 * Configure the fullscreen framebuffer.
+	 		 *
+	 		 * The display is 640x480 B_CMAP8, while the MMX blitter
+	 		 * produces a centered 512x480 image from the 256x240
+	 		 * NES back buffer.
+	 		 */
+			SetFrontBuffer(fVideoScreen->Bits(), B_CMAP8, fVideoScreen->BytesPerPixel(), fVideoScreen->RowBytes());
+			fFullScreen = true;
+
+			ClearControllerInput();
+
+			/*
+	 		 * All framebuffer state is initialized. The emulator may
+	 		 * now present completed frames through DrawFullScreen().
+	 		 */
+			fFrameworkChanging = false;
+
+			UnlockMutex();
+		}
+		break;
+		
+		
+		// -----------------------------------------------------------------------------
+		// FULLSCREEN_FAILED message handler
+		//
+		// Handles a failure to initialize the fullscreen display.
+		//
+		// Rejects notifications from obsolete VideoScreen instances, clears the
+		// pending framework transition, and restores windowed bitmap rendering.
+		//
+		// This handler is intended for failures during initial fullscreen setup,
+		// not normal fullscreen disconnection.
+		//
+		// Parameters:
+		//   message - Incoming fullscreen failure notification.
+		//
+		// Returns:
+		//   Nothing.
+		// -----------------------------------------------------------------------------
+		case messages::FULLSCREEN_FAILED:
+		{
+			void *screen = nullptr;
+
+			/*
+	 		 * Retrieve the VideoScreen instance that reported the failure.
+	 		 */
+			if (message->FindPointer("screen", &screen) != B_OK) {
+				break;
+			}
+
+			/*
+	 		 * Ignore stale notifications or failures received when no
+	 		 * fullscreen connection is pending.
+	 		 */
+			if (screen != fVideoScreen || fFramework != video_framework::FULLSCREEN ||!fFrameworkChanging) {
+				break;
+			}
+
+			/*
+	 		 * Cancel the pending fullscreen transition.
+	 		 *
+	 		 * ChangeFramework() rejects overlapping transitions, so this
+	 		 * flag must be cleared before attempting recovery.
+	 		 */
+			fFrameworkChanging = false;
+
+			/*
+	 		 * Restore the normal windowed bitmap renderer.
+	 		 *
+	 		 * ChangeFramework() handles tearing down VideoScreen,
+	 		 * restoring the bitmap front buffer, and updating the
+	 		 * video framework state.
+	 		 */
+			ChangeFramework(video_framework::BITMAP);
+		}
+		break;
+
 		case messages::ROM_LOADED:
 			OnLoadROM(message);
 			break;
@@ -934,11 +1061,16 @@ PretendoWindow::ResizeTo (float width, float height)
 }
 
 
+
 // -----------------------------------------------------------------------------
 // PretendoWindow::Zoom
 //
-// Toggles between 1x and 2x windowed video sizes and repositions the menu-bar
-// icon.  The default BWindow zoom behavior is intentionally bypassed.
+// Toggles between native 1x and MMX-scaled 2x windowed video.
+//
+// The display bitmap is recreated at the selected resolution so Haiku's
+// app_server no longer needs to enlarge a smaller NES bitmap.
+//
+// The menu-bar icon is repositioned to match the new window width.
 //
 // Parameters:
 //   origin - Requested zoom origin, unused.
@@ -949,30 +1081,57 @@ PretendoWindow::ResizeTo (float width, float height)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-PretendoWindow::Zoom (BPoint origin, float width, float height)
+PretendoWindow::Zoom(BPoint origin, float width, float height)
 {
 	(void)origin;
 	(void)width;
 	(void)height;
-	
-	int32 const w = Bounds().IntegerWidth();
-			
-	if (w == screen_size::WIDTH) {
-		ResizeTo((screen_size::WIDTH*2), (screen_size::HEIGHT*2));
-		fMenuBarIcon->MoveTo((w * 2) - MenuBarIcon::icon_size::PADDING - MenuBarIcon::icon_size::WIDTH, 
-							MenuBarIcon::icon_size::PADDING);
-		fDoubled = true;
-	} else if (w == screen_size::WIDTH*2) {
-		ResizeTo(screen_size::WIDTH, screen_size::HEIGHT);
-		fMenuBarIcon->MoveTo((w / 2) - MenuBarIcon::icon_size::PADDING - MenuBarIcon::icon_size::WIDTH, 
-							MenuBarIcon::icon_size::PADDING);
-		fDoubled = false;
-	} 
-	
+
+	/*
+	 * Do not change the windowed video configuration while a
+	 * fullscreen transition is in progress.
+	 */
+	if (fFrameworkChanging ||
+		fFramework == video_framework::FULLSCREEN) {
+		return;
+	}
+
+	const bool doubled = !fDoubled;
+
+	/*
+	 * Configure the bitmap before resizing the window.
+	 *
+	 * If allocation fails, retain the existing scale and bitmap.
+	 */
+	if (!ConfigureWindowedBitmap(doubled)) {
+		return;
+	}
+
+	const int32 scale = fDoubled ? 2 : 1;
+	const int32 newWidth = screen_size::WIDTH * scale;
+	const int32 newHeight = screen_size::HEIGHT * scale;
+
+	ResizeTo(newWidth, newHeight);
+
+	/*
+	 * Move the menu-bar icon to the right edge of the resized window.
+	 */
+	fMenuBarIcon->MoveTo(
+		newWidth - MenuBarIcon::icon_size::WIDTH
+			- MenuBarIcon::icon_size::PADDING,
+		MenuBarIcon::icon_size::PADDING);
+
 	fMenuHeight = fMenuBar->Bounds().IntegerHeight();
-	
-	// do not call the default //
+
+	/*
+	 * Repaint the resized view. The next completed video frame
+	 * will perform a complete bitmap update.
+	 */
+	if (fView != nullptr) {
+		fView->Invalidate(fView->Bounds());
+	}
 }
+
 
 
 // -----------------------------------------------------------------------------
@@ -1257,6 +1416,131 @@ PretendoWindow::ForceFullBitmapRedraw()
 }
 
 
+
+// -----------------------------------------------------------------------------
+// PretendoWindow::ConfigureWindowedBitmap
+//
+// Creates a windowed B_CMAP8 bitmap at the requested NES display scale.
+//
+// The 1x bitmap is 256x240 and the 2x bitmap is 512x480. The NES back
+// buffer remains at its native resolution; scaling is performed later by
+// the windowed MMX blitter.
+//
+// Bitmap replacement is synchronized with the emulator thread. When
+// emulation is paused or stopped, the existing pause/stop mechanism
+// already holds the emulator mutex.
+//
+// Parameters:
+//   doubled - true for 2x rendering, false for native 1x rendering.
+//
+// Returns:
+//   true if the bitmap is configured successfully.
+// -----------------------------------------------------------------------------
+bool
+PretendoWindow::ConfigureWindowedBitmap(bool doubled)
+{
+	const int32 scale = doubled ? 2 : 1;
+	const int32 width = screen_size::WIDTH * scale;
+	const int32 height = screen_size::HEIGHT * scale;
+
+	// Avoid recreating a bitmap that already has the correct dimensions.
+	if (fBitmap != nullptr && fBitmap->IsValid() &&
+		fBitmap->Bounds().IntegerWidth() + 1 == width &&
+		fBitmap->Bounds().IntegerHeight() + 1 == height) {
+		fDoubled = doubled;
+		return true;
+	}
+
+	/*
+	 * Allocate the replacement before disturbing the current bitmap.
+	 */
+	BBitmap* replacement = new BBitmap(
+		BRect(0, 0, width - 1, height - 1),
+		B_CMAP8, false, true);
+
+	if (replacement == nullptr || !replacement->IsValid()) {
+		delete replacement;
+		return false;
+	}
+
+	/*
+	 * The emulator mutex is already held while stopped or paused.
+	 * Acquire it here only when the worker is actively running.
+	 */
+	const bool needLock = fRunning && !fPaused;
+
+	if (needLock && !LockMutex(B_INFINITE_TIMEOUT)) {
+		delete replacement;
+		return false;
+	}
+
+	/*
+	 * Remove the view's references to the previous bitmap before
+	 * releasing its storage.
+	 */
+	if (fView != nullptr) {
+		fView->SetDisplayBitmap(nullptr);
+		fView->ClearLastFrame();
+	}
+
+	BBitmap* previous = fBitmap;
+
+	fBitmap = replacement;
+	fBitmapBits = reinterpret_cast<uint8*>(fBitmap->Bits());
+	fDoubled = doubled;
+
+	memset(fBitmapBits, 0, fBitmap->BitsLength());
+
+	/*
+	 * The windowed renderer still produces native-resolution
+	 * 8-bit pixels in the back buffer.
+	 */
+	if (fFramework == video_framework::BITMAP) {
+		SetFrontBuffer(
+			fBitmapBits,
+			B_CMAP8,
+			1,
+			fBitmap->BytesPerRow());
+	}
+
+	/*
+ * The new bitmap has no valid frame contents.
+ * Force a complete redraw using the existing NES back buffer.
+ */
+ForceFullBitmapRedraw();
+
+if (fView != nullptr) {
+	fView->SetDisplayBitmap(fBitmap);
+}
+
+	/*
+ 	 * When emulation is paused, the worker thread will not produce
+ 	 * another frame. Rebuild the display bitmap immediately from
+ 	 * the last completed NES frame.
+	 *
+	 * DrawBitmap() uses the current 1x or 2x MMX path and posts
+	 * DRAW_BITMAP, allowing PretendoView to capture the new bitmap
+	 * at its correct resolution.
+ 	 *
+ 	 * During normal emulation, the next completed frame handles
+ 	 * this automatically.
+ 	 */
+	if (fPaused && fFramework == video_framework::BITMAP) {
+		DrawBitmap();
+	} else if (fView != nullptr) {
+		fView->Invalidate();
+	}
+
+	delete previous;
+
+	if (needLock) {
+		UnlockMutex();
+	}
+
+	return true;
+}
+
+
 // -----------------------------------------------------------------------------
 // PretendoWindow::OnROMInfo
 //
@@ -1387,11 +1671,20 @@ PretendoWindow::OnStop()
 }
 
 
+
 // -----------------------------------------------------------------------------
 // PretendoWindow::OnPause
 //
-// Toggles pause while the emulator is running by locking or unlocking the
-// emulator mutex and starting or stopping host audio playback.
+// Toggles emulator pause state by acquiring or releasing the emulator mutex
+// and stopping or restarting host audio playback.
+//
+// Fullscreen entry is disabled while emulation is paused because fullscreen
+// initialization requires the emulator mutex, which remains held throughout
+// the paused state.
+//
+// Fullscreen entry is re-enabled when emulation resumes. This prevents
+// deadlocks and incomplete fullscreen transitions without modifying the
+// existing emulator synchronization model.
 //
 // Parameters:
 //   None.
@@ -1401,23 +1694,50 @@ PretendoWindow::OnStop()
 // -----------------------------------------------------------------------------
 void
 PretendoWindow::OnPause()
-{	
-	if (fRunning) {
-		if (fPaused) {
-			// if we are paused, we want to unpause, so unlock the mutual exclusion
-			// update the recent roms menu and start the sound interface
-			fMutex->Unlock();
-			fEmuMenu->ItemAt(1)->SetMarked(false);
-			fAudioStream->Start();
-		} else {
-			// otherwise, we want to pause, so lock the mutual exclusion
-			// mark the menu accordingly and stop the sound interface
-			fMutex->Lock();
-			fEmuMenu->ItemAt(1)->SetMarked(true);
-			fAudioStream->Stop();
+{
+	if (!fRunning) {
+		return;
+	}
+
+	if (fPaused) {
+		/*
+		 * Resume emulation.
+		 */
+		fMutex->Unlock();
+
+		fPaused = false;
+
+		fEmuMenu->ItemAt(1)->SetMarked(false);
+		fAudioStream->Start();
+
+		/*
+		 * Fullscreen entry is safe again once the emulator
+		 * mutex has been released.
+		 */
+		fVideoMenu->ItemAt(video_framework::FULLSCREEN)->SetEnabled(true);
+
+	} else {
+		/*
+		 * Pause emulation.
+		 *
+		 * Keep the emulator mutex acquired until emulation
+		 * resumes.
+		 */
+		if (!fMutex->Lock()) {
+			return;
 		}
-	
-		fPaused = !fPaused;
+
+		fPaused = true;
+
+		fEmuMenu->ItemAt(1)->SetMarked(true);
+		fAudioStream->Stop();
+
+		/*
+		 * Disable fullscreen entry while paused.
+		 */
+		if (fFramework != video_framework::FULLSCREEN) {
+			fVideoMenu->ItemAt(video_framework::FULLSCREEN)->SetEnabled(false);
+		}
 	}
 }
 
@@ -2495,9 +2815,7 @@ PretendoWindow::OnViewBreakPointWindow()
 	}
 
 	fBreakPointWindow = new BreakPointWindow(this);
-
 	BeginToolInput();
-
 	fBreakPointWindow->Show();
 }
 
@@ -2599,9 +2917,7 @@ PretendoWindow::OnViewAPUExplorerWindow()
 	}
 
 	fAPUExplorerWindow = new APUExplorerWindow(this);
-
 	BeginToolInput();
-
 	fAPUExplorerWindow->Show();
 }
 
@@ -2638,9 +2954,7 @@ PretendoWindow::OnViewAPUScopeWindow()
 	}
 
 	fAPUScopeWindow = new APUScopeWindow(this);
-
 	BeginToolInput();
-
 	fAPUScopeWindow->Show();
 }
 
@@ -2674,9 +2988,7 @@ PretendoWindow::OnViewAPUFrameSequencerWindow()
 	}
 
 	fAPUFrameSequencerWindow = new APUFrameSequencerWindow(this);
-
 	BeginToolInput();
-
 	fAPUFrameSequencerWindow->Show();
 }
 
@@ -2710,9 +3022,7 @@ PretendoWindow::OnViewMapperExplorerWindow()
 	}
 
 	fMapperExplorerWindow = new MapperExplorerWindow(this);
-
 	BeginToolInput();
-
 	fMapperExplorerWindow->Show();
 }
 
@@ -3537,11 +3847,23 @@ PretendoWindow::FinishExitFullScreen()
 }
 
 
+
+
 // -----------------------------------------------------------------------------
 // PretendoWindow::ChangeFramework
 //
-// Switches between video output frameworks, tears down the previous video path,
-// configures the new path, and performs fullscreen-exit cleanup when needed.
+// Switches between video output frameworks, safely releases the previous
+// framework, and configures the requested replacement.
+//
+// Fullscreen entry is asynchronous. VideoScreen::ScreenConnected() sends
+// FULLSCREEN_READY after the display framebuffer becomes available.
+//
+// When leaving fullscreen, the emulator mutex protects the transition
+// back to the windowed framebuffer. The old VideoScreen is destroyed only
+// after the emulator can no longer render into its framebuffer.
+//
+// The emulator mutex is released before waiting for VideoScreen to quit,
+// avoiding a potential lock-order deadlock between the two threads.
 //
 // Parameters:
 //   fw - New video framework to activate.
@@ -3550,31 +3872,61 @@ PretendoWindow::FinishExitFullScreen()
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-PretendoWindow::ChangeFramework (video_framework fw)
-{	
-	// change the video framework being used
-	if (fFramework == fw) {
-		return;	
+PretendoWindow::ChangeFramework(video_framework fw)
+{
+	// Reject overlapping framework transitions.
+	if (fFrameworkChanging) {
+		return;
 	}
 	
+	// Fullscreen initialization requires the emulator mutex.
+	// Do not permit entry while paused.
+	if (fw == video_framework::FULLSCREEN && fPaused) {
+		return;
+	}
+	
+
+	// Nothing to do if the requested framework is already active.
+	if (fFramework == fw) {
+		return;
+	}
+
+	const bool leavingFullScreen = fFramework == video_framework::FULLSCREEN;
+
+	/*
+	 * Fullscreen teardown must be synchronized with the emulator
+	 * thread before any active framebuffer state is changed.
+	 */
+	if (leavingFullScreen) {
+		if (!LockMutex()) {
+			return;
+		}
+	}
+
 	fFrameworkChanging = true;
+
 	fPrevFramework = fFramework;
 	fFramework = fw;
-	
-	fVideoMenu->ItemAt(fFramework)->SetMarked(true);
-			
-	// Break down previous framework.
-	const bool leavingFullScreen = fPrevFramework == video_framework::FULLSCREEN;
 
+	fVideoMenu->ItemAt(fFramework)->SetMarked(true);
+
+	/*
+	 * Retain the old fullscreen window until its framebuffer is
+	 * no longer referenced by the emulator.
+	 */
+	VideoScreen* oldVideoScreen = nullptr;
+
+	/*
+	 * Tear down the previous rendering framework.
+	 */
 	switch (fPrevFramework) {
 		case video_framework::NONE:
-			// Nothing to do here.
 			break;
-			
+
 		case video_framework::BITMAP:
 			ClearBitmap(false);
 			break;
-			
+
 		case video_framework::OVERLAY:
 			ClearBitmap(true);
 
@@ -3583,45 +3935,56 @@ PretendoWindow::ChangeFramework (video_framework fw)
 				fView->SetViewColor(0, 0, 0);
 				fView->Invalidate();
 			}
-
 			break;
-			
+
 		case video_framework::FULLSCREEN:
 			ClearControllerInput();
 
-			if (fVideoScreen && fVideoScreen->Lock()) {
-				fVideoScreen->Quit();
-			}
+			/*
+			 * Disable fullscreen presentation before switching
+			 * the framebuffer or releasing the emulator mutex.
+			 */
+			fFullScreen = false;
 
+			oldVideoScreen = fVideoScreen;
 			fVideoScreen = nullptr;
 			break;
 	}
-	
-	// build new framework
+
+	/*
+	 * Configure the requested rendering framework.
+	 */
 	switch (fFramework) {
-		case video_framework::NONE:	
+		case video_framework::NONE:
 			fView->Invalidate();
 			break;
-			
+
 		case video_framework::BITMAP:
 			SetFrontBuffer(fBitmapBits, B_CMAP8, 1, fBitmap->BytesPerRow());
-			
-			// force a screen update in case we are coming from WindowScreen
+
 			ClearBitmap(false);
 			ClearDirty();
+
+			ForceFullBitmapRedraw();
 			break;
-			
+
 		case video_framework::OVERLAY:
+		{
 			rgb_color key;
+
 			SetFrontBuffer(fOverlayBits, B_RGB16, 2, fOverlayBitmap->BytesPerRow());
+
 			ClearBitmap(true);
-			fView->SetViewOverlay(fOverlayBitmap, fOverlayBitmap->Bounds(), 
-								  fView->Bounds(), &key, B_FOLLOW_ALL, 
+
+			fView->SetViewOverlay(fOverlayBitmap, fOverlayBitmap->Bounds(),
+								  fView->Bounds(), &key, B_FOLLOW_ALL,
 								  B_OVERLAY_FILTER_HORIZONTAL | B_OVERLAY_FILTER_VERTICAL);
+
 			fView->SetViewColor(key);
 			fView->Invalidate();
 			break;
-			
+		}
+
 		case video_framework::FULLSCREEN:
 			ClearControllerInput();
 			SuspendToolWindowsForFullScreen();
@@ -3629,21 +3992,46 @@ PretendoWindow::ChangeFramework (video_framework fw)
 			fVideoScreen = new VideoScreen(this);
 			fVideoScreen->Show();
 
-			snooze(1000000);
+			/*
+			 * Fullscreen initialization completes asynchronously.
+			 *
+			 * Keep fFrameworkChanging set until the
+			 * FULLSCREEN_READY handler configures the framebuffer.
+			 */
+			return;
+	}
 
-			SetFrontBuffer(fVideoScreen->Bits(), B_CMAP8, fVideoScreen->BytesPerPixel(), fVideoScreen->RowBytes());
+	/*
+	 * The emulator now uses the replacement framebuffer.
+	 *
+	 * Release the emulator mutex before quitting VideoScreen,
+	 * since Quit() can wait for the fullscreen window thread.
+	 */
+	if (leavingFullScreen) {
+		UnlockMutex();
+	}
 
-			fFullScreen = true;
-			ClearControllerInput();
-			break;
+	/*
+	 * The old fullscreen framebuffer is no longer referenced by
+	 * the active renderer, so its owning window can be destroyed.
+	 */
+	if (oldVideoScreen != nullptr) {
+		if (oldVideoScreen->Lock()) {
+			oldVideoScreen->Quit();
 		}
-	
-		if (leavingFullScreen && fFramework != video_framework::FULLSCREEN) {
-			FinishExitFullScreen();
-		}
-	
+	}
+
+	/*
+	 * Restore windowed presentation and debugger/tool-window
+	 * state after leaving fullscreen.
+	 */
+	if (leavingFullScreen && fFramework != video_framework::FULLSCREEN) {
+		FinishExitFullScreen();
+	}
+
 	fFrameworkChanging = false;
 }
+
 
 
 
@@ -3652,9 +4040,13 @@ PretendoWindow::ChangeFramework (video_framework fw)
 //
 // Copies the completed NES frame into the windowed display bitmap.
 //
-// Normally, only changed 16-byte blocks are copied by the dirty blitter.
-// A forced redraw copies the entire frame and synchronizes the dirty buffer
-// so subsequent comparisons reflect the pixels actually displayed.
+// Native 1x mode copies the 256x240 source into a 256x240 bitmap.
+// Doubled 2x mode uses the MMX scaler to produce a 512x480 bitmap,
+// duplicating every source pixel horizontally and vertically.
+//
+// Normal rendering uses dirty-buffer comparisons to skip unchanged
+// pixel blocks. Forced redraws update the complete destination and
+// synchronize the dirty-buffer reference.
 //
 // Parameters:
 //   None.
@@ -3665,43 +4057,96 @@ PretendoWindow::ChangeFramework (video_framework fw)
 void
 PretendoWindow::DrawBitmap()
 {
-	uint8 *dest = fBitmapBits;
-	uint8 *source = fBackBuffer.bits;
-	uint8 *dirty = fDirtyBuffer.bits;
+	uint8* dest = fBitmapBits;
+	uint8* source = fBackBuffer.bits;
+	uint8* dirty = fDirtyBuffer.bits;
 
 	const size_t size = screen_size::WIDTH;
-	size_t height = screen_size::HEIGHT;
+	const int32 destRowBytes = fBitmap->BytesPerRow();
+	const int32 sourceRowBytes = fBackBuffer.row_bytes;
 
-	if (fForceFullBitmapRedraw) {
-		while (height--) {
-			// Copy the complete scanline into the displayed bitmap.
-			mmx_copy(dest, source, size);
+	const bool fullRedraw = fForceFullBitmapRedraw;
+	const bool doubled = fDoubled;
 
-			// Keep the dirty-buffer reference synchronized with
-			// the frame that was actually copied to the bitmap.
-			mmx_copy(dirty, source, size);
+	/*
+	 * Process every visible NES scanline.
+	 */
+	for (int32 y = 0; y < screen_size::HEIGHT; ++y) {
 
-			dest += fFrontBuffer.row_bytes;
-			source += fBackBuffer.row_bytes;
-			dirty += fBackBuffer.row_bytes;
+		if (doubled) {
+
+			/*
+			 * Force a complete redraw by making every dirty
+			 * reference byte differ from its source byte.
+			 *
+			 * This also ensures the MMX routine will update
+			 * both destination rows for every source block.
+			 */
+			if (fullRedraw) {
+				for (size_t x = 0; x < size; ++x) {
+					dirty[x] = source[x] ^ 0xff;
+				}
+			}
+
+			/*
+			 * Double each source pixel horizontally and
+			 * vertically into the 512x480 bitmap.
+			 *
+			 * The assembly routine updates the dirty buffer
+			 * whenever a source block differs.
+			 */
+			blit_2x_windowed_dirty_mmx(
+				source,
+				dirty,
+				dest,
+				size,
+				1,
+				destRowBytes);
+
+			// Two destination rows per NES scanline.
+			dest += destRowBytes * 2;
+
+		} else {
+
+			if (fullRedraw) {
+
+				/*
+				 * Copy the entire source scanline directly.
+				 */
+				mmx_copy(dest, source, size);
+
+				/*
+				 * Synchronize the dirty reference with the
+				 * displayed bitmap.
+				 */
+				mmx_copy(dirty, source, size);
+
+			} else {
+
+				/*
+				 * Native-resolution dirty blitting.
+				 */
+				blit_windowed_dirty_mmx(
+					source,
+					dirty,
+					dest,
+					size,
+					1);
+			}
+
+			dest += destRowBytes;
 		}
 
-		fForceFullBitmapRedraw = false;
-
-		PostMessage(messages::DRAW_BITMAP);
-		return;
+		source += sourceRowBytes;
+		dirty += sourceRowBytes;
 	}
 
-	while (height--) {
-		blit_windowed_dirty_mmx(source, dirty, dest, size, fPixelWidth);
-
-		dest += fFrontBuffer.row_bytes;
-		source += fBackBuffer.row_bytes;
-		dirty += fBackBuffer.row_bytes;
-	}
+	fForceFullBitmapRedraw = false;
 
 	PostMessage(messages::DRAW_BITMAP);
 }
+
+
 
 
 // -----------------------------------------------------------------------------
@@ -5555,11 +6000,16 @@ PretendoWindow::ClearPaletteDebuggerHighlight()
 }
 
 
+
 // -----------------------------------------------------------------------------
 // PretendoWindow::LoadSettings
 //
-// Loads persisted window position, scale, ROM directory, and input bindings from
-// the Pretendo settings file, creating default settings when needed.
+// Loads persisted window position, video scale, ROM directory, and input
+// bindings from the Pretendo settings file.
+//
+// When double-size mode is enabled, the windowed bitmap is recreated at
+// 512x480 so the MMX blitter can produce native doubled pixels instead
+// of relying on app_server bitmap scaling.
 //
 // Parameters:
 //   None.
@@ -5572,33 +6022,32 @@ PretendoWindow::LoadSettings()
 {
 	BString path = Settings::configDirectory().c_str();
 	path += "/pretendo_window";
-		
-	// open settings file.  create a new one if it doesn't exist
+
 	BFile file;
 	status_t status;
 	off_t size;
-	
-	status = file.SetTo(path, B_READ_WRITE|B_CREATE_FILE);
-	
+
+	status = file.SetTo(path, B_READ_WRITE | B_CREATE_FILE);
+
 	if (status == B_OK) {
 		file.GetSize(&size);
-		
-		// if file is empty, load some defaults
+
+		/*
+		 * Initialize default settings when the file is empty.
+		 */
 		if (size == 0) {
 			CenterOnScreen();
-			
-			int32 const x = Frame().left;
-			int32 const y = Frame().top;
-			bool const doubled = false;
-			BString const path = "/boot/home";
-			
-			// stash default settings
+
+			const int32 x = Frame().left;
+			const int32 y = Frame().top;
+			const bool doubled = false;
+			const BString romPath = "/boot/home";
+
 			fSettingsMessage->AddInt32("window_x", x);
 			fSettingsMessage->AddInt32("window_y", y);
 			fSettingsMessage->AddBool("double_size", doubled);
-			fSettingsMessage->AddString("rom_dir", path);
-			
-			// input
+			fSettingsMessage->AddString("rom_dir", romPath);
+
 			fSettingsMessage->AddInt8("input_up_key", default_keys::UP);
 			fSettingsMessage->AddInt8("input_down_key", default_keys::DOWN);
 			fSettingsMessage->AddInt8("input_left_key", default_keys::LEFT);
@@ -5609,10 +6058,10 @@ PretendoWindow::LoadSettings()
 			fSettingsMessage->AddInt8("input_a_key", default_keys::A);
 
 			fSettingsMessage->Flatten(&file);
-	
-			// apply settings
+
 			MoveTo(x, y);
-			fROMDirectory = path;
+			fROMDirectory = romPath;
+
 			fUpKey = default_keys::UP;
 			fDownKey = default_keys::DOWN;
 			fLeftKey = default_keys::LEFT;
@@ -5621,25 +6070,34 @@ PretendoWindow::LoadSettings()
 			fStartKey = default_keys::START;
 			fBKey = default_keys::B;
 			fAKey = default_keys::A;
-			
-			// we don't need to (re)size the window, as it will be 1:1 by default			
+
+			/*
+			 * The constructor already creates a native-size bitmap.
+			 */
 		} else {
-			// load from file
+
 			status = fSettingsMessage->Unflatten(&file);
-			
+
 			if (status == B_OK) {
-				// read settings
-				int32 x;
-				int32 y;
-				bool doubled;
-				BString path;
-				int8 up, down, left, right, select, start, b, a;
-				
+				int32 x = 0;
+				int32 y = 0;
+				bool doubled = false;
+				BString romPath;
+
+				int8 up = default_keys::UP;
+				int8 down = default_keys::DOWN;
+				int8 left = default_keys::LEFT;
+				int8 right = default_keys::RIGHT;
+				int8 select = default_keys::SELECT;
+				int8 start = default_keys::START;
+				int8 b = default_keys::B;
+				int8 a = default_keys::A;
+
 				fSettingsMessage->FindInt32("window_x", &x);
 				fSettingsMessage->FindInt32("window_y", &y);
 				fSettingsMessage->FindBool("double_size", &doubled);
-				fSettingsMessage->FindString("rom_dir", &path);
-				
+				fSettingsMessage->FindString("rom_dir", &romPath);
+
 				fSettingsMessage->FindInt8("input_up_key", &up);
 				fSettingsMessage->FindInt8("input_down_key", &down);
 				fSettingsMessage->FindInt8("input_left_key", &left);
@@ -5648,19 +6106,23 @@ PretendoWindow::LoadSettings()
 				fSettingsMessage->FindInt8("input_start_key", &start);
 				fSettingsMessage->FindInt8("input_b_key", &b);
 				fSettingsMessage->FindInt8("input_a_key", &a);
-				
-				// apply settings
-				MoveTo(x, y);
-				
-				// check if we're doubled, and resize the window accordingly
-				fDoubled = doubled;
-				int32 const scale = static_cast<int32>(fDoubled)+1;
-				ResizeTo(screen_size::WIDTH*scale, screen_size::HEIGHT*scale);
 
-				// set rom  directory
-				fROMDirectory = path;
-				
-				// set inputs
+				MoveTo(x, y);
+
+				/*
+				 * Configure the real bitmap dimensions before
+				 * applying the saved window size.
+				 */
+				ConfigureWindowedBitmap(doubled);
+
+				const int32 scale = fDoubled ? 2 : 1;
+
+				ResizeTo(
+					screen_size::WIDTH * scale,
+					screen_size::HEIGHT * scale);
+
+				fROMDirectory = romPath;
+
 				fUpKey = up;
 				fDownKey = down;
 				fLeftKey = left;
@@ -5668,10 +6130,8 @@ PretendoWindow::LoadSettings()
 				fSelectKey = select;
 				fStartKey = start;
 				fBKey = b;
-				fAKey = a;		
-			} else {
-				// eli: handle error if unflatten fails?
-			}	
+				fAKey = a;
+			}
 		}
 	}
 }

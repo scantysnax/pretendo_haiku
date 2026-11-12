@@ -196,7 +196,8 @@ blit_2x_windowed_dirty_mmx:
 ;	r8	5	pixel width
 ;	r9	6	rowbytes
 	
-	shr rcx, 4
+	;shr rcx, 4
+	shr rcx, 3
 	jz near .finish
 	
 	cmp r8, 2 ; 16 bit

@@ -99,6 +99,8 @@ class PretendoWindow : public BWindow, public nes::FrameOutput
 		DRAW_BITMAP = 		'DRAW',
 		ENTER_FULLSCREEN = 	'ENFS', 
 		LEAVE_FULLSCREEN = 	'LVFS',
+		FULLSCREEN_READY = 	'FSRD',
+		FULLSCREEN_FAILED = 'FSFL',
 		// input
 		CFG_INPUT = 'CFGI',
 		// rom directory
@@ -266,6 +268,7 @@ class PretendoWindow : public BWindow, public nes::FrameOutput
 	void ClearVideoView();
 	void ForceFullRedraw();
 	void ForceFullBitmapRedraw();
+	bool ConfigureWindowedBitmap(bool doubled);
 	
 	// video interface
 	public:

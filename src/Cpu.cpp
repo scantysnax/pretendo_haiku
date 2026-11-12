@@ -1156,8 +1156,7 @@ clock()
 			 * Fetch the next opcode and initialize its
 			 * execution state.
 			 */
-			const uint8_t next_op =
-				read_byte(PC.raw);
+			const uint8_t next_op = read_byte(PC.raw);
 
 			cycle_0(next_op);
 		} else {
