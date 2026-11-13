@@ -26,7 +26,8 @@ SETUP_STATIC_INES_MAPPER_REGISTRAR(3)
 // Returns:
 //   Nothing.
 //------------------------------------------------------------------------------
-Mapper3::Mapper3()
+Mapper3::Mapper3 (bool bus_conflicts)
+	: bus_conflicts_(bus_conflicts)
 {
 	// CNROM does not provide PRG RAM in this implementation.
 	unmap_67();
@@ -95,224 +96,205 @@ Mapper3::debug_state() const
 }
 
 
-//------------------------------------------------------------------------------
-// Name: write_8
+// -----------------------------------------------------------------------------
+// Mapper3::select_chr_bank
 //
-// Handles mapper writes in the $8000-$8FFF range.
+// Handles CNROM CHR-ROM bank-selection writes throughout $8000-$FFFF.
 //
-// The written value selects the complete 8 KB CHR-ROM bank mapped at
-// $0000-$1FFF.
+// CNROM provides a switchable 8 KB CHR-ROM bank selected by writes to the
+// PRG-ROM address space.
+//
+// On boards with AND-type bus conflicts (NES 2.0 submapper 2), the CPU and
+// currently mapped PRG-ROM simultaneously drive the data bus during writes.
+// The effective bank-selection value is the bitwise AND of the CPU write
+// value and the ROM byte at the destination address.
+//
+// The ROM byte is sampled before updating the CHR-ROM bank mapping.
+//
+// Boards without bus conflicts (submapper 1) use the original CPU write
+// value directly. Submapper 0 retains Pretendo's legacy behavior.
+//
+// Updates the active CHR-ROM bank and persistent mapper-write diagnostics.
+// The debugger retains the original CPU write value separately from the
+// effective bank-selection value.
 //
 // Parameters:
-//   address - CPU address being written.
-//   value   - CHR-ROM bank-selection value.
+//   address - CPU address being written ($8000-$FFFF).
+//   value   - Original CPU write value.
 //
 // Returns:
 //   Nothing.
-//------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+void
+Mapper3::select_chr_bank (uint_least16_t address, uint8_t value)
+{
+	const uint8_t original_value = value;
+
+	if (bus_conflicts_) {
+		const uint8_t rom_value = read_memory(address);
+		value &= rom_value;
+	}
+
+	bank_select_ = value;
+
+	++debug_write_count_;
+
+	debug_have_last_write_ = true;
+	debug_last_write_address_ = address;
+	debug_last_write_value_ = original_value;
+
+	set_chr_0000_1fff(value);
+}
+
+
+// -----------------------------------------------------------------------------
+// Mapper3::write_8
+//
+// Handles CNROM CHR-ROM bank-selection writes at $8000-$8FFF.
+//
+// Parameters:
+//   address - CPU address being written.
+//   value   - Original CPU write value.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
 void
 Mapper3::write_8 (uint_least16_t address, uint8_t value)
 {
-	bank_select_ = value;
-
-	++debug_write_count_;
-
-	debug_have_last_write_ = true;
-	debug_last_write_address_ = address;
-	debug_last_write_value_ = value;
-
-	set_chr_0000_1fff(value);
+	select_chr_bank(address, value);
 }
 
 
-//------------------------------------------------------------------------------
-// Name: write_9
+// -----------------------------------------------------------------------------
+// Mapper3::write_9
 //
-// Handles mapper writes in the $9000-$9FFF range.
-//
-// CNROM treats writes throughout $8000-$FFFF as CHR-bank-selection writes.
+// Handles CNROM CHR-ROM bank-selection writes at $9000-$9FFF.
 //
 // Parameters:
 //   address - CPU address being written.
-//   value   - CHR-ROM bank-selection value.
+//   value   - Original CPU write value.
 //
 // Returns:
 //   Nothing.
-//------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 void
 Mapper3::write_9 (uint_least16_t address, uint8_t value)
 {
-	bank_select_ = value;
-
-	++debug_write_count_;
-
-	debug_have_last_write_ = true;
-	debug_last_write_address_ = address;
-	debug_last_write_value_ = value;
-
-	set_chr_0000_1fff(value);
+	select_chr_bank(address, value);
 }
 
 
-//------------------------------------------------------------------------------
-// Name: write_a
+// -----------------------------------------------------------------------------
+// Mapper3::write_a
 //
-// Handles mapper writes in the $A000-$AFFF range.
+// Handles CNROM CHR-ROM bank-selection writes at $A000-$AFFF.
 //
 // Parameters:
 //   address - CPU address being written.
-//   value   - CHR-ROM bank-selection value.
+//   value   - Original CPU write value.
 //
 // Returns:
 //   Nothing.
-//------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 void
 Mapper3::write_a (uint_least16_t address, uint8_t value)
 {
-	bank_select_ = value;
-
-	++debug_write_count_;
-
-	debug_have_last_write_ = true;
-	debug_last_write_address_ = address;
-	debug_last_write_value_ = value;
-
-	set_chr_0000_1fff(value);
+	select_chr_bank(address, value);
 }
 
 
-//------------------------------------------------------------------------------
-// Name: write_b
+// -----------------------------------------------------------------------------
+// Mapper3::write_b
 //
-// Handles mapper writes in the $B000-$BFFF range.
+// Handles CNROM CHR-ROM bank-selection writes at $B000-$BFFF.
 //
 // Parameters:
 //   address - CPU address being written.
-//   value   - CHR-ROM bank-selection value.
+//   value   - Original CPU write value.
 //
 // Returns:
 //   Nothing.
-//------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 void
 Mapper3::write_b (uint_least16_t address, uint8_t value)
 {
-	bank_select_ = value;
-
-	++debug_write_count_;
-
-	debug_have_last_write_ = true;
-	debug_last_write_address_ = address;
-	debug_last_write_value_ = value;
-
-	set_chr_0000_1fff(value);
+	select_chr_bank(address, value);
 }
 
 
-//------------------------------------------------------------------------------
-// Name: write_c
+// -----------------------------------------------------------------------------
+// Mapper3::write_c
 //
-// Handles mapper writes in the $C000-$CFFF range.
+// Handles CNROM CHR-ROM bank-selection writes at $C000-$CFFF.
 //
 // Parameters:
 //   address - CPU address being written.
-//   value   - CHR-ROM bank-selection value.
+//   value   - Original CPU write value.
 //
 // Returns:
 //   Nothing.
-//------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 void
 Mapper3::write_c (uint_least16_t address, uint8_t value)
 {
-	bank_select_ = value;
-
-	++debug_write_count_;
-
-	debug_have_last_write_ = true;
-	debug_last_write_address_ = address;
-	debug_last_write_value_ = value;
-
-	set_chr_0000_1fff(value);
+	select_chr_bank(address, value);
 }
 
 
-//------------------------------------------------------------------------------
-// Name: write_d
+// -----------------------------------------------------------------------------
+// Mapper3::write_d
 //
-// Handles mapper writes in the $D000-$DFFF range.
+// Handles CNROM CHR-ROM bank-selection writes at $D000-$DFFF.
 //
 // Parameters:
 //   address - CPU address being written.
-//   value   - CHR-ROM bank-selection value.
+//   value   - Original CPU write value.
 //
 // Returns:
 //   Nothing.
-//------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 void
 Mapper3::write_d (uint_least16_t address, uint8_t value)
 {
-	bank_select_ = value;
-
-	++debug_write_count_;
-
-	debug_have_last_write_ = true;
-	debug_last_write_address_ = address;
-	debug_last_write_value_ = value;
-
-	set_chr_0000_1fff(value);
+	select_chr_bank(address, value);
 }
 
 
-//------------------------------------------------------------------------------
-// Name: write_e
+// -----------------------------------------------------------------------------
+// Mapper3::write_e
 //
-// Handles mapper writes in the $E000-$EFFF range.
+// Handles CNROM CHR-ROM bank-selection writes at $E000-$EFFF.
 //
 // Parameters:
 //   address - CPU address being written.
-//   value   - CHR-ROM bank-selection value.
+//   value   - Original CPU write value.
 //
 // Returns:
 //   Nothing.
-//------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 void
 Mapper3::write_e (uint_least16_t address, uint8_t value)
 {
-	bank_select_ = value;
-
-	++debug_write_count_;
-
-	debug_have_last_write_ = true;
-	debug_last_write_address_ = address;
-	debug_last_write_value_ = value;
-
-	set_chr_0000_1fff(value);
+	select_chr_bank(address, value);
 }
 
 
-//------------------------------------------------------------------------------
-// Name: write_f
+// -----------------------------------------------------------------------------
+// Mapper3::write_f
 //
-// Handles mapper writes in the $F000-$FFFF range.
+// Handles CNROM CHR-ROM bank-selection writes at $F000-$FFFF.
 //
 // Parameters:
 //   address - CPU address being written.
-//   value   - CHR-ROM bank-selection value.
+//   value   - Original CPU write value.
 //
 // Returns:
 //   Nothing.
-//------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 void
 Mapper3::write_f (uint_least16_t address, uint8_t value)
 {
-	bank_select_ = value;
-
-	++debug_write_count_;
-
-	debug_have_last_write_ = true;
-	debug_last_write_address_ = address;
-	debug_last_write_value_ = value;
-
-	set_chr_0000_1fff(value);
+	select_chr_bank(address, value);
 }
-
 

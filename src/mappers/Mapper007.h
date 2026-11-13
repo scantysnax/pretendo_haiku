@@ -1,5 +1,6 @@
-#ifndef MAPPER0007_20080314_H_
-#define MAPPER0007_20080314_H_
+
+#ifndef _MAPPER_007_H_
+#define _MAPPER_007_H_
 
 #include "Mapper.h"
 
@@ -18,17 +19,37 @@ struct axrom_debug_state_t {
 };
 
 
+// -----------------------------------------------------------------------------
+// Mapper7
+//
+// Implements mapper 7 (AxROM).
+//
+// Hardware features:
+//
+//   - One switchable 32 KB PRG-ROM bank at $8000-$FFFF.
+//   - 8 KB of CHR RAM at $0000-$1FFF.
+//   - Mapper-controlled single-screen nametable mirroring.
+//   - No PRG RAM in this implementation.
+//   - Optional AND-type bus conflicts on mapper register writes.
+//
+// NES 2.0 submapper behavior:
+//
+//   - Submapper 0: Unspecified; preserve legacy behavior.
+//   - Submapper 1: No bus conflicts.
+//   - Submapper 2: AND-type bus conflicts.
+//
+// The mapper factory selects the appropriate behavior during construction.
+// -----------------------------------------------------------------------------
 class Mapper7 : public Mapper
 {
-	public:
-	Mapper7();
+public:
+	explicit Mapper7(bool bus_conflicts = false);
 
-	public:
+public:
 	std::string name() const override;
-
 	axrom_debug_state_t debug_state() const;
 
-	public:
+public:
 	void write_8(uint_least16_t address, uint8_t value) override;
 	void write_9(uint_least16_t address, uint8_t value) override;
 	void write_a(uint_least16_t address, uint8_t value) override;
@@ -38,15 +59,21 @@ class Mapper7 : public Mapper
 	void write_e(uint_least16_t address, uint8_t value) override;
 	void write_f(uint_least16_t address, uint8_t value) override;
 
-	private:
+private:
 	void write_handler(uint_least16_t address, uint8_t value);
 
-	private:
+private:
+	// Enables AND-type bus conflicts when required by the board.
+	bool bus_conflicts_ = false;
+
+	// AxROM provides 8 KB of CHR RAM.
 	uint8_t chr_ram_[0x2000] = {};
 
+	// Effective mapper-control value after any bus conflict.
 	uint8_t control_ = 0;
 
-	private:
+private:
+	// Persistent mapper-write diagnostics.
 	uint64_t debug_write_count_ = 0;
 
 	bool debug_have_last_write_ = false;
@@ -55,4 +82,5 @@ class Mapper7 : public Mapper
 };
 
 
-#endif
+#endif  // _MAPPER_007_H_
+

@@ -6,6 +6,10 @@
 #include "Mapper023.h"
 #include "Mapper025.h"
 #include "Mapper085.h"
+#include "Mapper002.h"
+#include "Mapper003.h"
+#include "Mapper007.h"
+#include "Bus.h"
 #include "Nes.h"
 #include "Ppu.h"
 #include "Settings.h"
@@ -450,6 +454,85 @@ Mapper::create_mapper (int num, int submapper, const ROMDatabase::Entry *databas
 		std::cout << "[Mapper::create_mapper] mapper #" << num << "." << submapper
 				  << " loaded, type: " << mapper->name() << std::endl;
 		return mapper;
+	}
+
+	/*
+	 * Mapper 2 (UxROM).
+	 *
+	 * NES 2.0 submapper 1: No bus conflicts.
+	 * NES 2.0 submapper 2: AND-type bus conflicts.
+	 *
+	 * Preserve the previous no-conflict behavior for legacy
+	 * submapper 0 cartridges until database-based detection
+	 * is implemented.
+	 */
+	if (num == 2) {
+		switch (submapper) {
+			case 0:
+			case 1:
+				return std::make_unique<Mapper2>(false);
+
+			case 2:
+				return std::make_unique<Mapper2>(true);
+
+			default:
+				std::cout << "unsupported mapper hardware - iNES number: "
+					<< num << ", submapper: " << submapper
+					<< std::endl;
+				return nullptr;
+		}
+	}
+	
+	/*
+	 * Mapper 3 (CNROM).
+	 *
+	 * NES 2.0 submapper 1: No bus conflicts.
+	 * NES 2.0 submapper 2: AND-type bus conflicts.
+	 *
+	 * Preserve the existing no-conflict behavior for legacy
+	 * submapper 0 cartridges.
+	 */
+	if (num == 3) {
+		switch (submapper) {
+			case 0:
+			case 1:
+				return std::make_unique<Mapper3>(false);
+
+			case 2:
+				return std::make_unique<Mapper3>(true);
+
+			default:
+				std::cout << "unsupported mapper hardware - iNES number: "
+					<< num << ", submapper: " << submapper
+					<< std::endl;
+				return nullptr;
+		}
+	}
+	
+   /*
+	* Mapper 7 (AxROM).
+	*
+	* NES 2.0 submapper 1: No bus conflicts.
+	* NES 2.0 submapper 2: AND-type bus conflicts.
+	*
+	* Preserve the existing no-conflict behavior for legacy
+	* submapper 0 cartridges.
+	*/
+	if (num == 7) {
+		switch (submapper) {
+			case 0:
+			case 1:
+				return std::make_unique<Mapper7>(false);
+
+			case 2:
+				return std::make_unique<Mapper7>(true);
+
+			default:
+				std::cout << "unsupported mapper hardware - iNES number: "
+			          	<< num << ", submapper: " << submapper
+			          	<< std::endl;
+			return nullptr;
+		}
 	}
 
 	/*

@@ -6,8 +6,9 @@
 SETUP_STATIC_INES_MAPPER_REGISTRAR(7)
 
 
-//------------------------------------------------------------------------------
-// Name: Mapper7
+
+// -----------------------------------------------------------------------------
+// Mapper7::Mapper7
 //
 // Initializes mapper 7 (AxROM).
 //
@@ -18,16 +19,21 @@ SETUP_STATIC_INES_MAPPER_REGISTRAR(7)
 //   - Mapper-controlled single-screen nametable mirroring.
 //   - No PRG RAM in this implementation.
 //
+// NES 2.0 submapper 1 has no bus conflicts.
+// NES 2.0 submapper 2 uses AND-type bus conflicts.
+//
 // The mapper's mirroring selection is not considered known until the first
 // mapper write occurs, so the debugger-visible state begins as Unknown.
 //
 // Parameters:
-//   None.
+//   bus_conflicts - Enables AND-type PRG-ROM bus conflicts.
 //
 // Returns:
 //   Nothing.
-//------------------------------------------------------------------------------
-Mapper7::Mapper7()
+// -----------------------------------------------------------------------------
+Mapper7::Mapper7(bool bus_conflicts)
+	:
+	bus_conflicts_(bus_conflicts)
 {
 	// AxROM does not provide PRG RAM in this implementation.
 	unmap_67();
@@ -38,11 +44,8 @@ Mapper7::Mapper7()
 	// Standard AxROM uses 8 KB of CHR RAM.
 	set_chr_0000_1fff_ram(chr_ram_, 0);
 
-	// AxROM controls mirroring through its mapper register. Until the first
-	// mapper write occurs, the effective single-screen selection is unknown.
-	//
-	// This changes only the debugger-visible state; the PPU mapping established
-	// during base Mapper construction remains untouched.
+	// The initial single-screen mirroring selection is unknown
+	// until the first mapper-control register write.
 	debug_set_mirroring_unknown();
 }
 
@@ -252,57 +255,98 @@ Mapper7::write_f (uint_least16_t address, uint8_t value)
 }
 
 
-//------------------------------------------------------------------------------
-// Name: write_handler
+
+// -----------------------------------------------------------------------------
+// Mapper7::write_handler
 //
-// Applies one AxROM mapper-control write.
+// Handles AxROM mapper-control writes throughout $8000-$FFFF.
 //
-// The register controls:
+// The mapper-control register provides:
 //
 //   bits 0-2 -> Select the 32 KB PRG-ROM bank mapped at $8000-$FFFF.
-//   bit 4    -> Select which CIRAM page is used for single-screen mirroring.
+//   bit 4    -> Select the single-screen nametable mirroring mode.
 //
 // Mirroring selection:
 //
-//   bit 4 clear -> single-screen low
-//   bit 4 set   -> single-screen high
+//   bit 4 clear -> Single-screen low.
+//   bit 4 set   -> Single-screen high.
 //
-// The CPU address itself does not affect the selected function; writes
-// anywhere in $8000-$FFFF reach the same mapper register.
+// On boards with AND-type bus conflicts (NES 2.0 submapper 2), the CPU and
+// currently mapped PRG-ROM simultaneously drive the data bus during writes.
 //
-// Debugger-only state preserves the raw register value and most recent mapper
-// write for inspection.
+// The effective mapper-control value is the bitwise AND of the original
+// CPU write value and the PRG-ROM byte at the destination address.
+//
+// The ROM byte must be sampled before updating the PRG-ROM bank mapping.
+//
+// Boards without bus conflicts use the original CPU write value directly.
+//
+// The effective control value determines both PRG-ROM bank selection and
+// nametable mirroring.
+//
+// Debugger diagnostics preserve the original CPU write value separately
+// from the effective mapper-control register.
 //
 // Parameters:
-//   address - CPU address being written.
-//   value   - Mapper control value.
+//   address - CPU address being written ($8000-$FFFF).
+//   value   - Original CPU write value.
 //
 // Returns:
 //   Nothing.
-//------------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 void
-Mapper7::write_handler (uint_least16_t address, uint8_t value)
+Mapper7::write_handler(uint_least16_t address, uint8_t value)
 {
-	// Preserve the raw AxROM mapper-control register.
+	const uint8_t original_value = value;
+
+	/*
+	 * Apply AND-type bus conflicts when enabled.
+	 *
+	 * Read the currently mapped PRG-ROM byte before changing
+	 * the active 32 KB bank.
+	 */
+	if (bus_conflicts_) {
+		const uint8_t rom_value = read_memory(address);
+
+		value &= rom_value;
+	}
+
+	/*
+	 * Preserve the effective mapper-control register.
+	 */
 	control_ = value;
 
-	// Record mapper-write activity for debugger inspection.
+	/*
+	 * Record mapper-write activity for debugger inspection.
+	 *
+	 * The last-write value represents what the CPU originally
+	 * placed on the data bus, before any bus conflict.
+	 */
 	++debug_write_count_;
 
 	debug_have_last_write_ = true;
 	debug_last_write_address_ = address;
-	debug_last_write_value_ = value;
+	debug_last_write_value_ = original_value;
 
-	// Select the complete 32 KB PRG-ROM bank mapped at $8000-$FFFF.
+	/*
+	 * Bits 0-2 select the complete 32 KB PRG-ROM bank.
+	 */
 	set_prg_89abcdef(control_ & 0x07);
 
-	// Bit 4 selects which 1 KB CIRAM page backs all four logical nametables.
+	/*
+	 * Bit 4 selects which CIRAM page backs all four
+	 * logical nametables.
+	 *
+	 * Use the effective control value, since bus conflicts
+	 * can also affect the mirroring-selection bit.
+	 */
 	if (control_ & 0x10) {
 		set_mirroring(mirror_single_high);
 	} else {
 		set_mirroring(mirror_single_low);
 	}
 }
+
 
 
 
