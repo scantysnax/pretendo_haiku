@@ -3,3 +3,6 @@ CMakeLists.txt.user*
 *.nes
 *.o
 Pretendo
+
+# Local NES test ROM collection and test results
+/nes-test-roms/
