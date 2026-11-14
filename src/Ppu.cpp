@@ -2273,8 +2273,7 @@ read2007()
 		// However, the internal PPUDATA read buffer must be filled
 		// from the underlying nametable address ($2F00-$2FFF),
 		// not from palette RAM.
-		register_2007_buffer_ =
-			nes::cart.mapper()->read_vram(temp_address & 0x2fff);
+		register_2007_buffer_ = nes::cart.mapper()->read_vram(temp_address & 0x2fff);
 
 		// Return the palette RAM value while retaining the upper
 		// two bits from the previous PPU I/O latch.
@@ -2290,8 +2289,7 @@ read2007()
 		// Return the previous buffer value, then load the byte
 		// at the requested address for the next PPUDATA read.
 		latch_ = register_2007_buffer_;
-		register_2007_buffer_ =
-			nes::cart.mapper()->read_vram(temp_address);
+		register_2007_buffer_ = nes::cart.mapper()->read_vram(temp_address);
 	}
 
 	return latch_ & 0xff;

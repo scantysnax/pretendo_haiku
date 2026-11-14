@@ -750,8 +750,6 @@ PretendoWindow::MessageReceived (BMessage *message)
 				BPath path(&ref);
 
 				if (path.InitCheck() == B_OK) {
-					
-					printf("[ROM DROP] PretendoWindow: %s\n", path.Path());
 					LoadROMPath(path.Path());
 				}
 			}
@@ -1274,8 +1272,6 @@ void
 PretendoWindow::OnLoadROM (BMessage *message)
 {
 	BString path;
-	
-	printf("[ROM LOAD] LoadROMPath: %s\n", path.String());
 	
 	if (message->FindString("rom_path", &path) != B_OK) {
 		return;

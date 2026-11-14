@@ -89,7 +89,7 @@ Mapper7::debug_state() const
 	axrom_debug_state_t state;
 
 	state.control = control_;
-	state.prg_bank = control_ & 0x07;
+	state.prg_bank = control_ & 0x0f;
 	state.single_screen_high = (control_ & 0x10) != 0;
 	state.write_count = debug_write_count_;
 	state.have_last_write = debug_have_last_write_;
@@ -263,29 +263,52 @@ Mapper7::write_f (uint_least16_t address, uint8_t value)
 //
 // The mapper-control register provides:
 //
-//   bits 0-2 -> Select the 32 KB PRG-ROM bank mapped at $8000-$FFFF.
+//   bits 0-2 -> Select the 32 KB PRG-ROM bank on standard AxROM boards.
+//   bit 3    -> Extended PRG-ROM bank selection for oversized 512 KB AxROM.
 //   bit 4    -> Select the single-screen nametable mirroring mode.
+//   bits 5-7 -> Unused.
 //
-// Mirroring selection:
+// PRG-ROM banking:
 //
-//   bit 4 clear -> Single-screen low.
-//   bit 4 set   -> Single-screen high.
+//   Standard AxROM supports up to 256 KB of PRG ROM, organized as eight
+//   switchable 32 KB banks.
 //
-// On boards with AND-type bus conflicts (NES 2.0 submapper 2), the CPU and
-// currently mapped PRG-ROM simultaneously drive the data bus during writes.
+//   Oversized AxROM variants may support up to 512 KB of PRG ROM, organized
+//   as sixteen switchable 32 KB banks.
 //
-// The effective mapper-control value is the bitwise AND of the original
-// CPU write value and the PRG-ROM byte at the destination address.
+//   Bits 0-3 are passed to the PRG bank-mapping helper. The cartridge's
+//   PRG-ROM mask handles bank wrapping for smaller ROM images.
 //
-// The ROM byte must be sampled before updating the PRG-ROM bank mapping.
+// Nametable mirroring:
 //
-// Boards without bus conflicts use the original CPU write value directly.
+//   Bit 4 clear -> Single-screen low  (CIRAM page 0).
+//   Bit 4 set   -> Single-screen high (CIRAM page 1).
 //
-// The effective control value determines both PRG-ROM bank selection and
-// nametable mirroring.
+// Bus conflicts:
 //
-// Debugger diagnostics preserve the original CPU write value separately
-// from the effective mapper-control register.
+//   On boards with AND-type bus conflicts (NES 2.0 submapper 2), the CPU
+//   and currently mapped PRG ROM simultaneously drive the data bus during
+//   writes to the mapper-control register.
+//
+//   The effective mapper-control value is the bitwise AND of the original
+//   CPU write value and the PRG-ROM byte at the destination address.
+//
+//   The ROM byte must be sampled before updating the PRG-ROM bank mapping.
+//
+//   Boards without bus conflicts use the original CPU write value directly.
+//
+//   Bus conflicts affect both PRG-ROM bank selection and nametable
+//   mirroring because both are controlled by the effective register value.
+//
+// Debugger diagnostics:
+//
+//   The effective control value is preserved in control_.
+//
+//   The original CPU write value is recorded separately, allowing the
+//   debugger to distinguish CPU writes from bus-conflict-modified values.
+//
+//   The debugger reports the selected PRG-ROM bank using bits 0-3,
+//   supporting bank numbers $00-$0F.
 //
 // Parameters:
 //   address - CPU address being written ($8000-$FFFF).
@@ -329,9 +352,17 @@ Mapper7::write_handler(uint_least16_t address, uint8_t value)
 	debug_last_write_value_ = original_value;
 
 	/*
-	 * Bits 0-2 select the complete 32 KB PRG-ROM bank.
-	 */
-	set_prg_89abcdef(control_ & 0x07);
+ 	 * Bits 0-3 select the complete 32 KB PRG-ROM bank.
+ 	 *
+ 	 * Standard AxROM uses only bits 0-2, supporting up to 256 KB.
+ 	 * Oversized AxROM uses bit 3 to access up to 512 KB.
+	 *
+ 	 * The base mapper's PRG mask wraps unused bank bits to the
+ 	 * available cartridge ROM size.
+	 *
+ 	 * Bit 4 remains reserved for single-screen mirroring.
+ 	 */
+	set_prg_89abcdef(control_ & 0x0f);
 
 	/*
 	 * Bit 4 selects which CIRAM page backs all four
