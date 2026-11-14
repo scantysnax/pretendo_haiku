@@ -213,11 +213,12 @@ using create_func = std::function<std::unique_ptr<Mapper>()>;
 class Mapper
 {
 	public:
-	static std::unique_ptr<Mapper> create_mapper (int num, int submapper = 0, const ROMDatabase::Entry *database_entry = nullptr);
+	static std::unique_ptr<Mapper> create_mapper (int num, int submapper = 0, 
+												  const ROMDatabase::Entry *database_entry = nullptr);
 	static void register_mapper(int num, create_func create_ptr);
 
 	public:
-	MemoryMappedFile open_sram(size_t size);
+	MemoryMappedFile open_sram (size_t size);
 
 	public:
 	// the standard mapper interface
@@ -270,8 +271,8 @@ class Mapper
 	virtual uint8_t read_f (uint_least16_t address);
 
 	// hooks for mappers to intercept VRAM/VROM read/writes
-	virtual void write_vram(uint_least16_t address, uint8_t value);
-	virtual uint8_t read_vram(uint_least16_t address);
+	virtual void write_vram (uint_least16_t address, uint8_t value);
+	virtual uint8_t read_vram (uint_least16_t address);
 
 // -----------------------------------------------------------------------------
 // Mapper::set_ppu_fetch_type
@@ -437,69 +438,69 @@ debug_audio_scope_sample() const
 	protected:
 	// ---- PRG ROM ----
 	// 8K swaps
-	void set_prg_67(int num);
-	void set_prg_89(int num);
-	void set_prg_ab(int num);
-	void set_prg_cd(int num);
-	void set_prg_ef(int num);
+	void set_prg_67 (int num);
+	void set_prg_89 (int num);
+	void set_prg_ab (int num);
+	void set_prg_cd (int num);
+	void set_prg_ef (int num);
 
 	// 16K swaps
-	void set_prg_89ab(int num);
-	void set_prg_cdef(int num);
+	void set_prg_89ab (int num);
+	void set_prg_cdef (int num);
 
 	// 32K swap
 	void set_prg_89abcdef(int num);
 
 	// ---- CHR ROM ----
 	// 1K-swaps
-	void set_chr_0000_03ff(int num);
-	void set_chr_0400_07ff(int num);
-	void set_chr_0800_0bff(int num);
-	void set_chr_0c00_0fff(int num);
-	void set_chr_1000_13ff(int num);
-	void set_chr_1400_17ff(int num);
-	void set_chr_1800_1bff(int num);
-	void set_chr_1c00_1fff(int num);
+	void set_chr_0000_03ff (int num);
+	void set_chr_0400_07ff (int num);
+	void set_chr_0800_0bff (int num);
+	void set_chr_0c00_0fff (int num);
+	void set_chr_1000_13ff (int num);
+	void set_chr_1400_17ff (int num);
+	void set_chr_1800_1bff (int num);
+	void set_chr_1c00_1fff (int num);
 
 	// 2K swaps
-	void set_chr_0000_07ff(int num);
-	void set_chr_0800_0fff(int num);
-	void set_chr_1000_17ff(int num);
-	void set_chr_1800_1fff(int num);
+	void set_chr_0000_07ff (int num);
+	void set_chr_0800_0fff (int num);
+	void set_chr_1000_17ff (int num);
+	void set_chr_1800_1fff (int num);
 
 	// 4K swaps
-	void set_chr_0000_0fff(int num);
-	void set_chr_1000_1fff(int num);
+	void set_chr_0000_0fff (int num);
+	void set_chr_1000_1fff (int num);
 
 	// 8K swaps
-	void set_chr_0000_1fff(int num);
+	void set_chr_0000_1fff (int num);
 
 	// ---- CHR RAM ----
 	// 1K-swaps
-	void set_chr_0000_03ff_ram(uint8_t *p, int num);
-	void set_chr_0400_07ff_ram(uint8_t *p, int num);
-	void set_chr_0800_0bff_ram(uint8_t *p, int num);
-	void set_chr_0c00_0fff_ram(uint8_t *p, int num);
-	void set_chr_1000_13ff_ram(uint8_t *p, int num);
-	void set_chr_1400_17ff_ram(uint8_t *p, int num);
-	void set_chr_1800_1bff_ram(uint8_t *p, int num);
-	void set_chr_1c00_1fff_ram(uint8_t *p, int num);
+	void set_chr_0000_03ff_ram (uint8_t *p, int num);
+	void set_chr_0400_07ff_ram (uint8_t *p, int num);
+	void set_chr_0800_0bff_ram (uint8_t *p, int num);
+	void set_chr_0c00_0fff_ram (uint8_t *p, int num);
+	void set_chr_1000_13ff_ram (uint8_t *p, int num);
+	void set_chr_1400_17ff_ram (uint8_t *p, int num);
+	void set_chr_1800_1bff_ram (uint8_t *p, int num);
+	void set_chr_1c00_1fff_ram (uint8_t *p, int num);
 
 	// 2K swaps
-	void set_chr_0000_07ff_ram(uint8_t *p, int num);
-	void set_chr_0800_0fff_ram(uint8_t *p, int num);
-	void set_chr_1000_17ff_ram(uint8_t *p, int num);
-	void set_chr_1800_1fff_ram(uint8_t *p, int num);
+	void set_chr_0000_07ff_ram (uint8_t *p, int num);
+	void set_chr_0800_0fff_ram (uint8_t *p, int num);
+	void set_chr_1000_17ff_ram (uint8_t *p, int num);
+	void set_chr_1800_1fff_ram (uint8_t *p, int num);
 
 	// 4K swaps
-	void set_chr_0000_0fff_ram(uint8_t *p, int num);
-	void set_chr_1000_1fff_ram(uint8_t *p, int num);
+	void set_chr_0000_0fff_ram (uint8_t *p, int num);
+	void set_chr_1000_1fff_ram (uint8_t *p, int num);
 
 	// 8K swaps
-	void set_chr_0000_1fff_ram(uint8_t *p, int num);
+	void set_chr_0000_1fff_ram (uint8_t *p, int num);
 
 	protected:
-	void set_mirroring(uint8_t mir);
+	void set_mirroring (uint8_t mir);
 	void debug_set_mirroring_unknown();
 
 	// Records the debugger-visible state of the $6000-$7FFF PRG-RAM region.

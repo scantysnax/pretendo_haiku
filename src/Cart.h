@@ -27,14 +27,19 @@ class Cart
 	const std::string &filename() const;
 	bool load (const std::string &s);
 	void unload();
+	
+	public:
 	bool has_chr_rom() const;
 	uint32_t prg_mask() const;
 	uint32_t chr_mask() const;
+	uint32_t prg_ram_size() const;
 	uint32_t prg_hash() const;
 	uint32_t chr_hash() const;
 	uint32_t rom_hash() const;
 	uint8_t *prg() const;
 	uint8_t *chr() const;
+	
+	public:
 	cart_mirroring mirroring() const;
 	Mapper *mapper() const { return mapper_.get(); }
 	std::vector<uint8_t> raw_image() const;

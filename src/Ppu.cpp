@@ -2221,17 +2221,31 @@ read2004()
 }
 
 
+
 // -----------------------------------------------------------------------------
 // nes::ppu::read2007
 //
-// Reads PPUDATA using the PPU read-buffer rules, including immediate palette
-// reads and automatic VRAM-address incrementing.
+// Reads PPUDATA ($2007) using the NES PPU's internal read-buffer behavior.
+//
+// Reads from pattern-table and nametable memory ($0000-$3EFF) return the
+// previously buffered value. The byte at the requested address is then
+// loaded into the internal read buffer for the next read.
+//
+// Palette reads ($3F00-$3FFF) are handled differently:
+//
+//   - The palette RAM value is returned immediately.
+//   - The internal read buffer is updated from the corresponding
+//     underlying nametable address ($2F00-$2FFF).
+//   - The upper two returned bits retain the PPU I/O latch value.
+//
+// Grayscale masking and the existing VRAM-address increment behavior are
+// preserved.
 //
 // Parameters:
 //   None.
 //
 // Returns:
-//   Current PPUDATA value.
+//   Value read through the PPUDATA register.
 // -----------------------------------------------------------------------------
 uint8_t
 read2007()
@@ -2240,21 +2254,44 @@ read2007()
 		return 0x00;
 	}
 
-	const uint_least16_t temp_address = vram_address_ & 0b00111111'11111111;
+	// Capture the address before incrementing it.
+	const uint_least16_t temp_address = vram_address_ & 0x3fff;
 
+	// Preserve the existing VRAM-address increment and mapper notification.
 	increment_vram_address();
 	nes::cart.mapper()->vram_change_hook(vram_address_);
 
+	// Preserve the previous I/O latch value for open-bus bits.
 	const auto decay_value = static_cast<uint8_t>(latch_);
 
-	latch_                = register_2007_buffer_;
-	register_2007_buffer_ = nes::cart.mapper()->read_vram(temp_address);
+	// Determine whether this is a palette RAM access.
+	const bool palette_read = (temp_address & 0x3f00) == 0x3f00;
 
-	if ((temp_address & 0b00111111'00000000) == 0b00111111'00000000) {
+	if (palette_read) {
+		// Palette reads return the palette value immediately.
+		//
+		// However, the internal PPUDATA read buffer must be filled
+		// from the underlying nametable address ($2F00-$2FFF),
+		// not from palette RAM.
+		register_2007_buffer_ =
+			nes::cart.mapper()->read_vram(temp_address & 0x2fff);
+
+		// Return the palette RAM value while retaining the upper
+		// two bits from the previous PPU I/O latch.
 		latch_ = palette_[temp_address & 0x1f] | (decay_value & 0xc0);
+
+		// Preserve the existing grayscale behavior.
 		if (UNLIKELY(ppu_mask_.monochrome)) {
 			latch_ &= 0xf0;
 		}
+	} else {
+		// Normal pattern-table and nametable reads are buffered.
+		//
+		// Return the previous buffer value, then load the byte
+		// at the requested address for the next PPUDATA read.
+		latch_ = register_2007_buffer_;
+		register_2007_buffer_ =
+			nes::cart.mapper()->read_vram(temp_address);
 	}
 
 	return latch_ & 0xff;

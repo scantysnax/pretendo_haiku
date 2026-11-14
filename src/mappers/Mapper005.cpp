@@ -123,8 +123,7 @@ Mapper5::name() const
 void
 Mapper5::update_prg_mapping()
 {
-    const bool writable =
-        prg_ram_protect1_ == 0x02 && prg_ram_protect2_ == 0x01;
+    const bool writable = prg_ram_protect1_ == 0x02 && prg_ram_protect2_ == 0x01;
 
     /*
      * Map one 8 KB RAM bank into the specified CPU address.
@@ -610,7 +609,7 @@ void Mapper5::write_7 (uint_least16_t address, uint8_t value)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-Mapper5::write_8(uint_least16_t address, uint8_t value)
+Mapper5::write_8 (uint_least16_t address, uint8_t value)
 {
 	write_handler(address, value);
 }
@@ -629,7 +628,7 @@ Mapper5::write_8(uint_least16_t address, uint8_t value)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-Mapper5::write_9(uint_least16_t address, uint8_t value)
+Mapper5::write_9 (uint_least16_t address, uint8_t value)
 {
 	write_handler(address, value);
 }
@@ -1062,12 +1061,8 @@ Mapper5::read_vram(uint_least16_t address)
 	// Do not update the Extended Attribute latch while rendering the vertical
 	// split region; split mode uses ExRAM as its nametable source and does not
 	// use Extended Attribute mode inside the split region.
-	if (irq_status_.in_frame &&
-		(exram_mode_ & 0x03) == 0x01 &&
-		!vertical_split_active_ &&
-		(address & 0x2000) &&
-		offset < 0x03c0) {
-
+	if (irq_status_.in_frame && (exram_mode_ & 0x03) == 0x01 && !vertical_split_active_ &&
+		(address & 0x2000) && offset < 0x03c0) {
 		extended_attribute_ = exram_[offset];
 	}
 
@@ -1310,7 +1305,6 @@ Mapper5::read_vram(uint_least16_t address)
 			return chr_rom[chr_address & chr_mask];
 		}
 
-
 		const uint8_t *chr_selector;
 
 		// During active rendering with 8x16 sprites, use A for sprite
@@ -1331,7 +1325,6 @@ Mapper5::read_vram(uint_least16_t address)
 				chr_selector = bg_chr_banks_;
 			}
 		}
-
 
 		const uint8_t *chr_rom_banks[8];
 

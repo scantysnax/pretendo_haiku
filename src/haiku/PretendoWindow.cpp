@@ -750,6 +750,8 @@ PretendoWindow::MessageReceived (BMessage *message)
 				BPath path(&ref);
 
 				if (path.InitCheck() == B_OK) {
+					
+					printf("[ROM DROP] PretendoWindow: %s\n", path.Path());
 					LoadROMPath(path.Path());
 				}
 			}
@@ -1091,8 +1093,7 @@ PretendoWindow::Zoom(BPoint origin, float width, float height)
 	 * Do not change the windowed video configuration while a
 	 * fullscreen transition is in progress.
 	 */
-	if (fFrameworkChanging ||
-		fFramework == video_framework::FULLSCREEN) {
+	if (fFrameworkChanging || fFramework == video_framework::FULLSCREEN) {
 		return;
 	}
 
@@ -1116,10 +1117,8 @@ PretendoWindow::Zoom(BPoint origin, float width, float height)
 	/*
 	 * Move the menu-bar icon to the right edge of the resized window.
 	 */
-	fMenuBarIcon->MoveTo(
-		newWidth - MenuBarIcon::icon_size::WIDTH
-			- MenuBarIcon::icon_size::PADDING,
-		MenuBarIcon::icon_size::PADDING);
+	fMenuBarIcon->MoveTo(newWidth - MenuBarIcon::icon_size::WIDTH - 
+						 MenuBarIcon::icon_size::PADDING, MenuBarIcon::icon_size::PADDING);
 
 	fMenuHeight = fMenuBar->Bounds().IntegerHeight();
 
@@ -1275,6 +1274,8 @@ void
 PretendoWindow::OnLoadROM (BMessage *message)
 {
 	BString path;
+	
+	printf("[ROM LOAD] LoadROMPath: %s\n", path.String());
 	
 	if (message->FindString("rom_path", &path) != B_OK) {
 		return;
@@ -1454,9 +1455,8 @@ PretendoWindow::ConfigureWindowedBitmap(bool doubled)
 	/*
 	 * Allocate the replacement before disturbing the current bitmap.
 	 */
-	BBitmap* replacement = new BBitmap(
-		BRect(0, 0, width - 1, height - 1),
-		B_CMAP8, false, true);
+	BBitmap *replacement = new BBitmap(BRect(0, 0, width - 1, height - 1),
+									   B_CMAP8, false, true);
 
 	if (replacement == nullptr || !replacement->IsValid()) {
 		delete replacement;
@@ -1483,7 +1483,7 @@ PretendoWindow::ConfigureWindowedBitmap(bool doubled)
 		fView->ClearLastFrame();
 	}
 
-	BBitmap* previous = fBitmap;
+	BBitmap *previous = fBitmap;
 
 	fBitmap = replacement;
 	fBitmapBits = reinterpret_cast<uint8*>(fBitmap->Bits());
@@ -1496,22 +1496,18 @@ PretendoWindow::ConfigureWindowedBitmap(bool doubled)
 	 * 8-bit pixels in the back buffer.
 	 */
 	if (fFramework == video_framework::BITMAP) {
-		SetFrontBuffer(
-			fBitmapBits,
-			B_CMAP8,
-			1,
-			fBitmap->BytesPerRow());
+		SetFrontBuffer(fBitmapBits, B_CMAP8, 1, fBitmap->BytesPerRow());
 	}
 
 	/*
- * The new bitmap has no valid frame contents.
- * Force a complete redraw using the existing NES back buffer.
- */
-ForceFullBitmapRedraw();
+ 	 * The new bitmap has no valid frame contents.
+ 	 * Force a complete redraw using the existing NES back buffer.
+ 	 */
+	ForceFullBitmapRedraw();
 
-if (fView != nullptr) {
-	fView->SetDisplayBitmap(fBitmap);
-}
+	if (fView != nullptr) {
+		fView->SetDisplayBitmap(fBitmap);
+	}
 
 	/*
  	 * When emulation is paused, the worker thread will not produce
@@ -1715,7 +1711,6 @@ PretendoWindow::OnPause()
 		 * mutex has been released.
 		 */
 		fVideoMenu->ItemAt(video_framework::FULLSCREEN)->SetEnabled(true);
-
 	} else {
 		/*
 		 * Pause emulation.
@@ -4095,17 +4090,9 @@ PretendoWindow::DrawBitmap()
 			 * The assembly routine updates the dirty buffer
 			 * whenever a source block differs.
 			 */
-			blit_2x_windowed_dirty_mmx(
-				source,
-				dirty,
-				dest,
-				size,
-				1,
-				destRowBytes);
-
+			blit_2x_windowed_dirty_mmx(source, dirty, dest, size, 1, destRowBytes);
 			// Two destination rows per NES scanline.
 			dest += destRowBytes * 2;
-
 		} else {
 
 			if (fullRedraw) {
@@ -4120,18 +4107,11 @@ PretendoWindow::DrawBitmap()
 				 * displayed bitmap.
 				 */
 				mmx_copy(dirty, source, size);
-
 			} else {
-
 				/*
 				 * Native-resolution dirty blitting.
 				 */
-				blit_windowed_dirty_mmx(
-					source,
-					dirty,
-					dest,
-					size,
-					1);
+				blit_windowed_dirty_mmx(source, dirty, dest, size, 1);
 			}
 
 			dest += destRowBytes;
@@ -5619,11 +5599,19 @@ PretendoWindow::DebugStepInstruction()
 }
 
 
+
 // -----------------------------------------------------------------------------
 // PretendoWindow::LoadROMPath
 //
-// Loads a ROM from a filesystem path using the shared ROM-load path. This keeps
-// manual loads, recent-document loads, and future drag/drop loads consistent.
+// Loads a ROM from a filesystem path using the shared ROM-loading routine.
+//
+// The previous cartridge is released before loading the new ROM. Once the
+// cartridge has been loaded successfully, the NES subsystems are reset,
+// video buffers are refreshed, controller and audio state are cleared,
+// and debugger windows are synchronized with the new cartridge.
+//
+// This routine is shared by menu-based ROM loading, recent-document
+// loading, and drag-and-drop loading.
 //
 // Parameters:
 //   path - Filesystem path to the ROM image.
@@ -5632,37 +5620,33 @@ PretendoWindow::DebugStepInstruction()
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-PretendoWindow::LoadROMPath (const char* path)
+PretendoWindow::LoadROMPath (const char *path)
 {
 	if (!path) {
 		return;
 	}
 
+	// Release the previously loaded cartridge and its display state.
 	OnFreeROM();
 
+	// Load the new cartridge exactly once.
 	if (nes::cart.load(path) == false) {
-		(new BAlert("Error", "Error.  Couldn't load ROM Image.", "Okay", nullptr,
-					nullptr, B_WIDTH_AS_USUAL, B_STOP_ALERT))->Go();
+		(new BAlert("Error", "Error. Couldn't load ROM Image.", "Okay",
+			nullptr, nullptr, B_WIDTH_AS_USUAL, B_STOP_ALERT))->Go();
 
 		return;
 	}
 
+	// Perform a single hard reset after the new mapper has been installed.
 	nes::reset(nes::reset_type::hard);
 
-	if (nes::cart.load(path) == false) {
-		(new BAlert("Error", "Error.  Couldn't load ROM Image.", "Okay", nullptr,
-			nullptr, B_WIDTH_AS_USUAL, B_STOP_ALERT))->Go();
-
-		return;
-	}
-
-	nes::reset(nes::reset_type::hard);
-
-	// Force the first frame of the new ROM to refresh the complete bitmap.
+	// Force the new ROM's first frame to redraw the complete bitmap.
 	ForceFullBitmapRedraw();
 
+	// Clear any input state left by the previous cartridge.
 	ClearControllerInput();
 
+	// Resume emulation and restore audio output.
 	nes::apu::debug_set_audio_muted(false);
 	nes::ppu::system_paused = false;
 
@@ -5671,11 +5655,11 @@ PretendoWindow::LoadROMPath (const char* path)
 		fAudioStream->SetMuted(false);
 	}
 
+	// Discard instruction history belonging to the previous cartridge.
 	nes::cpu::debug_clear_instruction_trace();
 
-
 	// -------------------------------------------------------------------------
-	// Refresh ROM information for the newly loaded cartridge.
+	// Refresh the ROM information window.
 	// -------------------------------------------------------------------------
 
 	if (fROMInfoWindow) {
@@ -5685,17 +5669,17 @@ PretendoWindow::LoadROMPath (const char* path)
 		}
 	}
 
-	/*
-	 * The new mapper is now installed and reset. Synchronize the APU
-	 * debugger expansion-audio tabs with the new cartridge.
-	 */
+	// -------------------------------------------------------------------------
+	// Synchronize debugger expansion-audio tabs with the new mapper.
+	// -------------------------------------------------------------------------
+
 	if (fAPUExplorerWindow != nullptr) {
 		if (fAPUExplorerWindow->Lock()) {
 			fAPUExplorerWindow->UpdateExpansionTab();
 			fAPUExplorerWindow->Unlock();
 		}
 	}
-	
+
 	if (fAPUStatusWindow != nullptr) {
 		if (fAPUStatusWindow->Lock()) {
 			fAPUStatusWindow->UpdateExpansionTab();
@@ -5709,7 +5693,8 @@ PretendoWindow::LoadROMPath (const char* path)
 			fAPUScopeWindow->Unlock();
 		}
 	}
-	
+
+	// Refresh debugger contents for the newly loaded cartridge.
 	InvalidateDebugViews();
 	ResetCPUDisasmWindow(fCPUDisasmWindow);
 	ResetAPUFrameSequencerWindow(fAPUFrameSequencerWindow);

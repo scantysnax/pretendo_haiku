@@ -338,6 +338,49 @@ Cart::chr_mask() const
 
 
 // -----------------------------------------------------------------------------
+// Cart::prg_ram_size
+//
+// Returns the volatile PRG-RAM size declared by the NES 2.0 cartridge header.
+//
+// NES 2.0 header byte 10 uses its lower nibble to encode volatile PRG RAM:
+//
+//   0    = No volatile PRG RAM
+//   n>0  = 64 * 2^n bytes
+//
+// This accessor does not include battery-backed PRG NVRAM. Legacy iNES
+// cartridges return zero because their RAM-size metadata is ambiguous;
+// individual mapper compatibility rules remain responsible for those cases.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Declared volatile PRG-RAM size in bytes, or zero if unavailable.
+// -----------------------------------------------------------------------------
+uint32_t
+Cart::prg_ram_size() const
+{
+	if (!rom_) {
+		return 0;
+	}
+
+	const iNES::Header *header = rom_->header();
+
+	if (!header || header->version() != 2) {
+		return 0;
+	}
+
+	const uint8_t shift = header->extended_.ines2.byte10 & 0x0f;
+
+	if (shift == 0) {
+		return 0;
+	}
+
+	return uint32_t{64} << shift;
+}
+
+
+// -----------------------------------------------------------------------------
 // Cart::prg
 //
 // Returns a pointer to the loaded cartridge's PRG ROM data.

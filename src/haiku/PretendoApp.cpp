@@ -66,6 +66,8 @@ PretendoApp::RefsReceived (BMessage *message)
 	BMessage msg(PretendoWindow::messages::ROM_LOADED);
 	msg.AddString("rom_path", path.Path());
 
+	printf("[ROM DROP] PretendoApp: %s\n", path.Path());
+	
 	if (fWindow) {
 		fWindow->PostMessage(&msg);
 	}

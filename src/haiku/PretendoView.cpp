@@ -108,6 +108,9 @@ PretendoView::MessageReceived (BMessage *message)
 			entry.GetPath(&path);
 			
 			msg.AddString("rom_path", path.Path());
+			
+			printf("[ROM DROP] PretendoView: %s\n", path.Path());
+			
 			fParent->PostMessage(&msg);
 		}
 	}
