@@ -23,27 +23,58 @@ public:
 
 private:
 
-	template <class T>
-	static void execute(T) {
-		switch (cycle_) {
+// -----------------------------------------------------------------------------
+// implied::execute
+//
+// Executes an implied-addressing instruction.
+//
+// The final instruction cycle checks for pending interrupts, performs
+// the implied-addressing dummy read, executes the operation, and marks
+// the instruction complete.
+//
+// Parameters:
+//   T - Operation memory-access category.
+//
+// Returns:
+//   Nothing.
+// -----------------------------------------------------------------------------
+template <class T>
+static void execute(T) {
+	switch (cycle_) {
 		case 1:
+			// Sample pending interrupts at the instruction boundary.
 			LAST_CYCLE;
 
-			// read next instruction byte (and throw it away)
+			// Read the next instruction byte and discard it.
 			read_byte(PC.raw);
+
+			// Execute the implied operation.
 			Op::execute();
 
+			// Mark the instruction complete.
 			OPCODE_COMPLETE;
 
 		default:
 			abort();
-		}
 	}
+}
 
 
-	// Really this is only for NOP support...
-	// synonym for other version.
-	static void execute(const operation_read &) {
+// -------------------------------------------------------------------------
+// implied::execute
+//
+// Handles operations that use the operation_read memory-access category.
+//
+// For implied-addressing instructions, this is equivalent to the
+// operation_none implementation.
+//
+// Parameters:
+//   operation_read - Memory-access category selector.
+//
+// Returns:
+//   Nothing.
+// -------------------------------------------------------------------------
+static void execute(const operation_read &) {
 		execute(operation_none());
 	}
 };

@@ -1660,16 +1660,19 @@ write4017(uint8_t value)
 	frame_restart_pending_ = true;
 
 	/*
-	 * Working phase assumption:
+	 * The frame counter restarts three or four CPU cycles after
+	 * a write to $4017, depending on the APU clock phase.
 	 *
-	 * Align restarts to even-numbered APU cycle positions.
-	 * This gives a three- or four-position delay depending
-	 * on the parity of the write.
+	 * Pretendo's APU cycle counter uses the opposite parity
+	 * mapping from the original implementation:
 	 *
-	 * The absolute GET/PUT phase must still be validated
-	 * against a hardware timing test.
+	 *   Even APU cycle: 3-cycle delay.
+	 *   Odd APU cycle:  4-cycle delay.
+	 *
+	 * This alignment is verified by cpu_interrupts_v2,
+	 * particularly 4-irq_and_dma.nes.
 	 */
-	const uint64_t delay = (apu_cycles_ & 0x1) ? 3 : 4;
+	const uint64_t delay = (apu_cycles_ & 0x1) ? 4 : 3;
 	frame_restart_cycle_ = apu_cycles_ + delay;
 }
 
@@ -1872,6 +1875,7 @@ tick()
     // Advance the global APU cycle counter.
     ++apu_cycles_;
 }
+
 
 
 // -----------------------------------------------------------------------------
