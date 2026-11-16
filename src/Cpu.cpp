@@ -51,7 +51,7 @@ uint8_t A     = 0;
 uint8_t X     = 0;
 uint8_t Y     = 0;
 uint8_t S     = 0;
-uint8_t P     = Z_MASK | I_MASK | R_MASK;
+uint8_t P     = I_MASK | R_MASK;
 
 namespace {
 
@@ -951,9 +951,6 @@ dmc_dma_initial_phase()
 }
 
 
-
-
-
 // -----------------------------------------------------------------------------
 // nes::cpu::clock
 //
@@ -1052,10 +1049,7 @@ clock()
 				 * Insert an alignment cycle when required so the
 				 * DMC sample fetch occurs on a get cycle.
 				 */
-				dmc_dma_state_ =
-					dmc_dma_get_cycle()
-						? dmc_dma_state::align
-						: dmc_dma_state::get;
+				dmc_dma_state_ = dmc_dma_get_cycle() ? dmc_dma_state::align : dmc_dma_state::get;
 
 				return;
 
@@ -1087,8 +1081,7 @@ clock()
 				 * Fetch the requested sample byte and deliver
 				 * it to the DMC.
 				 */
-				const uint8_t value =
-					read_byte(dmc_dma_source_address_);
+				const uint8_t value = read_byte(dmc_dma_source_address_);
 
 				(*dmc_dma_handler_)(value);
 
@@ -1168,7 +1161,6 @@ clock()
 		++cycle_;
 	}
 }
-
 
 
 }
@@ -1390,7 +1382,7 @@ stop()
 	X = 0;
 	Y = 0;
 	S = 0;
-	P = Z_MASK | I_MASK | R_MASK;
+	P = I_MASK | R_MASK;
 
 	// Begin a fresh CPU session without interrupt requests retained
 	// from the previously loaded cartridge or APU state.

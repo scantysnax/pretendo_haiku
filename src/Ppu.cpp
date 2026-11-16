@@ -990,6 +990,7 @@ render_pixel()
 	attribute_queue_[1] <<= 1;
 
 	const uint8_t mask = ((pixel & 0x01) | ((pixel & 0x02) >> 1)) * 0xff;
+
 	return palette_[pixel & mask] & monochrome_mask_;
 }
 
@@ -1184,20 +1185,16 @@ clock_ppu_mask_delay()
 // -----------------------------------------------------------------------------
 // clock_ppu
 //
-// Executes one PPU dot for the supplied scanline type, performing the rendering,
-// fetch, scroll, sprite, or vblank work appropriate to that scanline.
+// Executes one PPU dot during the pre-render scanline.
 //
-// Parameters:
-//   target - Scanline-type tag or visible rendering target.
-//
-// Returns:
-//   Nothing.
+// Handles status-flag clearing, background and sprite fetches,
+// scrolling updates, and odd-frame clock skipping.
 // -----------------------------------------------------------------------------
 void
 clock_ppu (const nes::ppu::scanline_prerender &)
 {
 	clock_ppu_mask_delay();
-	
+
 	if (UNLIKELY(hpos_ == 0)) {
 		status_.sprite0  = 0;
 		status_.overflow = 0;
@@ -1211,13 +1208,41 @@ clock_ppu (const nes::ppu::scanline_prerender &)
 			// idle
 		} else if (hpos_ < 257) {
 			switch (hpos_ & 0x07) {
-			case 1: evaluate_sprites_odd();  open_tile_index(); break;
-			case 2: evaluate_sprites_even(); read_tile_index(); break;
-			case 3: evaluate_sprites_odd();  open_background_attribute(); break;
-			case 4: evaluate_sprites_even(); read_background_attribute(); break;
-			case 5: evaluate_sprites_odd();  open_background_pattern<pattern_0_t>(); break;
-			case 6: evaluate_sprites_even(); read_background_pattern<pattern_0_t>(); break;
-			case 7: evaluate_sprites_odd();  open_background_pattern<pattern_1_t>(); break;
+			case 1:
+				evaluate_sprites_odd();
+				open_tile_index();
+				break;
+
+			case 2:
+				evaluate_sprites_even();
+				read_tile_index();
+				break;
+
+			case 3:
+				evaluate_sprites_odd();
+				open_background_attribute();
+				break;
+
+			case 4:
+				evaluate_sprites_even();
+				read_background_attribute();
+				break;
+
+			case 5:
+				evaluate_sprites_odd();
+				open_background_pattern<pattern_0_t>();
+				break;
+
+			case 6:
+				evaluate_sprites_even();
+				read_background_pattern<pattern_0_t>();
+				break;
+
+			case 7:
+				evaluate_sprites_odd();
+				open_background_pattern<pattern_1_t>();
+				break;
+
 			case 0:
 				evaluate_sprites_even();
 				read_background_pattern<pattern_1_t>();
@@ -1229,6 +1254,7 @@ clock_ppu (const nes::ppu::scanline_prerender &)
 			if (UNLIKELY(hpos_ == 256)) {
 				clock_y();
 			}
+
 		} else if (hpos_ < 281) {
 
 			if (UNLIKELY(hpos_ == 257)) {
@@ -1238,89 +1264,183 @@ clock_ppu (const nes::ppu::scanline_prerender &)
 			update_sprite_registers();
 
 			switch (hpos_ & 0x07) {
-			case 1: open_tile_index(); break;
-			case 2: read_tile_index(); break;
-			case 3: open_background_attribute(); break;
-			case 4: read_background_attribute(); break;
+			case 1:
+				open_tile_index();
+				break;
+
+			case 2:
+				read_tile_index();
+				break;
+
+			case 3:
+				open_background_attribute();
+				break;
+
+			case 4:
+				read_background_attribute();
+				break;
+
 			case 5:
-				if (ppu_control_.large_sprites) open_sprite_pattern<size_16px_t, pattern_0_t>();
-				else                           open_sprite_pattern<size_8px_t,  pattern_0_t>();
+				if (ppu_control_.large_sprites)
+					open_sprite_pattern<size_16px_t, pattern_0_t>();
+				else
+					open_sprite_pattern<size_8px_t, pattern_0_t>();
 				break;
+
 			case 6:
-				if (ppu_control_.large_sprites) read_sprite_pattern<size_16px_t, pattern_0_t>();
-				else                           read_sprite_pattern<size_8px_t,  pattern_0_t>();
+				if (ppu_control_.large_sprites)
+					read_sprite_pattern<size_16px_t, pattern_0_t>();
+				else
+					read_sprite_pattern<size_8px_t, pattern_0_t>();
 				break;
+
 			case 7:
-				if (ppu_control_.large_sprites) open_sprite_pattern<size_16px_t, pattern_1_t>();
-				else                           open_sprite_pattern<size_8px_t,  pattern_1_t>();
+				if (ppu_control_.large_sprites)
+					open_sprite_pattern<size_16px_t, pattern_1_t>();
+				else
+					open_sprite_pattern<size_8px_t, pattern_1_t>();
 				break;
+
 			case 0:
-				if (ppu_control_.large_sprites) read_sprite_pattern<size_16px_t, pattern_1_t>();
-				else                           read_sprite_pattern<size_8px_t,  pattern_1_t>();
+				if (ppu_control_.large_sprites)
+					read_sprite_pattern<size_16px_t, pattern_1_t>();
+				else
+					read_sprite_pattern<size_8px_t, pattern_1_t>();
 				break;
 			}
+
 		} else if (hpos_ < 305) {
 
 			update_vram_address();
 			update_sprite_registers();
 
 			switch (hpos_ & 0x07) {
-			case 1: open_tile_index(); break;
-			case 2: read_tile_index(); break;
-			case 3: open_background_attribute(); break;
-			case 4: read_background_attribute(); break;
+			case 1:
+				open_tile_index();
+				break;
+
+			case 2:
+				read_tile_index();
+				break;
+
+			case 3:
+				open_background_attribute();
+				break;
+
+			case 4:
+				read_background_attribute();
+				break;
+
 			case 5:
-				if (ppu_control_.large_sprites) open_sprite_pattern<size_16px_t, pattern_0_t>();
-				else                           open_sprite_pattern<size_8px_t,  pattern_0_t>();
+				if (ppu_control_.large_sprites)
+					open_sprite_pattern<size_16px_t, pattern_0_t>();
+				else
+					open_sprite_pattern<size_8px_t, pattern_0_t>();
 				break;
+
 			case 6:
-				if (ppu_control_.large_sprites) read_sprite_pattern<size_16px_t, pattern_0_t>();
-				else                           read_sprite_pattern<size_8px_t,  pattern_0_t>();
+				if (ppu_control_.large_sprites)
+					read_sprite_pattern<size_16px_t, pattern_0_t>();
+				else
+					read_sprite_pattern<size_8px_t, pattern_0_t>();
 				break;
+
 			case 7:
-				if (ppu_control_.large_sprites) open_sprite_pattern<size_16px_t, pattern_1_t>();
-				else                           open_sprite_pattern<size_8px_t,  pattern_1_t>();
+				if (ppu_control_.large_sprites)
+					open_sprite_pattern<size_16px_t, pattern_1_t>();
+				else
+					open_sprite_pattern<size_8px_t, pattern_1_t>();
 				break;
+
 			case 0:
-				if (ppu_control_.large_sprites) read_sprite_pattern<size_16px_t, pattern_1_t>();
-				else                           read_sprite_pattern<size_8px_t,  pattern_1_t>();
+				if (ppu_control_.large_sprites)
+					read_sprite_pattern<size_16px_t, pattern_1_t>();
+				else
+					read_sprite_pattern<size_8px_t, pattern_1_t>();
 				break;
 			}
+
 		} else if (hpos_ < 321) {
 
 			update_sprite_registers();
 
 			switch (hpos_ & 0x07) {
-			case 1: open_tile_index(); break;
-			case 2: read_tile_index(); break;
-			case 3: open_background_attribute(); break;
-			case 4: read_background_attribute(); break;
+			case 1:
+				open_tile_index();
+				break;
+
+			case 2:
+				read_tile_index();
+				break;
+
+			case 3:
+				open_background_attribute();
+				break;
+
+			case 4:
+				read_background_attribute();
+				break;
+
 			case 5:
-				if (ppu_control_.large_sprites) open_sprite_pattern<size_16px_t, pattern_0_t>();
-				else                           open_sprite_pattern<size_8px_t,  pattern_0_t>();
+				if (ppu_control_.large_sprites)
+					open_sprite_pattern<size_16px_t, pattern_0_t>();
+				else
+					open_sprite_pattern<size_8px_t, pattern_0_t>();
 				break;
+
 			case 6:
-				if (ppu_control_.large_sprites) read_sprite_pattern<size_16px_t, pattern_0_t>();
-				else                           read_sprite_pattern<size_8px_t,  pattern_0_t>();
+				if (ppu_control_.large_sprites)
+					read_sprite_pattern<size_16px_t, pattern_0_t>();
+				else
+					read_sprite_pattern<size_8px_t, pattern_0_t>();
 				break;
+
 			case 7:
-				if (ppu_control_.large_sprites) open_sprite_pattern<size_16px_t, pattern_1_t>();
-				else                           open_sprite_pattern<size_8px_t,  pattern_1_t>();
+				if (ppu_control_.large_sprites)
+					open_sprite_pattern<size_16px_t, pattern_1_t>();
+				else
+					open_sprite_pattern<size_8px_t, pattern_1_t>();
 				break;
+
 			case 0:
-				if (ppu_control_.large_sprites) read_sprite_pattern<size_16px_t, pattern_1_t>();
-				else                           read_sprite_pattern<size_8px_t,  pattern_1_t>();
+				if (ppu_control_.large_sprites)
+					read_sprite_pattern<size_16px_t, pattern_1_t>();
+				else
+					read_sprite_pattern<size_8px_t, pattern_1_t>();
 				break;
 			}
+
 		} else if (hpos_ < 337) {
+
 			switch (hpos_ & 0x07) {
-			case 1: open_tile_index(); break;
-			case 2: read_tile_index(); break;
-			case 3: open_background_attribute(); break;
-			case 4: read_background_attribute(); break;
-			case 5: open_background_pattern<pattern_0_t>(); break;
-			case 6: read_background_pattern<pattern_0_t>(); break;
-			case 7: open_background_pattern<pattern_1_t>(); break;
+			case 1:
+				open_tile_index();
+				break;
+
+			case 2:
+				read_tile_index();
+				break;
+
+			case 3:
+				open_background_attribute();
+				break;
+
+			case 4:
+				read_background_attribute();
+				break;
+
+			case 5:
+				open_background_pattern<pattern_0_t>();
+				break;
+
+			case 6:
+				read_background_pattern<pattern_0_t>();
+				break;
+
+			case 7:
+				open_background_pattern<pattern_1_t>();
+				break;
+
 			case 0:
 				read_background_pattern<pattern_1_t>();
 				update_shift_registers_idle();
@@ -1329,21 +1449,51 @@ clock_ppu (const nes::ppu::scanline_prerender &)
 			}
 		} else {
 			switch (hpos_) {
-			case 337: open_tile_index(); break;
-			case 338: read_tile_index(); break;
+			case 337:
+				open_tile_index();
+				break;
+
+			case 338:
+				read_tile_index();
+				break;
+
 			case 339:
 				open_tile_index();
-				if (odd_frame_) {
-					++hpos_;
-				}
 				break;
-			case 340: read_tile_index(); break;
-			default: abort();
+
+			case 340:
+				read_tile_index();
+				break;
+
+			default:
+				abort();
 			}
 		}
 	}
-}
 
+	/*
+	 * Odd-frame clock skip.
+	 *
+	 * The skipped clock depends on the rendering-enable state
+	 * as PPUMASK writes propagate through the PPU.
+	 *
+	 * A pending rendering-enable transition can qualify for
+	 * the skip before the normal rendering pipeline sees it.
+	 * Conversely, a pending disable transition can suppress
+	 * the skip before rendering is fully disabled.
+	 */
+	if (hpos_ == 339 && odd_frame_) {
+		const bool rendering_enabled = (ppu_mask_.raw & kPPUMaskRenderingBits) != 0;
+		const bool pending_enable =    ppu_mask_delay_ == 1 &&
+									   (pending_ppu_mask_ & kPPUMaskRenderingBits) != 0;
+		const bool pending_disable = ppu_mask_delay_ == 1 &&
+									 (pending_ppu_mask_ & kPPUMaskRenderingBits) == 0;
+
+		if ((rendering_enabled || pending_enable) && !pending_disable) {
+			++hpos_;
+		}
+	}
+}
 
 
 // -----------------------------------------------------------------------------
@@ -1527,7 +1677,6 @@ clock_ppu (const nes::ppu::scanline_render &target)
 				break;
 			}
 		} else {
-
 			switch (hpos_) {
 			case 337:
 				open_tile_index();
@@ -1551,6 +1700,7 @@ clock_ppu (const nes::ppu::scanline_render &target)
 		}
 	}
 }
+
 
 // -----------------------------------------------------------------------------
 // clock_ppu
@@ -1950,9 +2100,7 @@ write2001 (uint8_t value)
 	 * retain their existing immediate behavior.
 	 */
 	ppu_mask_.raw = (ppu_mask_.raw & kPPUMaskRenderingBits) | (value & ~kPPUMaskRenderingBits);
-
 	monochrome_mask_ = ppu_mask_.monochrome ? 0x30 : 0xff;
-
 	pending_ppu_mask_ = value;
 
 	/*
@@ -2129,14 +2277,12 @@ write2007 (uint8_t value)
 	nes::cart.mapper()->vram_change_hook(vram_address_);
 
 	if ((temp_address & 0b00111111'00000000) == 0b00111111'00000000) {
-
 		const uint_least8_t palette_address = temp_address & 0x1f;
 		palette_[palette_address]           = value & 0x3f;
 
 		if ((palette_address & 0x03) == 0x00) {
 			palette_[palette_address ^ 0x10] = value & 0x3f;
 		}
-
 	} else {
 		nes::cart.mapper()->write_vram(temp_address, value);
 	}
