@@ -306,7 +306,6 @@ bool odd_frame_   = false;
 bool write_latch_ = false;
 bool write_block_ = false;
 
-
 // Circular log of recent CPU writes to PPU registers for debugger inspection.
 static nes::ppu::write_log_entry_t write_log_[nes::ppu::PPU_WRITE_LOG_CAPACITY];
 static uint32_t write_log_next_ = 0;
@@ -489,14 +488,14 @@ select_pixel (uint_least16_t index)
 
 		for (uint8_t spr = 0; spr != visible_sprite_count_; ++spr) {
 			const sprite_pattern_t &sprite = sprite_patterns_[spr];
-			const uint16_t x_offset     = index - sprite.x;
+			const uint16_t x_offset = index - sprite.x;
 
 			if (x_offset >= 8) {
 				continue;
 			}
 
-			const uint8_t p0     = sprite.patterns[0];
-			const uint8_t p1     = sprite.patterns[1];
+			const uint8_t p0 = sprite.patterns[0];
+			const uint8_t p1 = sprite.patterns[1];
 			const uint16_t shift = 7 - x_offset;
 
 			const uint8_t sprite_pixel = ((p0 >> shift) & 0x01) | (((p1 >> shift) << 1) & 0x02);
@@ -670,7 +669,7 @@ void
 read_background_attribute()
 {
 	const uint8_t attr_byte = nes::cart.mapper()->read_vram(next_ppu_fetch_address_);
-	next_attribute_         = attribute_bits(vram_address_, attr_byte);
+	next_attribute_ = attribute_bits(vram_address_, attr_byte);
 }
 
 
@@ -789,7 +788,7 @@ evaluate_sprites_even()
 
 		case STATE_1_I:
 			sprite_index(sprite_data_index_) = sprite_read_buffer_;
-			sprite_eval_state_               = STATE_1_A;
+			sprite_eval_state_ = STATE_1_A;
 			++sprite_read_index_;
 			break;
 
@@ -804,7 +803,7 @@ evaluate_sprites_even()
 
 		case STATE_1_X:
 			sprite_x(sprite_data_index_) = sprite_read_buffer_;
-			left_most_sprite_x_          = std::min(left_most_sprite_x_, sprite_x(sprite_data_index_));
+			left_most_sprite_x_ = std::min(left_most_sprite_x_, sprite_x(sprite_data_index_));
 			++sprite_data_index_;
 			++sprite_read_index_;
 			current_is_sprite_0 = false;
@@ -919,7 +918,7 @@ open_sprite_pattern()
 	sprite.y = sprite_y(current_sprite_index_);
 
 	if (sprite.y != 0xff) {
-		sprite.x     = sprite_x(current_sprite_index_);
+		sprite.x = sprite_x(current_sprite_index_);
 		sprite.attr  = sprite_attr(current_sprite_index_);
 		sprite.index = sprite_index(current_sprite_index_);
 
@@ -1254,7 +1253,6 @@ clock_ppu (const nes::ppu::scanline_prerender &)
 			if (UNLIKELY(hpos_ == 256)) {
 				clock_y();
 			}
-
 		} else if (hpos_ < 281) {
 
 			if (UNLIKELY(hpos_ == 257)) {
@@ -1361,7 +1359,6 @@ clock_ppu (const nes::ppu::scanline_prerender &)
 			}
 
 		} else if (hpos_ < 321) {
-
 			update_sprite_registers();
 
 			switch (hpos_ & 0x07) {
@@ -1484,8 +1481,8 @@ clock_ppu (const nes::ppu::scanline_prerender &)
 	 */
 	if (hpos_ == 339 && odd_frame_) {
 		const bool rendering_enabled = (ppu_mask_.raw & kPPUMaskRenderingBits) != 0;
-		const bool pending_enable =    ppu_mask_delay_ == 1 &&
-									   (pending_ppu_mask_ & kPPUMaskRenderingBits) != 0;
+		const bool pending_enable = ppu_mask_delay_ == 1 &&
+									(pending_ppu_mask_ & kPPUMaskRenderingBits) != 0;
 		const bool pending_disable = ppu_mask_delay_ == 1 &&
 									 (pending_ppu_mask_ & kPPUMaskRenderingBits) == 0;
 
@@ -1519,7 +1516,6 @@ clock_ppu (const nes::ppu::scanline_render &target)
 	clock_ppu_mask_delay();
 
 	if (UNLIKELY(!ppu_mask_.screen_enabled)) {
-
 		if (hpos_ < 1) {
 			// idle
 		} else if (hpos_ < 257) {
@@ -1529,13 +1525,11 @@ clock_ppu (const nes::ppu::scanline_render &target)
 			// idle
 		}
 	} else {
-
 		if (hpos_ < 1) {
 			if (UNLIKELY(vpos_ == 1 && odd_frame_)) {
 				read_tile_index();
 			}
 		} else if (hpos_ < 257) {
-
 			target.buffer[hpos_ - 1] = render_pixel();
 			target.buffer[hpos_ - 1] |= (ppu_mask_.intensity << 6);
 
@@ -1587,7 +1581,6 @@ clock_ppu (const nes::ppu::scanline_render &target)
 				clock_y();
 			}
 		} else if (hpos_ < 321) {
-
 			if (UNLIKELY(hpos_ == 257)) {
 				update_x_scroll();
 			}
@@ -1640,7 +1633,6 @@ clock_ppu (const nes::ppu::scanline_render &target)
 				break;
 			}
 		} else if (hpos_ < 337) {
-
 			switch (hpos_ & 0x07) {
 			case 1:
 				open_tile_index();
@@ -2278,7 +2270,7 @@ write2007 (uint8_t value)
 
 	if ((temp_address & 0b00111111'00000000) == 0b00111111'00000000) {
 		const uint_least8_t palette_address = temp_address & 0x1f;
-		palette_[palette_address]           = value & 0x3f;
+		palette_[palette_address] = value & 0x3f;
 
 		if ((palette_address & 0x03) == 0x00) {
 			palette_[palette_address ^ 0x10] = value & 0x3f;

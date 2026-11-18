@@ -2,6 +2,8 @@
 #include "LengthCounter.h"
 #include "Apu.h"
 
+#include <cstdio>
+
 namespace nes::apu {
 
 namespace {
@@ -230,6 +232,24 @@ LengthCounter::clock()
 	reload_ = false;
 }
 
+void
+LengthCounter::debug_dump_state() const
+{
+    printf(
+        "[LENGTH STATE] cycle=%llu "
+        "value=%u reload=%u reload_value=%u "
+        "reload_cycle=%llu "
+        "halt=%u prev_halt=%u halt_cycle=%llu\n",
+        (unsigned long long)nes::apu::cycle_count(),
+        (unsigned)value_,
+        (unsigned)reload_,
+        (unsigned)reload_value_,
+        (unsigned long long)reload_cycle_,
+        (unsigned)halt_,
+        (unsigned)prev_halt_,
+        (unsigned long long)halt_cycle_
+    );
+}
 
 }
 

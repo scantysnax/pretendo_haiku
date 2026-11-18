@@ -20,6 +20,7 @@ class LengthCounter
 	// Current counter value; debug_value() exposes it without affecting emulation state.
 	uint8_t value() const;
 	uint8_t debug_value() const;
+	void debug_dump_state() const;
 
 	private:
 	// Timing and deferred-reload state used to reproduce APU length-counter behavior.
