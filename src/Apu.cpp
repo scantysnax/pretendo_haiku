@@ -123,10 +123,18 @@ uint64_t last_half_frame_clock_cycle_ =
 uint64_t frame_last_write_cycle_ =
     static_cast<uint64_t>(-1);
 
+// EXPERIMENT 23CT:
+// Last successfully delivered quarter/half-frame event.
+uint64_t last_delivered_frame_clock_cycle_ =
+    static_cast<uint64_t>(-1);
 
 // CPU/APU cycle on which the most recent $4017 write occurred.
 // Used to distinguish a same-cycle frame event from later events
 // while a delayed restart is pending.
+
+// EXPERIMENT 23CV:
+// Shared frame-clock arbitration counter.
+uint8_t frame_clock_block_ticks_ = 0;
 
 
 
@@ -708,6 +716,16 @@ clock_length()
  // Suppress channel-clock delivery, not sequencer advancement.
 static bool suppress_frame_channel_clocks_ = false;
 
+
+// EXPERIMENT 23CI:
+// Track whether the delayed $4017 quarter/half-frame clock
+// has already been delivered before the divider restart.
+
+static bool frame_write_clock_delivered_ = false;
+
+
+
+
 enum class FrameClockSource : uint8_t {
     Sequencer,
     Write4017
@@ -727,22 +745,86 @@ enum class FrameClockSource : uint8_t {
 // This implementation does not suppress or delay any clocks.
 // -----------------------------------------------------------------------------
 
+// -----------------------------------------------------------------------------
+// deliver_frame_clock
+//
+// Delivers quarter-frame or quarter+half-frame clocks to the
+// native APU channels.
+//
+// EXPERIMENT 23CJ:
+//
+// Trace both clock sources before applying channel-clock suppression.
+//
+// This is diagnostic-only. No changes to frame-clock delivery,
+// length-counter behavior, IRQ timing, or the frame sequencer.
+// -----------------------------------------------------------------------------
+
+// -----------------------------------------------------------------------------
+// deliver_frame_clock
+//
+// Delivers quarter-frame or quarter+half-frame clocks to the native APU
+// channels.
+//
+// EXPERIMENT 23CV:
+// Use a shared two-tick countdown to arbitrate closely spaced frame-clock
+// requests.
+//
+// A successfully delivered clock starts the blocking countdown.
+// A blocked or suppressed request does not restart the countdown.
+//
+// The countdown itself is decremented once at the end of each APU tick.
+// -----------------------------------------------------------------------------
+
 static void
 deliver_frame_clock(FrameClockSource source, bool half_frame)
 {
-    // -------------------------------------------------------------
-    // EXPERIMENT 22P:
+    // ---------------------------------------------------------------------
+    // EXPERIMENT 23CJ:
+    // Trace both clock sources before applying suppression.
+    // ---------------------------------------------------------------------
+
+    if (trace_length_test_ &&
+        frame_restart_pending_ &&
+        frame_pending_mode_) {
+
+        printf(
+            "[23CJ CLOCK SIGNAL] "
+            "apu=%llu source=%u half=%u "
+            "step=%u suppressed=%u "
+            "write=%llu restart=%llu "
+            "last_half=%llu LC=%u\n",
+
+            (unsigned long long)apu_cycles_,
+            (unsigned)source,
+            (unsigned)half_frame,
+            (unsigned)clock_step_,
+            (unsigned)suppress_frame_channel_clocks_,
+
+            (unsigned long long)frame_last_write_cycle_,
+            (unsigned long long)frame_restart_cycle_,
+            (unsigned long long)last_half_frame_clock_cycle_,
+
+            (unsigned)square_0.length_counter.debug_value()
+        );
+    }
+
+    // ---------------------------------------------------------------------
+    // EXPERIMENT 22N / 23BN:
     //
-    // Suppressed frame events still advance the frame sequencer,
-    // but do not clock the channels or generate debugger events.
-    // -------------------------------------------------------------
+    // Preserve the existing suppression mechanism for diagnostics.
+    // The sequencer advances even when its channel clocks are blocked.
+    //
+    // Under 23CV Stage 1, tick() sets suppress_old_event=false.
+    // ---------------------------------------------------------------------
 
     if (suppress_frame_channel_clocks_) {
 
         if (trace_length_test_) {
             printf(
-                "[22N CLOCK BLOCKED] apu=%llu source=%u "
-                "half=%u step=%u LC=%u\n",
+                "[22N CLOCK BLOCKED] "
+                "apu=%llu source=%u half=%u "
+                "step=%u LC=%u\n",
+
                 (unsigned long long)apu_cycles_,
                 (unsigned)source,
                 (unsigned)half_frame,
@@ -754,13 +836,43 @@ deliver_frame_clock(FrameClockSource source, bool half_frame)
         return;
     }
 
-    // -------------------------------------------------------------
-    // EXPERIMENT 22P:
+    // ---------------------------------------------------------------------
+    // EXPERIMENT 23CV:
     //
-    // Record all delivered quarter/half-frame events here.
-    // This includes both four-step and five-step sequences,
-    // as well as clocks generated by $4017 restarts.
-    // -------------------------------------------------------------
+    // Replace 23CT's timestamp comparison with a shared countdown.
+    //
+    // When a clock is delivered, the countdown becomes 2.
+    // Another clock request while the countdown is nonzero is blocked.
+    //
+    // The countdown is decremented once at the end of tick(), AFTER
+    // processing all frame-clock requests for that cycle.
+    // ---------------------------------------------------------------------
+
+    if (frame_clock_block_ticks_ != 0) {
+
+        if (trace_length_test_) {
+            printf(
+                "[23CV CLOCK BLOCKED] "
+                "apu=%llu source=%u half=%u "
+                "remaining=%u LC=%u\n",
+
+                (unsigned long long)apu_cycles_,
+                (unsigned)source,
+                (unsigned)half_frame,
+                (unsigned)frame_clock_block_ticks_,
+                (unsigned)square_0.length_counter.debug_value()
+            );
+        }
+
+        return;
+    }
+
+    // Record only successfully delivered clocks.
+    frame_clock_block_ticks_ = 2;
+
+    // ---------------------------------------------------------------------
+    // Record successfully delivered frame events for the debugger.
+    // ---------------------------------------------------------------------
 
     log_frame_event(
         half_frame
@@ -780,7 +892,9 @@ deliver_frame_clock(FrameClockSource source, bool half_frame)
         printf(
             "[FRAME CLOCK DELIVERY] "
             "apu=%llu source=%s type=%s "
-            "step=%u pending=%u restart=%llu LC_before=%u\n",
+            "step=%u pending=%u restart=%llu "
+            "LC_before=%u\n",
+
             (unsigned long long)apu_cycles_,
             source_name,
             half_frame ? "QUARTER_HALF" : "QUARTER",
@@ -791,19 +905,30 @@ deliver_frame_clock(FrameClockSource source, bool half_frame)
         );
     }
 
+    // ---------------------------------------------------------------------
     // Quarter-frame clock.
+    // ---------------------------------------------------------------------
+
     clock_linear();
 
-    // Half-frame clock, when applicable.
+    // ---------------------------------------------------------------------
+    // Half-frame clock.
+    // ---------------------------------------------------------------------
+
     if (half_frame) {
         clock_length();
     }
+
+    // ---------------------------------------------------------------------
+    // Delivery diagnostic.
+    // ---------------------------------------------------------------------
 
     if (trace_length_test_) {
         printf(
             "[FRAME CLOCK DELIVERED] "
             "apu=%llu source=%s type=%s "
             "LC=%u->%u\n",
+
             (unsigned long long)apu_cycles_,
             source_name,
             half_frame ? "QUARTER_HALF" : "QUARTER",
@@ -830,34 +955,47 @@ clock_frame_mode_0()
         );
     }
 
+    // EXPERIMENT 23CV Stage 2:
+    // NTSC four-step frame-counter positions relative
+    // to the sequence origin:
+    //
+    // Step 0:  7457  quarter
+    // Step 1: 14913  quarter + half
+    // Step 2: 22371  quarter
+    // Step 3: 29828  IRQ
+    // Step 4: 29829  quarter + half, IRQ
+    // Step 5: 29830  IRQ
+    //
+    // Next sequence begins with step 0 at +37287.
+
     switch (clock_step_) {
 
         case 0:
-            // Quarter-frame at +7457.
-            deliver_frame_clock(
-                FrameClockSource::Sequencer, false);
-
-            next_clock_ += 7455;
-            break;
-
-        case 1:
-            // Quarter + half at +14912.
-            deliver_frame_clock(
-                FrameClockSource::Sequencer, true);
-
-            next_clock_ += 7459;
-            break;
-
-        case 2:
-            // Quarter-frame at +22371.
+            // Quarter at +7457.
             deliver_frame_clock(
                 FrameClockSource::Sequencer, false);
 
             next_clock_ += 7456;
             break;
 
+        case 1:
+            // Quarter + half at +14913.
+            deliver_frame_clock(
+                FrameClockSource::Sequencer, true);
+
+            next_clock_ += 7458;
+            break;
+
+        case 2:
+            // Quarter at +22371.
+            deliver_frame_clock(
+                FrameClockSource::Sequencer, false);
+
+            next_clock_ += 7457;
+            break;
+
         case 3:
-            // Frame IRQ at +29827.
+            // Frame IRQ at +29828.
             if (!frame_counter_.inhibit_frame_irq) {
                 status.frame_irq = true;
             }
@@ -866,7 +1004,7 @@ clock_frame_mode_0()
             break;
 
         case 4:
-            // Quarter + half and frame IRQ at +29828.
+            // Quarter + half and IRQ at +29829.
             deliver_frame_clock(
                 FrameClockSource::Sequencer, true);
 
@@ -878,18 +1016,17 @@ clock_frame_mode_0()
             break;
 
         case 5:
-            // Frame IRQ at +29829.
+            // Final IRQ at +29830.
             if (!frame_counter_.inhibit_frame_irq) {
                 status.frame_irq = true;
             }
 
-            next_clock_ += 7458;
+            next_clock_ += 7457;
             break;
     }
 
     clock_step_ = (clock_step_ + 1) % 6;
 }
-
 
 // -----------------------------------------------------------------------------
 // clock_frame_mode_1
@@ -911,6 +1048,20 @@ clock_frame_mode_0()
 
 
 
+// -----------------------------------------------------------------------------
+// clock_frame_mode_1
+//
+// EXPERIMENT 23CY:
+//
+// NTSC five-step frame-counter sequence, matching the six scheduled
+// event positions used by Mesen2.
+//
+// The immediate quarter+half clock generated by writing $4017=$80
+// is delivered separately by apply_frame_restart().
+//
+// Five-step mode never generates frame IRQs.
+// -----------------------------------------------------------------------------
+
 void
 clock_frame_mode_1()
 {
@@ -918,6 +1069,7 @@ clock_frame_mode_1()
         printf(
             "[FRAME 5] cycle=%llu step=%u next=%llu "
             "pending=%u pending_mode=%u LC=%u\n",
+
             (unsigned long long)apu_cycles_,
             (unsigned)clock_step_,
             (unsigned long long)next_clock_,
@@ -930,66 +1082,66 @@ clock_frame_mode_1()
     switch (clock_step_) {
 
         case 0:
-            // Quarter-frame + half-frame.
-            //
-            // Experiment 22P:
-            // deliver_frame_clock() records the debugger event
-            // only if the channel clocks are actually delivered.
+            // +7457: quarter-frame.
 
             deliver_frame_clock(
-                FrameClockSource::Sequencer, true);
-
-            if (trace_length_test_) {
-                printf(
-                    "[APU TEST] MODE1 STEP0 cycle=%llu "
-                    "pending=%u restart=%llu\n",
-                    (unsigned long long)apu_cycles_,
-                    (unsigned)frame_restart_pending_,
-                    (unsigned long long)frame_restart_cycle_
-                );
-            }
-
-            next_clock_ += 7460;
-            break;
-
-        case 1:
-            // Quarter-frame.
-
-            deliver_frame_clock(
-                FrameClockSource::Sequencer, false);
-
-            next_clock_ += 7454;
-            break;
-
-        case 2:
-            // Quarter-frame + half-frame.
-
-            deliver_frame_clock(
-                FrameClockSource::Sequencer, true);
-
-            next_clock_ += 7460;
-            break;
-
-        case 3:
-            // Quarter-frame.
-
-            deliver_frame_clock(
-                FrameClockSource::Sequencer, false);
+                FrameClockSource::Sequencer,
+                false
+            );
 
             next_clock_ += 7456;
             break;
 
-        case 4:
-            // Fifth step:
-            // No quarter-frame or half-frame clock.
+        case 1:
+            // +14913: quarter + half.
+
+            deliver_frame_clock(
+                FrameClockSource::Sequencer,
+                true
+            );
+
+            next_clock_ += 7458;
+            break;
+
+        case 2:
+            // +22371: quarter-frame.
+
+            deliver_frame_clock(
+                FrameClockSource::Sequencer,
+                false
+            );
+
+            next_clock_ += 7458;
+            break;
+
+        case 3:
+            // +29829: no channel clocks.
 
             next_clock_ += 7452;
             break;
+
+        case 4:
+            // +37281: quarter + half.
+
+            deliver_frame_clock(
+                FrameClockSource::Sequencer,
+                true
+            );
+
+            next_clock_ += 1;
+            break;
+
+        case 5:
+            // +37282: no channel clocks.
+            // Next event is step 0 of the following sequence.
+
+            next_clock_ += 7457;
+            break;
     }
 
-    clock_step_ = (clock_step_ + 1) % 5;
+    // Both frame-counter modes now have six scheduled positions.
+    clock_step_ = (clock_step_ + 1) % 6;
 }
-
 
 
 // -----------------------------------------------------------------------------
@@ -1023,14 +1175,38 @@ static void
 apply_frame_restart()
 {
     // ---------------------------------------------------------------------
-    // Apply the delayed frame-divider restart.
+    // EXPERIMENT 23CB:
+    // Record restart phase before modifying state.
     // ---------------------------------------------------------------------
 
+    if (trace_length_test_) {
+        printf(
+            "[23CB RESTART PHASE] "
+            "cpu=%llu apu=%llu write=%llu "
+            "delta=%llu parity=%u "
+            "old_mode=%u new_mode=%u "
+            "step=%u LC=%u\n",
+
+            (unsigned long long)cpu::cycle_count(),
+            (unsigned long long)apu_cycles_,
+            (unsigned long long)frame_last_write_cycle_,
+            (unsigned long long)(
+                apu_cycles_ - frame_last_write_cycle_
+            ),
+            (unsigned)(apu_cycles_ & 1),
+            (unsigned)frame_counter_.mode,
+            (unsigned)frame_pending_mode_,
+            (unsigned)clock_step_,
+            (unsigned)square_0.length_counter.debug_value()
+        );
+    }
+
+
     frame_sequence_start_cycle_ = apu_cycles_;
+
     frame_restart_pending_ = false;
 
-    // Preserve the immediately applied IRQ-inhibit bit while
-    // installing the requested four-step or five-step mode.
+    // Preserve the immediately applied IRQ-inhibit bit.
     frame_counter_.raw =
         (frame_counter_.raw & 0x40)
         | (frame_pending_mode_ ? 0x80 : 0x00);
@@ -1040,34 +1216,55 @@ apply_frame_restart()
     if (frame_counter_.mode) {
 
         // -------------------------------------------------------------
-        // Five-step mode.
-        //
-        // Deliver the write-generated quarter/half-frame clock
-        // when the delayed frame-divider restart is applied.
-        //
-        // EXPERIMENT 22P:
-        //
-        // Do not call log_frame_event() here.
-        // deliver_frame_clock() now records successfully delivered
-        // events for both the sequencer and $4017 writes.
-        // -------------------------------------------------------------
+		// EXPERIMENT 23CY:
+		// Five-step frame-counter restart.
+		//
+		// Attempt the write-generated quarter + half-frame clock
+		// at the delayed restart cycle.
+		//
+		// The shared 23CV blocker may suppress this clock if an
+		// ordinary frame clock was delivered recently.
+		//
+		// Then initialize the six-position five-step sequence.
+		// -------------------------------------------------------------
 
-        deliver_frame_clock(
-            FrameClockSource::Write4017, true);
+        if (!frame_write_clock_delivered_) {
 
-        // The generated clock represents step 0.
-        // Schedule the next five-step event.
+            const unsigned lc_before =
+                square_0.length_counter.debug_value();
 
-        clock_step_ = 1;
-        next_clock_ = apu_cycles_ + 7458;
+            deliver_frame_clock(
+                FrameClockSource::Write4017,
+                true
+            );
 
+            frame_write_clock_delivered_ = true;
+
+            if (trace_length_test_) {
+                printf(
+                    "[23CI CLOCK FALLBACK] "
+                    "apu=%llu LC=%u->%u\n",
+
+                    (unsigned long long)apu_cycles_,
+                    lc_before,
+                    (unsigned)
+                        square_0.length_counter.debug_value()
+                );
+            }
+        }
+
+        // EXPERIMENT 23CY:
+		// Begin at the first scheduled five-step event,
+		// which occurs 7457 cycles after the restart.
+
+		clock_step_ = 0;
+		next_clock_ = apu_cycles_ + 7457;
     } else {
 
         // -------------------------------------------------------------
         // Four-step mode.
         //
         // No write-generated quarter/half-frame clock.
-        // Preserve the existing four-step frame-event schedule.
         // -------------------------------------------------------------
 
         clock_step_ = 0;
@@ -1075,13 +1272,14 @@ apply_frame_restart()
     }
 
     // ---------------------------------------------------------------------
-    // Frame-restart diagnostic.
+    // Existing frame-restart diagnostic.
     // ---------------------------------------------------------------------
 
     if (trace_length_test_) {
         printf(
             "[FRAME RESTART] cycle=%llu mode=%u "
             "step=%u next=%llu LC=%u\n",
+
             (unsigned long long)apu_cycles_,
             (unsigned)frame_counter_.mode,
             (unsigned)clock_step_,
@@ -1300,13 +1498,21 @@ reset (reset_type type)
     frame_last_write_cycle_ =
     static_cast<uint64_t>(-1);
 	
+	last_delivered_frame_clock_cycle_ =
+    static_cast<uint64_t>(-1);
 	
 	
-	
-	// TEMPORARY: Rearm APU test diagnostics on every reset.
-	trace_length_test_ = false;
+	// EXPERIMENT 23Y: Trace the length-counter collision.
+	trace_length_test_ = true;
 	trace_length_reads_ = 0;
+	
+	
+	
+	frame_clock_block_ticks_ = 0;
 
+	
+	
+	
 	// No ordinary frame event is scheduled until the delayed restart.
 	next_clock_    = static_cast<uint64_t>(-1);
 
@@ -1894,10 +2100,28 @@ write4015(uint8_t value)
 // Returns:
 //   Current APU status-register value.
 // -----------------------------------------------------------------------------
+// -----------------------------------------------------------------------------
+// read4015
+//
+// Reads the APU status register.
+//
+// The returned value reports active channel length/sample state together
+// with the DMC and frame interrupt flags.
+//
+// Reading this register clears the frame IRQ flag and clears the CPU APU
+// IRQ source when no APU interrupt remains active.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Current APU status-register value.
+// -----------------------------------------------------------------------------
 uint8_t
 read4015()
 {
-    uint8_t ret = status.raw & (apu_status::DMC_IRQ | apu_status::FRAME_IRQ);
+    uint8_t ret =
+        status.raw & (apu_status::DMC_IRQ | apu_status::FRAME_IRQ);
 
     // Reading $4015 clears the frame interrupt flag.
     status.frame_irq = false;
@@ -1926,6 +2150,45 @@ read4015()
         cpu::clear_irq(cpu::APU_IRQ);
     }
 
+    // ---------------------------------------------------------------------
+    // EXPERIMENT 23CH:
+    //
+    // Trace the early $4015 reads that determine the BNE branch timing
+    // in Test 11, plus the final $4015 status reads.
+    //
+    // Diagnostic only. No extra length-counter value() calls and no
+    // changes to the returned register value.
+    // ---------------------------------------------------------------------
+
+    if (trace_length_test_ &&
+        ((apu_cycles_ >= 87800  && apu_cycles_ <= 87830)  ||
+         (apu_cycles_ >= 117720 && apu_cycles_ <= 117770) ||
+         (apu_cycles_ >= 147605 && apu_cycles_ <= 147635) ||
+         (apu_cycles_ >= 177530 && apu_cycles_ <= 177580))) {
+
+        printf(
+            "[23CH 4015 READ] "
+            "cpu=%llu apu=%llu ret=%02X "
+            "mode=%u step=%u next=%llu "
+            "pending=%u restart=%llu "
+            "irq=%u LC=%u\n",
+
+            (unsigned long long)cpu::cycle_count(),
+            (unsigned long long)apu_cycles_,
+            (unsigned)ret,
+
+            (unsigned)frame_counter_.mode,
+            (unsigned)clock_step_,
+            (unsigned long long)next_clock_,
+
+            (unsigned)frame_restart_pending_,
+            (unsigned long long)frame_restart_cycle_,
+
+            (unsigned)((ret & apu_status::FRAME_IRQ) != 0),
+            (unsigned)square_0.length_counter.debug_value()
+        );
+    }
+
     return ret;
 }
 
@@ -1951,20 +2214,73 @@ read4015()
 
 
 
+
 void
 write4017(uint8_t value)
 {
     log_write(0x4017, value);
 
+    // ---------------------------------------------------------------------
     // Complete a frame restart that is due on this CPU cycle
     // before a new $4017 write can replace it.
     //
     // The CPU executes before the APU tick, so back-to-back
     // writes can otherwise overwrite a restart scheduled
     // for the current cycle.
+    // ---------------------------------------------------------------------
+
     if (frame_restart_pending_
         && frame_restart_cycle_ == apu_cycles_) {
+
         apply_frame_restart();
+    }
+
+    // ---------------------------------------------------------------------
+    // EXPERIMENT 23BZ:
+    //
+    // Record the frame-sequencer phase at the moment of the write,
+    // BEFORE modifying frame-counter state.
+    //
+    // Diagnostic only. No emulation state is changed.
+    // ---------------------------------------------------------------------
+
+    if (trace_length_test_) {
+
+        const uint64_t elapsed =
+            apu_cycles_ >= frame_sequence_start_cycle_
+                ? apu_cycles_ - frame_sequence_start_cycle_
+                : 0;
+
+        printf(
+            "[23BZ WRITE PHASE] "
+            "cpu=%llu apu=%llu "
+            "value=%02X "
+            "active=%u requested=%u "
+            "step=%u elapsed=%llu next=%llu "
+            "pending=%u restart_at=%llu "
+            "irq=%u inhibit=%u LC=%u\n",
+
+            (unsigned long long)cpu::cycle_count(),
+            (unsigned long long)apu_cycles_,
+
+            (unsigned)value,
+
+            (unsigned)frame_counter_.mode,
+            (unsigned)((value & 0x80) != 0),
+
+            (unsigned)clock_step_,
+            (unsigned long long)elapsed,
+            (unsigned long long)next_clock_,
+
+            (unsigned)frame_restart_pending_,
+            (unsigned long long)frame_restart_cycle_,
+
+            (unsigned)status.frame_irq,
+            (unsigned)frame_counter_.inhibit_frame_irq,
+
+            (unsigned)
+                square_0.length_counter.debug_value()
+        );
     }
 
     // ---------------------------------------------------------------------
@@ -2006,8 +2322,12 @@ write4017(uint8_t value)
     // ---------------------------------------------------------------------
 
     frame_pending_mode_ = (value & 0x80) != 0;
-    frame_restart_pending_ = true;
+	frame_restart_pending_ = true;
 
+	// EXPERIMENT 23CI:
+	// Every new write replaces the pending clock request.
+	frame_write_clock_delivered_ = false;
+    
     // ---------------------------------------------------------------------
     // Preserve the previously tested restart timing:
     //
@@ -2018,10 +2338,44 @@ write4017(uint8_t value)
     // including 4-irq_and_dma.nes.
     // ---------------------------------------------------------------------
 
-    const uint64_t delay =
-        (apu_cycles_ & 0x1) ? 4 : 3;
+    // EXPERIMENT 23CW:
+	// Determine the delayed $4017 restart from CPU cycle parity.
 
-    frame_restart_cycle_ = apu_cycles_ + delay;
+	const uint64_t delay =
+    	(cpu::cycle_count() & 1) ? 4 : 3;
+    	
+    // EXPERIMENT 23DC:
+	// Test whether the current CPU/APU synchronization places
+	// the delayed restart one APU tick too late.
+
+	frame_restart_cycle_ = apu_cycles_ + delay - 1;
+    	
+    	
+    if (trace_length_test_) {
+    	printf(
+        	"[23CX WRITE ALIGN] "
+        	"cpu=%llu apu=%llu "
+        	"value=%02X cpu_parity=%u apu_parity=%u "
+        	"delay=%llu restart=%llu "
+        	"origin=%llu elapsed=%llu\n",
+
+        	(unsigned long long)cpu::cycle_count(),
+        	(unsigned long long)apu_cycles_,
+        	(unsigned)value,
+        	(unsigned)(cpu::cycle_count() & 1),
+        	(unsigned)(apu_cycles_ & 1),
+        	(unsigned long long)delay,
+        	(unsigned long long)frame_restart_cycle_,
+        	(unsigned long long)frame_sequence_start_cycle_,
+        	(unsigned long long)(
+            	apu_cycles_ - frame_sequence_start_cycle_
+        	)
+    	);
+	}	
+   
+    	
+
+    
 
     // ---------------------------------------------------------------------
     // Existing CPU/APU write diagnostic.
@@ -2081,22 +2435,36 @@ write4017(uint8_t value)
             "restart=%llu delay=%llu "
             "irq=%u inhibit=%u\n",
 
-            static_cast<unsigned long long>(cpu::cycle_count()),
-            static_cast<unsigned long long>(apu_cycles_),
+            static_cast<unsigned long long>(
+                cpu::cycle_count()),
+
+            static_cast<unsigned long long>(
+                apu_cycles_),
+
             static_cast<unsigned>(value),
 
-            static_cast<unsigned>(frame_counter_.mode),
-            static_cast<unsigned>(frame_pending_mode_),
+            static_cast<unsigned>(
+                frame_counter_.mode),
+
+            static_cast<unsigned>(
+                frame_pending_mode_),
 
             static_cast<unsigned>(clock_step_),
-            static_cast<unsigned long long>(next_clock_),
 
-            static_cast<unsigned long long>(frame_restart_cycle_),
+            static_cast<unsigned long long>(
+                next_clock_),
+
+            static_cast<unsigned long long>(
+                frame_restart_cycle_),
+
             static_cast<unsigned long long>(
                 frame_restart_cycle_ - apu_cycles_),
 
-            static_cast<unsigned>(status.frame_irq),
-            static_cast<unsigned>(frame_counter_.inhibit_frame_irq)
+            static_cast<unsigned>(
+                status.frame_irq),
+
+            static_cast<unsigned>(
+                frame_counter_.inhibit_frame_irq)
         );
 
         ++frame_write_trace_count;
@@ -2145,6 +2513,24 @@ write4017(uint8_t value)
 
 
 
+// -----------------------------------------------------------------------------
+// nes::apu::tick
+//
+// Advances the APU by one emulated CPU cycle.
+//
+// EXPERIMENT 23CI:
+// Separate the five-step $4017-generated quarter/half-frame clock
+// from the delayed frame-divider restart.
+//
+// The write-generated clock occurs one CPU cycle before the restart.
+// The restart itself installs the new sequence and schedules its
+// next ordinary frame event.
+//
+// Preserve the 23BN old-sequencer suppression behavior.
+//
+// All other APU channel, audio, and debugger behavior is unchanged.
+// -----------------------------------------------------------------------------
+
 void
 tick()
 {
@@ -2157,19 +2543,16 @@ tick()
     }
 
     // ---------------------------------------------------------------------
-    // TEMPORARY DIAGNOSTIC:
-    //
-    // Trace frame events occurring while a $4017 restart is pending.
-    // Logging only; no state is changed.
+    // Existing restart-collision diagnostic.
     // ---------------------------------------------------------------------
 
-    	if (trace_length_test_ &&
-    		frame_restart_pending_ &&
-    		(apu_cycles_ == next_clock_ ||
-     		apu_cycles_ == frame_restart_cycle_)) {
-        
-        		const bool event_due =
-            		apu_cycles_ == next_clock_;
+    if (trace_length_test_ &&
+        frame_restart_pending_ &&
+        (apu_cycles_ == next_clock_ ||
+         apu_cycles_ == frame_restart_cycle_)) {
+
+        const bool event_due =
+            apu_cycles_ == next_clock_;
 
         const bool restart_due =
             apu_cycles_ == frame_restart_cycle_;
@@ -2202,12 +2585,7 @@ tick()
     }
 
     // ---------------------------------------------------------------------
-    // EXPERIMENT 20/21 DIAGNOSTIC:
-    //
-    // Trace each cycle between a $4017 write requesting five-step mode
-    // and the delayed frame-divider restart.
-    //
-    // Logging only.
+    // Existing frame-transition diagnostic.
     // ---------------------------------------------------------------------
 
     if (frame_restart_pending_ &&
@@ -2231,7 +2609,8 @@ tick()
             (unsigned long long)frame_last_write_cycle_,
 
             (unsigned long long)(
-                apu_cycles_ - frame_last_write_cycle_),
+                apu_cycles_ - frame_last_write_cycle_
+            ),
 
             (unsigned)(apu_cycles_ & 1),
 
@@ -2245,119 +2624,79 @@ tick()
     }
 
     // ---------------------------------------------------------------------
-    // EXPERIMENT 22G:
-    //
-    // The $4017-generated quarter/half-frame clock is no longer
-    // delivered here one cycle before the divider restart.
-    //
-    // Instead, apply_frame_restart() generates that clock when the
-    // pending restart becomes due.
-    //
-    // This removes the earlier Experiment 22A clock-delivery block
-    // entirely, preventing duplicate write-generated clocks.
+    // EXPERIMENT 23CU / 23CV:
+    // The original 23CI early write-generated clock is disabled.
+    // apply_frame_restart() delivers it on the restart cycle instead.
     // ---------------------------------------------------------------------
 
-    // ---------------------------------------------------------------------
-    // Advance the APU frame sequencer.
-    //
-    // The delayed divider restart still takes precedence over an
-    // old-sequence event due on the same cycle.
-    //
-    // This ordering remains unchanged for Experiment 22G.
-    // ---------------------------------------------------------------------
-
-    if (frame_restart_pending_ &&
-        apu_cycles_ == frame_restart_cycle_) {
-
+    // EXPERIMENT 23CU: keep disabled until experiment cleanup.
+    if (false && frame_restart_pending_ &&
+        frame_pending_mode_ &&
+        !frame_write_clock_delivered_ &&
+        frame_restart_cycle_ > 0 &&
+        apu_cycles_ == frame_restart_cycle_ - 1) {
         const unsigned lc_before =
             square_0.length_counter.debug_value();
 
-        const unsigned step_before =
-            clock_step_;
+        // Deliver the write-generated clock independently of
+        // old-sequencer channel-clock suppression.
 
-        const bool old_mode =
-            frame_counter_.mode;
+        deliver_frame_clock(
+            FrameClockSource::Write4017,
+            true
+        );
 
-        // -------------------------------------------------------------
-        // EXPERIMENT 22G:
-        //
-        // apply_frame_restart() now delivers the five-step
-        // write-generated quarter/half-frame clock.
-        // -------------------------------------------------------------
-
-        apply_frame_restart();
+        frame_write_clock_delivered_ = true;
 
         if (trace_length_test_) {
-
             printf(
-                "[FRAME RESTART APPLIED] "
+                "[23CI PRE-RESTART CLOCK] "
                 "cpu=%llu apu=%llu "
-                "old_mode=%u new_mode=%u "
-                "old_step=%u new_step=%u "
-                "LC=%u->%u next=%llu\n",
+                "restart=%llu LC=%u->%u\n",
 
                 (unsigned long long)cpu::cycle_count(),
                 (unsigned long long)apu_cycles_,
-
-                (unsigned)old_mode,
-                (unsigned)frame_counter_.mode,
-
-                step_before,
-                (unsigned)clock_step_,
+                (unsigned long long)frame_restart_cycle_,
 
                 lc_before,
-                (unsigned)square_0.length_counter.debug_value(),
-
-                (unsigned long long)next_clock_
+                (unsigned)square_0.length_counter.debug_value()
             );
         }
+    }
 
-    } else if (apu_cycles_ == next_clock_) {
+    // ---------------------------------------------------------------------
+    // EXPERIMENT 23CV Stage 2:
+    // Process an ordinary sequencer event BEFORE an equally timed restart.
+    // These two conditions are deliberately independent.
+    // ---------------------------------------------------------------------
 
-        // -------------------------------------------------------------
-        // EXPERIMENT 21:
-        //
-        // During a four-step to five-step transition:
-        //
-        // 1. Allow step 3 to execute.
-        //
-        // 2. Allow step 4 only when it coincides with the
-        //    $4017 write cycle.
-        //
-        // 3. Suppress step 4 when it occurs after the write.
-        //
-        // 4. Suppress other old-sequence channel clocks while
-        //    a five-step restart is pending.
-        //
-        // This remains our temporary experimental rule.
-        // -------------------------------------------------------------
-
-        // EXPERIMENT 22M:
-		//
-		// Step 3 is IRQ-only in the four-step sequencer.
-		// The suppressed-event path already preserves IRQ generation
-		// and advances the sequencer.
-		//
-		// Only step 4 needs special handling for channel-clock delivery.
-
-		const bool allow_transition_event =
-    		frame_restart_pending_
-    		&& frame_pending_mode_
-    		&& !frame_counter_.mode
-    		&& clock_step_ == 4
-    		&& apu_cycles_ == frame_last_write_cycle_;
-
-        const bool suppress_old_event =
-            frame_restart_pending_
-            && frame_pending_mode_
-            && !allow_transition_event;
+    if (apu_cycles_ == next_clock_) {
 
         // -------------------------------------------------------------
-        // Existing Experiment 21 diagnostic.
+        // EXPERIMENT 23BN:
+        //
+        // During a pending five-step restart, the old frame
+        // sequencer continues advancing and generating IRQs,
+        // but its channel clocks are suppressed.
+        //
+        // EXPERIMENT 23CI retains this behavior for now.
+        // -------------------------------------------------------------
+        // ---------------------------------------------------------------------
+        // EXPERIMENT 23CV Stage 1:
+        // Do not suppress old-sequencer channel clocks according to the
+        // write timestamp. Arbitration occurs in deliver_frame_clock().
+        // ---------------------------------------------------------------------
+
+        const bool suppress_old_event = false;
+        
+        // Retained for existing diagnostics.
+        const bool allow_transition_event = false;
+
+        // -------------------------------------------------------------
+        // Existing transition-event diagnostic.
         // -------------------------------------------------------------
 
         if (frame_restart_pending_ && frame_pending_mode_) {
-
             printf(
                 "[EXP21 FRAME EVENT] "
                 "apu=%llu write=%llu "
@@ -2383,7 +2722,6 @@ tick()
         // -------------------------------------------------------------
 
         if (trace_length_test_) {
-
             printf(
                 "[FRAME PHASE] cycle=%llu "
                 "elapsed=%llu elapsed_mod2=%u "
@@ -2392,10 +2730,12 @@ tick()
                 (unsigned long long)apu_cycles_,
 
                 (unsigned long long)(
-                    apu_cycles_ - frame_sequence_start_cycle_),
+                    apu_cycles_ - frame_sequence_start_cycle_
+                ),
 
                 (unsigned)(
-                    (apu_cycles_ - frame_sequence_start_cycle_) & 1),
+                    (apu_cycles_ - frame_sequence_start_cycle_) & 1
+                ),
 
                 (unsigned)clock_step_,
                 (unsigned long long)next_clock_
@@ -2407,7 +2747,6 @@ tick()
         // -------------------------------------------------------------
 
         if (suppress_old_event && trace_length_test_) {
-
             printf(
                 "[FRAME SUPPRESSED] cycle=%llu "
                 "step=%u active_mode=%u pending_mode=%u "
@@ -2426,28 +2765,28 @@ tick()
         }
 
         // -------------------------------------------------------------
-        // EXPERIMENT 22D:
+        // EXPERIMENT 22N / 23BN:
         //
-        // Advance the frame-sequencer state even when its
-        // channel-clock signal is suppressed.
+        // Advance the sequencer even when channel-clock delivery
+        // is suppressed.
         //
-        // Preserve the original frame IRQ schedule independently
-        // of quarter/half-frame clock delivery.
+        // This preserves IRQ generation and frame-event scheduling.
         // -------------------------------------------------------------
-
-        // EXPERIMENT 22N:
-        //
-        // Every due event advances through the normal sequencer.
-        // Only channel-clock delivery is conditionally suppressed.
 
         const unsigned lc_before =
             square_0.length_counter.debug_value();
 
-        const unsigned step_before = clock_step_;
-        const bool irq_before = status.frame_irq;
-        const bool mode_before = frame_counter_.mode;
+        const unsigned step_before =
+            clock_step_;
 
-        suppress_frame_channel_clocks_ = suppress_old_event;
+        const bool irq_before =
+            status.frame_irq;
+
+        const bool mode_before =
+            frame_counter_.mode;
+
+        suppress_frame_channel_clocks_ =
+            suppress_old_event;
 
         if (frame_counter_.mode) {
             clock_frame_mode_1();
@@ -2463,19 +2802,85 @@ tick()
                 "mode=%u step=%u suppressed=%u "
                 "LC=%u->%u IRQ=%u->%u "
                 "next_step=%u next=%llu\n",
+
                 (unsigned long long)apu_cycles_,
                 (unsigned)mode_before,
                 step_before,
                 (unsigned)suppress_old_event,
+
                 lc_before,
                 (unsigned)square_0.length_counter.debug_value(),
+
                 (unsigned)irq_before,
                 (unsigned)status.frame_irq,
+
                 (unsigned)clock_step_,
                 (unsigned long long)next_clock_
             );
         }
+    }
 
+    // ---------------------------------------------------------------------
+    // EXPERIMENT 23CV Stage 2:
+    // Apply delayed $4017 restart AFTER the ordinary sequencer event.
+    // This permits the ordinary event to set frame_clock_block_ticks_
+    // before the write-generated clock is requested.
+    // ---------------------------------------------------------------------
+
+    if (frame_restart_pending_ &&
+        apu_cycles_ == frame_restart_cycle_) {
+        const unsigned lc_before =
+            square_0.length_counter.debug_value();
+
+        const unsigned step_before =
+            clock_step_;
+
+        const bool old_mode =
+            frame_counter_.mode;
+
+        // -------------------------------------------------------------
+        // EXPERIMENT 23CI:
+        //
+        // With 23CU enabled, the early write-generated clock is disabled.
+        // apply_frame_restart() delivers the five-step write clock.
+        // -------------------------------------------------------------
+
+        apply_frame_restart();
+
+        if (trace_length_test_) {
+            printf(
+                "[FRAME RESTART APPLIED] "
+                "cpu=%llu apu=%llu "
+                "old_mode=%u new_mode=%u "
+                "old_step=%u new_step=%u "
+                "LC=%u->%u next=%llu\n",
+
+                (unsigned long long)cpu::cycle_count(),
+                (unsigned long long)apu_cycles_,
+
+                (unsigned)old_mode,
+                (unsigned)frame_counter_.mode,
+
+                step_before,
+                (unsigned)clock_step_,
+
+                lc_before,
+                (unsigned)square_0.length_counter.debug_value(),
+
+                (unsigned long long)next_clock_
+            );
+        }
+
+    }
+
+    // ---------------------------------------------------------------------
+    // EXPERIMENT 23CV Stage 2:
+    // Decrement the shared frame-clock blocker exactly once per APU cycle,
+    // after all frame-event/restart processing (including empty cycles).
+    // ---------------------------------------------------------------------
+
+    if (frame_clock_block_ticks_ > 0) {
+        --frame_clock_block_ticks_;
     }
 
     // ---------------------------------------------------------------------
@@ -2485,7 +2890,6 @@ tick()
     const bool triangleMuted = triangle.debug_muted();
 
     if (triangleMuted && !sTriangleWasMuted) {
-
         const double rawDAC =
             static_cast<double>(triangle.raw_output());
 
@@ -2496,14 +2900,11 @@ tick()
     sTriangleWasMuted = triangleMuted;
 
     if (triangleMuted) {
-
         sTriangleMuteGain = std::max(
             0.0,
             sTriangleMuteGain - kTriangleMuteGainStep
         );
-
     } else {
-
         sTriangleMuteGain = std::min(
             1.0,
             sTriangleMuteGain + kTriangleMuteGainStep
@@ -2517,7 +2918,6 @@ tick()
     const bool dmcMuted = dmc.debug_muted();
 
     if (dmcMuted && !sDmcWasMuted) {
-
         const double rawDAC =
             static_cast<double>(dmc.raw_output());
 
@@ -2528,14 +2928,11 @@ tick()
     sDmcWasMuted = dmcMuted;
 
     if (dmcMuted) {
-
         sDmcMuteGain = std::max(
             0.0,
             sDmcMuteGain - kDmcMuteGainStep
         );
-
     } else {
-
         sDmcMuteGain = std::min(
             1.0,
             sDmcMuteGain + kDmcMuteGainStep
@@ -2543,13 +2940,15 @@ tick()
     }
 
     // ---------------------------------------------------------------------
-    // Feed the instantaneous mixed output into the FIR resampler.
+    // Feed instantaneous mixed output into the FIR resampler.
     // ---------------------------------------------------------------------
 
     double filteredSample = 0.0;
 
     if (audio_resampler.clock(
             mix_channels_raw(), filteredSample)) {
+
+
 
         // Apply DC blocking and convert to unsigned 8-bit PCM.
         const uint8_t mixedSample =
@@ -2567,7 +2966,6 @@ tick()
             (sample_buffer_end + 1) % kBufferSize;
 
         if (nextWrite == sample_buffer_start) {
-
             sample_buffer_start =
                 (sample_buffer_start + 1) % kBufferSize;
         }
@@ -2592,9 +2990,6 @@ tick()
 
     ++apu_cycles_;
 }
-
-
-
 
 
 // -----------------------------------------------------------------------------
