@@ -53,45 +53,42 @@ class Sweep
 	// Returns:
 	//   Nothing.
 	// -------------------------------------------------------------------------
-	void clock() {
-		// If the reload flag is set, the divider's counter is set to the
-		// period P. If the divider's counter was zero before the reload, the
-		// pulse's period is also adjusted.
-		if (reload_) {
-			reload_                    = false;
-			const uint8_t prev_counter = counter_;
-			counter_                   = period() + 1;
+	void clock()
+	{
+		// ---------------------------------------------------------------------
+		// Clock the sweep divider and conditionally update the pulse timer.
+		//
+		// The divider reloads with the programmed period P, producing an
+		// interval of P + 1 half-frame clocks.
+		//
+		// A pending reload takes priority over decrementing the divider,
+		// but does not suppress an adjustment if the divider has expired.
+		//
+		// Sweep adjustments are suppressed when the current pulse period
+		// is below 8 or the target exceeds the 11-bit hardware limit.
+		// ---------------------------------------------------------------------
 
-			if (prev_counter == 0 && enabled() && shift()) {
-				const uint16_t target = target_period();
-				if (target < 0x800) {
-					square_->timer_reload_    = target;
-					pulse_period_             = target;
-					square_->timer_.frequency = (target + 1) * 2;
-				}
-			}
+		const bool divider_expired = (counter_ == 0);
 
+		// Apply a sweep adjustment only on a divider output clock.
+		if (divider_expired && enabled() && shift() != 0 && !silenced()) {
+			const uint16_t target = target_period();
+
+			square_->timer_reload_ = target;
+			pulse_period_ = target;
+			square_->timer_.frequency =
+				(static_cast<uint32_t>(target) + 1) * 2;
+		}
+
+		// Reload has priority over decrementing the divider.
+		if (divider_expired || reload_) {
+			counter_ = period();
+			reload_ = false;
 		} else {
-			if (counter_) {
-				// If the reload flag is clear and the divider's counter is non-zero,
-				// it is decremented.
-				--counter_;
-			} else {
-				// If the reload flag is clear and the divider's counter is zero,
-				// the counter is set to P and the pulse's period is adjusted.
-				counter_ = period() + 1;
-
-				if (enabled() && shift()) {
-					const uint16_t target = target_period();
-					if (target < 0x800) {
-						square_->timer_reload_    = target;
-						pulse_period_             = target;
-						square_->timer_.frequency = (target + 1) * 2;
-					}
-				}
-			}
+			--counter_;
 		}
 	}
+
 
 	// -------------------------------------------------------------------------
 	// Sweep::set_control
