@@ -15,6 +15,27 @@ class Envelope
 	void set_control(uint8_t value);
 	uint8_t volume() const;
 
+	// ---------------------------------------------------------------------
+	// Envelope::reset_state
+	//
+	// Initializes envelope state for a fresh power-on.
+	//
+	// Clears the pending restart, decay counter, and divider.
+	// The control register is preserved.
+	//
+	// Parameters:
+	//   None.
+	//
+	// Returns:
+	//   Nothing.
+	// ---------------------------------------------------------------------
+	void reset_state()
+	{
+		start_   = false;
+		counter_ = 0;
+		divider_ = 0xff;
+	}
+
 	public:
 	uint8_t debug_volume() const {
 		return volume();	// 4-bit volume

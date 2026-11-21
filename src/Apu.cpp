@@ -597,14 +597,14 @@ debug_clear_frame_events()
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void 
+void
 clock_linear()
 {
-	triangle.linear_counter.clock();
+    triangle.linear_counter.clock();
 
-	square_0.envelope.clock();
-	square_1.envelope.clock();
-	noise.envelope.clock();
+    square_0.envelope.clock();
+    square_1.envelope.clock();
+    noise.envelope.clock();
 }
 
 
@@ -1505,14 +1505,8 @@ reset (reset_type type)
 	// EXPERIMENT 23Y: Trace the length-counter collision.
 	trace_length_test_ = true;
 	trace_length_reads_ = 0;
-	
-	
-	
 	frame_clock_block_ticks_ = 0;
 
-	
-	
-	
 	// No ordinary frame event is scheduled until the delayed restart.
 	next_clock_    = static_cast<uint64_t>(-1);
 
@@ -1625,6 +1619,21 @@ reset (reset_type type)
 	write400E(00);
 	write400F(00);
 
+	// ---------------------------------------------------------------------
+	// Initialize envelope state after reset-time register writes.
+	//
+	// Writes to $4003, $4007, and $400F schedule envelope restarts.
+	// Reset-time initialization must not leave these artificial
+	// restarts pending after power-on.
+	//
+	// Preserve existing soft-reset behavior.
+	// ---------------------------------------------------------------------
+	if (type == reset_type::hard) {
+		square_0.envelope.reset_state();
+		square_1.envelope.reset_state();
+		noise.envelope.reset_state();
+	}
+
 	/*
 	 * DMC channel.
 	 */
@@ -1664,12 +1673,12 @@ reset (reset_type type)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-write4000 (uint8_t value)
+write4000(uint8_t value)
 {
-	log_write(0x4000, value);
+    log_write(0x4000, value);
 
-	explorer_square1_[0] = value;
-	square_0.write_reg0(value);
+    explorer_square1_[0] = value;
+    square_0.write_reg0(value);
 }
 
 
@@ -1727,20 +1736,23 @@ write4002 (uint8_t value)
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-void
-write4003 (uint8_t value)
-{
-	log_write(0x4003, value);
 
-	explorer_square1_[3] = value;
-	square_0.write_reg3(value);
-	
-	if (trace_length_test_) {
-    	printf("[APU TEST] $4003=%02X cycle=%llu LC=%u\n",
-        	value,
-        	(unsigned long long)apu_cycles_,
-        	(unsigned)square_0.length_counter.debug_value());
-	}
+void
+write4003(uint8_t value)
+{
+    log_write(0x4003, value);
+
+    explorer_square1_[3] = value;
+    square_0.write_reg3(value);
+
+    if (trace_length_test_) {
+        printf(
+            "[APU TEST] $4003=%02X cycle=%llu LC=%u\n",
+            (unsigned)value,
+            (unsigned long long)apu_cycles_,
+            (unsigned)square_0.length_counter.debug_value()
+        );
+    }
 }
 
 
@@ -2212,9 +2224,6 @@ read4015()
 //   Nothing.
 // -----------------------------------------------------------------------------
 
-
-
-
 void
 write4017(uint8_t value)
 {
@@ -2322,12 +2331,12 @@ write4017(uint8_t value)
     // ---------------------------------------------------------------------
 
     frame_pending_mode_ = (value & 0x80) != 0;
-	frame_restart_pending_ = true;
+    frame_restart_pending_ = true;
 
-	// EXPERIMENT 23CI:
-	// Every new write replaces the pending clock request.
-	frame_write_clock_delivered_ = false;
-    
+    // EXPERIMENT 23CI:
+    // Every new write replaces the pending clock request.
+    frame_write_clock_delivered_ = false;
+
     // ---------------------------------------------------------------------
     // Preserve the previously tested restart timing:
     //
@@ -2339,43 +2348,39 @@ write4017(uint8_t value)
     // ---------------------------------------------------------------------
 
     // EXPERIMENT 23CW:
-	// Determine the delayed $4017 restart from CPU cycle parity.
+    // Determine the delayed $4017 restart from CPU cycle parity.
 
-	const uint64_t delay =
-    	(cpu::cycle_count() & 1) ? 4 : 3;
-    	
+    const uint64_t delay =
+        (cpu::cycle_count() & 1) ? 4 : 3;
+
     // EXPERIMENT 23DC:
-	// Test whether the current CPU/APU synchronization places
-	// the delayed restart one APU tick too late.
+    // Test whether the current CPU/APU synchronization places
+    // the delayed restart one APU tick too late.
 
-	frame_restart_cycle_ = apu_cycles_ + delay - 1;
-    	
-    	
+    frame_restart_cycle_ = apu_cycles_ + delay - 1;
+
     if (trace_length_test_) {
-    	printf(
-        	"[23CX WRITE ALIGN] "
-        	"cpu=%llu apu=%llu "
-        	"value=%02X cpu_parity=%u apu_parity=%u "
-        	"delay=%llu restart=%llu "
-        	"origin=%llu elapsed=%llu\n",
 
-        	(unsigned long long)cpu::cycle_count(),
-        	(unsigned long long)apu_cycles_,
-        	(unsigned)value,
-        	(unsigned)(cpu::cycle_count() & 1),
-        	(unsigned)(apu_cycles_ & 1),
-        	(unsigned long long)delay,
-        	(unsigned long long)frame_restart_cycle_,
-        	(unsigned long long)frame_sequence_start_cycle_,
-        	(unsigned long long)(
-            	apu_cycles_ - frame_sequence_start_cycle_
-        	)
-    	);
-	}	
-   
-    	
+        printf(
+            "[23CX WRITE ALIGN] "
+            "cpu=%llu apu=%llu "
+            "value=%02X cpu_parity=%u apu_parity=%u "
+            "delay=%llu restart=%llu "
+            "origin=%llu elapsed=%llu\n",
 
-    
+            (unsigned long long)cpu::cycle_count(),
+            (unsigned long long)apu_cycles_,
+            (unsigned)value,
+            (unsigned)(cpu::cycle_count() & 1),
+            (unsigned)(apu_cycles_ & 1),
+            (unsigned long long)delay,
+            (unsigned long long)frame_restart_cycle_,
+            (unsigned long long)frame_sequence_start_cycle_,
+            (unsigned long long)(
+                apu_cycles_ - frame_sequence_start_cycle_
+            )
+        );
+    }
 
     // ---------------------------------------------------------------------
     // Existing CPU/APU write diagnostic.
@@ -2415,7 +2420,8 @@ write4017(uint8_t value)
             static_cast<unsigned long long>(delay),
 
             static_cast<unsigned>(
-                square_0.length_counter.debug_value())
+                square_0.length_counter.debug_value()
+            )
         );
     }
 
@@ -2436,35 +2442,44 @@ write4017(uint8_t value)
             "irq=%u inhibit=%u\n",
 
             static_cast<unsigned long long>(
-                cpu::cycle_count()),
+                cpu::cycle_count()
+            ),
 
             static_cast<unsigned long long>(
-                apu_cycles_),
+                apu_cycles_
+            ),
 
             static_cast<unsigned>(value),
 
             static_cast<unsigned>(
-                frame_counter_.mode),
+                frame_counter_.mode
+            ),
 
             static_cast<unsigned>(
-                frame_pending_mode_),
+                frame_pending_mode_
+            ),
 
             static_cast<unsigned>(clock_step_),
 
             static_cast<unsigned long long>(
-                next_clock_),
+                next_clock_
+            ),
 
             static_cast<unsigned long long>(
-                frame_restart_cycle_),
+                frame_restart_cycle_
+            ),
 
             static_cast<unsigned long long>(
-                frame_restart_cycle_ - apu_cycles_),
+                frame_restart_cycle_ - apu_cycles_
+            ),
 
             static_cast<unsigned>(
-                status.frame_irq),
+                status.frame_irq
+            ),
 
             static_cast<unsigned>(
-                frame_counter_.inhibit_frame_irq)
+                frame_counter_.inhibit_frame_irq
+            )
         );
 
         ++frame_write_trace_count;
