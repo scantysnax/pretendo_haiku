@@ -123,6 +123,10 @@ class VRC6 : public Mapper
 	void cpu_sync() override;
 	void reset() override;
 
+	public:
+	uint8_t read_vram(uint_least16_t address) override;
+	void write_vram(uint_least16_t address, uint8_t value) override;
+
 	int32_t audio_output() const override;
 	size_t audio_channel_count() const override;
 	const char *audio_channel_name (size_t channel) const override;
@@ -140,6 +144,14 @@ class VRC6 : public Mapper
 	private:
 	uint8_t wram_[0x2000] = {};
 	bool wram_enabled_ = false;
+
+	private:
+    // VRC6 CHR and nametable banking state.
+    uint8_t chr_registers_[8] = {};
+    uint8_t banking_control_ = 0;
+    uint8_t nametable_chr_banks_[4] = {};
+
+    void update_ppu_banks();
 
 	private:
 	PulseChannel pulse1_;

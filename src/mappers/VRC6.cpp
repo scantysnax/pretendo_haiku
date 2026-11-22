@@ -2,7 +2,8 @@
 #include "VRC6.h"
 #include "Apu.h"
 #include "Cpu.h"
-
+#include "Cart.h"
+#include "Nes.h"
 
 namespace {
 
@@ -300,12 +301,16 @@ VRC6::SawChannel::output() const
 // final 16 KB bank at $C000-$FFFF. CHR is initially mapped as one contiguous
 // 8 KB region beginning at bank 0.
 // -----------------------------------------------------------------------------
+
 VRC6::VRC6()
 {
-	set_prg_89ab(0);
-	set_prg_cdef(-1);
+    set_prg_89ab(0);
+    set_prg_cdef(-1);
 
-	set_chr_0000_1fff(0);
+    set_chr_0000_1fff(0);
+
+    // Initialize the VRC6 pattern-table and nametable mappings.
+    update_ppu_banks();
 }
 
 
@@ -327,6 +332,221 @@ VRC6::name() const
 }
 
 
+
+void
+VRC6::update_ppu_banks()
+{
+    const uint8_t mode = banking_control_ & 0x03;
+    const uint8_t mirroring = (banking_control_ >> 2) & 0x03;
+    const bool override_a10 = (banking_control_ & 0x20) != 0;
+
+    // -------------------------------------------------------------
+    // Resolve the eight 1 KB pattern-table banks.
+    //
+    // Mode 0: Eight independent 1 KB banks, R0-R7.
+    //
+    // Mode 1: Four 2 KB banks, R0-R3.
+    //
+    // Modes 2/3:
+    //     Four 1 KB banks, R0-R3.
+    //     Two 2 KB banks, R4-R5.
+    //
+    // When bit 5 is clear, a 2 KB mapping repeats the same
+    // 1 KB CHR page in both halves.
+    //
+    // When bit 5 is set, the low CHR address bit comes from
+    // the corresponding PPU address bit.
+    // -------------------------------------------------------------
+
+    uint8_t pattern[8] = {};
+
+    if (mode == 0) {
+        for (unsigned i = 0; i < 8; ++i) {
+            pattern[i] = chr_registers_[i];
+        }
+    } else if (mode == 1) {
+        for (unsigned i = 0; i < 8; ++i) {
+            const uint8_t value = chr_registers_[i / 2];
+
+            pattern[i] = override_a10
+                ? static_cast<uint8_t>((value & 0xfe) | (i & 1))
+                : value;
+        }
+    } else {
+        for (unsigned i = 0; i < 4; ++i) {
+            pattern[i] = chr_registers_[i];
+        }
+
+        for (unsigned i = 4; i < 8; ++i) {
+            const uint8_t value =
+                chr_registers_[4 + (i - 4) / 2];
+
+            pattern[i] = override_a10
+                ? static_cast<uint8_t>((value & 0xfe) | (i & 1))
+                : value;
+        }
+    }
+
+    set_chr_0000_03ff(pattern[0]);
+    set_chr_0400_07ff(pattern[1]);
+    set_chr_0800_0bff(pattern[2]);
+    set_chr_0c00_0fff(pattern[3]);
+    set_chr_1000_13ff(pattern[4]);
+    set_chr_1400_17ff(pattern[5]);
+    set_chr_1800_1bff(pattern[6]);
+    set_chr_1c00_1fff(pattern[7]);
+
+    // -------------------------------------------------------------
+    // Resolve the four nametable banks.
+    //
+    // With bit 5 clear, the LSB of the selected CHR register
+    // directly controls CIRAM A10.
+    //
+    // With bit 5 set, the banking mode determines whether the
+    // register's LSB is preserved or overridden.
+    // -------------------------------------------------------------
+
+    uint8_t nt[4] = {};
+
+    if (!override_a10) {
+        static const uint8_t register_map[8][4] = {
+            {6, 6, 7, 7},
+            {4, 5, 6, 7},
+            {6, 7, 6, 7},
+            {6, 7, 6, 7},
+            {6, 7, 6, 7},
+            {4, 5, 6, 7},
+            {6, 6, 7, 7},
+            {6, 6, 7, 7}
+        };
+
+        const unsigned configuration = banking_control_ & 0x07;
+
+        for (unsigned i = 0; i < 4; ++i) {
+            nt[i] = chr_registers_[register_map[configuration][i]];
+        }
+    } else {
+        switch (mode) {
+        case 0: {
+            // Mode 0:
+            // 00: vertical
+            // 04: horizontal
+            // 08: single-screen A
+            // 0C: single-screen B
+
+            static const uint8_t registers[4][4] = {
+                {6, 6, 7, 7},
+                {6, 7, 6, 7},
+                {6, 6, 7, 7},
+                {6, 7, 6, 7}
+            };
+
+            static const uint8_t low_bits[4][4] = {
+                {0, 1, 0, 1},
+                {0, 0, 1, 1},
+                {0, 0, 0, 0},
+                {1, 1, 1, 1}
+            };
+
+            for (unsigned i = 0; i < 4; ++i) {
+                const uint8_t value =
+                    chr_registers_[registers[mirroring][i]];
+
+                nt[i] = static_cast<uint8_t>(
+                    (value & 0xfe) | low_bits[mirroring][i]
+                );
+            }
+
+            break;
+        }
+
+        case 1:
+            // Four independently selected nametable pages.
+            // R4, R5, R6, R7.
+
+            for (unsigned i = 0; i < 4; ++i) {
+                nt[i] = chr_registers_[4 + i];
+            }
+
+            break;
+
+        case 2: {
+            // Two nametable banks, selected by R6 and R7.
+            // Mirroring bits select vertical or horizontal
+            // arrangements.
+
+            static const uint8_t registers[4][4] = {
+                {6, 7, 6, 7},
+                {6, 6, 7, 7},
+                {6, 7, 6, 7},
+                {6, 6, 7, 7}
+            };
+
+            for (unsigned i = 0; i < 4; ++i) {
+                nt[i] =
+                    chr_registers_[registers[mirroring][i]];
+            }
+
+            break;
+        }
+
+        case 3: {
+            // Nametable banking using two 2 KB register pairs.
+            //
+            // The low bank bit is forced according to the
+            // selected arrangement.
+
+            static const uint8_t registers[4][4] = {
+                {6, 7, 6, 7},
+                {6, 6, 7, 7},
+                {6, 7, 6, 7},
+                {6, 6, 7, 7}
+            };
+
+            static const uint8_t low_bits[4][4] = {
+                {0, 0, 1, 1},
+                {0, 1, 0, 1},
+                {1, 1, 1, 1},
+                {0, 0, 0, 0}
+            };
+
+            for (unsigned i = 0; i < 4; ++i) {
+                const uint8_t value =
+                    chr_registers_[registers[mirroring][i]];
+
+                nt[i] = static_cast<uint8_t>(
+                    (value & 0xfe) | low_bits[mirroring][i]
+                );
+            }
+
+            break;
+        }
+        }
+    }
+
+    // -------------------------------------------------------------
+    // Store effective CHR-ROM nametable banks and construct the
+    // CIRAM mapping byte.
+    //
+    // The low bit of each effective bank selects CIRAM page 0
+    // or page 1 when CHR-ROM nametables are disabled.
+    // -------------------------------------------------------------
+
+    uint8_t mirror = 0;
+
+    for (unsigned i = 0; i < 4; ++i) {
+        nametable_chr_banks_[i] = nt[i];
+
+        mirror |= static_cast<uint8_t>(
+            (nt[i] & 1) << (i * 2)
+        );
+    }
+
+    set_mirroring(mirror);
+}
+
+
+
 // -----------------------------------------------------------------------------
 // VRC6::reset
 //
@@ -346,6 +566,61 @@ VRC6::reset()
 	saw_ = {};
 
 	frequency_control_ = 0;
+}
+
+
+
+
+uint8_t
+VRC6::read_vram(uint_least16_t address)
+{
+    address &= 0x3fff;
+
+    // $3000-$3EFF mirrors $2000-$2EFF.
+    if (address >= 0x3000 && address < 0x3f00) {
+        address -= 0x1000;
+    }
+
+    // CHR-ROM-backed nametables.
+    if (address >= 0x2000 &&
+        address < 0x3000 &&
+        (banking_control_ & 0x10) != 0 &&
+        nes::cart.has_chr_rom()) {
+
+        const unsigned slot = (address - 0x2000) >> 10;
+        const uint32_t bank = nametable_chr_banks_[slot];
+
+        const uint32_t offset =
+            ((bank * 0x400) + (address & 0x03ff)) &
+            nes::cart.chr_mask();
+
+        return nes::cart.chr()[offset];
+    }
+
+    return Mapper::read_vram(address);
+}
+
+
+void
+VRC6::write_vram(uint_least16_t address, uint8_t value)
+{
+    address &= 0x3fff;
+
+    // $3000-$3EFF mirrors $2000-$2EFF.
+    if (address >= 0x3000 && address < 0x3f00) {
+        address -= 0x1000;
+    }
+
+    // Writes to CHR-ROM-backed nametables are ignored.
+    if (address >= 0x2000 &&
+        address < 0x3000 &&
+        (banking_control_ & 0x10) != 0 &&
+        nes::cart.has_chr_rom()) {
+
+        return;
+    }
+
+    Mapper::write_vram(address, value);
 }
 
 
@@ -555,49 +830,58 @@ VRC6::write_a (uint_least16_t address, uint8_t value)
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
+
 void
-VRC6::write_b (uint_least16_t address, uint8_t value)
+VRC6::write_b(uint_least16_t address, uint8_t value)
 {
-	switch (address & 0xf003) {
-	case 0xb000:
-		saw_.write_rate(value);
-		nes::apu::log_external_audio_write(0xb000, value, saw_.period, false, frequency_control_);
-		break;
+    switch (address & 0xf003) {
+    case 0xb000:
+        saw_.write_rate(value);
+        nes::apu::log_external_audio_write(
+            0xb000,
+            value,
+            saw_.period,
+            false,
+            frequency_control_
+        );
+        break;
 
-	case 0xb001:
-		saw_.write_period_low(value);
-		nes::apu::log_external_audio_write(0xb001, value, saw_.period, true, frequency_control_);
-		break;
+    case 0xb001:
+        saw_.write_period_low(value);
+        nes::apu::log_external_audio_write(
+            0xb001,
+            value,
+            saw_.period,
+            true,
+            frequency_control_
+        );
+        break;
 
-	case 0xb002:
-		saw_.write_period_high(value);
-		nes::apu::log_external_audio_write(0xb002, value, saw_.period, true, frequency_control_);
-		break;
+    case 0xb002:
+        saw_.write_period_high(value);
+        nes::apu::log_external_audio_write(
+            0xb002,
+            value,
+            saw_.period,
+            true,
+            frequency_control_
+        );
+        break;
 
-	case 0xb003:
-		wram_enabled_ = (value & 0x80) != 0;
-		debug_set_prg_ram(wram_enabled_, wram_enabled_, 0);
+    case 0xb003:
+        // Preserve PRG-RAM enable behavior.
+        wram_enabled_ = (value & 0x80) != 0;
+        debug_set_prg_ram(wram_enabled_, wram_enabled_, 0);
 
-		switch ((value >> 2) & 0x03) {
-		case 0x00:
-			set_mirroring(mirror_vertical);
-			break;
+        // Store all VRC6 banking-control bits.
+        banking_control_ = value;
 
-		case 0x01:
-			set_mirroring(mirror_horizontal);
-			break;
-
-		case 0x02:
-			set_mirroring(mirror_single_low);
-			break;
-
-		case 0x03:
-			set_mirroring(mirror_single_high);
-			break;
-		}
-		break;
-	}
+        // Recalculate CHR and nametable mappings.
+        update_ppu_banks();
+        break;
+    }
 }
+
 
 
 // -----------------------------------------------------------------------------
@@ -637,27 +921,23 @@ VRC6::write_c (uint_least16_t address, uint8_t value)
 //   address - CPU address selecting the CHR bank register.
 //   value   - CHR bank number.
 // -----------------------------------------------------------------------------
+
 void
-VRC6::write_d (uint_least16_t address, uint8_t value)
+VRC6::write_d(uint_least16_t address, uint8_t value)
 {
-	switch (address & 0xf003) {
-	case 0xd000:
-		set_chr_0000_03ff(value);
-		break;
+    switch (address & 0xf003) {
+    case 0xd000:
+    case 0xd001:
+    case 0xd002:
+    case 0xd003:
+        // VRC6 CHR registers R0-R3.
+        chr_registers_[address & 0x0003] = value;
 
-	case 0xd001:
-		set_chr_0400_07ff(value);
-		break;
-
-	case 0xd002:
-		set_chr_0800_0bff(value);
-		break;
-
-	case 0xd003:
-		set_chr_0c00_0fff(value);
-		break;
-	}
+        update_ppu_banks();
+        break;
+    }
 }
+
 
 
 // -----------------------------------------------------------------------------
@@ -672,27 +952,23 @@ VRC6::write_d (uint_least16_t address, uint8_t value)
 //   address - CPU address selecting the CHR bank register.
 //   value   - CHR bank number.
 // -----------------------------------------------------------------------------
+
 void
-VRC6::write_e (uint_least16_t address, uint8_t value)
+VRC6::write_e(uint_least16_t address, uint8_t value)
 {
-	switch (address & 0xf003) {
-	case 0xe000:
-		set_chr_1000_13ff(value);
-		break;
+    switch (address & 0xf003) {
+    case 0xe000:
+    case 0xe001:
+    case 0xe002:
+    case 0xe003:
+        // VRC6 CHR registers R4-R7.
+        chr_registers_[4 + (address & 0x0003)] = value;
 
-	case 0xe001:
-		set_chr_1400_17ff(value);
-		break;
-
-	case 0xe002:
-		set_chr_1800_1bff(value);
-		break;
-
-	case 0xe003:
-		set_chr_1c00_1fff(value);
-		break;
-	}
+        update_ppu_banks();
+        break;
+    }
 }
+
 
 
 // -----------------------------------------------------------------------------
