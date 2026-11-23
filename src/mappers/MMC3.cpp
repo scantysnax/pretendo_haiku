@@ -643,31 +643,37 @@ MMC3::write_f (uint_least16_t address, uint8_t value)
 // Returns:
 //   Nothing.
 //------------------------------------------------------------------------------
+
+
 void
-MMC3::vram_change_hook (uint_least16_t vram_address)
+MMC3::vram_change_hook(uint_least16_t vram_address)
 {
-	// Detect a rising edge of PPU address bit A12.
-	if ((vram_address & 0x1000) && !(prev_vram_address_ & 0x1000)) {
-		++debug_a12_rising_edge_count_;
+    // Detect a rising edge of PPU address bit A12.
+    if ((vram_address & 0x1000) &&
+        !(prev_vram_address_ & 0x1000)) {
 
-		const uint64_t spacing = nes::ppu::cycle_count() - prev_ppu_cycle_;
+        ++debug_a12_rising_edge_count_;
 
-		debug_last_a12_spacing_ = spacing;
+        const uint64_t spacing =
+            nes::ppu::cycle_count() - prev_ppu_cycle_;
 
-		// Require sufficient spacing between qualified A12 edges.
-		if (spacing >= 16) {
-			++debug_a12_qualified_edge_count_;
+        debug_last_a12_spacing_ = spacing;
 
-			clock_irq();
-		} else {
-			++debug_a12_rejected_edge_count_;
-		}
+        // Require sufficient spacing between qualified A12 edges.
+        if (spacing >= 16) {
+            ++debug_a12_qualified_edge_count_;
 
-		prev_ppu_cycle_ = nes::ppu::cycle_count();
-	}
+            clock_irq();
+        } else {
+            ++debug_a12_rejected_edge_count_;
+        }
 
-	prev_vram_address_ = vram_address;
+        prev_ppu_cycle_ = nes::ppu::cycle_count();
+    }
+
+    prev_vram_address_ = vram_address;
 }
+
 
 
 //------------------------------------------------------------------------------
@@ -727,29 +733,33 @@ MMC3::clock_irqA()
 // Returns:
 //   Nothing.
 //------------------------------------------------------------------------------
+
+
 void
 MMC3::clock_irqB()
 {
-	if (irq_counter_ == 0x00) {
-		// Reload a zero counter from the programmed latch value.
-		irq_counter_ = irq_latch_;
-	} else {
-		// Otherwise decrement the active counter.
-		--irq_counter_;
+    if (irq_counter_ == 0x00) {
+        // Reload a zero counter from the programmed latch value.
+        irq_counter_ = irq_latch_;
+    } else {
+        // Otherwise decrement the active counter.
+        --irq_counter_;
 
-		// Record that a counter transition/reload condition occurred.
-		irq_reload_ = true;
-	}
+        // Record that a counter transition/reload condition occurred.
+        irq_reload_ = true;
+    }
 
-	if (irq_enabled_ && irq_counter_ == 0) {
-		// Record the IRQ assertion for debugger inspection.
-		++debug_irq_assert_count_;
+    if (irq_enabled_ && irq_counter_ == 0) {
+        // Record the IRQ assertion for debugger inspection.
+        ++debug_irq_assert_count_;
 
-		nes::cpu::irq(nes::cpu::MAPPER_IRQ);
-	}
+        nes::cpu::irq(nes::cpu::MAPPER_IRQ);
+    }
 
-	irq_reload_ = false;
+    irq_reload_ = false;
 }
+
+
 
 //------------------------------------------------------------------------------
 // Name: clock_irq

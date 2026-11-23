@@ -58,6 +58,7 @@ void reset();
 void stop();
 void nmi();
 void tick();
+void sample_irq();
 
 void debug_mark_dmc_irq_assert();
 
@@ -194,6 +195,8 @@ bool debug_stack_sp_break_armed();
 
 uint8_t debug_stack_break_old_s();
 uint8_t debug_stack_break_new_s();
+
+
 
 }
 

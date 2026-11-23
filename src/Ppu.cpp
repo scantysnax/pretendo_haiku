@@ -1818,137 +1818,147 @@ end_frame()
 //   true  - The complete scanline finished.
 //   false - Execution stopped before the scanline finished.
 // -----------------------------------------------------------------------------
+
+
 template <class T>
 bool
-execute_scanline_impl (const T &target)
+execute_scanline_impl(const T &target)
 {
-	if (nes::ppu::system_paused) {
-		return false;
-	}
+    if (nes::ppu::system_paused) {
+        return false;
+    }
 
-	/*
-	 * If a BreakPoint stopped us after clock_ppu() but before the CPU
-	 * consumed this timing slot, finish that CPU/APU slot first.
-	 *
-	 * Do NOT clock the PPU again here.
-	 */
-	if (sPendingCpuSlot) {
-		const uint64_t beforeCycles = nes::cpu::cycle_count();
+    /*
+     * If a BreakPoint stopped us after clock_ppu() but before the CPU
+     * consumed this timing slot, finish that CPU/APU slot first.
+     *
+     * Do NOT clock the PPU again here.
+     */
+    if (sPendingCpuSlot) {
+        const uint64_t beforeCycles = nes::cpu::cycle_count();
 
-		nes::cpu::exec<1>();
+        nes::cpu::exec<1>();
 
-		const uint64_t afterCycles = nes::cpu::cycle_count();
+        const uint64_t afterCycles = nes::cpu::cycle_count();
 
-		/*
-		 * The CPU still refused to advance. Leave the timing slot
-		 * pending and remain at exactly the same PPU position.
-		 */
-		if (afterCycles == beforeCycles) {
-			return false;
-		}
+        /*
+         * The CPU still refused to advance. Leave the timing slot
+         * pending and remain at exactly the same PPU position.
+         */
+        if (afterCycles == beforeCycles) {
+            return false;
+        }
 
-		/*
-		 * The CPU consumed the pending cycle. The APU must consume its
-		 * corresponding cycle as well.
-		 */
-		nes::apu::exec<1>();
+        /*
+         * The CPU consumed the pending cycle. The APU must consume its
+         * corresponding cycle as well.
+         */
+        nes::apu::exec<1>();
 
-		sPendingCpuSlot = false;
+        sPendingCpuSlot = false;
 
-		/*
-		 * Complete the PPU timing position whose clock_ppu() call was
-		 * performed before the debugger stop.
-		 */
-		++hpos_;
-		++ppu_cycle_;
+        /*
+         * Complete the PPU timing position whose clock_ppu() call was
+         * performed before the debugger stop.
+         */
+        ++hpos_;
+        ++ppu_cycle_;
 
-		if (hpos_ >= kCyclesPerScanline) {
-			hpos_ = 0;
-			++vpos_;
+        if (hpos_ >= kCyclesPerScanline) {
+            hpos_ = 0;
+            ++vpos_;
 
-			return true;
-		}
+            return true;
+        }
 
-		/*
-		 * A memory/stack BreakPoint could theoretically have become
-		 * latched while the pending CPU cycle itself executed.
-		 */
-		if (nes::cpu::debug_breakpoint_hit()) {
-			return false;
-		}
-	}
+        if (nes::cpu::debug_breakpoint_hit()) {
+            return false;
+        }
+    }
 
-	/*
-	 * Frame-boundary PPU work must happen only once, at the genuine
-	 * beginning of a scanline.
-	 */
-	if (hpos_ == 0) {
-		if (UNLIKELY(vpos_ == 262)) {
-			start_frame();
-		} else if (UNLIKELY(vpos_ == 241)) {
-			end_frame();
-		}
-	}
+    /*
+     * Frame-boundary PPU work must happen only once, at the genuine
+     * beginning of a scanline.
+     */
+    if (hpos_ == 0) {
+        if (UNLIKELY(vpos_ == 262)) {
+            start_frame();
+        } else if (UNLIKELY(vpos_ == 241)) {
+            end_frame();
+        }
+    }
 
-	while (hpos_ < kCyclesPerScanline) {
-		/*
-		 * First execute the PPU portion of this dot, preserving the
-		 * emulator's existing PPU-before-CPU ordering.
-		 */
-		clock_ppu(target);
+    while (hpos_ < kCyclesPerScanline) {
 
-		if ((ppu_cycle_ % 3) == kCPUAlignment) {
-			const uint64_t beforeCycles = nes::cpu::cycle_count();
+        /*
+         * Sample the CPU IRQ input before PPU phase 2 executes.
+         *
+         * This preserves the timing established by Experiment 24P.
+         * No CPU or PPU cycles are added or removed.
+         */
+        if ((ppu_cycle_ % 3) == 2) {
+            nes::cpu::sample_irq();
+        }
 
-			nes::cpu::exec<1>();
+        /*
+         * First execute the PPU portion of this dot, preserving the
+         * emulator's existing PPU-before-CPU ordering.
+         */
+        clock_ppu(target);
 
-			const uint64_t afterCycles = nes::cpu::cycle_count();
+        if ((ppu_cycle_ % 3) == kCPUAlignment) {
+            const uint64_t beforeCycles = nes::cpu::cycle_count();
 
-			/*
-			 * An execute BreakPoint is checked at CPU instruction
-			 * cycle zero before the CPU actually clocks. Therefore
-			 * the PPU dot above has happened but this CPU cycle has
-			 * not.
-			 *
-			 * Preserve the exact timing position and return.
-			 */
-			if (afterCycles == beforeCycles) {
-				sPendingCpuSlot = true;
+            nes::cpu::exec<1>();
 
-				return false;
-			}
+            const uint64_t afterCycles = nes::cpu::cycle_count();
 
-			/*
-			 * Keep the APU synchronized with every CPU cycle that
-			 * genuinely completed.
-			 */
-			nes::apu::exec<1>();
-		}
+            /*
+             * An execute BreakPoint is checked at CPU instruction
+             * cycle zero before the CPU actually clocks. Therefore
+             * the PPU dot above has happened but this CPU cycle
+             * has not.
+             *
+             * Preserve the exact timing position and return.
+             */
+            if (afterCycles == beforeCycles) {
+                sPendingCpuSlot = true;
 
-		/*
-		 * This complete PPU timing point has now been consumed.
-		 */
-		++hpos_;
-		++ppu_cycle_;
+                return false;
+            }
 
-		/*
-		 * READ/WRITE/stack conditions may latch while the CPU cycle
-		 * itself executes. In that case the CPU slot did complete, so
-		 * no pending-slot state is required.
-		 */
-		if (nes::cpu::debug_breakpoint_hit()) {
-			return false;
-		}
-	}
+            /*
+             * Keep the APU synchronized with every CPU cycle that
+             * genuinely completed.
+             */
+            nes::apu::exec<1>();
+        }
 
-	/*
-	 * Normalize to the start of the next scanline.
-	 */
-	hpos_ = 0;
-	++vpos_;
+        /*
+         * This complete PPU timing point has now been consumed.
+         */
+        ++hpos_;
+        ++ppu_cycle_;
 
-	return true;
+        /*
+         * READ/WRITE/stack conditions may latch while the CPU cycle
+         * itself executes. In that case the CPU slot did complete,
+         * so no pending-slot state is required.
+         */
+        if (nes::cpu::debug_breakpoint_hit()) {
+            return false;
+        }
+    }
+
+    /*
+     * Normalize to the start of the next scanline.
+     */
+    hpos_ = 0;
+    ++vpos_;
+
+    return true;
 }
+
 
 
 } // end anonymous namespace
@@ -3078,86 +3088,104 @@ debug_read_memory (uint16_t address)
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
+
+
+
 void
 debug_step_dot()
 {
-	if (sPendingCpuSlot) {
-		const uint64_t beforeCycles = nes::cpu::cycle_count();
+    if (sPendingCpuSlot) {
+        const uint64_t beforeCycles = nes::cpu::cycle_count();
 
-		nes::cpu::exec<1>();
+        nes::cpu::exec<1>();
 
-		const uint64_t afterCycles = nes::cpu::cycle_count();
+        const uint64_t afterCycles = nes::cpu::cycle_count();
 
-		if (afterCycles == beforeCycles) {
-			return;
-		}
+        if (afterCycles == beforeCycles) {
+            return;
+        }
 
-		nes::apu::exec<1>();
+        nes::apu::exec<1>();
 
-		sPendingCpuSlot = false;
+        sPendingCpuSlot = false;
 
-		++hpos_;
-		++ppu_cycle_;
+        ++hpos_;
+        ++ppu_cycle_;
 
-		if (hpos_ >= kCyclesPerScanline) {
-			hpos_ = 0;
-			++vpos_;
-		}
+        if (hpos_ >= kCyclesPerScanline) {
+            hpos_ = 0;
+            ++vpos_;
+        }
 
-		return;
-	}
+        return;
+    }
 
-	if (hpos_ >= kCyclesPerScanline) {
-		hpos_ = 0;
-		++vpos_;
-	}
+    if (hpos_ >= kCyclesPerScanline) {
+        hpos_ = 0;
+        ++vpos_;
+    }
 
-	if (vpos_ > 262) {
-		vpos_ = 0;
-		hpos_ = 0;
-	}
+    if (vpos_ > 262) {
+        vpos_ = 0;
+        hpos_ = 0;
+    }
 
-	if (hpos_ == 0) {
-		if (UNLIKELY(vpos_ == 262)) {
-			start_frame();
-		} else if (UNLIKELY(vpos_ == 241)) {
-			end_frame();
-		}
-	}
+    if (hpos_ == 0) {
+        if (UNLIKELY(vpos_ == 262)) {
+            start_frame();
+        } else if (UNLIKELY(vpos_ == 241)) {
+            end_frame();
+        }
+    }
 
-	if (vpos_ == 0) {
-		clock_ppu(nes::ppu::scanline_prerender{});
-	} else if (vpos_ >= 1 && vpos_ <= 240) {
-		clock_ppu(nes::ppu::scanline_render(nes::frame_scanline_buffer()));
-	} else if (vpos_ == 241) {
-		clock_ppu(nes::ppu::scanline_postrender{});
-	} else {
-		clock_ppu(nes::ppu::scanline_vblank{});
-	}
+    /*
+     * Sample the CPU IRQ input before PPU phase 2 executes.
+     *
+     * This must match execute_scanline_impl().
+     */
+    if ((ppu_cycle_ % 3) == 2) {
+        nes::cpu::sample_irq();
+    }
 
-	if ((ppu_cycle_ % 3) == kCPUAlignment) {
-		const uint64_t beforeCycles = nes::cpu::cycle_count();
+    if (vpos_ == 0) {
+        clock_ppu(nes::ppu::scanline_prerender{});
+    } else if (vpos_ >= 1 && vpos_ <= 240) {
+        clock_ppu(
+            nes::ppu::scanline_render(
+                nes::frame_scanline_buffer()
+            )
+        );
+    } else if (vpos_ == 241) {
+        clock_ppu(nes::ppu::scanline_postrender{});
+    } else {
+        clock_ppu(nes::ppu::scanline_vblank{});
+    }
 
-		nes::cpu::exec<1>();
+    if ((ppu_cycle_ % 3) == kCPUAlignment) {
+        const uint64_t beforeCycles = nes::cpu::cycle_count();
 
-		const uint64_t afterCycles = nes::cpu::cycle_count();
+        nes::cpu::exec<1>();
 
-		if (afterCycles == beforeCycles) {
-			sPendingCpuSlot = true;
-			return;
-		}
+        const uint64_t afterCycles = nes::cpu::cycle_count();
 
-		nes::apu::exec<1>();
-	}
+        if (afterCycles == beforeCycles) {
+            sPendingCpuSlot = true;
+            return;
+        }
 
-	++hpos_;
-	++ppu_cycle_;
+        nes::apu::exec<1>();
+    }
 
-	if (hpos_ >= kCyclesPerScanline) {
-		hpos_ = 0;
-		++vpos_;
-	}
+    ++hpos_;
+    ++ppu_cycle_;
+
+    if (hpos_ >= kCyclesPerScanline) {
+        hpos_ = 0;
+        ++vpos_;
+    }
 }
+
+
 
 
 } // namespace nes::ppu

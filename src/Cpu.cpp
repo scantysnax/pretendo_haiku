@@ -39,71 +39,23 @@
         nmi_executing_ = false;                                        \
         irq_executing_ = false;                                        \
                                                                        \
-        /* --------------------------------------------------------- */ \
-        /* EXPERIMENT 23DI: Existing absolute-cycle IRQ diagnostic.  */ \
-        /* --------------------------------------------------------- */ \
+        /* Use the IRQ input sampled at the CPU polling phase. */    	\
+        const bool irq_input = irq_sampled_;                            \
                                                                        \
-        if ((executed_cycles_ >= 2112990 &&                            \
-             executed_cycles_ <= 2112995) ||                           \
-            (executed_cycles_ >= 2232111 &&                            \
-             executed_cycles_ <= 2232116) ||                           \
-            (executed_cycles_ >= 2410793 &&                            \
-             executed_cycles_ <= 2410800)) {                           \
-                                                                       \
-            printf(                                                    \
-                "[23DI IRQ POLL] "                                     \
-                "cpu=%llu PC=%04X "                                    \
-                "cycle=%d irq=%u I=%u "                                \
-                "irq_executing_before=%u\n",                           \
-                                                                       \
-                (unsigned long long)executed_cycles_,                  \
-                (unsigned)PC.raw,                                      \
-                (int)cycle_,                                           \
-                (unsigned)irq_asserted_,                               \
-                (unsigned)((P & I_MASK) != 0),                         \
-                (unsigned)irq_executing_                                \
-            );                                                         \
-        }                                                              \
-                                                                       \
-        /* --------------------------------------------------------- */ \
-        /* EXPERIMENT 23DZ: IRQ polling relative to DMA completion.  */ \
-        /* --------------------------------------------------------- */ \
-                                                                       \
-        if (spr_dma_last_end_cycle_ != 0 &&                             \
-            executed_cycles_ >= spr_dma_last_end_cycle_ &&             \
-            executed_cycles_ - spr_dma_last_end_cycle_ <= 8) {         \
-                                                                       \
-            printf(                                                    \
-                "[23DZ POST-DMA IRQ POLL] "                            \
-                "cpu=%llu dma_end=%llu delta=%llu "                    \
-                "PC=%04X cycle=%d irq=%u I=%u\n",                      \
-                                                                       \
-                (unsigned long long)executed_cycles_,                  \
-                (unsigned long long)spr_dma_last_end_cycle_,           \
-                (unsigned long long)(                                  \
-                    executed_cycles_ - spr_dma_last_end_cycle_),       \
-                (unsigned)PC.raw,                                      \
-                (int)cycle_,                                           \
-                (unsigned)irq_asserted_,                               \
-                (unsigned)((P & I_MASK) != 0)                           \
-            );                                                         \
-        }                                                              \
-                                                                       \
-        /* --------------------------------------------------------- */ \
-        /* Original interrupt priority and selection.                */ \
-        /* --------------------------------------------------------- */ \
-                                                                       \
+        /* Preserve reset, NMI, and IRQ priority. */                   \
         if (rst_asserted_) {                                           \
             rst_executing_ = true;                                     \
         } else if (nmi_asserted_) {                                    \
             nmi_executing_ = true;                                     \
-        } else if (irq_asserted_ && ((P & I_MASK) == 0)) {              \
+        } else if (irq_input && ((P & I_MASK) == 0)) {                  \
             irq_executing_ = true;                                     \
         }                                                              \
                                                                        \
         nmi_asserted_ = false;                                         \
         rst_asserted_ = false;                                         \
     } while (0)
+
+
 
 // Mark the current opcode as complete and return to the instruction dispatcher.
 #define OPCODE_COMPLETE \
@@ -240,13 +192,16 @@ register16 old_pc_            = {};
 register16 new_pc_            = {};
 uint8_t data8_                = {};
 
-
 bool irq_asserted_  = false;
 bool nmi_asserted_  = false;
 bool rst_asserted_  = false;
 bool irq_executing_ = false;
 bool nmi_executing_ = false;
 bool rst_executing_ = true;
+// IRQ input sampled at the CPU's interrupt polling phase.
+bool irq_sampled_ = false;
+
+
 
 dma_handler_t spr_dma_handler_         = nullptr;
 uint_least16_t spr_dma_source_address_ = 0;
@@ -394,7 +349,39 @@ record_cpu_trace_entry (uint16_t address)
 	}
 	
 	
-	
+        // ---------------------------------------------------------------------
+        // EXPERIMENT 24K:
+        //
+        // Trace CPU instruction boundaries surrounding the MMC3 scanline
+        // timing test's IRQ assertion.
+        //
+        // The mapper asserted IRQ at CPU cycle 1369999, PPU scanline 0,
+        // dot 261.
+        //
+        // Diagnostic only. No CPU execution behavior is changed.
+        // ---------------------------------------------------------------------
+
+	if (executed_cycles_ >= 2203840 &&
+        executed_cycles_ <= 2203910) {
+
+		printf(
+			"[24K MMC3 CPU] "
+            "cpu=%llu PC=%04X "
+            "opcode=%02X "
+            "A=%02X P=%02X "
+            "I=%u IRQ_entry=%u\n",
+
+            (unsigned long long)executed_cycles_,
+            (unsigned)address,
+            (unsigned)entry.bytes[0],
+            (unsigned)A,
+            (unsigned)P,
+            (unsigned)((P & I_MASK) != 0),
+            (unsigned)(
+                entry.interrupt == CPU_TRACE_INTERRUPT_IRQ
+            )
+        );
+    }
 }
 
 
@@ -611,26 +598,31 @@ update_nz_flags (uint8_t value)
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
+
+
+
 void
-cycle_0 (uint8_t next_op)
+cycle_0(uint8_t next_op)
 {
-	if (rst_executing_) {
-		static bool firstReset = true;
+    if (rst_executing_) {
+        static bool firstReset = true;
 
-		if (firstReset) {
-			firstReset = false;
-		}
+        if (firstReset) {
+            firstReset = false;
+        }
 
-		instruction_ = 0x100;
-	} else if (nmi_executing_) {
-		instruction_ = 0x101;
-	} else if (irq_executing_) {
-		instruction_ = 0x102;
-	} else {
-		instruction_ = next_op;
-		++PC.raw;
-	}
+        instruction_ = 0x100;
+    } else if (nmi_executing_) {
+        instruction_ = 0x101;
+    } else if (irq_executing_) {
+        instruction_ = 0x102;
+    } else {
+        instruction_ = next_op;
+        ++PC.raw;
+    }
 }
+
+
 
 
 #include "address_modes.h"
@@ -1721,37 +1713,42 @@ nmi()
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
+
 void
 reset()
 {
-	if (!rst_executing_) {
-		rst_asserted_ = true;
-		irq_asserted_ = false;
-		nmi_asserted_ = false;
-		executed_cycles_ = 1;
-	}
+    if (!rst_executing_) {
+        rst_asserted_ = true;
+        irq_asserted_ = false;
+        nmi_asserted_ = false;
+        executed_cycles_ = 1;
+    }
 
-	/*
-	 * Discard instruction-boundary history used by stack break detection.
-	 */
-	sDebugHavePreviousBoundaryS = false;
-	sDebugPreviousBoundaryS = 0xff;
-	sDebugPreviousBoundaryOpcode = 0x00;
-	sDebugPreviousBoundaryWasInterrupt = false;
+    // EXPERIMENT 24P:
+    // Discard the previously sampled IRQ input on reset.
+    irq_sampled_ = false;
 
-	/*
-	 * Preserve the user's configured SP breakpoint, but begin a fresh
-	 * one-shot detection cycle after reset.
-	 */
-	if (sDebugStackSPBreakEnabled) {
-		sDebugStackSPBreakArmed = true;
-		sDebugStackSPBreakReady = false;
-	} else {
-		sDebugStackSPBreakArmed = false;
-		sDebugStackSPBreakReady = false;
-	}
+    /*
+     * Discard instruction-boundary history used by stack break detection.
+     */
+    sDebugHavePreviousBoundaryS = false;
+    sDebugPreviousBoundaryS = 0xff;
+    sDebugPreviousBoundaryOpcode = 0x00;
+    sDebugPreviousBoundaryWasInterrupt = false;
 
-	debug_clear_instruction_trace();
+    /*
+     * Preserve the user's configured SP breakpoint, but begin a fresh
+     * one-shot detection cycle after reset.
+     */
+    if (sDebugStackSPBreakEnabled) {
+        sDebugStackSPBreakArmed = true;
+        sDebugStackSPBreakReady = false;
+    } else {
+        sDebugStackSPBreakArmed = false;
+        sDebugStackSPBreakReady = false;
+    }
+
+    debug_clear_instruction_trace();
 }
 
 
@@ -1857,6 +1854,20 @@ reset (reset_type type)
 	reset();
 	std::cout << "CPU reset complete" << std::endl;
 }
+
+
+
+void
+sample_irq()
+{
+    // Sample the external IRQ input at the CPU polling phase.
+    //
+    // This does not assert, acknowledge, or clear an IRQ source.
+    // LAST_CYCLE consumes the sampled state.
+
+    irq_sampled_ = irq_asserted_;
+}
+
 
 
 // -----------------------------------------------------------------------------
@@ -3034,6 +3045,8 @@ debug_reset_in_progress()
 {
 	return rst_asserted_ || rst_executing_;
 }
+
+
 
 }
 
