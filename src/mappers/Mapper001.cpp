@@ -44,32 +44,31 @@ enum {
 // Returns:
 //   Nothing.
 //------------------------------------------------------------------------------
-Mapper1::Mapper1()
+
+Mapper1::Mapper1(bool fixed_prg)
+    : fixed_prg_(fixed_prg)
 {
-	// Open the 8 KB battery-backed/save-RAM region used at $6000-$7FFF.
-	prg_ptr_ = open_sram(0x2000);
+    // Open the 8 KB battery-backed/save-RAM region used at $6000-$7FFF.
+    prg_ptr_ = open_sram(0x2000);
 
-	// MMC1 PRG RAM occupies $6000-$7FFF and starts enabled.
-	debug_set_prg_ram(true);
+    // MMC1 PRG RAM occupies $6000-$7FFF and starts enabled.
+    debug_set_prg_ram(true);
 
-	// Initial PRG mapping:
-	//
-	//   $8000-$BFFF -> first 16 KB PRG bank
-	//   $C000-$FFFF -> final 16 KB PRG bank
-	set_prg_89ab(0);
-	set_prg_cdef(-1);
+    // Initial PRG mapping:
+    //
+    // $8000-$BFFF -> first 16 KB PRG bank
+    // $C000-$FFFF -> final 16 KB PRG bank
+    set_prg_89ab(0);
+    set_prg_cdef(-1);
 
-	if (nes::cart.has_chr_rom()) {
-		// Map the first 8 KB CHR-ROM bank at $0000-$1FFF.
-		set_chr_0000_1fff(0);
-	} else {
-		// Cartridges without CHR ROM use 8 KB of CHR RAM.
-		set_chr_0000_1fff_ram(chr_ram_, 0);
-	}
+    if (nes::cart.has_chr_rom()) {
+        set_chr_0000_1fff(0);
+    } else {
+        set_chr_0000_1fff_ram(chr_ram_, 0);
+    }
 
-	// Reset the MMC1 serial register and force the control register into
-	// its reset PRG-banking mode.
-	write_handler(0x8000, 0x80);
+    // Reset the MMC1 serial interface and select reset PRG mode.
+    write_handler(0x8000, 0x80);
 }
 
 
@@ -342,194 +341,206 @@ Mapper1::write_f (uint_least16_t address, uint8_t value)
 }
 
 
-//------------------------------------------------------------------------------
-// Name: write_handler
-//
-// Processes MMC1 serial register writes.
-//
-// MMC1 accepts one data bit per CPU write. Five accepted writes are shifted
-// into a temporary latch and then committed to one of four internal registers:
-//
-//   $8000-$9FFF -> Control
-//   $A000-$BFFF -> CHR bank 0
-//   $C000-$DFFF -> CHR bank 1
-//   $E000-$FFFF -> PRG bank
-//
-// A write with bit 7 set resets the serial latch and forces the Control
-// register into the MMC1 reset PRG-banking configuration.
-//
-// The implementation also ignores writes that occur too close together,
-// matching the MMC1 consecutive-cycle write behavior.
-//
-// Parameters:
-//   address - CPU address written.
-//   value   - Byte written by the CPU.
-//
-// Returns:
-//   Nothing.
-//------------------------------------------------------------------------------
+
 void
-Mapper1::write_handler (uint_least16_t address, uint8_t value)
+Mapper1::write_handler(uint_least16_t address, uint8_t value)
 {
-	// Ignore writes that occur only one or two CPU cycles after the previous
-	// accepted mapper write.
-	if (nes::cpu::cycle_count() - cpu_cycles_ > 1) {
-		// Select the MMC1 register region from the CPU address.
-		uint8_t bank = (address >> 12) & 0xf;
+    // Ignore writes that occur only one or two CPU cycles after the previous
+    // accepted mapper write.
+    if (nes::cpu::cycle_count() - cpu_cycles_ > 1) {
+        // Select the MMC1 register region from the CPU address.
+        uint8_t bank = (address >> 12) & 0xf;
 
-		if (value & 0x80) {
-			// Record an accepted MMC1 serial-interface reset.
-			++debug_reset_count_;
+        if (value & 0x80) {
+            // Record an accepted MMC1 serial-interface reset.
+            ++debug_reset_count_;
 
-			// Discard any incomplete debugger-side serial history.
-			debug_shift_history_count_ = 0;
+            // Discard any incomplete debugger-side serial history.
+            debug_shift_history_count_ = 0;
 
-			// Bit 7 resets the serial interface immediately.
-			latch_ = 0;
-			write_counter_ = 5;
+            // Bit 7 resets the serial interface immediately.
+            latch_ = 0;
+            write_counter_ = 5;
 
-			// Force Control bits 2 and 3 high, selecting the MMC1 reset
-			// PRG-banking mode.
-			regs_[mmc1_ctrl] |= 0x0c;
+            // Force Control bits 2 and 3 high, selecting the MMC1 reset
+            // PRG-banking mode.
+            regs_[mmc1_ctrl] |= 0x0c;
 
-			// Treat the reset as a Control-register update.
-			bank = 0;
-		} else {
-			// Record one accepted serial data-bit write.
-			++debug_serial_write_count_;
+            // Treat the reset as a Control-register update.
+            bank = 0;
+        } else {
+            // Record one accepted serial data-bit write.
+            ++debug_serial_write_count_;
 
-			// MMC1 serial writes use only bit 0 of each CPU write.
-			value &= 0x1;
+            // MMC1 serial writes use only bit 0 of each CPU write.
+            value &= 0x1;
 
-			// Shift the new bit into the current serial position.
-			latch_ |= (value << write_counter_);
+            // Shift the new bit into the current serial position.
+            latch_ |= (value << write_counter_);
 
-			++write_counter_;
+            ++write_counter_;
 
-			// Preserve each intermediate latch value for debugger inspection.
-			if (debug_shift_history_count_ < 5) {
-				debug_shift_history_[debug_shift_history_count_] = latch_ & 0x1f;
-				
-				++debug_shift_history_count_;
-			}
-		}
+            // Preserve each intermediate latch value for debugger inspection.
+            if (debug_shift_history_count_ < 5) {
+                debug_shift_history_[debug_shift_history_count_] =
+                    latch_ & 0x1f;
 
-		// Five serial writes complete one MMC1 register value.
-		if (write_counter_ == 5) {
-			if (bank > 0) {
-				// Convert the CPU register region into the corresponding
-				// MMC1 register index.
-				const uint8_t reg = (bank & 0xf7) >> 1;
-				const uint8_t committedValue = latch_ & 0x1f;
+                ++debug_shift_history_count_;
+            }
+        }
 
-				// Commit the completed 5-bit value.
-				regs_[reg] = committedValue;
+        // Five serial writes complete one MMC1 register value.
+        if (write_counter_ == 5) {
+            if (bank > 0) {
+                // Convert the CPU register region into the corresponding
+                // MMC1 register index.
+                const uint8_t reg = (bank & 0xf7) >> 1;
+                const uint8_t committedValue = latch_ & 0x1f;
 
-				// Preserve the completed transfer for debugger inspection.
-				++debug_register_commit_count_;
+                // Commit the completed 5-bit value.
+                regs_[reg] = committedValue;
 
-				debug_have_last_commit_ = true;
-				debug_last_register_ = reg;
-				debug_last_value_ = committedValue;
+                // Preserve the completed transfer for debugger inspection.
+                ++debug_register_commit_count_;
 
-				// Preserve all five intermediate latch states from this
-				// completed serial transfer.
-				if (debug_shift_history_count_ == 5) {
-					for (int i = 0; i < 5; ++i) {
-						debug_last_transfer_[i] =
-							debug_shift_history_[i];
-					}
+                debug_have_last_commit_ = true;
+                debug_last_register_ = reg;
+                debug_last_value_ = committedValue;
 
-					debug_have_last_transfer_ = true;
-				}
-			}
+                // Preserve all five intermediate latch states from this
+                // completed serial transfer.
+                if (debug_shift_history_count_ == 5) {
+                    for (int i = 0; i < 5; ++i) {
+                        debug_last_transfer_[i] =
+                            debug_shift_history_[i];
+                    }
 
-			// Reset debugger-side serial history for the next transfer.
-			debug_shift_history_count_ = 0;
+                    debug_have_last_transfer_ = true;
+                }
+            }
 
-			// Reset the serial interface for the next 5-bit transfer.
-			latch_ = 0;
-			write_counter_ = 0;
+            // Reset debugger-side serial history for the next transfer.
+            debug_shift_history_count_ = 0;
 
-			// Control bits 0-1 select nametable mirroring.
-			switch (regs_[mmc1_ctrl] & 0x03) {
-				case 0:
-					set_mirroring(mirror_single_low);
-					break;
+            // Reset the serial interface for the next 5-bit transfer.
+            latch_ = 0;
+            write_counter_ = 0;
 
-				case 1:
-					set_mirroring(mirror_single_high);
-					break;
+            // -------------------------------------------------------------
+            // Control bits 0-1 select nametable mirroring.
+            // -------------------------------------------------------------
 
-				case 2:
-					set_mirroring(mirror_vertical);
-					break;
+            switch (regs_[mmc1_ctrl] & 0x03) {
+            case 0:
+                set_mirroring(mirror_single_low);
+                break;
 
-				case 3:
-					set_mirroring(mirror_horizontal);
-					break;
-			}
+            case 1:
+                set_mirroring(mirror_single_high);
+                break;
 
-			if (nes::cart.has_chr_rom()) {
-				// Control bit 4 selects 4 KB or 8 KB CHR banking.
-				if (regs_[mmc1_ctrl] & 0x10) {
-					// 4 KB mode: each pattern-table half is independently
-					// selected by one CHR bank register.
-					set_chr_0000_0fff(regs_[mmc1_chr_bank_0]);
-					set_chr_1000_1fff(regs_[mmc1_chr_bank_1]);
-				} else {
-					// 8 KB mode: CHR bank 0 selects the complete pattern
-					// table; the low bank bit is ignored.
-					set_chr_0000_1fff(regs_[mmc1_chr_bank_0] >> 1);
-				}
-			} else {
-				// NOTE(eteran): this is for SNROM, we may need iNES 2.0
-				// to detect SOROM, SUROM and SXROM.
+            case 2:
+                set_mirroring(mirror_vertical);
+                break;
 
-				if (regs_[mmc1_ctrl] & 0x10) {
-					// In 4 KB CHR-RAM mode, the low bank bit selects the
-					// active 4 KB region for each pattern-table half.
-					set_chr_0000_0fff_ram(chr_ram_, regs_[mmc1_chr_bank_0] & 0x1);
-					set_chr_1000_1fff_ram(chr_ram_, regs_[mmc1_chr_bank_1] & 0x1);
-				}
+            case 3:
+                set_mirroring(mirror_horizontal);
+                break;
+            }
 
-				// These bits are used by some MMC1 board variants to control
-				// PRG-RAM selection/enable behavior.
-				prg_ram_enable0_ = regs_[mmc1_chr_bank_0] & 0x10;
-				prg_ram_enable1_ = regs_[mmc1_chr_bank_1] & 0x10;
-			}
+            // -------------------------------------------------------------
+            // Control bit 4 selects CHR banking mode.
+            // -------------------------------------------------------------
 
-			// Control bits 2-3 select the PRG banking mode.
-			switch ((regs_[mmc1_ctrl] >> 2) & 0x03) {
-				case 0x00:
-				case 0x01:
-					// 32 KB mode. Ignore the low PRG-bank bit.
-					set_prg_89abcdef((regs_[mmc1_prg_bank] & 0x0f) >> 1);
-					break;
+            if (nes::cart.has_chr_rom()) {
+                if (regs_[mmc1_ctrl] & 0x10) {
+                    // 4 KB mode: each pattern-table half is independently
+                    // selected by one CHR bank register.
+                    set_chr_0000_0fff(regs_[mmc1_chr_bank_0]);
+                    set_chr_1000_1fff(regs_[mmc1_chr_bank_1]);
+                } else {
+                    // 8 KB mode: CHR bank 0 selects the complete pattern
+                    // table; the low bank bit is ignored.
+                    set_chr_0000_1fff(
+                        regs_[mmc1_chr_bank_0] >> 1
+                    );
+                }
+            } else {
+                // NOTE(eteran): this is for SNROM, we may need iNES 2.0
+                // to detect SOROM, SUROM and SXROM.
 
-				case 0x02:
-					// Fix the first 16 KB PRG bank at $8000-$BFFF and
-					// switch the 16 KB bank at $C000-$FFFF.
-					set_prg_89ab(0x00);
-					set_prg_cdef(regs_[mmc1_prg_bank] & 0x0f);
-					break;
+                if (regs_[mmc1_ctrl] & 0x10) {
+                    // In 4 KB CHR-RAM mode, the low bank bit selects the
+                    // active 4 KB region for each pattern-table half.
+                    set_chr_0000_0fff_ram(
+                        chr_ram_,
+                        regs_[mmc1_chr_bank_0] & 0x1
+                    );
 
-				case 0x03:
-					// Switch the 16 KB bank at $8000-$BFFF and fix the
-					// final 16 KB PRG bank at $C000-$FFFF.
-					set_prg_89ab(regs_[mmc1_prg_bank] & 0x0f);
-					set_prg_cdef(0x0f);
-					break;
-			}
+                    set_chr_1000_1fff_ram(
+                        chr_ram_,
+                        regs_[mmc1_chr_bank_1] & 0x1
+                    );
+                }
 
-			// Bit 4 of the PRG-bank register controls the effective PRG-RAM
-			// visibility used by this implementation.
-			debug_set_prg_ram(!(regs_[mmc1_prg_bank] & 0x10));
-		}
-	}
+                // These bits are used by some MMC1 board variants to
+                // control PRG-RAM selection/enable behavior.
+                prg_ram_enable0_ = regs_[mmc1_chr_bank_0] & 0x10;
+                prg_ram_enable1_ = regs_[mmc1_chr_bank_1] & 0x10;
+            }
 
-	// Remember the cycle of this write for MMC1 consecutive-write filtering.
-	cpu_cycles_ = nes::cpu::cycle_count();
+            // -------------------------------------------------------------
+            // EXPERIMENT 26A:
+            //
+            // SEROM/SHROM/SH1ROM use fixed 32 KB PRG-ROM.
+            //
+            // CPU A14 selects the corresponding ROM half directly,
+            // regardless of the MMC1 PRG banking mode or bank register.
+            //
+            // Preserve normal MMC1 PRG banking for every other board.
+            // -------------------------------------------------------------
+
+            if (fixed_prg_) {
+                set_prg_89ab(0);
+                set_prg_cdef(1);
+            } else {
+                switch ((regs_[mmc1_ctrl] >> 2) & 0x03) {
+                case 0x00:
+                case 0x01:
+                    // 32 KB mode. Ignore the low PRG-bank bit.
+                    set_prg_89abcdef(
+                        (regs_[mmc1_prg_bank] & 0x0f) >> 1
+                    );
+                    break;
+
+                case 0x02:
+                    // Fix the first 16 KB PRG bank at $8000-$BFFF and
+                    // switch the 16 KB bank at $C000-$FFFF.
+                    set_prg_89ab(0x00);
+                    set_prg_cdef(regs_[mmc1_prg_bank] & 0x0f);
+                    break;
+
+                case 0x03:
+                    // Switch the 16 KB bank at $8000-$BFFF and fix the
+                    // final 16 KB PRG bank at $C000-$FFFF.
+                    set_prg_89ab(regs_[mmc1_prg_bank] & 0x0f);
+                    set_prg_cdef(0x0f);
+                    break;
+                }
+            }
+
+            // -------------------------------------------------------------
+            // Preserve existing PRG-RAM debugger reporting.
+            // -------------------------------------------------------------
+
+            debug_set_prg_ram(
+                !(regs_[mmc1_prg_bank] & 0x10)
+            );
+        }
+    }
+
+    // Remember the cycle of this write for MMC1 consecutive-write filtering.
+    cpu_cycles_ = nes::cpu::cycle_count();
 }
 
 

@@ -9,6 +9,7 @@
 #include "Mapper002.h"
 #include "Mapper003.h"
 #include "Mapper007.h"
+#include "Mapper001.h"
 #include "Bus.h"
 #include "Nes.h"
 #include "Ppu.h"
@@ -243,325 +244,425 @@ Mapper::debug_set_prg_ram (bool enabled, bool writable, uint32_t bank)
 // Returns:
 //   Newly created mapper instance, or nullptr if the mapper is unsupported.
 // -----------------------------------------------------------------------------
+
 std::unique_ptr<Mapper>
-Mapper::create_mapper (int num, int submapper, const ROMDatabase::Entry *database_entry)
+Mapper::create_mapper(int num, int submapper, const ROMDatabase::Entry *database_entry)
 {
-	/*
-	 * Mapper 21 is shared by VRC4a and VRC4c.
-	 */
-	if (num == 21) {
-		std::unique_ptr<Mapper> mapper;
+    /*
+     * EXPERIMENT 26A:
+     *
+     * Mapper 1, NES 2.0 submapper 5:
+     * SEROM, SHROM, and SH1ROM.
+     *
+     * These boards have fixed 32 KB PRG-ROM. CPU A14 directly
+     * selects the corresponding 16 KB half of PRG-ROM.
+     *
+     * Ordinary MMC1 cartridges continue through the existing
+     * static mapper registry.
+     */
+    if (num == 1 && submapper == 5) {
+        auto mapper = std::make_unique<Mapper1>(true);
 
-		switch (submapper) {
-		case 1:
-			mapper = std::make_unique<Mapper21VRC4a>();
-			break;
+        std::cout
+            << "[Mapper::create_mapper] mapper #1.5 loaded, type: "
+            << mapper->name()
+            << " (fixed 32 KB PRG)"
+            << std::endl;
 
-		case 2:
-			mapper = std::make_unique<Mapper21VRC4c>();
-			break;
+        return mapper;
+    }
 
-		case 0:
-			/*
-			 * Legacy iNES. Use the cartridge database when available.
-			 */
-			if (database_entry != nullptr) {
-				if (database_entry->chip_type == "VRC4") {
-					if (database_entry->pin3_function == "PRG A2" && database_entry->pin4_function == "PRG A1") {
-						mapper = std::make_unique<Mapper21VRC4a>();
-					} else if (
-						database_entry->pin3_function == "PRG A7" && database_entry->pin4_function == "PRG A6") {
-						mapper = std::make_unique<Mapper21VRC4c>();
-					}
-				}
-			}
+    /*
+     * Mapper 21 is shared by VRC4a and VRC4c.
+     */
+    if (num == 21) {
+        std::unique_ptr<Mapper> mapper;
 
-			/*
-			 * Preserve the historical mapper-21 fallback when the exact
-			 * legacy wiring cannot be identified.
-			 */
-			if (mapper == nullptr) {
-				mapper = std::make_unique<Mapper21VRC4a>();
-			}
+        switch (submapper) {
+        case 1:
+            mapper = std::make_unique<Mapper21VRC4a>();
+            break;
 
-			break;
+        case 2:
+            mapper = std::make_unique<Mapper21VRC4c>();
+            break;
 
-		default:
-			std::cout << "unsupported mapper hardware - iNES number: " << num 
-					  << ", submapper: " << submapper << std::endl;
-			return nullptr;
-		}
+        case 0:
+            /*
+             * Legacy iNES. Use the cartridge database when available.
+             */
+            if (database_entry != nullptr) {
+                if (database_entry->chip_type == "VRC4") {
+                    if (database_entry->pin3_function == "PRG A2" &&
+                        database_entry->pin4_function == "PRG A1") {
 
-		std::cout << "[Mapper::create_mapper] mapper #" << num << "."
-				  << submapper << " loaded, type: " << mapper->name() << std::endl;
-		return mapper;
-	}
+                        mapper = std::make_unique<Mapper21VRC4a>();
+                    } else if (
+                        database_entry->pin3_function == "PRG A7" &&
+                        database_entry->pin4_function == "PRG A6") {
 
+                        mapper = std::make_unique<Mapper21VRC4c>();
+                    }
+                }
+            }
 
-	/*
-	 * Mapper 23 is shared by VRC2b, VRC4e, and VRC4f.
-	 */
-	if (num == 23) {
-		std::unique_ptr<Mapper> mapper;
+            /*
+             * Preserve the historical mapper-21 fallback when the exact
+             * legacy wiring cannot be identified.
+             */
+            if (mapper == nullptr) {
+                mapper = std::make_unique<Mapper21VRC4a>();
+            }
 
-		switch (submapper) {
-		case 1:
-			mapper = std::make_unique<Mapper23VRC4f>();
-			break;
+            break;
 
-		case 2:
-			mapper = std::make_unique<Mapper23VRC4e>();
-			break;
+        default:
+            std::cout
+                << "unsupported mapper hardware - iNES number: "
+                << num
+                << ", submapper: "
+                << submapper
+                << std::endl;
 
-		case 3:
-			mapper = std::make_unique<Mapper23VRC2b>();
-			break;
+            return nullptr;
+        }
 
-		case 0:
-			/*
-			 * Legacy iNES. Use the cartridge database when available.
-			 */
-			if (database_entry != nullptr) {
-				if (database_entry->chip_type == "VRC4") {
-					if (database_entry->pin3_function == "PRG A3" && database_entry->pin4_function == "PRG A2") {
-						mapper = std::make_unique<Mapper23VRC4e>();
-					} else if (
-						database_entry->pin3_function == "PRG A1" && database_entry->pin4_function == "PRG A0") {
-						mapper = std::make_unique<Mapper23VRC4f>();
-					}
-				} else if (
-					database_entry->chip_type == "VRC2") {
-					mapper = std::make_unique<Mapper23VRC2b>();
-				}
-			}
+        std::cout
+            << "[Mapper::create_mapper] mapper #"
+            << num
+            << "."
+            << submapper
+            << " loaded, type: "
+            << mapper->name()
+            << std::endl;
 
-			/*
-			 * Preserve the historical mapper-23 fallback when legacy
-			 * metadata cannot identify the board.
-			 */
-			if (mapper == nullptr) {
-				mapper = std::make_unique<Mapper23VRC2b>();
-			}
+        return mapper;
+    }
 
-			break;
+    /*
+     * Mapper 23 is shared by VRC2b, VRC4e, and VRC4f.
+     */
+    if (num == 23) {
+        std::unique_ptr<Mapper> mapper;
 
-		default:
-			std::cout << "unsupported mapper hardware - iNES number: " << num << ", submapper: "
-					  << submapper << std::endl;
-			return nullptr;
-		}
+        switch (submapper) {
+        case 1:
+            mapper = std::make_unique<Mapper23VRC4f>();
+            break;
 
-		std::cout << "[Mapper::create_mapper] mapper #" << num << "." << submapper
-				  << " loaded, type: " << mapper->name() << std::endl;
-		return mapper;
-	}
+        case 2:
+            mapper = std::make_unique<Mapper23VRC4e>();
+            break;
 
+        case 3:
+            mapper = std::make_unique<Mapper23VRC2b>();
+            break;
 
-	/*
-	 * Mapper 25 is shared by VRC2c, VRC4b, and VRC4d.
-	 */
-	if (num == 25) {
-		std::unique_ptr<Mapper> mapper;
+        case 0:
+            /*
+             * Legacy iNES. Use the cartridge database when available.
+             */
+            if (database_entry != nullptr) {
+                if (database_entry->chip_type == "VRC4") {
+                    if (database_entry->pin3_function == "PRG A3" &&
+                        database_entry->pin4_function == "PRG A2") {
 
-		switch (submapper) {
-		case 1:
-			mapper =
-				std::make_unique<Mapper25VRC4b>();
-			break;
+                        mapper = std::make_unique<Mapper23VRC4e>();
+                    } else if (
+                        database_entry->pin3_function == "PRG A1" &&
+                        database_entry->pin4_function == "PRG A0") {
 
-		case 2:
-			mapper =
-				std::make_unique<Mapper25VRC4d>();
-			break;
+                        mapper = std::make_unique<Mapper23VRC4f>();
+                    }
+                } else if (database_entry->chip_type == "VRC2") {
+                    mapper = std::make_unique<Mapper23VRC2b>();
+                }
+            }
 
-		case 3:
-			mapper =
-				std::make_unique<Mapper25VRC2c>();
-			break;
+            /*
+             * Preserve the historical mapper-23 fallback when legacy
+             * metadata cannot identify the board.
+             */
+            if (mapper == nullptr) {
+                mapper = std::make_unique<Mapper23VRC2b>();
+            }
 
-		case 0:
-			/*
-			 * Legacy iNES. Use the cartridge database when available.
-			 */
-			if (database_entry != nullptr) {
-				if (database_entry->chip_type == "VRC4") {
-					if (database_entry->pin3_function == "PRG A0" && database_entry->pin4_function == "PRG A1") {
-						mapper = std::make_unique<Mapper25VRC4b>();
-					} else if (database_entry->pin3_function == "PRG A2" && database_entry->pin4_function == "PRG A3") {
-						mapper = std::make_unique<Mapper25VRC4d>();
-					}
-				} else if (database_entry->chip_type == "VRC2") {
-					mapper = std::make_unique<Mapper25VRC2c>();
-				}
-			}
+            break;
 
-			/*
-			 * Preserve the historical mapper-25 fallback when legacy
-			 * metadata cannot identify the board.
-			 */
-			if (mapper == nullptr) {
-				mapper =  std::make_unique<Mapper25VRC2c>();
-			}
+        default:
+            std::cout
+                << "unsupported mapper hardware - iNES number: "
+                << num
+                << ", submapper: "
+                << submapper
+                << std::endl;
 
-			break;
+            return nullptr;
+        }
 
-		default:
-			std::cout << "unsupported mapper hardware - iNES number: " << num << ", submapper: "
-					  << submapper << std::endl;
-			return nullptr;
-		}
+        std::cout
+            << "[Mapper::create_mapper] mapper #"
+            << num
+            << "."
+            << submapper
+            << " loaded, type: "
+            << mapper->name()
+            << std::endl;
 
-		std::cout << "[Mapper::create_mapper] mapper #" << num << "." << submapper
-				  << " loaded, type: " << mapper->name() << std::endl;
-		return mapper;
-	}
+        return mapper;
+    }
 
+    /*
+     * Mapper 25 is shared by VRC2c, VRC4b, and VRC4d.
+     */
+    if (num == 25) {
+        std::unique_ptr<Mapper> mapper;
 
-	/*
-	 * Mapper 85 is shared by VRC7a and VRC7b.
-	 *
-	 * NES 2.0 identifies the wiring explicitly:
-	 *
-	 *   Submapper 1 - VRC7b
-	 *   Submapper 2 - VRC7a
-	 *
-	 * Legacy iNES mapper-85 ROMs have no submapper information. VRC7b is
-	 * used as the compatibility fallback so legacy Tiny Toon Adventures 2
-	 * dumps use the correct A3 register-selection wiring.
-	 */
-	if (num == 85) {
-		std::unique_ptr<Mapper> mapper;
+        switch (submapper) {
+        case 1:
+            mapper = std::make_unique<Mapper25VRC4b>();
+            break;
 
-		switch (submapper) {
-		case 1:
-			mapper = std::make_unique<Mapper85VRC7b>();
-			break;
+        case 2:
+            mapper = std::make_unique<Mapper25VRC4d>();
+            break;
 
-		case 2:
-			mapper = std::make_unique<Mapper85VRC7a>();
-			break;
+        case 3:
+            mapper = std::make_unique<Mapper25VRC2c>();
+            break;
 
-		case 0:
-			mapper = std::make_unique<Mapper85VRC7b>();
-			break;
+        case 0:
+            /*
+             * Legacy iNES. Use the cartridge database when available.
+             */
+            if (database_entry != nullptr) {
+                if (database_entry->chip_type == "VRC4") {
+                    if (database_entry->pin3_function == "PRG A0" &&
+                        database_entry->pin4_function == "PRG A1") {
 
-		default:
-			std::cout << "unsupported mapper hardware - iNES number: " << num << ", submapper: "
-					  << submapper << std::endl;
-			return nullptr;
-		}
+                        mapper = std::make_unique<Mapper25VRC4b>();
+                    } else if (
+                        database_entry->pin3_function == "PRG A2" &&
+                        database_entry->pin4_function == "PRG A3") {
 
-		std::cout << "[Mapper::create_mapper] mapper #" << num << "." << submapper
-				  << " loaded, type: " << mapper->name() << std::endl;
-		return mapper;
-	}
+                        mapper = std::make_unique<Mapper25VRC4d>();
+                    }
+                } else if (database_entry->chip_type == "VRC2") {
+                    mapper = std::make_unique<Mapper25VRC2c>();
+                }
+            }
 
-	/*
-	 * Mapper 2 (UxROM).
-	 *
-	 * NES 2.0 submapper 1: No bus conflicts.
-	 * NES 2.0 submapper 2: AND-type bus conflicts.
-	 *
-	 * Preserve the previous no-conflict behavior for legacy
-	 * submapper 0 cartridges until database-based detection
-	 * is implemented.
-	 */
-	if (num == 2) {
-		switch (submapper) {
-			case 0:
-			case 1:
-				return std::make_unique<Mapper2>(false);
+            /*
+             * Preserve the historical mapper-25 fallback when legacy
+             * metadata cannot identify the board.
+             */
+            if (mapper == nullptr) {
+                mapper = std::make_unique<Mapper25VRC2c>();
+            }
 
-			case 2:
-				return std::make_unique<Mapper2>(true);
+            break;
 
-			default:
-				std::cout << "unsupported mapper hardware - iNES number: "
-					<< num << ", submapper: " << submapper
-					<< std::endl;
-				return nullptr;
-		}
-	}
-	
-	/*
-	 * Mapper 3 (CNROM).
-	 *
-	 * NES 2.0 submapper 1: No bus conflicts.
-	 * NES 2.0 submapper 2: AND-type bus conflicts.
-	 *
-	 * Preserve the existing no-conflict behavior for legacy
-	 * submapper 0 cartridges.
-	 */
-	if (num == 3) {
-		switch (submapper) {
-			case 0:
-			case 1:
-				return std::make_unique<Mapper3>(false);
+        default:
+            std::cout
+                << "unsupported mapper hardware - iNES number: "
+                << num
+                << ", submapper: "
+                << submapper
+                << std::endl;
 
-			case 2:
-				return std::make_unique<Mapper3>(true);
+            return nullptr;
+        }
 
-			default:
-				std::cout << "unsupported mapper hardware - iNES number: "
-					<< num << ", submapper: " << submapper
-					<< std::endl;
-				return nullptr;
-		}
-	}
-	
-   /*
-	* Mapper 7 (AxROM).
-	*
-	* NES 2.0 submapper 1: No bus conflicts.
-	* NES 2.0 submapper 2: AND-type bus conflicts.
-	*
-	* Preserve the existing no-conflict behavior for legacy
-	* submapper 0 cartridges.
-	*/
-	if (num == 7) {
-		switch (submapper) {
-			case 0:
-			case 1:
-				return std::make_unique<Mapper7>(false);
+        std::cout
+            << "[Mapper::create_mapper] mapper #"
+            << num
+            << "."
+            << submapper
+            << " loaded, type: "
+            << mapper->name()
+            << std::endl;
 
-			case 2:
-				return std::make_unique<Mapper7>(true);
+        return mapper;
+    }
 
-			default:
-				std::cout << "unsupported mapper hardware - iNES number: "
-			          	<< num << ", submapper: " << submapper
-			          	<< std::endl;
-			return nullptr;
-		}
-	}
+    /*
+     * Mapper 85 is shared by VRC7a and VRC7b.
+     *
+     * NES 2.0 identifies the wiring explicitly:
+     *
+     *   Submapper 1 - VRC7b
+     *   Submapper 2 - VRC7a
+     *
+     * Legacy iNES mapper-85 ROMs have no submapper information.
+     * VRC7b is used as the compatibility fallback so legacy
+     * Tiny Toon Adventures 2 dumps use the correct A3
+     * register-selection wiring.
+     */
+    if (num == 85) {
+        std::unique_ptr<Mapper> mapper;
 
-	/*
-	 * All other mapper numbers continue to use the existing registry.
-	 */
-	create_func f = nullptr;
+        switch (submapper) {
+        case 1:
+            mapper = std::make_unique<Mapper85VRC7b>();
+            break;
 
-	const std::map<int, create_func> &mappers = registered_mappers_ines();
+        case 2:
+            mapper = std::make_unique<Mapper85VRC7a>();
+            break;
 
-	auto it = mappers.find(num);
+        case 0:
+            mapper = std::make_unique<Mapper85VRC7b>();
+            break;
 
-	if (it != mappers.end() && (f = it->second)) {
+        default:
+            std::cout
+                << "unsupported mapper hardware - iNES number: "
+                << num
+                << ", submapper: "
+                << submapper
+                << std::endl;
 
-		auto ret = f();
+            return nullptr;
+        }
 
-		std::cout << "[Mapper::create_mapper] mapper #" << num;
+        std::cout
+            << "[Mapper::create_mapper] mapper #"
+            << num
+            << "."
+            << submapper
+            << " loaded, type: "
+            << mapper->name()
+            << std::endl;
 
-		if (submapper != 0) {
-			std::cout << "." << submapper;
-		}
+        return mapper;
+    }
 
-		std::cout << " loaded, type: " << ret->name() << std::endl;
+    /*
+     * Mapper 2 (UxROM).
+     *
+     * NES 2.0 submapper 1: No bus conflicts.
+     * NES 2.0 submapper 2: AND-type bus conflicts.
+     *
+     * Preserve the previous no-conflict behavior for legacy
+     * submapper 0 cartridges until database-based detection
+     * is implemented.
+     */
+    if (num == 2) {
+        switch (submapper) {
+        case 0:
+        case 1:
+            return std::make_unique<Mapper2>(false);
 
-		return ret;
-	}
+        case 2:
+            return std::make_unique<Mapper2>(true);
 
-	std::cout << "unsupported mapper hardware - iNES number: " << num << std::endl;
+        default:
+            std::cout
+                << "unsupported mapper hardware - iNES number: "
+                << num
+                << ", submapper: "
+                << submapper
+                << std::endl;
 
-	return nullptr;
+            return nullptr;
+        }
+    }
+
+    /*
+     * Mapper 3 (CNROM).
+     *
+     * NES 2.0 submapper 1: No bus conflicts.
+     * NES 2.0 submapper 2: AND-type bus conflicts.
+     *
+     * Preserve the existing no-conflict behavior for legacy
+     * submapper 0 cartridges.
+     */
+    if (num == 3) {
+        switch (submapper) {
+        case 0:
+        case 1:
+            return std::make_unique<Mapper3>(false);
+
+        case 2:
+            return std::make_unique<Mapper3>(true);
+
+        default:
+            std::cout
+                << "unsupported mapper hardware - iNES number: "
+                << num
+                << ", submapper: "
+                << submapper
+                << std::endl;
+
+            return nullptr;
+        }
+    }
+
+    /*
+     * Mapper 7 (AxROM).
+     *
+     * NES 2.0 submapper 1: No bus conflicts.
+     * NES 2.0 submapper 2: AND-type bus conflicts.
+     *
+     * Preserve the existing no-conflict behavior for legacy
+     * submapper 0 cartridges.
+     */
+    if (num == 7) {
+        switch (submapper) {
+        case 0:
+        case 1:
+            return std::make_unique<Mapper7>(false);
+
+        case 2:
+            return std::make_unique<Mapper7>(true);
+
+        default:
+            std::cout
+                << "unsupported mapper hardware - iNES number: "
+                << num
+                << ", submapper: "
+                << submapper
+                << std::endl;
+
+            return nullptr;
+        }
+    }
+
+    /*
+     * All other mapper numbers continue to use the existing registry.
+     */
+    create_func f = nullptr;
+
+    const std::map<int, create_func> &mappers =
+        registered_mappers_ines();
+
+    auto it = mappers.find(num);
+
+    if (it != mappers.end() && (f = it->second)) {
+        auto ret = f();
+
+        std::cout
+            << "[Mapper::create_mapper] mapper #"
+            << num;
+
+        if (submapper != 0) {
+            std::cout << "." << submapper;
+        }
+
+        std::cout
+            << " loaded, type: "
+            << ret->name()
+            << std::endl;
+
+        return ret;
+    }
+
+    std::cout
+        << "unsupported mapper hardware - iNES number: "
+        << num
+        << std::endl;
+
+    return nullptr;
 }
 
 

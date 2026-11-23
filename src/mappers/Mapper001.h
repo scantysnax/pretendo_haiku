@@ -1,4 +1,4 @@
- 
+
 #ifndef MAPPER_001_H_
 #define MAPPER_001_H_
 
@@ -39,11 +39,10 @@ struct mmc1_debug_state_t {
 class Mapper1 final : public Mapper
 {
 	public:
-	Mapper1();
+	explicit Mapper1(bool fixed_prg = false);
 
-	public:
 	std::string name() const override;
-	
+
 	public:
 	mmc1_debug_state_t debug_state() const;
 
@@ -73,6 +72,9 @@ class Mapper1 final : public Mapper
 	uint8_t write_counter_   = 0;
 	uint8_t prg_ram_enable0_ = 0x10;
 	uint8_t prg_ram_enable1_ = 0x10;
+
+	// SEROM/SHROM/SH1ROM: PRG-ROM A14 is wired directly to CPU A14.
+	bool fixed_prg_ = false;
 
 	private:
 	uint64_t debug_serial_write_count_    = 0;
