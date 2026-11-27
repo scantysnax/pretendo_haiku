@@ -1,19 +1,20 @@
 
-#include "Apu.h"
-#include "Cpu.h"
-#include "Dmc.h"
-#include "Noise.h"
-#include "Square.h"
-#include "Triangle.h"
-
-#include "Nes.h"
-
-#include "AudioResampler.h"
 
 #include <algorithm>
 #include <cmath>
 #include <iostream>
 #include <cstdio>
+
+#include "Apu.h"
+#include "Cpu.h"
+#include "Dmc.h"
+#include "Nes.h"
+#include "Noise.h"
+#include "Square.h"
+#include "Triangle.h"
+
+
+#include "AudioResampler.h"
 
 // note: DMC and DPCM may be used interchangeably
 
@@ -151,7 +152,6 @@ uint8_t explorer_status_ = 0;
 double sDCBlockPreviousInput = 0.0;
 double sDCBlockPreviousOutput = 0.0;
 
-
 }
 
 
@@ -169,10 +169,12 @@ uint8_t sample_buffer_[kBufferSize];
 size_t sample_buffer_start = 0;
 size_t sample_buffer_end   = 0;
 
+
 // Rolling APU register-write log and ring-buffer bookkeeping.
 static nes::apu::write_log_entry_t write_log_[nes::apu::APU_WRITE_LOG_CAPACITY];
 static uint32_t write_log_next_ = 0;
 static uint32_t write_log_count_ = 0;
+
 
 // Monotonically increasing sequence number assigned to each logged write.
 static uint32_t write_log_write_index_ = 0;
@@ -188,6 +190,7 @@ static uint32_t scope_sample_count_ = 0;
 static frame_event_t frame_events_[APU_FRAME_EVENT_CAPACITY];
 static uint32_t frame_event_next_ = 0;
 static uint32_t frame_event_count_ = 0;
+
 
 // Records one frame-sequencer event in the rolling debugger history.
 static void log_frame_event(apu_frame_event_type type);
@@ -412,7 +415,6 @@ capture_scope_sample (uint8_t mixedSample)
 		sample.expansion_total = nes::cart.mapper()->audio_output();
 	}
 
-
 	sample.mixed = static_cast<float>(mixedSample);
 
 	scope_sample_next_ = (scope_sample_next_ + 1) % APU_SCOPE_SAMPLE_CAPACITY;
@@ -622,7 +624,6 @@ enum class FrameClockSource : uint8_t {
 };
 
 
-
 // -----------------------------------------------------------------------------
 // deliver_frame_clock
 //
@@ -651,11 +652,7 @@ deliver_frame_clock (FrameClockSource source, bool half_frame)
 	frame_clock_block_ticks_ = 2;
 
 	// Record successfully delivered events for the debugger.
-	log_frame_event(
-		half_frame
-			? APU_FRAME_EVENT_QUARTER_HALF
-			: APU_FRAME_EVENT_QUARTER
-	);
+	log_frame_event(half_frame ? APU_FRAME_EVENT_QUARTER_HALF : APU_FRAME_EVENT_QUARTER);
 
 	// Quarter-frame clock: envelopes and linear counter.
 	clock_linear();
@@ -1358,7 +1355,7 @@ write4004 (uint8_t value)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-write4005(uint8_t value)
+write4005 (uint8_t value)
 {
 	log_write(0x4005, value);
 
@@ -1636,7 +1633,7 @@ write4013 (uint8_t value)
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-write4015(uint8_t value)
+write4015 (uint8_t value)
 {
     log_write(0x4015, value);
 
@@ -1745,8 +1742,7 @@ write4017 (uint8_t value)
 	//
 	// The CPU executes before the APU tick, so a new write
 	// must not overwrite a restart that is already due.
-	if (frame_restart_pending_
-		&& frame_restart_cycle_ == apu_cycles_) {
+	if (frame_restart_pending_ && frame_restart_cycle_ == apu_cycles_) {
 		apply_frame_restart();
 	}
 
@@ -1756,8 +1752,7 @@ write4017 (uint8_t value)
 	// IRQ inhibition takes effect immediately.
 	// The active frame-counter mode remains unchanged
 	// until the delayed restart.
-	frame_counter_.raw =
-		(frame_counter_.raw & 0x80) | (value & 0x40);
+	frame_counter_.raw = (frame_counter_.raw & 0x80) | (value & 0x40);
 
 	if (frame_counter_.inhibit_frame_irq) {
 		status.frame_irq = false;
@@ -1777,8 +1772,7 @@ write4017 (uint8_t value)
 	// Calculate the delayed restart using CPU cycle parity.
 	// The current CPU/APU synchronization requires the
 	// restart to be scheduled one APU tick earlier.
-	const uint64_t delay =
-		(cpu::cycle_count() & 1) ? 4 : 3;
+	const uint64_t delay = (cpu::cycle_count() & 1) ? 4 : 3;
 
 	frame_restart_cycle_ = apu_cycles_ + delay - 1;
 }
@@ -1839,8 +1833,7 @@ tick()
 	// Apply the delayed $4017 restart after processing any
 	// ordinary frame-sequencer event on the same APU cycle.
 	// This preserves the shared frame-clock arbitration order.
-	if (frame_restart_pending_ &&
-		apu_cycles_ == frame_restart_cycle_) {
+	if (frame_restart_pending_ && apu_cycles_ == frame_restart_cycle_) {
 		apply_frame_restart();
 	}
 
@@ -1857,25 +1850,17 @@ tick()
 	const bool triangleMuted = triangle.debug_muted();
 
 	if (triangleMuted && !sTriangleWasMuted) {
-		const double rawDAC =
-			static_cast<double>(triangle.raw_output());
+		const double rawDAC = static_cast<double>(triangle.raw_output());
 
-		sTriangleMuteHeldDAC += sTriangleMuteGain *
-			(rawDAC - sTriangleMuteHeldDAC);
+		sTriangleMuteHeldDAC += sTriangleMuteGain * (rawDAC - sTriangleMuteHeldDAC);
 	}
 
 	sTriangleWasMuted = triangleMuted;
 
 	if (triangleMuted) {
-		sTriangleMuteGain = std::max(
-			0.0,
-			sTriangleMuteGain - kTriangleMuteGainStep
-		);
+		sTriangleMuteGain = std::max(0.0, sTriangleMuteGain - kTriangleMuteGainStep);
 	} else {
-		sTriangleMuteGain = std::min(
-			1.0,
-			sTriangleMuteGain + kTriangleMuteGainStep
-		);
+		sTriangleMuteGain = std::min(1.0, sTriangleMuteGain + kTriangleMuteGainStep);
 	}
 
 	// ---------------------------------------------------------------------
@@ -1885,25 +1870,17 @@ tick()
 	const bool dmcMuted = dmc.debug_muted();
 
 	if (dmcMuted && !sDmcWasMuted) {
-		const double rawDAC =
-			static_cast<double>(dmc.raw_output());
+		const double rawDAC = static_cast<double>(dmc.raw_output());
 
-		sDmcMuteHeldDAC += sDmcMuteGain *
-			(rawDAC - sDmcMuteHeldDAC);
+		sDmcMuteHeldDAC += sDmcMuteGain * (rawDAC - sDmcMuteHeldDAC);
 	}
 
 	sDmcWasMuted = dmcMuted;
 
 	if (dmcMuted) {
-		sDmcMuteGain = std::max(
-			0.0,
-			sDmcMuteGain - kDmcMuteGainStep
-		);
+		sDmcMuteGain = std::max(0.0, sDmcMuteGain - kDmcMuteGainStep);
 	} else {
-		sDmcMuteGain = std::min(
-			1.0,
-			sDmcMuteGain + kDmcMuteGainStep
-		);
+		sDmcMuteGain = std::min(1.0, sDmcMuteGain + kDmcMuteGainStep);
 	}
 
 	// ---------------------------------------------------------------------
@@ -1912,27 +1889,21 @@ tick()
 
 	double filteredSample = 0.0;
 
-	if (audio_resampler.clock(
-			mix_channels_raw(), filteredSample)) {
-
+	if (audio_resampler.clock(mix_channels_raw(), filteredSample)) {
 		// Apply DC blocking and convert to unsigned 8-bit PCM.
-		const uint8_t mixedSample =
-			mix_channels(filteredSample);
+		const uint8_t mixedSample = mix_channels(filteredSample);
 
 		// Capture the generated sample for the debugger.
 		capture_scope_sample(mixedSample);
 
 		// Apply debugger-controlled host audio muting.
-		const uint8_t outputSample =
-			debug_audio_is_muted() ? kSilence : mixedSample;
+		const uint8_t outputSample = debug_audio_is_muted() ? kSilence : mixedSample;
 
 		// Queue PCM with circular-buffer overflow protection.
-		const size_t nextWrite =
-			(sample_buffer_end + 1) % kBufferSize;
+		const size_t nextWrite = (sample_buffer_end + 1) % kBufferSize;
 
 		if (nextWrite == sample_buffer_start) {
-			sample_buffer_start =
-				(sample_buffer_start + 1) % kBufferSize;
+			sample_buffer_start = (sample_buffer_start + 1) % kBufferSize;
 		}
 
 		sample_buffer_[sample_buffer_end] = outputSample;
