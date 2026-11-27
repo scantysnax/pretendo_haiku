@@ -473,6 +473,7 @@ struct write_log_entry_t
 	bool has_external_frequency_control;
 };
 
+
 // -----------------------------------------------------------------------------
 // APU register-write history interface
 // -----------------------------------------------------------------------------
