@@ -1,11 +1,13 @@
+
 #ifndef _APU_H_
 #define _APU_H_
 
-#include "BitField.h"
-#include "Reset.h"
 
 #include <cstddef>
 #include <cstdint>
+
+#include "BitField.h"
+#include "Reset.h"
 
 
 namespace nes::apu {
@@ -485,12 +487,9 @@ uint32_t write_log_snapshot(write_log_entry_t *entries, uint32_t capacity);
 void clear_write_log();
 
 // Records a mapper expansion-audio register write.
-void log_external_audio_write(
-    uint16_t address,
-    uint8_t value,
-    uint16_t timerPeriod,
-    bool hasTimerPeriod,
-    uint8_t frequencyControl);
+void log_external_audio_write (uint16_t address, uint8_t value, uint16_t timerPeriod,
+							   bool hasTimerPeriod, uint8_t frequencyControl);
+
 
 
 // -----------------------------------------------------------------------------
@@ -607,36 +606,36 @@ void finalize_audio_reset();
 
 
 // Square 1 register writes ($4000-$4003).
-void write4000(uint8_t value);
-void write4001(uint8_t value);
-void write4002(uint8_t value);
-void write4003(uint8_t value);
+void write4000 (uint8_t value);
+void write4001 (uint8_t value);
+void write4002 (uint8_t value);
+void write4003 (uint8_t value);
 
 // Square 2 register writes ($4004-$4007).
-void write4004(uint8_t value);
-void write4005(uint8_t value);
-void write4006(uint8_t value);
-void write4007(uint8_t value);
+void write4004 (uint8_t value);
+void write4005 (uint8_t value);
+void write4006 (uint8_t value);
+void write4007 (uint8_t value);
 
 // Triangle register writes ($4008, $400A, $400B).
-void write4008(uint8_t value);
-void write400A(uint8_t value);
-void write400B(uint8_t value);
+void write4008 (uint8_t value);
+void write400A (uint8_t value);
+void write400B (uint8_t value);
 
 // Noise register writes ($400C, $400E, $400F).
-void write400C(uint8_t value);
-void write400E(uint8_t value);
-void write400F(uint8_t value);
+void write400C (uint8_t value);
+void write400E (uint8_t value);
+void write400F (uint8_t value);
 
 // DMC register writes ($4010-$4013).
-void write4010(uint8_t value);
-void write4011(uint8_t value);
-void write4012(uint8_t value);
-void write4013(uint8_t value);
+void write4010 (uint8_t value);
+void write4011 (uint8_t value);
+void write4012 (uint8_t value);
+void write4013 (uint8_t value);
 
 // Global APU control-register writes.
-void write4015(uint8_t value);
-void write4017(uint8_t value);
+void write4015 (uint8_t value);
+void write4017 (uint8_t value);
 
 // Reads the APU status register ($4015).
 uint8_t read4015();
@@ -653,10 +652,10 @@ void start_frame();
 
 
 // Mutes one APU channel without changing its internal timing or enable state.
-void mute_channel(int const channel);
+void mute_channel (int const channel);
 
 // Restores audible output for a previously muted APU channel.
-void unmute_channel(int const channel);
+void unmute_channel (int const channel);
 
 
 // -----------------------------------------------------------------------------
