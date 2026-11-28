@@ -3,57 +3,49 @@
 #pragma warning(disable : 4127)
 #endif
 
-#include "Bus.h"
-#include "Compiler.h"
-#include "Cpu.h"
-#include "Input.h"
-#include "Nes.h"
-
 #include <algorithm>
 #include <cassert>
 #include <cstdlib>
 #include <cstring>
 #include <iostream>
 
+#include "Bus.h"
+#include "Compiler.h"
+#include "Cpu.h"
+#include "Input.h"
+#include "Nes.h"
+
 
 // -----------------------------------------------------------------------------
 // LAST_CYCLE
 //
-// Finalize the current instruction and select any pending interrupt/reset
-// to begin on the next instruction boundary.
+// Finalizes the current instruction and selects any pending interrupt or
+// reset to begin at the next instruction boundary.
 //
-// EXPERIMENT 23DI:
-// Trace IRQ polling around the final sprite DMA cycles for:
-//
-//   +525: CPU 2112990–2112995 (PASS)
-//   +526: CPU 2232111–2232116 (FAIL)
-//   +527: CPU 2410793–2410800 (PASS)
-//
-// Diagnostic only. No changes to interrupt selection or CPU timing.
+// Uses the IRQ input sampled at the CPU polling phase and preserves
+// reset, NMI, and IRQ priority.
 // -----------------------------------------------------------------------------
-
-
-#define LAST_CYCLE                                                     \
-    do {                                                               \
-        rst_executing_ = false;                                        \
-        nmi_executing_ = false;                                        \
-        irq_executing_ = false;                                        \
-                                                                       \
-        /* Use the IRQ input sampled at the CPU polling phase. */    	\
-        const bool irq_input = irq_sampled_;                            \
-                                                                       \
-        /* Preserve reset, NMI, and IRQ priority. */                   \
-        if (rst_asserted_) {                                           \
-            rst_executing_ = true;                                     \
-        } else if (nmi_asserted_) {                                    \
-            nmi_executing_ = true;                                     \
-        } else if (irq_input && ((P & I_MASK) == 0)) {                  \
-            irq_executing_ = true;                                     \
-        }                                                              \
-                                                                       \
-        nmi_asserted_ = false;                                         \
-        rst_asserted_ = false;                                         \
-    } while (0)
+#define LAST_CYCLE                                                          \
+	do {                                                                    \
+		rst_executing_ = false;                                             \
+		nmi_executing_ = false;                                             \
+		irq_executing_ = false;                                             \
+                                                                            \
+		/* Use the IRQ input sampled at the CPU polling phase. */           \
+		const bool irq_input = irq_sampled_;                                \
+                                                                            \
+		/* Preserve reset, NMI, and IRQ priority. */                        \
+		if (rst_asserted_) {                                                \
+			rst_executing_ = true;                                          \
+		} else if (nmi_asserted_) {                                         \
+			nmi_executing_ = true;                                          \
+		} else if (irq_input && ((P & I_MASK) == 0)) {                      \
+			irq_executing_ = true;                                          \
+		}                                                                   \
+                                                                            \
+		nmi_asserted_ = false;                                              \
+		rst_asserted_ = false;                                              \
+	} while (0)
 
 
 
@@ -86,7 +78,7 @@ enum class bus_cycle_type {
 	write
 };
 
-	
+
 // vector address table
 constexpr uint16_t kNMIVectorAddress = 0xfffa;
 constexpr uint16_t kRSTVectorAddress = 0xfffc;
@@ -172,7 +164,7 @@ uint8_t sDebugStackBreakNewS = 0xff;
 trace_entry_t sCPUTraceEntries[CPU_TRACE_CAPACITY] = {};
 uint32_t sCPUTraceNext = 0;
 uint32_t sCPUTraceCount = 0;
-static void record_cpu_trace_entry(uint16_t address);
+static void record_cpu_trace_entry (uint16_t address);
 
 
 // Memory read/write watchpoint state and hit counters.
@@ -182,8 +174,10 @@ static bool sDebugWriteWatchpointAddress[0x10000] = {};
 static uint32_t sDebugReadWatchpointHitCount[0x10000] = {};
 static uint32_t sDebugWriteWatchpointHitCount[0x10000] = {};
 
+
 // Address responsible for the most recent memory-watchpoint break.
 static uint16_t sDebugMemoryBreakAddress = 0x0000;
+
 
 // internal registers (which get trashed by instructions)
 register16 effective_address_ = {};
@@ -191,6 +185,7 @@ register16 data16_            = {};
 register16 old_pc_            = {};
 register16 new_pc_            = {};
 uint8_t data8_                = {};
+
 
 bool irq_asserted_  = false;
 bool nmi_asserted_  = false;
@@ -202,18 +197,11 @@ bool rst_executing_ = true;
 bool irq_sampled_ = false;
 
 
-
 dma_handler_t spr_dma_handler_         = nullptr;
 uint_least16_t spr_dma_source_address_ = 0;
 uint_least16_t spr_dma_count_          = 0;
 uint8_t spr_dma_byte_                  = 0;
 uint8_t spr_dma_delay_                 = 0;
-
-// EXPERIMENT 23DZ:
-// Remember the most recent sprite DMA completion cycle.
-uint64_t spr_dma_last_end_cycle_ = 0;
-
-
 
 
 enum class dmc_dma_state {
@@ -249,16 +237,34 @@ uint8_t dmc_dma_delay_ = 0;
  */
 bool dmc_dma_halt_attempted_ = false;
 
-// stats
-uint64_t executed_cycles_ = 1; // NOTE(eteran): 1 instead of 0 makes 4.irq_and_dma.nes pass...
+// CPU cycle counter.
+//
+// The initial value of 1 preserves the CPU cycle parity required by
+// the interrupt and DMA timing implementation.
+//
+// NOTE(eteran): Starting at 1 instead of 0 allows 4.irq_and_dma.nes
+// to pass.
+uint64_t executed_cycles_ = 1;
 
 
-uint64_t sDmcIrqAssertCycle = 0;
-bool sDmcIrqAssertPending = false;
-
-
-// eli - made this useful
-[[noreturn]] void jam_handler() {
+// -----------------------------------------------------------------------------
+// jam_handler
+//
+// Reports the CPU execution state when a JAM opcode is encountered,
+// then terminates execution.
+//
+// The diagnostic output includes the program counter, current instruction,
+// instruction cycle, CPU registers, and total executed cycle count.
+//
+// Parameters:
+//   None.
+//
+// Returns:
+//   Does not return.
+// -----------------------------------------------------------------------------
+[[noreturn]] void
+jam_handler()
+{
 	std::cerr
 		<< "CPU JAM abort"
 		<< " PC=$" << std::hex << static_cast<unsigned>(PC.raw)
@@ -328,60 +334,6 @@ record_cpu_trace_entry (uint16_t address)
 	if (sCPUTraceCount < CPU_TRACE_CAPACITY) {
 		sCPUTraceCount++;
 	}
-	
-	
-	// EXPERIMENT 23AD:
-	// Trace Test 2's IRQ-related branch and subsequent timing.
-	if (address == 0x8119 ||
-   		address == 0x811D ||
- 	    address == 0x814D) {
-
-    	printf(
-       		"[23AD CPU] cycle=%llu PC=%04X "
-        	"opcode=%02X A=%02X P=%02X Z=%u\n",
-        	(unsigned long long)executed_cycles_,
-        	(unsigned)address,
-        	(unsigned)entry.bytes[0],
-        	(unsigned)A,
-        	(unsigned)P,
-        	(unsigned)((P & 0x02) != 0)
-    	);
-	}
-	
-	
-        // ---------------------------------------------------------------------
-        // EXPERIMENT 24K:
-        //
-        // Trace CPU instruction boundaries surrounding the MMC3 scanline
-        // timing test's IRQ assertion.
-        //
-        // The mapper asserted IRQ at CPU cycle 1369999, PPU scanline 0,
-        // dot 261.
-        //
-        // Diagnostic only. No CPU execution behavior is changed.
-        // ---------------------------------------------------------------------
-
-	if (executed_cycles_ >= 2203840 &&
-        executed_cycles_ <= 2203910) {
-
-		printf(
-			"[24K MMC3 CPU] "
-            "cpu=%llu PC=%04X "
-            "opcode=%02X "
-            "A=%02X P=%02X "
-            "I=%u IRQ_entry=%u\n",
-
-            (unsigned long long)executed_cycles_,
-            (unsigned)address,
-            (unsigned)entry.bytes[0],
-            (unsigned)A,
-            (unsigned)P,
-            (unsigned)((P & I_MASK) != 0),
-            (unsigned)(
-                entry.interrupt == CPU_TRACE_INTERRUPT_IRQ
-            )
-        );
-    }
 }
 
 
@@ -486,8 +438,8 @@ check_debug_stack_break()
 // Returns:
 //   Whatever value is returned by the mapper's cpu_sync() implementation.
 // -----------------------------------------------------------------------------
-void 
-sync_handler() 
+void
+sync_handler()
 {
 	return nes::cart.mapper()->cpu_sync();
 }
@@ -505,7 +457,7 @@ sync_handler()
 //   Nothing.
 // -----------------------------------------------------------------------------
 template <uint8_t M>
-void 
+void
 set_flag()
 {
 	P |= M;
@@ -524,7 +476,7 @@ set_flag()
 //   Nothing.
 // -----------------------------------------------------------------------------
 template <uint8_t M>
-void 
+void
 clear_flag()
 {
 	P &= ~M;
@@ -598,31 +550,20 @@ update_nz_flags (uint8_t value)
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-
-
-
 void
-cycle_0(uint8_t next_op)
+cycle_0 (uint8_t next_op)
 {
-    if (rst_executing_) {
-        static bool firstReset = true;
-
-        if (firstReset) {
-            firstReset = false;
-        }
-
-        instruction_ = 0x100;
-    } else if (nmi_executing_) {
-        instruction_ = 0x101;
-    } else if (irq_executing_) {
-        instruction_ = 0x102;
-    } else {
-        instruction_ = next_op;
-        ++PC.raw;
-    }
+	if (rst_executing_) {
+		instruction_ = 0x100;
+	} else if (nmi_executing_) {
+		instruction_ = 0x101;
+	} else if (irq_executing_) {
+		instruction_ = 0x102;
+	} else {
+		instruction_ = next_op;
+		++PC.raw;
+	}
 }
-
-
 
 
 #include "address_modes.h"
@@ -922,6 +863,7 @@ opcode_dispatch_table()
 		make_opcode_dispatch_entry<absolute_x<opcode_inc>>(),
 		make_opcode_dispatch_entry<absolute_x<opcode_isc>>(),
 
+		// special instructions
 		make_opcode_dispatch_entry<opcode_rst>(),
 		make_opcode_dispatch_entry<opcode_nmi>(),
 		make_opcode_dispatch_entry<opcode_irq>(),
@@ -956,7 +898,7 @@ execute_opcode()
 // Cycle zero is always the opcode fetch, so its bus direction is known before
 // the opcode itself has been decoded.
 // -----------------------------------------------------------------------------
-[[maybe_unused]] bus_cycle_type
+bus_cycle_type
 current_bus_cycle()
 {
 	if (cycle_ == 0) {
@@ -997,20 +939,21 @@ current_bus_address()
 }
 
 
-// ---------------------------------------------------------------------
-// EXPERIMENT 23EC:
+// -----------------------------------------------------------------------------
+// dma_is_get_cycle
 //
-// Test the opposite GET/PUT phase for BOTH DMC and sprite DMA.
+// Reports whether the current CPU cycle is a DMA GET phase.
 //
-// Unlike 23DS, this changes their shared phase consistently.
+// DMC and sprite DMA use this shared phase calculation so their
+// memory-access timing remains synchronized.
 //
-// Experimental only.
-// ---------------------------------------------------------------------
-
+// Returns:
+//   True during a DMA GET phase.
+// -----------------------------------------------------------------------------
 static inline bool
 dma_is_get_cycle()
 {
-    return (executed_cycles_ & 1) != 0;
+	return (executed_cycles_ & 1) != 0;
 }
 
 // -----------------------------------------------------------------------------
@@ -1023,7 +966,7 @@ dma_is_get_cycle()
 bool
 dmc_dma_get_cycle()
 {
-    return dma_is_get_cycle();
+	return dma_is_get_cycle();
 }
 
 
@@ -1082,385 +1025,200 @@ dmc_dma_initial_phase()
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-
-
-
 void
 clock()
 {
-    // ---------------------------------------------------------------------
-    // DMC DMA handling.
-    //
-    // EXPERIMENT 23DP:
-    // Allow sprite DMA to advance during DMC halt, dummy,
-    // and alignment phases.
-    //
-    // EXPERIMENT 23DU:
-    // Use a shared DMA GET/PUT phase.
-    //
-    // EXPERIMENT 23DZ:
-    // Record sprite DMA completion for relative IRQ tracing.
-    // ---------------------------------------------------------------------
+	// ---------------------------------------------------------------------
+	// DMC DMA handling.
+	//
+	// DMC DMA may overlap sprite DMA during its halt, dummy,
+	// and alignment phases.
+	//
+	// Both DMA mechanisms use the shared GET/PUT bus phase
+	// to coordinate memory accesses.
+	// ---------------------------------------------------------------------
 
-    if (UNLIKELY(dmc_dma_state_ != dmc_dma_state::idle)) {
+	if (UNLIKELY(dmc_dma_state_ != dmc_dma_state::idle)) {
 
-        switch (dmc_dma_state_) {
+		switch (dmc_dma_state_) {
 
-            case dmc_dma_state::pending:
-            {
-                if (dmc_dma_delay_ != 0) {
-                    --dmc_dma_delay_;
-                    break;
-                }
+			case dmc_dma_state::pending:
+			{
+				if (dmc_dma_delay_ != 0) {
+					--dmc_dma_delay_;
+					break;
+				}
 
-                if (!dmc_dma_halt_attempted_) {
+				if (!dmc_dma_halt_attempted_) {
 
-                    if (!dmc_dma_initial_phase()) {
-                        break;
-                    }
+					if (!dmc_dma_initial_phase()) {
+						break;
+					}
 
-                    dmc_dma_halt_attempted_ = true;
-                }
+					dmc_dma_halt_attempted_ = true;
+				}
 
-                // EXPERIMENT 23DN:
-                // Trace DMC halt attempts during sprite DMA.
+				// A CPU write cycle cannot be halted.
+				if (current_bus_cycle() == bus_cycle_type::write) {
+					break;
+				}
 
-                if (spr_dma_count_ != 0) {
+				dmc_dma_cpu_address_ = current_bus_address();
 
-                    printf(
-                        "[23DN DMC HALT] "
-                        "cpu=%llu parity=%u "
-                        "spr_count=%u spr_delay=%u "
-                        "cpu_bus=%s dmc_type=%u\n",
+				read_byte(dmc_dma_cpu_address_);
 
-                        (unsigned long long)executed_cycles_,
-                        (unsigned)(executed_cycles_ & 1),
-                        (unsigned)spr_dma_count_,
-                        (unsigned)spr_dma_delay_,
-                        current_bus_cycle() == bus_cycle_type::write
-                            ? "WRITE"
-                            : "READ",
-                        (unsigned)dmc_dma_type_
-                    );
-                }
+				dmc_dma_state_ = dmc_dma_state::dummy;
 
-                // A CPU write cycle cannot be halted.
+				// Sprite DMA may advance during the DMC halt cycle.
 
-                if (current_bus_cycle() == bus_cycle_type::write) {
-                    break;
-                }
+				if (spr_dma_count_ == 0) {
+					return;
+				}
 
-                dmc_dma_cpu_address_ = current_bus_address();
+				break;
+			}
 
-                read_byte(dmc_dma_cpu_address_);
+			case dmc_dma_state::dummy:
+			{
+				nes::input::set_dma_controller_read_repeat(true);
 
-                dmc_dma_state_ = dmc_dma_state::dummy;
+				read_byte(dmc_dma_cpu_address_);
 
-                // 23DP: Sprite DMA may advance during DMC halt.
+				nes::input::set_dma_controller_read_repeat(false);
 
-                if (spr_dma_count_ == 0) {
-                    return;
-                }
+				dmc_dma_state_ = dmc_dma_get_cycle() ? dmc_dma_state::align : dmc_dma_state::get;
 
-                break;
-            }
+				// Sprite DMA may advance during the DMC dummy cycle.
+				if (spr_dma_count_ == 0) {
+					return;
+				}
 
-            case dmc_dma_state::dummy:
-            {
-                nes::input::set_dma_controller_read_repeat(true);
+				break;
+			}
 
-                read_byte(dmc_dma_cpu_address_);
+			case dmc_dma_state::align:
+			{
+				nes::input::set_dma_controller_read_repeat(true);
 
-                nes::input::set_dma_controller_read_repeat(false);
+				read_byte(dmc_dma_cpu_address_);
 
-                dmc_dma_state_ =
-                    dmc_dma_get_cycle()
-                        ? dmc_dma_state::align
-                        : dmc_dma_state::get;
+				nes::input::set_dma_controller_read_repeat(false);
 
-                // 23DP: Sprite DMA may advance during DMC dummy.
+				dmc_dma_state_ = dmc_dma_state::get;
 
-                if (spr_dma_count_ == 0) {
-                    return;
-                }
+				// Sprite DMA may advance during the DMC alignment cycle.
+				if (spr_dma_count_ == 0) {
+					return;
+				}
 
-                break;
-            }
+				break;
+			}
 
-            case dmc_dma_state::align:
-            {
-                nes::input::set_dma_controller_read_repeat(true);
+			case dmc_dma_state::get:
+			{
+				assert(dmc_dma_get_cycle());
 
-                read_byte(dmc_dma_cpu_address_);
+				const uint8_t value = read_byte(dmc_dma_source_address_);
 
-                nes::input::set_dma_controller_read_repeat(false);
+				(*dmc_dma_handler_)(value);
 
-                dmc_dma_state_ = dmc_dma_state::get;
+				dmc_dma_handler_ = nullptr;
+				dmc_dma_state_ = dmc_dma_state::idle;
+				dmc_dma_halt_attempted_ = false;
 
-                // 23DP: Sprite DMA may advance during DMC alignment.
+				// The DMC sample fetch is exclusive.
 
-                if (spr_dma_count_ == 0) {
-                    return;
-                }
-
-                break;
-            }
-
-            case dmc_dma_state::get:
-            {
-                // EXPERIMENT 23DN:
-                // Trace DMC sample fetches during sprite DMA.
-
-                if (spr_dma_count_ != 0) {
-
-                    printf(
-                        "[23DN DMC GET] "
-                        "cpu=%llu parity=%u "
-                        "spr_count=%u spr_delay=%u\n",
-
-                        (unsigned long long)executed_cycles_,
-                        (unsigned)(executed_cycles_ & 1),
-                        (unsigned)spr_dma_count_,
-                        (unsigned)spr_dma_delay_
-                    );
-                }
-
-                assert(dmc_dma_get_cycle());
-
-                const uint8_t value =
-                    read_byte(dmc_dma_source_address_);
-
-                (*dmc_dma_handler_)(value);
-
-                dmc_dma_handler_ = nullptr;
-                dmc_dma_state_ = dmc_dma_state::idle;
-                dmc_dma_halt_attempted_ = false;
-
-                // The DMC sample fetch is exclusive.
-
-                return;
-            }
-
-            case dmc_dma_state::idle:
-                break;
-        }
-    }
-
-    // ---------------------------------------------------------------------
-    // Sprite DMA handling.
-    //
-    // Preserve Experiment 23DU behavior:
-    //
-    // GET = sprite source read
-    // PUT = sprite OAM write
-    // ---------------------------------------------------------------------
-
-    if (UNLIKELY(spr_dma_count_)) {
-
-        const bool trace_sprite_phase =
-            (executed_cycles_ >= 2112400 &&
-             executed_cycles_ <= 2113100) ||
-            (executed_cycles_ >= 2231500 &&
-             executed_cycles_ <= 2232200) ||
-            (executed_cycles_ >= 2410200 &&
-             executed_cycles_ <= 2410900);
-
-        // -----------------------------------------------------------------
-        // Sprite DMA startup delay.
-        // -----------------------------------------------------------------
-
-        if (spr_dma_delay_ != 0) {
-
-            if (trace_sprite_phase) {
-
-                printf(
-                    "[23DU DMA STARTUP] "
-                    "cpu=%llu parity=%u "
-                    "count=%u delay=%u PC=%04X\n",
-
-                    (unsigned long long)executed_cycles_,
-                    (unsigned)(executed_cycles_ & 1),
-                    (unsigned)spr_dma_count_,
-                    (unsigned)spr_dma_delay_,
-                    (unsigned)PC.raw
-                );
-            }
-
-            read_byte(spr_dma_source_address_);
-
-            --spr_dma_delay_;
-
-            return;
-        }
-
-        // -----------------------------------------------------------------
-        // Sprite DMA alignment using the shared GET/PUT phase.
-        //
-        // This is equivalent to the original 23DP condition:
-        //
-        // (spr_dma_count_ & 1) != (executed_cycles_ & 1)
-        // -----------------------------------------------------------------
-
-        const unsigned dma_phase =
-            dma_is_get_cycle() ? 0u : 1u;
-
-        if ((spr_dma_count_ & 1) != dma_phase) {
-
-            if (trace_sprite_phase &&
-                spr_dma_count_ == 512) {
-
-                printf(
-                    "[23DU DMA ALIGN] "
-                    "cpu=%llu parity=%u "
-                    "count=%u phase=%s PC=%04X\n",
-
-                    (unsigned long long)executed_cycles_,
-                    (unsigned)(executed_cycles_ & 1),
-                    (unsigned)spr_dma_count_,
-                    dma_is_get_cycle() ? "GET" : "PUT",
-                    (unsigned)PC.raw
-                );
-            }
-
-            read_byte(spr_dma_source_address_);
-
-            return;
-        }
-
-        // -----------------------------------------------------------------
-        // Trace first and last sprite DMA transfer pairs.
-        // -----------------------------------------------------------------
-
-        const bool trace_transfer =
-            trace_sprite_phase &&
-            (spr_dma_count_ >= 511 ||
-             spr_dma_count_ <= 2);
-
-        if (trace_transfer) {
-
-            printf(
-                "[23DU DMA TRANSFER] "
-                "cpu=%llu parity=%u "
-                "count=%u operation=%s "
-                "source=%04X PC=%04X\n",
-
-                (unsigned long long)executed_cycles_,
-                (unsigned)(executed_cycles_ & 1),
-                (unsigned)spr_dma_count_,
-                dma_is_get_cycle() ? "READ" : "WRITE",
-                (unsigned)spr_dma_source_address_,
-                (unsigned)PC.raw
-            );
-        }
-
-        // -----------------------------------------------------------------
-        // Sprite DMA transfer.
-        //
-        // GET: read sprite source byte.
-        // PUT: write the previously read byte to OAM.
-        // -----------------------------------------------------------------
-
-        if (dma_is_get_cycle()) {
-
-            spr_dma_byte_ =
-                read_byte(spr_dma_source_address_++);
-
-        } else {
-
-            (*spr_dma_handler_)(spr_dma_byte_);
-        }
-
-        --spr_dma_count_;
-
-        // -----------------------------------------------------------------
-        // EXPERIMENT 23DZ:
-        //
-        // Record the CPU cycle of the final sprite DMA transfer.
-        // The LAST_CYCLE macro will use this timestamp.
-        // -----------------------------------------------------------------
-
-        if (spr_dma_count_ == 0) {
-
-            spr_dma_last_end_cycle_ = executed_cycles_;
-
-            // Preserve the 23DK completion diagnostic.
-
-            printf(
-                "[23DK DMA END] "
-                "cpu=%llu parity=%u PC=%04X\n",
-
-                (unsigned long long)executed_cycles_,
-                (unsigned)(executed_cycles_ & 1),
-                (unsigned)PC.raw
-            );
-        }
-
-    } else {
-
-        // -----------------------------------------------------------------
-        // Normal CPU instruction execution.
-        // -----------------------------------------------------------------
-
-        assert(cycle_ < 10);
-
-        if (cycle_ == 0) {
-
-            const uint8_t next_op = read_byte(PC.raw);
-
-            cycle_0(next_op);
-
-        } else {
-
-            execute_opcode();
-        }
-
-        ++cycle_;
-    }
+				return;
+			}
+
+			case dmc_dma_state::idle:
+				break;
+		}
+	}
+
+	// ---------------------------------------------------------------------
+	// Sprite DMA handling.
+	//
+	// Transfers alternate between GET and PUT bus phases.
+	//
+	// GET = sprite source read
+	// PUT = sprite OAM write
+	// ---------------------------------------------------------------------
+
+	if (UNLIKELY(spr_dma_count_)) {
+		// -----------------------------------------------------------------
+		// Sprite DMA startup delay.
+		// -----------------------------------------------------------------
+
+		if (spr_dma_delay_ != 0) {
+			read_byte(spr_dma_source_address_);
+			--spr_dma_delay_;
+
+			return;
+		}
+
+		// -----------------------------------------------------------------
+		// Sprite DMA alignment using the shared GET/PUT phase.
+		//
+		// Wait until the current DMA bus phase matches the next
+		// sprite DMA transfer operation.
+		//
+		// Even remaining counts require a GET phase.
+		// Odd remaining counts require a PUT phase.
+		// -----------------------------------------------------------------
+		const unsigned dma_phase = dma_is_get_cycle() ? 0u : 1u;
+
+		if ((spr_dma_count_ & 0x1) != dma_phase) {
+			read_byte(spr_dma_source_address_);
+
+			return;
+		}
+
+		// -----------------------------------------------------------------
+		// Sprite DMA transfer.
+		//
+		// GET: read sprite source byte.
+		// PUT: write the previously read byte to OAM.
+		// -----------------------------------------------------------------
+		if (dma_is_get_cycle()) {
+			spr_dma_byte_ = read_byte(spr_dma_source_address_++);
+		} else {
+			(*spr_dma_handler_)(spr_dma_byte_);
+		}
+
+		--spr_dma_count_;
+	} else {
+		// -----------------------------------------------------------------
+		// Normal CPU instruction execution.
+		// -----------------------------------------------------------------
+
+		assert(cycle_ < 10);
+
+		if (cycle_ == 0) {
+			const uint8_t next_op = read_byte(PC.raw);
+
+			cycle_0(next_op);
+		} else {
+			execute_opcode();
+		}
+
+		++cycle_;
+	}
 }
 
-
-}
-
-
-// -----------------------------------------------------------------------------
-// debug_mark_dmc_irq_assert
-//
-// Records the CPU cycle on which the DMC IRQ was asserted and marks the event
-// as pending for later debug inspection.
-//
-// This is diagnostic state only and does not itself alter CPU interrupt
-// behavior.
-// -----------------------------------------------------------------------------
-void
-debug_mark_dmc_irq_assert()
-{
-	sDmcIrqAssertCycle = executed_cycles_;
-	sDmcIrqAssertPending = true;
 }
 
 
 // -----------------------------------------------------------------------------
 // nes::cpu::tick
 //
-// Advances the CPU by one cycle.
+// Advances the CPU by one emulated cycle.
 //
-// At instruction boundaries, debugger break conditions are checked before the
-// next CPU operation executes.
+// Performs instruction-boundary debugger checks and records instruction
+// traces before executing the next CPU cycle.
 //
-// After breakpoint checks pass, debugger state records the current instruction
-// address, stack pointer, and operation that is about to execute.
-//
-// The saved instruction address remains valid throughout the instruction and
-// allows memory READ/WRITE watchpoints to report the instruction responsible
-// for the access rather than the already-advanced PC.
-//
-// On the next instruction boundary, the saved stack information allows
-// stack-wrap detection to determine whether a large S transition came from
-// ordinary stack activity or from a direct stack-pointer assignment such as
-// TXS.
-//
-// Interrupt-entry state is recorded separately so a coincidental opcode byte at
-// PC cannot cause an interrupt-induced stack wrap to be mistaken for TXS/XAS.
+// Synchronizes the CPU with the APU and mapper after clocking, then
+// advances the CPU cycle counter.
 //
 // Parameters:
 //   None.
@@ -1468,209 +1226,78 @@ debug_mark_dmc_irq_assert()
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-// -----------------------------------------------------------------------------
-// nes::cpu::tick
-//
-// Advances the CPU by one cycle.
-//
-// EXPERIMENT 23DE:
-// Trace the final sprite DMA cycles and the first CPU cycles following
-// DMA completion, including the state of IRQ assertion and recognition.
-//
-// Diagnostic only. No changes to emulated CPU, IRQ, or DMA timing.
-// -----------------------------------------------------------------------------
-
 void
 tick()
 {
-        // ---------------------------------------------------------------------
-        // EXPERIMENT 23DE:
-        // Begin tracing when sprite DMA has four transfer cycles remaining.
-        //
-        // Continue for 12 CPU cycles to capture the DMA tail and
-        // subsequent instruction/IRQ processing.
-        // ---------------------------------------------------------------------
+	// ---------------------------------------------------------------------
+	// Existing instruction-boundary debugging and breakpoint logic.
+	// ---------------------------------------------------------------------
 
-        static unsigned dma_tail_trace_remaining = 0;
+	if (cycle_ == 0) {
+		if (sDebugBreakpointHit) {
+			return;
+		}
 
-        if (spr_dma_count_ == 4 &&
-            dma_tail_trace_remaining == 0) {
-                dma_tail_trace_remaining = 12;
-        }
+		bool skipBreakChecks = false;
 
-        const bool trace_dma_tail =
-                dma_tail_trace_remaining != 0;
+		if (sDebugSkipBreakpointOnce) {
+			sDebugSkipBreakpointOnce = false;
+			skipBreakChecks = true;
+		}
 
-        if (trace_dma_tail) {
-                printf(
-                        "[23DE DMA BEFORE] "
-                        "cpu=%llu PC=%04X cycle=%d "
-                        "dma_count=%u dma_delay=%u "
-                        "irq_asserted=%u irq_executing=%u P=%02X\n",
+		if (!skipBreakChecks) {
+			if (check_debug_stack_break()) {
+				return;
+			}
 
-                        (unsigned long long)executed_cycles_,
-                        (unsigned)PC.raw,
-                        (int)cycle_,
-                        (unsigned)spr_dma_count_,
-                        (unsigned)spr_dma_delay_,
-                        (unsigned)irq_asserted_,
-                        (unsigned)irq_executing_,
-                        (unsigned)P
-                );
-        }
+			if (sExecuteBreakpointAddress[PC.raw]) {
+				sDebugBreakpointHit = true;
+				sDebugBreakpointHitAddress = PC.raw;
+				sDebugBreakReason = DEBUG_BREAK_EXECUTE;
 
-        // ---------------------------------------------------------------------
-        // Existing instruction-boundary debugging and breakpoint logic.
-        // ---------------------------------------------------------------------
+				sExecuteBreakpointHitCount[PC.raw]++;
 
-        if (cycle_ == 0) {
-                if (sDebugBreakpointHit) {
-                        return;
-                }
+				return;
+			}
+		}
 
-                bool skipBreakChecks = false;
+		/*
+		 * Preserve the starting address of the instruction that
+		 * is about to execute.
+		 *
+		 * PC may advance during opcode/address processing, but
+		 * memory watchpoints need the original instruction address.
+		 */
 
-                if (sDebugSkipBreakpointOnce) {
-                        sDebugSkipBreakpointOnce = false;
-                        skipBreakChecks = true;
-                }
+		sDebugCurrentInstructionAddress = PC.raw;
+		sDebugPreviousBoundaryS = S;
+		sDebugPreviousBoundaryWasInterrupt = nmi_executing_ || irq_executing_;
+		sDebugPreviousBoundaryOpcode = nes::bus::debug_read_memory(PC.raw);
+		sDebugHavePreviousBoundaryS = true;
+		sExecutedInstructionAddress[PC.raw] = true;
 
-                if (!skipBreakChecks) {
-                        if (check_debug_stack_break()) {
-                                return;
-                        }
+		record_cpu_trace_entry(PC.raw);
+	}
 
-                        if (sExecuteBreakpointAddress[PC.raw]) {
-                                sDebugBreakpointHit = true;
-                                sDebugBreakpointHitAddress = PC.raw;
-                                sDebugBreakReason = DEBUG_BREAK_EXECUTE;
+	// ---------------------------------------------------------------------
+	// Execute one CPU cycle.
+	// ---------------------------------------------------------------------
 
-                                sExecuteBreakpointHitCount[PC.raw]++;
+	clock();
 
-                                return;
-                        }
-                }
+	// ---------------------------------------------------------------------
+	// Preserve the existing CPU/APU/mapper synchronization.
+	// ---------------------------------------------------------------------
 
-                /*
-                 * Preserve the starting address of the instruction that
-                 * is about to execute.
-                 *
-                 * PC may advance during opcode/address processing, but
-                 * memory watchpoints need the original instruction address.
-                 */
+	sync_handler();
 
-                sDebugCurrentInstructionAddress = PC.raw;
+	// ---------------------------------------------------------------------
+	// Advance the CPU cycle counter.
+	// ---------------------------------------------------------------------
 
-                sDebugPreviousBoundaryS = S;
-
-                sDebugPreviousBoundaryWasInterrupt =
-                        nmi_executing_ || irq_executing_;
-
-                sDebugPreviousBoundaryOpcode =
-                        nes::bus::debug_read_memory(PC.raw);
-
-                sDebugHavePreviousBoundaryS = true;
-
-                sExecutedInstructionAddress[PC.raw] = true;
-
-                record_cpu_trace_entry(PC.raw);
-
-                // -------------------------------------------------------------
-                // EXPERIMENT 23DB:
-                // Existing Test 11 instruction-boundary diagnostic.
-                // Retained unchanged.
-                // -------------------------------------------------------------
-
-                if ((executed_cycles_ >= 87808 &&
-                     executed_cycles_ <= 87830) ||
-                    (executed_cycles_ >= 147613 &&
-                     executed_cycles_ <= 147634)) {
-
-                        printf(
-                                "[23DB CPU TRACE] "
-                                "cycle=%llu PC=%04X "
-                                "opcode=%02X "
-                                "A=%02X X=%02X Y=%02X P=%02X S=%02X "
-                                "irq_asserted=%u irq_executing=%u\n",
-
-                                (unsigned long long)executed_cycles_,
-                                (unsigned)PC.raw,
-                                (unsigned)sDebugPreviousBoundaryOpcode,
-
-                                (unsigned)A,
-                                (unsigned)X,
-                                (unsigned)Y,
-                                (unsigned)P,
-                                (unsigned)S,
-
-                                (unsigned)irq_asserted_,
-                                (unsigned)irq_executing_
-                        );
-                }
-        }
-
-        // ---------------------------------------------------------------------
-        // Execute one CPU cycle.
-        // ---------------------------------------------------------------------
-
-        clock();
-
-        // ---------------------------------------------------------------------
-        // EXPERIMENT 23DE:
-        // Observe CPU state after clock(), before synchronization.
-        // ---------------------------------------------------------------------
-
-        if (trace_dma_tail) {
-                printf(
-                        "[23DE DMA AFTER CLOCK] "
-                        "cpu=%llu PC=%04X cycle=%d "
-                        "dma_count=%u irq_asserted=%u "
-                        "irq_executing=%u\n",
-
-                        (unsigned long long)executed_cycles_,
-                        (unsigned)PC.raw,
-                        (int)cycle_,
-                        (unsigned)spr_dma_count_,
-                        (unsigned)irq_asserted_,
-                        (unsigned)irq_executing_
-                );
-        }
-
-        // ---------------------------------------------------------------------
-        // Preserve the existing CPU/APU/mapper synchronization.
-        // ---------------------------------------------------------------------
-
-        sync_handler();
-
-        // ---------------------------------------------------------------------
-        // EXPERIMENT 23DE:
-        // Observe IRQ state after synchronization.
-        // ---------------------------------------------------------------------
-
-        if (trace_dma_tail) {
-                printf(
-                        "[23DE DMA AFTER SYNC] "
-                        "cpu=%llu PC=%04X cycle=%d "
-                        "dma_count=%u irq_asserted=%u "
-                        "irq_executing=%u\n",
-
-                        (unsigned long long)executed_cycles_,
-                        (unsigned)PC.raw,
-                        (int)cycle_,
-                        (unsigned)spr_dma_count_,
-                        (unsigned)irq_asserted_,
-                        (unsigned)irq_executing_
-                );
-
-                --dma_tail_trace_remaining;
-        }
-
-        // ---------------------------------------------------------------------
-        // Advance the CPU cycle counter.
-        // ---------------------------------------------------------------------
-
-        ++executed_cycles_;
+	++executed_cycles_;
 }
+
 
 // -----------------------------------------------------------------------------
 // nmi
@@ -1687,7 +1314,7 @@ tick()
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-nmi() 
+nmi()
 {
 	nmi_asserted_ = true;
 }
@@ -1713,42 +1340,40 @@ nmi()
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-
 void
 reset()
 {
-    if (!rst_executing_) {
-        rst_asserted_ = true;
-        irq_asserted_ = false;
-        nmi_asserted_ = false;
-        executed_cycles_ = 1;
-    }
+	if (!rst_executing_) {
+		rst_asserted_ = true;
+		irq_asserted_ = false;
+		nmi_asserted_ = false;
+		executed_cycles_ = 1;
+	}
 
-    // EXPERIMENT 24P:
-    // Discard the previously sampled IRQ input on reset.
-    irq_sampled_ = false;
+	// Discard the previously sampled IRQ input on reset.
+	irq_sampled_ = false;
 
-    /*
-     * Discard instruction-boundary history used by stack break detection.
-     */
-    sDebugHavePreviousBoundaryS = false;
-    sDebugPreviousBoundaryS = 0xff;
-    sDebugPreviousBoundaryOpcode = 0x00;
-    sDebugPreviousBoundaryWasInterrupt = false;
+	/*
+	 * Discard instruction-boundary history used by stack break detection.
+	 */
+	sDebugHavePreviousBoundaryS = false;
+	sDebugPreviousBoundaryS = 0xff;
+	sDebugPreviousBoundaryOpcode = 0x00;
+	sDebugPreviousBoundaryWasInterrupt = false;
 
-    /*
-     * Preserve the user's configured SP breakpoint, but begin a fresh
-     * one-shot detection cycle after reset.
-     */
-    if (sDebugStackSPBreakEnabled) {
-        sDebugStackSPBreakArmed = true;
-        sDebugStackSPBreakReady = false;
-    } else {
-        sDebugStackSPBreakArmed = false;
-        sDebugStackSPBreakReady = false;
-    }
+	/*
+	 * Preserve the user's configured SP breakpoint, but begin a fresh
+	 * one-shot detection cycle after reset.
+	 */
+	if (sDebugStackSPBreakEnabled) {
+		sDebugStackSPBreakArmed = true;
+		sDebugStackSPBreakReady = false;
+	} else {
+		sDebugStackSPBreakArmed = false;
+		sDebugStackSPBreakReady = false;
+	}
 
-    debug_clear_instruction_trace();
+	debug_clear_instruction_trace();
 }
 
 
@@ -1801,6 +1426,7 @@ stop()
 	executed_cycles_ = 1;
 	irq_sources_     = 0;
 	irq_asserted_    = false;
+	irq_sampled_     = false;
 	nmi_asserted_    = false;
 	rst_asserted_    = false;
 	irq_executing_   = false;
@@ -1812,9 +1438,7 @@ stop()
 	spr_dma_source_address_ = 0;
 	spr_dma_count_          = 0;
 	spr_dma_delay_          = 0;
-		
-	
-	
+
 	dmc_dma_handler_ = nullptr;
 	dmc_dma_source_address_ = 0;
 	dmc_dma_cpu_address_ = 0;
@@ -1852,20 +1476,20 @@ reset (reset_type type)
 	}
 
 	reset();
-	std::cout << "CPU reset complete" << std::endl;
-}
 
+	std::cerr << "CPU Reset" << std::endl;
+}
 
 
 void
 sample_irq()
 {
-    // Sample the external IRQ input at the CPU polling phase.
-    //
-    // This does not assert, acknowledge, or clear an IRQ source.
-    // LAST_CYCLE consumes the sampled state.
+	// Sample the external IRQ input at the CPU polling phase.
+	//
+	// This does not assert, acknowledge, or clear an IRQ source.
+	// LAST_CYCLE consumes the sampled state.
 
-    irq_sampled_ = irq_asserted_;
+	irq_sampled_ = irq_asserted_;
 }
 
 
@@ -1885,41 +1509,15 @@ sample_irq()
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-irq(irq_source source)
+irq (irq_source source)
 {
-    const bool was_asserted = irq_asserted_;
+	irq_sources_ |= source;
 
-    irq_sources_ |= source;
-
-    if (irq_sources_) {
-        irq_asserted_ = true;
-    }
-
-    // -------------------------------------------------------------
-    // EXPERIMENT 23DR:
-    // Record the first assertion of the CPU APU IRQ input.
-    //
-    // Diagnostic only.
-    // -------------------------------------------------------------
-    if (!was_asserted &&
-        irq_asserted_ &&
-        source == APU_IRQ) {
-
-        printf(
-            "[23DR IRQ ASSERT] "
-            "cpu=%llu PC=%04X cycle=%d "
-            "spr_count=%u spr_delay=%u "
-            "irq_sources=%02X\n",
-
-            (unsigned long long)executed_cycles_,
-            (unsigned)PC.raw,
-            (int)cycle_,
-            (unsigned)spr_dma_count_,
-            (unsigned)spr_dma_delay_,
-            (unsigned)irq_sources_
-        );
-    }
+	if (irq_sources_) {
+		irq_asserted_ = true;
+	}
 }
+
 
 // -----------------------------------------------------------------------------
 // clear_irq
@@ -1961,32 +1559,13 @@ clear_irq (irq_source source)
 // Returns:
 //   Nothing.
 // -----------------------------------------------------------------------------
-
 void
-schedule_spr_dma(
-    dma_handler_t dma_handler,
-    uint_least16_t source_address,
-    uint_least16_t count)
+schedule_spr_dma (dma_handler_t dma_handler, uint_least16_t source_address, uint_least16_t count)
 {
-    spr_dma_handler_        = dma_handler;
-    spr_dma_source_address_ = source_address;
-    spr_dma_count_          = count * 2;
-    spr_dma_delay_          = 1;
-
-
-    // EXPERIMENT 23DK:
-    // Record the cycle on which sprite DMA is scheduled.
-    printf(
-        "[23DK DMA START] "
-        "cpu=%llu parity=%u "
-        "count=%u delay=%u PC=%04X\n",
-
-        (unsigned long long)executed_cycles_,
-        (unsigned)(executed_cycles_ & 1),
-        (unsigned)spr_dma_count_,
-        (unsigned)spr_dma_delay_,
-        (unsigned)PC.raw
-    );
+	spr_dma_handler_        = dma_handler;
+	spr_dma_source_address_ = source_address;
+	spr_dma_count_          = count * 2;
+	spr_dma_delay_          = 1;
 }
 
 
@@ -2045,7 +1624,7 @@ cycle_count()
 //   Snapshot of the current CPU state.
 // -----------------------------------------------------------------------------
 cpu_state_t
-debug_state() 
+debug_state()
 {
 	cpu_state_t state{};
 
@@ -2158,7 +1737,7 @@ debug_remove_execute_breakpoint (uint16_t address)
 	sExecuteBreakpointAddress[address] = false;
 	sExecuteBreakpointHitCount[address] = 0;
 
-	if (sDebugBreakpointHit && sDebugBreakReason == DEBUG_BREAK_EXECUTE && 
+	if (sDebugBreakpointHit && sDebugBreakReason == DEBUG_BREAK_EXECUTE &&
 		sDebugBreakpointHitAddress == address) {
     	debug_clear_breakpoint_hit();
 	}
@@ -2570,7 +2149,7 @@ debug_stack_break_new_s()
 //   Nothing.
 // -----------------------------------------------------------------------------
 void
-debug_set_stack_sp_break(bool enabled, uint8_t threshold)
+debug_set_stack_sp_break (bool enabled, uint8_t threshold)
 {
 	sDebugStackSPBreakEnabled = enabled;
 	sDebugStackSPBreakThreshold = threshold;

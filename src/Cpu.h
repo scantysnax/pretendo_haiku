@@ -1,20 +1,30 @@
-
 #ifndef _CPU_H_
 #define _CPU_H_
 
+#include <cstdint>
+
 #include "BitField.h"
 #include "Reset.h"
-#include <cstdint>
+
 
 namespace nes::cpu {
 
+// -----------------------------------------------------------------------------
+// DMA types
+// -----------------------------------------------------------------------------
+
 using dma_handler_t = void (*)(uint8_t);
 
+// DMC load and reload requests have different initial DMA timing.
 enum class dmc_dma_type {
 	load,
 	reload
 };
 
+
+// -----------------------------------------------------------------------------
+// Interrupt sources
+// -----------------------------------------------------------------------------
 
 enum irq_source : uint8_t {
 	MAPPER_IRQ = 0x01,
@@ -24,17 +34,25 @@ enum irq_source : uint8_t {
 };
 
 
+// -----------------------------------------------------------------------------
+// Processor status flags
+// -----------------------------------------------------------------------------
+
 enum : uint8_t {
 	C_MASK = 0x01,
 	Z_MASK = 0x02,
 	I_MASK = 0x04,
 	D_MASK = 0x08,
 	B_MASK = 0x10,
-	R_MASK = 0x20, // antisocial flag... always 1
+	R_MASK = 0x20, // Reserved status bit.
 	V_MASK = 0x40,
 	N_MASK = 0x80
 };
 
+
+// -----------------------------------------------------------------------------
+// CPU register types
+// -----------------------------------------------------------------------------
 
 union register16 {
 	uint_least16_t raw;
@@ -43,27 +61,41 @@ union register16 {
 };
 
 
-// API
+// -----------------------------------------------------------------------------
+// CPU execution and interrupt interface
+// -----------------------------------------------------------------------------
+
 uint64_t cycle_count();
-void clear_irq(irq_source source);
+
+void clear_irq (irq_source source);
 void clear_nmi();
-void irq(irq_source source);
-void schedule_spr_dma(dma_handler_t dma_handler, uint_least16_t source_address, 
-					  uint_least16_t count);
-void schedule_dmc_dma(dma_handler_t dma_handler, uint_least16_t source_address,
-					  uint_least16_t count, dmc_dma_type type);
+void irq (irq_source source);
 
 void reset (reset_type type);
 void reset();
 void stop();
 void nmi();
 void tick();
+
+// Capture the current IRQ input at the CPU interrupt polling phase.
 void sample_irq();
 
-void debug_mark_dmc_irq_assert();
+
+// -----------------------------------------------------------------------------
+// DMA scheduling
+// -----------------------------------------------------------------------------
+
+void schedule_spr_dma (dma_handler_t dma_handler, uint_least16_t source_address,
+					  uint_least16_t count);
+
+void schedule_dmc_dma (dma_handler_t dma_handler, uint_least16_t source_address,
+					  uint_least16_t count, dmc_dma_type type);
 
 
-// public registers
+// -----------------------------------------------------------------------------
+// Public CPU registers
+// -----------------------------------------------------------------------------
+
 extern register16 PC;
 extern uint8_t A;
 extern uint8_t X;
@@ -72,13 +104,22 @@ extern uint8_t S;
 extern uint8_t P;
 
 
+// -----------------------------------------------------------------------------
+// Fixed-cycle CPU execution helper
+// -----------------------------------------------------------------------------
+
 template <int Cycles>
-void exec() {
+void exec()
+{
 	for (int i = 0; i < Cycles; ++i) {
 		tick();
 	}
 }
 
+
+// -----------------------------------------------------------------------------
+// CPU debugger state
+// -----------------------------------------------------------------------------
 
 struct cpu_state_t {
 	uint16_t pc;
@@ -92,6 +133,10 @@ struct cpu_state_t {
 	uint64_t executed_cycles;
 };
 
+
+// -----------------------------------------------------------------------------
+// CPU execution trace
+// -----------------------------------------------------------------------------
 
 enum cpu_trace_interrupt {
 	CPU_TRACE_INTERRUPT_NONE = 0,
@@ -111,7 +156,7 @@ struct trace_entry_t {
 	uint8_t y = 0;
 	uint8_t s = 0;
 	uint8_t p = 0;
-	
+
 	cpu_trace_interrupt interrupt = CPU_TRACE_INTERRUPT_NONE;
 };
 
@@ -120,6 +165,10 @@ enum : uint32_t {
 	CPU_TRACE_CAPACITY = 2048
 };
 
+
+// -----------------------------------------------------------------------------
+// Debugger breakpoint reasons
+// -----------------------------------------------------------------------------
 
 enum break_reason : uint8_t {
 	DEBUG_BREAK_NONE = 0,
@@ -131,74 +180,117 @@ enum break_reason : uint8_t {
 };
 
 
-uint8_t debug_s();
+// -----------------------------------------------------------------------------
+// CPU state and instruction history
+// -----------------------------------------------------------------------------
 
 cpu_state_t debug_state();
 
+uint8_t debug_s();
 bool debug_instruction_boundary();
-bool debug_instruction_was_executed(uint16_t address);
+bool debug_instruction_was_executed (uint16_t address);
 void debug_clear_instruction_trace();
+
+
+// -----------------------------------------------------------------------------
+// CPU trace interface
+// -----------------------------------------------------------------------------
 
 uint32_t debug_trace_count();
 uint32_t debug_trace_capacity();
-bool debug_trace_entry(uint32_t index, trace_entry_t & entry);
+bool debug_trace_entry (uint32_t index, trace_entry_t &entry);
 void debug_clear_trace();
 
-void debug_add_execute_breakpoint(uint16_t address);
-void debug_remove_execute_breakpoint(uint16_t address);
+
+// -----------------------------------------------------------------------------
+// Execute breakpoints
+// -----------------------------------------------------------------------------
+
+void debug_add_execute_breakpoint (uint16_t address);
+void debug_remove_execute_breakpoint (uint16_t address);
 void debug_clear_execute_breakpoints();
-bool debug_has_execute_breakpoint(uint16_t address);
+bool debug_has_execute_breakpoint (uint16_t address);
 
 bool debug_breakpoint_hit();
 uint16_t debug_breakpoint_hit_address();
 void debug_clear_breakpoint_hit();
 void debug_skip_breakpoint_once();
 void debug_resume_past_breakpoint();
-uint32_t debug_breakpoint_hit_count(uint16_t address);
+uint32_t debug_breakpoint_hit_count (uint16_t address);
 void debug_clear_breakpoint_hit_counts();
 
-void debug_add_read_watchpoint(uint16_t address);
-void debug_remove_read_watchpoint(uint16_t address);
+
+// -----------------------------------------------------------------------------
+// Memory read watchpoints
+// -----------------------------------------------------------------------------
+
+void debug_add_read_watchpoint (uint16_t address);
+void debug_remove_read_watchpoint (uint16_t address);
 void debug_clear_read_watchpoints();
-bool debug_has_read_watchpoint(uint16_t address);
+bool debug_has_read_watchpoint (uint16_t address);
 
-void debug_add_write_watchpoint(uint16_t address);
-void debug_remove_write_watchpoint(uint16_t address);
+
+// -----------------------------------------------------------------------------
+// Memory write watchpoints
+// -----------------------------------------------------------------------------
+
+void debug_add_write_watchpoint (uint16_t address);
+void debug_remove_write_watchpoint (uint16_t address);
 void debug_clear_write_watchpoints();
-bool debug_has_write_watchpoint(uint16_t address);
+bool debug_has_write_watchpoint (uint16_t address);
 
-uint32_t debug_read_watchpoint_hit_count(uint16_t address);
-uint32_t debug_write_watchpoint_hit_count(uint16_t address);
 
-void debug_clear_read_watchpoint_hit_count(uint16_t address);
-void debug_clear_write_watchpoint_hit_count(uint16_t address);
+// -----------------------------------------------------------------------------
+// Memory watchpoint hit counters
+// -----------------------------------------------------------------------------
+
+uint32_t debug_read_watchpoint_hit_count (uint16_t address);
+uint32_t debug_write_watchpoint_hit_count (uint16_t address);
+
+void debug_clear_read_watchpoint_hit_count (uint16_t address);
+void debug_clear_write_watchpoint_hit_count (uint16_t address);
 
 void debug_clear_all_read_watchpoint_hit_counts();
 void debug_clear_all_write_watchpoint_hit_counts();
 
 
-void debug_check_memory_read(uint16_t address);
-void debug_check_memory_write(uint16_t address);
+// -----------------------------------------------------------------------------
+// Memory access breakpoint checks
+// -----------------------------------------------------------------------------
+
+void debug_check_memory_read (uint16_t address);
+void debug_check_memory_write (uint16_t address);
 
 uint16_t debug_memory_break_address();
 
+
+// -----------------------------------------------------------------------------
+// Reset state inspection
+// -----------------------------------------------------------------------------
+
 bool debug_reset_in_progress();
 
-// stack stuff
+
+// -----------------------------------------------------------------------------
+// Stack breakpoints
+// -----------------------------------------------------------------------------
+
 break_reason debug_break_reason();
-void debug_set_stack_sp_break(bool enabled, uint8_t threshold);
+
+void debug_set_stack_sp_break (bool enabled, uint8_t threshold);
 bool debug_stack_sp_break_enabled();
 uint8_t debug_stack_sp_break_threshold();
-void debug_set_stack_wrap_break(bool enabled);
+
+void debug_set_stack_wrap_break (bool enabled);
 bool debug_stack_wrap_break_enabled();
+
 bool debug_stack_sp_break_armed();
 
 uint8_t debug_stack_break_old_s();
 uint8_t debug_stack_break_new_s();
 
 
-
 }
 
-#endif	// _CPU_H_
+#endif  // _CPU_H_
 
